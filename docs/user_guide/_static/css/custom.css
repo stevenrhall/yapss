@@ -1,0 +1,78 @@
+.footnote-reference.brackets {
+    vertical-align: baseline;
+    line-height: normal;
+    font-size: 100%;
+    top: 0;
+}
+
+.fn-bracket {
+    display: none;
+}
+
+.footnote-reference.brackets:before {
+    content: "[";
+}
+
+.footnote-reference.brackets:after {
+    content: "]";
+}
+
+/* Fix the notebook output cell container spacing */
+.nbinput.nblast.docutils.container {
+    margin-top: -10px; /* decrease this to reduce space above */
+    margin-bottom: 13px; /* increase this to add space below */
+}
+
+/* The default text color for ``literals`` is too light */
+code.docutils.literal.notranslate {
+    color: #1d649f;
+    white-space: normal;
+    font-weight: bold;
+    font-size: 90%;
+    background-color: inherit;
+}
+
+/* Increase spacing between bullet items a bit. */
+ul.simple li {
+    margin-bottom: 7px;
+}
+
+/* Increase spacing between numbered items a bit. */
+ol.arabic.simple li {
+    margin-bottom: 7px;
+}
+
+/* Make prompts and line numbers unselectable */
+.gp {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.linenos {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Fix width of Jupyter notebook figures */
+div.nboutput.container div.output_area img {
+    width: 400pt;
+    max-width: 100%;
+    display: block;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Fix span.go (Python console output), which is far too dim */
+span.go {
+    color: #203380 !important;
+}
+
+/* Allow long lines to wrap in tables */
+table.docutils td {
+    white-space: normal;
+    word-wrap: break-word;
+}

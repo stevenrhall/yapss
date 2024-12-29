@@ -1,0 +1,265 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yapss"
+dynamic = ["version"]
+description = "A Python package for solving optimal control problems using pseudospectral methods."
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["optimal control", "optimization", "pseudospectral methods"]
+authors = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
+maintainers = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = [
+    "casadi>=3.6.0",
+    "scipy",
+    "numpy",
+    "mpmath",
+    "matplotlib",
+    "mseipopt",
+]
+
+[project.optional-dependencies]
+doc = [
+    "sphinx",
+    "sphinxcontrib-bibtex",
+    "sphinx-copybutton",
+    "sphinx_rtd_theme",
+    "myst-parser",
+    "nbsphinx",
+    "numpydoc",
+    "jupyterlab",
+    "furo",
+]
+notebook = [
+    "jupyterlab",
+    "jupyterlab_code_formatter",
+    "jupyterlab-spellchecker",
+    "ipython",
+    "black[jupyter]>=24.0.0,<25.0.0",
+    "isort",
+]
+dev = [
+    # everything from doc
+    "sphinx",
+    "sphinxcontrib-bibtex",
+    "sphinx-copybutton",
+    "sphinx_rtd_theme",
+    "myst-parser",
+    "nbsphinx",
+    "numpydoc",
+    "jupyterlab",
+    "furo",
+    # plus everything from notebook
+    "jupyterlab_code_formatter",
+    "jupyterlab-spellchecker",
+    "black[jupyter]>=24.0.0,<25.0.0",
+    "isort",
+    # plus development tools
+    "tox",
+    "pytest",
+    "pytest-cov",
+    "pytest-xdist",
+    "ruff",
+    "mypy",
+    "lxml",
+    "nbwipers",
+    "pyyaml",
+    "hatch",
+    "pre-commit",
+]
+
+[project.urls]
+Documentation = "https://yapss.readthedocs.io/"
+Repository = "https://github.com/stevenrhall/yapss.git"
+Issues = "https://github.com/stevenrhall/yapss/issues"
+Changelog = "https://github.com/stevenrhall/yapss/blob/main/CHANGELOG.md"
+
+# ======================================== hatch =========================================
+
+[tool.hatch.version]
+source = "vcs"
+style = "pep440"
+
+[tool.hatch.version.raw-options]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "tests/", "examples/", "README.md", "CHANGELOG.md"]
+exclude = [".gitignore"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yapss"]
+
+# ========================================= mypy =========================================
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src/**/*.py"]
+follow_imports = "silent"
+plugins = "numpy.typing.mypy_plugin"
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+namespace_packages = true
+warn_redundant_casts = true
+disallow_incomplete_defs = true
+no_implicit_reexport = true
+
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "cyipopt.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "yapss._private.*"
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "casadi",
+    "scipy.*",
+    "matplotlib.*",
+    "mpmath",
+    "mpl_toolkits.*",
+]
+ignore_missing_imports = true
+
+# ========================================= ruff =========================================
+
+[tool.ruff]
+exclude = ["tests", "docs"]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN",
+    "ERA001", # commented-out code
+    "T201", # `print` found
+    "TD002", # Missing author in TODO
+    "G004", # Logging statement uses f-string"
+    "SLF001", # Private member accessed:"
+    "FIX002", # Line contains TODO, consider resolving the issue
+    "TD003", # Missing issue link on the line following this TODO
+    "C901", # Function is too complex
+    "D200", # One-line docstring should fit on one line with quotes
+    "PLR0915", # Too many statements
+    "PLR0912", # Too many branches
+    "I001", # Import block is un-sorted or un-formatted
+    "ISC001", # causes conflicts with formatter
+    "COM812", # causes conflicts with formatter
+]
+fixable = ["A", "B", "C", "D", "E", "F", "I", "COM", "PT", "UP", "TRY", "RET"]
+exclude = [
+    ".eggs",
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "venv",
+    "*.pyi",
+    "src/yapss/_version.py",
+    "**/mseipopt/**",
+]
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.isort]
+known-third-party = ["numpy", "scipy", "matplotlib", "casadi", "pytest"]
+
+# ======================================== black =========================================
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
+
+# ======================================== isort =========================================
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_third_party = ["numpy", "scipy", "matplotlib", "casadi", "pytest"]
+known_first_party = ["yapss"]
+atomic = true
+
+# ======================================== pytest ========================================
+
+[tool.pytest.ini_options]
+addopts = [
+    "--cov-report=term",
+    "--strict-markers",
+    "--cov-report=term-missing",
+    "--cov-fail-under=93"
+]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore:.*pkg_resources\\.declare_namespace.*:DeprecationWarning",
+    "ignore:pkg_resources is deprecated as an API",
+    "ignore: invalid escape sequence",
+    "ignore:invalid value encountered in divide:RuntimeWarning",
+]
+
+# ======================================= coverage =======================================
+
+[tool.coverage.run]
+parallel = true
+branch = true
+source = [
+    "src/yapss",
+    "tests"
+]
+
+[tool.coverage.paths]
+source = ["src/yapss"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise RuntimeError",
+    "if TYPE_CHECKING:",
+    "if 0:",
+    "if __name__ == .__main__.:",
+]

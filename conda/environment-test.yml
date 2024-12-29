@@ -1,0 +1,15 @@
+name: yapss-pytest
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - numpy
+  - scipy
+  - mpmath
+  - matplotlib
+  - casadi>=3.6.0
+  - cyipopt
+  - pytest
+  - pytest-cov
+  - hatchling
+  - hatch-vcs

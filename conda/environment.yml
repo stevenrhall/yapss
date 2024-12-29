@@ -1,0 +1,40 @@
+name: yapss-dev
+channels:
+  - conda-forge
+dependencies:
+  # yapss dependencies
+  - python>=3.9,<3.14
+  - numpy
+  - casadi>=3.6.0
+  - scipy
+  - mpmath
+  - matplotlib
+  - cyipopt
+  # documentation
+  - sphinx
+  - sphinxcontrib-bibtex
+  - sphinx-copybutton
+  - sphinx_rtd_theme
+  - myst-parser
+  - nbsphinx
+  - numpydoc
+  - furo
+  # notebooks
+  - jupyterlab
+  - jupyterlab_code_formatter
+  - jupyterlab-spellchecker
+  - ipython
+  - black[jupyter]>=24.0.0,<25.0.0
+  - isort
+  - nbwipers
+  # development
+  - tox
+  - pytest
+  - pytest-cov
+  - pytest-xdist
+  - ruff
+  - mypy
+  - lxml
+  - pyyaml
+  - hatch
+  - pre-commit

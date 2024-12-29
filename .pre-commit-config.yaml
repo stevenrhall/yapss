@@ -1,0 +1,36 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        args: [ "--check", "--target-version", "py311" ]
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [ "src/yapss" ]
+        exclude: "^(tests|docs|examples|utils)/"
+
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [ "--check-only" ]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - numpy
+          - types-toml
+        entry: bash -c "cd src && mypy yapss --config-file ../pyproject.toml"
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest -n auto
+        language: system
+        pass_filenames: false
