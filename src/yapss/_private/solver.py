@@ -9,8 +9,10 @@ from __future__ import annotations
 
 # standard imports
 import contextlib
+import os
 import signal
 import textwrap
+import time
 import warnings
 from os import getenv
 from pathlib import Path
@@ -211,6 +213,8 @@ def solve(problem: yapss.Problem) -> Solution:
         else:
             z, nlp_info = ipopt_problem.solve(z0)
 
+    print_rtd_note(problem)
+
     # close Ipopt problem to prevent memory leak
     ipopt_problem.close()
     del ipopt_problem
@@ -355,3 +359,32 @@ if MSEIPOPT:
         def close(self) -> None:
             """Close the Ipopt problem."""
             self.free()
+
+
+def print_rtd_note(problem: yapss.Problem) -> None:
+    """Print note for Read the Docs build.
+
+    Documentation is built on Read the Docs. Because the examples are run on RTD
+    servers, the solution times printed in the examples are not accurate. This
+    function prints a note to the console to inform users of this discrepancy.
+
+    Parameters
+    ----------
+    problem : yapss.Problem
+    """
+    on_rtd = os.environ.get("READTHEDOCS") == "True"
+    # for print_level >= 3, Ipopt prints the solution time
+    min_print_level = 3
+    print_note = on_rtd and (
+        not hasattr(problem.ipopt_options, "print_level")
+        or problem.ipopt_options.print_level >= min_print_level
+    )
+    if print_note:
+        # sleep to allow time for Ipopt to finish writing to the console
+        time.sleep(0.1)
+
+        print(
+            "\nThis solution was computed as part of the documentation build on Read the Docs,\n"
+            "and the solution time is likely not representative of the actual solution time\n"
+            "on your machine."
+        )

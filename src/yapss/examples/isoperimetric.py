@@ -128,7 +128,7 @@ def main() -> None:
     # print the solution
     area = solution.objective
     area_ideal = 1 / (4 * math.pi)
-    print(f"\n\nMaximum area = {area} (Should be 1 / (4 pi) = {area_ideal})")
+    print(f"\nMaximum area = {area} (Should be 1 / (4 pi) = {area_ideal})")
     print(f"Relative error in solution = {abs(area - area_ideal) / area_ideal}")
 
     # plot the solution
