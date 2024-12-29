@@ -28,6 +28,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.doctest",
     "sphinx.ext.todo",
+    "sphinx.ext.ifconfig",
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
     "nbsphinx",
@@ -43,6 +44,14 @@ intersphinx_mapping = {
 }
 
 copybutton_exclude = ".linenos, .gp"
+
+# inject environment variable READTHEDOCS into notebook environment
+on_rtd = os.environ.get("READTHEDOCS") == "True"
+nbsphinx_execute_arguments = [
+    "--InlineBackend.figure_formats={'svg'}",
+    "--InlineBackend.rc={'figure.dpi': 96}",
+    f"--os.environ['READTHEDOCS']={on_rtd}",
+]
 
 autosummary_generate = True
 add_module_names = False
@@ -88,7 +97,10 @@ bibtex_bibfiles = ["references.bib"]
 
 
 def setup(app):
+    # run makefiles to generate content
     app.connect("config-inited", run_makefiles)
+    # flag for conditional content if building on ReadTheDocs
+    app.add_config_value("on_rtd", on_rtd, "html")
 
 
 def run_makefiles(_app, _config):

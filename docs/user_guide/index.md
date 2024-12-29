@@ -157,6 +157,16 @@ notebooks/index.rst
 scripts/index.rst
 ```
 
+```{eval-rst}
+.. ifconfig:: on_rtd
+
+.. note::
+
+   The solutions presented in this documentation were computed as part of the
+   documentation build on Read the Docs, and the solutions times are likely not
+   representative of the actual solution times required on your machine.
+```
+
 ```{toctree}
 :caption: Project Information
 :maxdepth: 1
