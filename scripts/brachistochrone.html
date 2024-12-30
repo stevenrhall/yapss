@@ -1,0 +1,524 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Brachistochrone — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="isoperimetric.html" rel="next" title="The Isoperimetric Problem"/>
+<link href="brachistochrone_minimal.html" rel="prev" title="Brachistochrone (Minimal Implementation)"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Python Scripts</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="rosenbrock.html">Rosenbrock Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="brachistochrone_minimal.html">Brachistochrone (Minimal Implementation)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Brachistochrone</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-yapss.examples.brachistochrone">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#yapss.examples.brachistochrone.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#yapss.examples.brachistochrone.plot_solution"><code class="docutils literal notranslate"><span class="pre">plot_solution()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#yapss.examples.brachistochrone.setup"><code class="docutils literal notranslate"><span class="pre">setup()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#code">Code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#text-output">Text Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#plots">Plots</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#optimal-trajectory">Optimal Trajectory</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#state-vector">State Vector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#control">Control</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#costate-vector">Costate Vector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#hamiltonian">Hamiltonian</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="newton.html">Newton’s Minimal Resistance Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_1_phase.html">The Goddard Problem (One Phase)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_3_phase.html">The Goddard Problem (Three Phases)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamic_soaring.html">Dynamic Soaring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="minimum_time_to_climb.html">Minimum Time to Climb Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="delta_iii_ascent.html">Delta III Launch Vehicle Ascent Problem</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item"><a href="index.html">Python Scripts</a></li>
+<li class="breadcrumb-item active">Brachistochrone</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/scripts/brachistochrone.rst"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="brachistochrone">
+<h1>Brachistochrone<a class="headerlink" href="#brachistochrone" title="Link to this heading"></a></h1>
+<p>For a description of the brachistochrone problem with wall constraints as in this script,
+see the <a class="reference internal" href="../notebooks/tutorial.html"><span class="doc">JupyterLab notebook Tutorial Example</span></a>.</p>
+<p>This script provides a detailed implementation of the brachistochrone problem that includes
+user-defined derivatives. (User-defined derivatives are almost never necessary.) For a
+script that implements the brachistochrone problem without user-defined derivatives, see the
+<a class="reference internal" href="brachistochrone_minimal.html"><span class="doc">example of a minimal implementation of the brachistochrone</span></a>.</p>
+<p>This example script has user-defined methods for computing the first and second derivatives of the
+objective and continuous functions. User-defined derivatives can be faster to compute than
+derivatives computed by automatic differentiation, but not by a large factor. Because for most
+problems as much time is spent in the Ipopt solver as in derivative functions evaluation, even
+a substantial speedup in derivative evaluation may not result in a significant speedup in the
+overall solution time, and so it’s almost never worth the effort to implement user-defined
+derivatives.</p>
+<p>The python script in this example can be executed from the command line with:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python<span class="w"> </span>-m<span class="w"> </span>yapss.examples.brachistochrone
+</pre></div>
+</div>
+<section id="module-yapss.examples.brachistochrone">
+<span id="functions"></span><h2>Functions<a class="headerlink" href="#module-yapss.examples.brachistochrone" title="Link to this heading"></a></h2>
+<p>YAPSS solution to the brachistochrone optimal control problem with user-defined derivatives.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="yapss.examples.brachistochrone.main">
+<span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/yapss/examples/brachistochrone.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.examples.brachistochrone.main" title="Link to this definition"></a></dt>
+<dd><p>Demonstrate the solution to the brachistochrone optimal control problem.</p>
+</dd></dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="yapss.examples.brachistochrone.plot_solution">
+<span class="sig-name descname"><span class="pre">plot_solution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">solution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../reference/solution.html#yapss.Solution" title="yapss._private.solution.Solution"><span class="pre">Solution</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wall</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/yapss/examples/brachistochrone.html#plot_solution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.examples.brachistochrone.plot_solution" title="Link to this definition"></a></dt>
+<dd><p>Plot solution for documentation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>solution</strong><span class="classifier">Solution</span></dt><dd><p>Solution to the brachistochrone optimal control problem as produced by YAPSS.</p>
+</dd>
+<dt><strong>wall</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to include a wall that bounds the trajectory. Default is False.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="yapss.examples.brachistochrone.setup">
+<span class="sig-name descname"><span class="pre">setup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wall</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference internal" href="../reference/problem.html#yapss.Problem" title="yapss._private.problem.Problem"><span class="pre">Problem</span></a></span></span><a class="reference internal" href="../_modules/yapss/examples/brachistochrone.html#setup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.examples.brachistochrone.setup" title="Link to this definition"></a></dt>
+<dd><p>Set up the brachistochrone optimal control problem.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>wall</strong><span class="classifier">bool</span></dt><dd><p>Whether to include a wall that bounds the trajectory. Default is False.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt>Problem</dt><dd><p>The brachistochrone optimal control problem.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+</section>
+<section id="code">
+<h2>Code<a class="headerlink" href="#code" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">"""</span>
+
+<span class="sd">YAPSS solution to the brachistochrone optimal control problem with user-defined derivatives.</span>
+
+<span class="sd">"""</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"main"</span><span class="p">,</span> <span class="s2">"plot_solution"</span><span class="p">,</span> <span class="s2">"setup"</span><span class="p">]</span>
+
+<span class="c1"># third party imports</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="c1"># package imports</span>
+<span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ContinuousArg</span><span class="p">,</span>
+    <span class="n">ObjectiveArg</span><span class="p">,</span>
+    <span class="n">ObjectiveGradientArg</span><span class="p">,</span>
+    <span class="n">ObjectiveHessianArg</span><span class="p">,</span>
+    <span class="n">Problem</span><span class="p">,</span>
+    <span class="n">Solution</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">yapss.math</span> <span class="kn">import</span> <span class="n">cos</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">sin</span>
+
+
+<span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">wall</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Problem</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Set up the brachistochrone optimal control problem.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    wall : bool</span>
+<span class="sd">        Whether to include a wall that bounds the trajectory. Default is False.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Problem</span>
+<span class="sd">        The brachistochrone optimal control problem.</span>
+<span class="sd">    """</span>
+    <span class="n">nh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">wall</span> <span class="k">else</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">ocp</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Brachistochrone"</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">nq</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">nh</span><span class="o">=</span><span class="n">nh</span><span class="p">)</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">auxdata</span><span class="o">.</span><span class="n">g0</span> <span class="o">=</span> <span class="mf">32.174</span>
+
+    <span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="n">ObjectiveArg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span>
+
+    <span class="k">def</span> <span class="nf">objective_gradient</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="n">ObjectiveGradientArg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">arg</span><span class="o">.</span><span class="n">gradient</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="s2">"tf"</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">objective_hessian</span><span class="p">(</span><span class="n">_</span><span class="p">:</span> <span class="n">ObjectiveHessianArg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="n">ContinuousArg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+        <span class="p">(</span><span class="n">u</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+        <span class="n">g0</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">auxdata</span><span class="o">.</span><span class="n">g0</span>
+        <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">v</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">g0</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">wall</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">x</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">-</span> <span class="mf">0.1</span>
+            <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">path</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="n">path</span><span class="p">,)</span>
+
+    <span class="k">def</span> <span class="nf">continuous_jacobian</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="n">ContinuousArg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+        <span class="p">(</span><span class="n">u</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+        <span class="n">g0</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">auxdata</span><span class="o">.</span><span class="n">g0</span>
+
+        <span class="n">jacobian</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">jacobian</span>
+        <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">v</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="n">g0</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">wall</span><span class="p">:</span>
+            <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"h"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"h"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">continuous_hessian</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="n">ContinuousArg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+        <span class="p">(</span><span class="n">u</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+        <span class="n">g0</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">auxdata</span><span class="o">.</span><span class="n">g0</span>
+
+        <span class="n">hessian</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hessian</span>
+        <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">v</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">v</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">g0</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+
+    <span class="c1"># functions</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective_gradient</span> <span class="o">=</span> <span class="n">objective_gradient</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective_hessian</span> <span class="o">=</span> <span class="n">objective_hessian</span>
+
+    <span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="o">=</span> <span class="n">continuous</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous_jacobian</span> <span class="o">=</span> <span class="n">continuous_jacobian</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous_hessian</span> <span class="o">=</span> <span class="n">continuous_hessian</span>
+
+    <span class="c1"># bounds</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="n">ocp</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="k">if</span> <span class="n">wall</span><span class="p">:</span>
+        <span class="n">bounds</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># guess</span>
+    <span class="n">phase</span> <span class="o">=</span> <span class="n">ocp</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">phase</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">phase</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+    <span class="n">phase</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),)</span>
+
+    <span class="c1"># mesh</span>
+    <span class="n">m</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">10</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">collocation_points</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">[</span><span class="n">n</span><span class="p">]</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">fraction</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">[</span><span class="mi">1</span> <span class="o">/</span> <span class="n">m</span><span class="p">]</span>
+
+    <span class="c1"># solver options</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-20</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">spectral_method</span> <span class="o">=</span> <span class="s2">"lgl"</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"user"</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">3</span>
+
+    <span class="k">return</span> <span class="n">ocp</span>
+
+
+<span class="k">def</span> <span class="nf">plot_solution</span><span class="p">(</span><span class="n">solution</span><span class="p">:</span> <span class="n">Solution</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">wall</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Plot solution for documentation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    solution : Solution</span>
+<span class="sd">        Solution to the brachistochrone optimal control problem as produced by YAPSS.</span>
+<span class="sd">    wall : bool, optional</span>
+<span class="sd">        Whether to include a wall that bounds the trajectory. Default is False.</span>
+<span class="sd">    """</span>
+    <span class="c1"># extract information from solution</span>
+    <span class="n">time</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+    <span class="n">time_c</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time_c</span>
+    <span class="n">t0</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span>
+    <span class="n">tf</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="n">control</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+    <span class="n">costate</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">costate</span>
+    <span class="n">hamiltonian</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hamiltonian</span>
+
+    <span class="n">lw</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="c1"># bead trajectory</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">wall</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">"k"</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">lw</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">lw</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"$x(t)$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"$y(t)$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">1.05</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mf">0.7</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.05</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">"equal"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">wall</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="s2">"Wall"</span><span class="p">,</span> <span class="s2">"Trajectory"</span><span class="p">),</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+    <span class="c1"># state vector</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">lw</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"States"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="s2">"$x(t)$"</span><span class="p">,</span> <span class="s2">"$y(t)$"</span><span class="p">,</span> <span class="s2">"$v(t)$"</span><span class="p">),</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+
+    <span class="c1"># control</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time_c</span><span class="p">,</span> <span class="n">control</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">lw</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ [s]"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Control, $u(t)$ [rad]"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">1.6</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+
+    <span class="c1"># costates</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time_c</span><span class="p">,</span> <span class="n">costate</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">time_c</span><span class="p">,</span> <span class="n">costate</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">time_c</span><span class="p">,</span> <span class="n">costate</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Costates, $p_</span><span class="si">{i}</span><span class="s2">$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="s2">"costate 0"</span><span class="p">,</span> <span class="s2">"costate 1"</span><span class="p">,</span> <span class="s2">"costate 2"</span><span class="p">],</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="c1"># hamiltonian</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time_c</span><span class="p">,</span> <span class="n">hamiltonian</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">1.01</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.99</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Hamiltonian, $\mathcal</span><span class="si">{H}</span><span class="s2">$"</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Demonstrate the solution to the brachistochrone optimal control problem."""</span>
+    <span class="n">problem</span> <span class="o">=</span> <span class="n">setup</span><span class="p">(</span><span class="n">wall</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+    <span class="n">plot_solution</span><span class="p">(</span><span class="n">solution</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="text-output">
+<h2>Text Output<a class="headerlink" href="#text-output" title="Link to this heading"></a></h2>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit https://github.com/coin-or/Ipopt
+******************************************************************************
+
+Total number of variables............................:      781
+                     variables with only lower bounds:      540
+                variables with lower and upper bounds:      181
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:      600
+Total number of inequality constraints...............:      182
+        inequality constraints with only lower bounds:        1
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:      181
+
+
+Number of Iterations....: 35
+
+                                   (scaled)                 (unscaled)
+Objective...............:   3.2333116383295163e-01    3.2333116383295163e-01
+Dual infeasibility......:   2.2206006894583925e-16    2.2206006894583925e-16
+Constraint violation....:   5.3113069498067489e-13    5.3113069498067489e-13
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   9.2950155032004492e-20    9.2950155032004492e-20
+Overall NLP error.......:   5.3113069498067489e-13    5.3113069498067489e-13
+
+
+Number of objective function evaluations             = 36
+Number of objective gradient evaluations             = 36
+Number of equality constraint evaluations            = 36
+Number of inequality constraint evaluations          = 36
+Number of equality constraint Jacobian evaluations   = 36
+Number of inequality constraint Jacobian evaluations = 36
+Number of Lagrangian Hessian evaluations             = 35
+Total seconds in IPOPT (w/o function evaluations)    =      0.061
+Total seconds in NLP function evaluations            =      0.033
+
+EXIT: Solved To Acceptable Level.
+</pre></div>
+</div>
+</section>
+<section id="plots">
+<h2>Plots<a class="headerlink" href="#plots" title="Link to this heading"></a></h2>
+<section id="optimal-trajectory">
+<h3>Optimal Trajectory<a class="headerlink" href="#optimal-trajectory" title="Link to this heading"></a></h3>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/brachistochrone_plot_1.png"><img alt="../_images/brachistochrone_plot_1.png" src="../_images/brachistochrone_plot_1.png" style="width: 400pt;"/>
+</a>
+</figure>
+</section>
+<section id="state-vector">
+<h3>State Vector<a class="headerlink" href="#state-vector" title="Link to this heading"></a></h3>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/brachistochrone_plot_2.png"><img alt="../_images/brachistochrone_plot_2.png" src="../_images/brachistochrone_plot_2.png" style="width: 400pt;"/>
+</a>
+</figure>
+</section>
+<section id="control">
+<h3>Control<a class="headerlink" href="#control" title="Link to this heading"></a></h3>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/brachistochrone_plot_3.png"><img alt="../_images/brachistochrone_plot_3.png" src="../_images/brachistochrone_plot_3.png" style="width: 400pt;"/>
+</a>
+</figure>
+</section>
+<section id="costate-vector">
+<h3>Costate Vector<a class="headerlink" href="#costate-vector" title="Link to this heading"></a></h3>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/brachistochrone_plot_4.png"><img alt="../_images/brachistochrone_plot_4.png" src="../_images/brachistochrone_plot_4.png" style="width: 400pt;"/>
+</a>
+</figure>
+</section>
+<section id="hamiltonian">
+<h3>Hamiltonian<a class="headerlink" href="#hamiltonian" title="Link to this heading"></a></h3>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/brachistochrone_plot_5.png"><img alt="../_images/brachistochrone_plot_5.png" src="../_images/brachistochrone_plot_5.png" style="width: 400pt;"/>
+</a>
+</figure>
+</section>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="brachistochrone_minimal.html" rel="prev" title="Brachistochrone (Minimal Implementation)"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="isoperimetric.html" rel="next" title="The Isoperimetric Problem">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

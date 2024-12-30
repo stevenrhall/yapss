@@ -1,0 +1,380 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Problem Definition — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="callbacks.html" rel="next" title="Callback Functions"/>
+<link href="../notebooks/tutorial.html" rel="prev" title="Tutorial Example"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Problem Definition</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#general-formulation">General Formulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#problem-instantiation">Problem Instantiation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#problem-class-reference"><code class="docutils literal notranslate"><span class="pre">Problem</span></code> Class Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#yapss.Problem"><code class="docutils literal notranslate"><span class="pre">Problem</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#yapss.Problem.solve"><code class="docutils literal notranslate"><span class="pre">Problem.solve()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#yapss.Problem.validate"><code class="docutils literal notranslate"><span class="pre">Problem.validate()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item active">Problem Definition</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/reference/problem.rst"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="problem-definition">
+<h1>Problem Definition<a class="headerlink" href="#problem-definition" title="Link to this heading"></a></h1>
+<p>This section outlines the general structure of an optimal control problem and its
+implementation in YAPSS. See the following sections for details of how to define callback
+function, set variable constraint bounds, define the initial guess, select options for
+evaluating derivatives, select solver options, configure the Ipopt NLP solver source, and
+access the solution.</p>
+<section id="general-formulation">
+<h2>General Formulation<a class="headerlink" href="#general-formulation" title="Link to this heading"></a></h2>
+<p>YAPSS implements in Python a pseudospectral method for solving optimal control problems,
+similar to the MATLAB algorithm GPOPS-II <a class="footnote-reference brackets" href="#footcite-patterson-2014" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> described by Patterson
+and Rao. YAPSS generalizes the GPOPS-II algorithm by allowing Legendre-Gauss (LG) and
+Legendre-Gauss-Loabatto (LGL) collocation points in addition to the Legendre-Gauss-Radau
+(LGR) points used by GPOPS-II. In this formulation, the optimal control problem is defined
+over multiple phases, each with its own dynamics, path constraints, and integrals. In
+addition, the problem may depend on a vector of static parameters that are to be optimized
+over as well.</p>
+<p>The general multistage optimal control problem is defined as follows: There are
+<span class="math notranslate nohighlight">\(n_{p}\)</span> phases, each with a state vector <span class="math notranslate nohighlight">\(x^{(p)}\)</span> with dimension
+<span class="math notranslate nohighlight">\(n_{x}^{(p)}\)</span>, and a control vector <span class="math notranslate nohighlight">\(u^{(p)}\)</span> with dimension
+<span class="math notranslate nohighlight">\(n_{u}^{(p)}\)</span>. In addition, there is a static parameter vector <span class="math notranslate nohighlight">\(s\)</span> with
+dimension <span class="math notranslate nohighlight">\(n_{s}\)</span> that applies to all phases. The dynamics of the problem for each
+phase are then given by</p>
+<div class="math notranslate nohighlight">
+\[\dot{x}^{(p)}
+   = f^{(p)}(x^{(p)}, u^{(p)}, t, s), \quad p=0, \ldots, n_{p}-1\]</div>
+<p>over the interval <span class="math notranslate nohighlight">\(t \in [t_{0}^{(p)}, t_{f}^{(p)}]\)</span>. The trajectory of the system over
+each phase is subject to the path constraints</p>
+<div class="math notranslate nohighlight">
+\[h_{\text{min}}^{(p)} \leq h^{(p)} ( x^{(p)}, u^{(p)}, t, s ) \leq h_{\text{max}}^{(p)},
+   \quad p=0, \ldots, n_{p}-1\]</div>
+<p>where <span class="math notranslate nohighlight">\(h^{(p)}\)</span> is a vector-valued function with dimension <span class="math notranslate nohighlight">\(n_{h}^{(p)}\)</span>.
+In addition, each phase may have integrals associated with it of the form</p>
+<div class="math notranslate nohighlight">
+\[q^{(p)} = \int_{t_{0}^{(p)}}^{t_{f}^{(p)}} g^{(p)}( x^{(p)}, u^{(p)}, t, s ) \,dt,
+   \quad p=0, \ldots, n_{p}-1\]</div>
+<p>where <span class="math notranslate nohighlight">\(g^{(p)}\)</span> is a vector-valued function with dimension <span class="math notranslate nohighlight">\(n_{q}^{(p)}\)</span>. The
+integrals may appear as a term in the cost function (a <cite>Lagrangian</cite> term) or as a
+perimetric constraint.</p>
+<p>The cost to be minimized is given by a function of all the discrete variables in problem:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+   J=\phi\Big[
+      &amp; x^{(0)} (t_{0}^{(0)}),\ldots,x^{(n_{p}-1)}(t_{0}^{(n_{p}-1)}),
+         t_{0}^{(0)},\ldots,t_{0}^{(n_{p}-1)}, \\
+      &amp; x^{(0)}(t_{f}^{(0)}),\ldots,x^{(n_{p}-1)}(t_{f}^{(n_{p}-1)}),
+         t_{f}^{(0)},\ldots,t_{f}^{(n_{p}-1)},{q}^{(0)},\ldots,{q}^{(n_{p}-1)},{s}\Big]
+\end{aligned}\end{split}\]</div>
+<p>subject to additional constraints on the discrete variables,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+   d_\text{min} \le d
+      \Big[
+      &amp; x^{(0)} (t_{0}^{(0)}),\ldots,x^{(n_{p}-1)}(t_{0}^{(n_{p}-1)}),
+         t_{0}^{(0)},\ldots,t_{0}^{(n_{p}-1)}, \\
+      &amp; x^{(0)}(t_{f}^{(0)}),\ldots,x^{(n_{p}-1)}(t_{f}^{(n_{p}-1)}),
+         t_{f}^{(0)},\ldots,t_{f}^{(n_{p}-1)},{q}^{(0)},\ldots,{q}^{(n_{p}-1)},{s}
+      \Big]
+      \le d_\text{max}
+\end{aligned}\end{split}\]</div>
+<p>where the function <span class="math notranslate nohighlight">\(d\)</span> is a vector-valued with dimension <span class="math notranslate nohighlight">\(n_{d}\)</span>.</p>
+<p>In addition, upper and lower bounds may be specified on all the decision variables:</p>
+<ul class="simple">
+<li><p>The state <span class="math notranslate nohighlight">\(x^{(p)}\)</span> and the control <span class="math notranslate nohighlight">\(u^{(p)}\)</span> vectors</p></li>
+<li><p>The initial and final state vectors <span class="math notranslate nohighlight">\(x^{(p)}(t_{0}^{(p)})\)</span> and  <span class="math notranslate nohighlight">\(x^{(p)}(t_{f}^{(p)})\)</span></p></li>
+<li><p>The initial and final times <span class="math notranslate nohighlight">\(t_{0}^{(p)}\)</span> and <span class="math notranslate nohighlight">\(t_{f}^{(p)}\)</span></p></li>
+<li><p>The parameter vector <span class="math notranslate nohighlight">\(s\)</span></p></li>
+<li><p>The integrals <span class="math notranslate nohighlight">\(q^{(p)}\)</span></p></li>
+</ul>
+<p>(In this formulation, the integrals are treated as decision variables, subject to the
+constraint that they are the integrals of the integrand over the phase.)</p>
+</section>
+<section id="problem-instantiation">
+<h2>Problem Instantiation<a class="headerlink" href="#problem-instantiation" title="Link to this heading"></a></h2>
+<p>Given a formulation of the problem as described above, the problem can be implemented in
+YAPSS and solved. In this section, we describe the instantiation of a YAPSS problem object.</p>
+<p>Consider for example, the Goddard problem, a classic optimal control problem to maximize the
+altitude of a sounding rocket launched vertically from the surface of the Earth, taking into
+account the forces of gravity, drag, and thrust. (See the JupyterLab notebooks for the
+<a class="reference internal" href="../notebooks/goddard_problem_1_phase.html"><span class="doc">one phase Goddard problem</span></a> and the
+<a class="reference internal" href="../notebooks/goddard_problem_3_phase.html"><span class="doc">three phase Goddard problem</span></a> with a singular arc.)
+For the three phase problem, there are three states (altitude, velocity, and mass), one control
+(thrust), and one path constraint (the singular arc constraint). In addition, there are eight
+discrete constraints that ensure the continuity of the state variables across phases, and that
+the final time of each phase is equal to the initial time of the next phase.</p>
+<p>The problem is instantiated as an instance of the <a class="reference internal" href="#yapss.Problem" title="yapss.Problem"><code class="xref py py-class docutils literal notranslate"><span class="pre">Problem</span></code></a> class. To
+initialize, the user specifies the name of the problem; the relevant dimensions of the
+state, control, and path constraint for each phase; and the dimensions of the static
+parameters and discrete constraints. In this case, the problem is instantiated as follows:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">yapss.numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">Solution</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">name</span><span class="o">=</span><span class="s2">"Goddard Rocket Problem with Singular Arc"</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>  <span class="c1"># Number of states in each phase</span>
+<span class="gp">... </span>    <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>  <span class="c1"># Number of controls in each phase</span>
+<span class="gp">... </span>    <span class="n">nh</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># Number of path constraints in each phase</span>
+<span class="gp">... </span>    <span class="n">nd</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>          <span class="c1"># Number of discrete constraints</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that all arguments are keyword arguments, and the <code class="docutils literal notranslate"><span class="pre">name</span></code> and <code class="docutils literal notranslate"><span class="pre">nx</span></code> arguments are
+required. The number of phases is determined by the length of the <code class="docutils literal notranslate"><span class="pre">nx</span></code> argument.
+If an optional argument is not provided, the assumed value is either zero or a
+tuple of zeros, as appropriate.</p>
+<p>The string representation of the problem object provides a summary of the problem:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
+<span class="go">Problem(</span>
+<span class="go">    name='Goddard Rocket Problem with Singular Arc',</span>
+<span class="go">    nx=(3, 3, 3),</span>
+<span class="go">    nu=(1, 1, 1),</span>
+<span class="go">    nq=(0, 0, 0),</span>
+<span class="go">    nh=(0, 1, 0),</span>
+<span class="go">    nd=8,</span>
+<span class="go">    ns=0</span>
+<span class="go">)</span>
+</pre></div>
+</div>
+<p>Other sections of this reference describe the remaining steps required to so solve an optimal control
+problem using YAPSS:</p>
+<ul class="simple">
+<li><p>Defining the <a class="reference internal" href="callbacks.html"><span class="doc">callback functions</span></a> the define the objective, dynamics,
+path constraints, integrals, and discrete constraints.</p></li>
+<li><p>Setting <a class="reference internal" href="bounds.html"><span class="doc">bounds</span></a>  on decisions variables and constraints.</p></li>
+<li><p>Setting the <a class="reference internal" href="guess.html"><span class="doc">initial guess</span></a> for the decision variables.</p></li>
+<li><p>Setting options for evaluating <a class="reference internal" href="derivatives.html"><span class="doc">derivatives</span></a>.</p></li>
+<li><p>Specifying <a class="reference internal" href="user_derivatives.html"><span class="doc">user-defined derivatives</span></a>. (rarely needed)</p></li>
+<li><p>Scaling the problem for improved numerical conditioning</p></li>
+<li><p>Defining the <a class="reference external" href="mesh.rst">mesh structure</a> for the problem.</p></li>
+<li><p>Setting <a class="reference internal" href="ipopt_options.html"><span class="doc">Ipopt options</span></a>.</p></li>
+<li><p><a class="reference internal" href="configuration.html"><span class="doc">Configuring the Ipopt binary source</span></a>. (usually not needed)</p></li>
+</ul>
+</section>
+<section id="problem-class-reference">
+<h2><code class="docutils literal notranslate"><span class="pre">Problem</span></code> Class Reference<a class="headerlink" href="#problem-class-reference" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="yapss.Problem">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Problem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">nx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nh</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ns</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nd</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/yapss/_private/problem.html#Problem"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.Problem" title="Link to this definition"></a></dt>
+<dd><p>Instances of the <cite>Problem</cite> class define the optimal control problem.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>name</strong><span class="classifier">str</span></dt><dd><p>Name of the optimal control problem</p>
+</dd>
+<dt><strong>nx</strong><span class="classifier">Sequence[int]</span></dt><dd><p>Number of states in each phase</p>
+</dd>
+<dt><strong>nu</strong><span class="classifier">Optional[Sequence[int]]</span></dt><dd><p>Number of controls in each phase</p>
+</dd>
+<dt><strong>nq</strong><span class="classifier">Sequence[int], optional</span></dt><dd><p>Number of integrals in each phase</p>
+</dd>
+<dt><strong>nh</strong><span class="classifier">Sequence[int], optional</span></dt><dd><p>Number of path constraints in each phase</p>
+</dd>
+<dt><strong>ns</strong><span class="classifier">int, optional</span></dt><dd><p>Number of parameters in problem</p>
+</dd>
+<dt><strong>nd</strong><span class="classifier">int, optional</span></dt><dd><p>Number of discrete constraints in problem</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Attributes<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt><strong>name</strong><span class="classifier">str</span></dt><dd><p>The name of the problem.</p>
+</dd>
+<dt><strong>np</strong><span class="classifier">int</span></dt><dd><p>The number of phases in the problem.</p>
+</dd>
+<dt><strong>nx</strong><span class="classifier">tuple[int, …]</span></dt><dd><p>The number of state variables in each phase.</p>
+</dd>
+<dt><strong>nu</strong><span class="classifier">tuple[int, …]</span></dt><dd><p>The number of control variables in each phase.</p>
+</dd>
+<dt><strong>nq</strong><span class="classifier">tuple[int, …]</span></dt><dd><p>The number of integrals in each phase.</p>
+</dd>
+<dt><strong>nh</strong><span class="classifier">tuple[int, …]</span></dt><dd><p>The number of path constraints in each phase.</p>
+</dd>
+<dt><strong>nd</strong><span class="classifier">int</span></dt><dd><p>The number of discrete constraints in the problem.</p>
+</dd>
+<dt><strong>ns</strong><span class="classifier">int</span></dt><dd><p>The number of parameters in the problem.</p>
+</dd>
+<dt><strong>auxdata</strong><span class="classifier">Auxdata</span></dt><dd><p>The auxiliary data for the problem.</p>
+</dd>
+<dt><strong>bounds</strong><span class="classifier">Bounds</span></dt><dd><p>The bounds object structure for the problem.</p>
+</dd>
+<dt><strong>derivatives</strong><span class="classifier">Derivatives</span></dt><dd><p>The derivative options for the problem. Attributes: <cite>method</cite>, <cite>order</cite>.</p>
+</dd>
+<dt><strong>functions</strong><span class="classifier">UserFunctions</span></dt><dd><p>The user-defined functions for the problem. Attributes: <cite>objective</cite>, <cite>continuous</cite>,
+<cite>discrete</cite>, <cite>objective_gradient</cite>, <cite>objective_hessian</cite>, <cite>continuous_jacobian</cite>,
+<cite>continuous_hessian</cite>, <cite>discrete_jacobian</cite>, <cite>discrete_hessian</cite>.</p>
+</dd>
+<dt><strong>guess</strong><span class="classifier">Guess</span></dt><dd><p>The initial guess for the problem. <strong>Attributes</strong>: <cite>parameter</cite>, <cite>phase[p].time</cite>,
+<cite>phase[p].state</cite>, <cite>phase[p].control</cite>, <cite>phase[p].integral</cite>.</p>
+</dd>
+<dt><strong>ipopt_options</strong><span class="classifier">IpoptOptions</span></dt><dd><p>The user-selected Ipopt options for the problem. To select a particular Ipopt
+option, use the <cite>ipopt_options</cite> attribute of the <cite>Problem</cite> class. For example,
+for a Problem instance <cite>problem</cite>, set the <cite>tol</cite> option to 1e-6 by setting
+<code class="docutils literal notranslate"><span class="pre">problem.ipopt_options.tol</span> <span class="pre">=</span> <span class="pre">1e-6</span></code>.</p>
+</dd>
+<dt><strong>scale</strong><span class="classifier">Scale</span></dt><dd><p>The scaling data structure for the problem.</p>
+</dd>
+<dt><strong>mesh</strong><span class="classifier">Mesh</span></dt><dd><p>The mesh data structure for the problem.</p>
+</dd>
+<dt><strong>spectral_method</strong><span class="classifier">{“lg”, “lgr”, “lgl”}</span></dt><dd><p>The type of interpolation used for the problem.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="yapss.Problem.solve">
+<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference internal" href="solution.html#yapss.Solution" title="yapss.Solution"><span class="pre">Solution</span></a></span></span><a class="reference internal" href="../_modules/yapss/_private/problem.html#Problem.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.Problem.solve" title="Link to this definition"></a></dt>
+<dd><p>Solve the optimal control problem.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>solution</strong><span class="classifier">Solution</span></dt><dd><p>The solution to the optimal control problem.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="yapss.Problem.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/yapss/_private/problem.html#Problem.validate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.Problem.validate" title="Link to this definition"></a></dt>
+<dd><p>Validate the optimal control problem input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt>ValueError</dt><dd><p>If the problem is invalid.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+</dd></dl>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading"></a></h2>
+<div class="docutils container" id="id2">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="footcite-patterson-2014" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id1" role="doc-backlink">1</a><span class="fn-bracket">]</span></span>
+<p>Michael A. Patterson and Anil V. Rao. GPOPS-II: A MATLAB software for solving multiple-phase optimal control problems using hp-adaptive Gaussian quadrature collocation methods and sparse nonlinear programming. <em>ACM Trans. Math. Softw.</em>, oct 2014. <a class="reference external" href="https://doi.org/10.1145/2558904">doi:10.1145/2558904</a>.</p>
+</aside>
+</aside>
+</div>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="../notebooks/tutorial.html" rel="prev" title="Tutorial Example"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="callbacks.html" rel="next" title="Callback Functions">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

@@ -1,0 +1,630 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Newton’s Minimal Resistance Problem — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/nbsphinx-code-cells.css?v=2aa19091" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="goddard_problem_1_phase.html" rel="next" title="The Goddard Problem (One Phase)"/>
+<link href="isoperimetric.html" rel="prev" title="The Isoperimetric Problem"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">JupyterLab Notebooks</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="rosenbrock.html">Rosenbrock Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="brachistochrone.html">Brachistochrone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Newton’s Minimal Resistance Problem</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Problem-Description">Problem Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#YAPSS-Solution">YAPSS Solution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_1_phase.html">The Goddard Problem (One Phase)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_3_phase.html">The Goddard Problem (Three Phases)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamic_soaring.html">Dynamic Soaring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="minimum_time_to_climb.html">Minimum Time to Climb Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="delta_iii_ascent.html">Delta III Launch Vehicle Ascent Problem</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item"><a href="index.html">JupyterLab Notebooks</a></li>
+<li class="breadcrumb-item active">Newton’s Minimal Resistance Problem</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/newton.ipynb"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="Newton's-Minimal-Resistance-Problem">
+<h1>Newton’s Minimal Resistance Problem<a class="headerlink" href="#Newton's-Minimal-Resistance-Problem" title="Link to this heading"></a></h1>
+<p>For a solution to the Newton’s minimal resistance problem using a Python script instead of a notebook, see the <a class="reference internal" href="../scripts/newton.html"><span class="doc">Python script documentation</span></a>.</p>
+<section id="Problem-Description">
+<h2>Problem Description<a class="headerlink" href="#Problem-Description" title="Link to this heading"></a></h2>
+<p>Newton’s <em>Minimal Resistance Problem</em> is the first known calculus of variations problem, published in Isaac Newton’s <em>Principia Mathematica</em> in 1687 <a class="footnote-reference brackets" href="#footcite-newton-1687" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>. The problem is to find the convex solid of revolution (a nose cone) that has the lowest resistance (drag) when it moves through a rarefied gas along the axis of symmetry. In Newton’s model, gas particles do not interact with each other, and bounce off the nose cone elastically with no loss. The nose cone is assumed to be
+convex (and axisymmetric) so that there are no additional collisions after the first. For a modern treatment of Newton’s problem, including the assumption of convexity and axisymmetry, see the paper by Buttazzo and Kawohl <a class="footnote-reference brackets" href="#footcite-buttazzo-2001" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>. The convexity assumption is stronger than required to assure that each particle experiences only a single collision, but relaxing the convexity and axisymmetry assumptions while ensuring that each particle experiences only a single collision is quite
+complicated. See for example the paper by Compte and Lachand-Robert <a class="footnote-reference brackets" href="#footcite-comte-2001" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a>. For this example, we’ll keep Newton’s simpler assumptions.</p>
+<p>Consider first the drag on a right circular cylinder with radius <span class="math notranslate nohighlight">\(R\)</span>. A gas particle with velocity <span class="math notranslate nohighlight">\(v\)</span> relative to the body will bounce elastically off the circular end with velocity <span class="math notranslate nohighlight">\(v\)</span> in the opposite direction. For a particle with mass <span class="math notranslate nohighlight">\(m\)</span>, the net impulse on the cylinder will then be the net change in momentum of the particle, <span class="math notranslate nohighlight">\(2mv\)</span>. For the rarefied gas, the drag is similarly twice the momentum flux striking the end of the cylinder,
+<span class="math notranslate nohighlight">\(D=2 \rho v^2 \pi R^2\)</span>. The drag coefficient is then</p>
+<div class="math notranslate nohighlight">
+\[C_D = \frac{D}{\frac{1}{2} \rho v^2 \pi R^2} = 4\]</div>
+<p>For a more general convex, axisymmetric nose cone, we define <span class="math notranslate nohighlight">\(\theta\)</span> at each point on the surface of the cone as the angle between the axis of symmetry of the nose cone and the normal to the surface. Then each particle that strikes the surface rebounds at angle angle <span class="math notranslate nohighlight">\(2 \theta\)</span> away from the axis of symmetry. As a result, the local drag coefficient is</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+    c_{d} = \frac{\Delta D}{\frac{1}{2}\rho v^{2}\Delta A}
+          =  2 \left(1+\cos 2\theta\right) = 4 (\cos\theta)^2
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\Delta D\)</span> is the drag due to forces on a small patch of the surface, and <span class="math notranslate nohighlight">\(\Delta A\)</span> is the area of the small patch of the surface projected onto a plane normal to the axis of symmetry.</p>
+<p>For a nose cone of radius <span class="math notranslate nohighlight">\(R\)</span>, the total drag coefficient is then</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+    C_{D} = \frac{D}{\frac{1}{2}\rho v^{2}A} =\frac{1}{\pi R^2} \int_0^R
+             4 (\cos\theta(r))^2\:2\pi r\:dr
+\end{equation}\]</div>
+<p>Take the height of the nose cone at each radial station to be <span class="math notranslate nohighlight">\(y(r)\)</span>. Using a little trigonometry, we can express <span class="math notranslate nohighlight">\((\cos\theta(r))^2\)</span> as</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+    (\cos\theta(r))^2 = \frac{1}{1+(y^\prime(r))^2}
+\end{equation}\]</div>
+<p>where</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+    y^\prime(r) = \frac{dy(r)}{dr}
+\end{equation}\]</div>
+<p>Therefore, the cost objective to be minimized is</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+    J = \frac{D}{\frac{1}{2}\rho v^{2}A} =\frac{8}{R^2} \int_0^R
+              \frac{1}{1+(y^\prime(r))^2} \:r\:dr
+\end{equation}\]</div>
+<p>Note that for a blunt nose cone (cylinder) <span class="math notranslate nohighlight">\(J=4\)</span>.</p>
+<p>(Most treatments of Newton’s minimal resistance problem normalize the drag by the drag of a right circular cylinder rather than using the more modern drag coefficient, and hence our objective is a factor of 4 larger.)</p>
+<p>There are constraints on the shape of the nose cone. First, in the limit of very long, slender bodies, the drag is zero, and so we must limit the height of the nose cone by, say,</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+    y(r) \le y_{\text{max}}
+\end{equation}\]</div>
+<p>Second, the convexity of the nose cone requires that</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align}
+    y^{\prime}(r)       &amp; \le 0 \\
+    y^{\prime\prime}(r) &amp; \le 0
+\end{align}\end{split}\]</div>
+<p>Then the state for the problem is <span class="math notranslate nohighlight">\(\boldsymbol{x} = [y(r),y^{\prime}(r)]\)</span>s, and the control is <span class="math notranslate nohighlight">\(u(r)=y^{\prime\prime}\)</span>. Then dynamics then are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align}
+    x_{0}^{\prime}(r) &amp;= x_{1}(r) \\
+    x_{1}^{\prime}(r) &amp;= u_{0}(r)
+\end{align}\end{split}\]</div>
+<p>Therefore, the constraints become</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align}
+    x_{0}(r) &amp; \le y_{\text{max}} \\
+    x_{1}(r) &amp; \le 0 \\
+    u_{0}(r) &amp; \le 0
+\end{align}\end{split}\]</div>
+<p>Finally, note that the independent variable is not time, but rather the radius <span class="math notranslate nohighlight">\(r\)</span>.</p>
+</section>
+<section id="YAPSS-Solution">
+<h2>YAPSS Solution<a class="headerlink" href="#YAPSS-Solution" title="Link to this heading"></a></h2>
+<p>First, we import the required Python packages:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># third party imports</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># package imports</span>
+<span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">Solution</span>
+</pre></div>
+</div>
+</div>
+<p>Instantiate the optimal control problem with two states, one control input, and one integral:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># instantiate the problem</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"Newton's minimal resistance problem"</span><span class="p">,</span>
+    <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+    <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+    <span class="n">nq</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Define the objective and continuous callback functions:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># callback functions</span>
+
+
+<span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Objective function for Newton's minimal resistance problem."""</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">integral</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Newton's minimal resistance problem dynamics and cost integrand."""</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">yp</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="p">(</span><span class="n">u</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">yp</span><span class="p">,</span> <span class="n">u</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">integrand</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="n">r</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">yp</span><span class="o">**</span><span class="mi">2</span><span class="p">),)</span>
+
+
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="o">=</span> <span class="n">continuous</span>
+</pre></div>
+</div>
+</div>
+<p>Define a function to set up the problem. For most of the JupyterLab notebook examples, we don’t use a setup function. But we do it here because some of the settings (bounds, initial guess) depend on a parameter that we want to vary.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="n">y_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Problem</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Set up Newton's minimal resistance problem as an optimal control problem."""</span>
+    <span class="n">ocp</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"Newton's minimal resistance problem"</span><span class="p">,</span>
+        <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+        <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="n">nq</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+    <span class="p">)</span>
+
+    <span class="c1"># functions</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="o">=</span> <span class="n">continuous</span>
+
+    <span class="c1"># bounds</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="n">ocp</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">y_max</span><span class="p">,</span> <span class="mi">0</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,)</span>
+
+    <span class="c1"># guess</span>
+    <span class="n">phase</span> <span class="o">=</span> <span class="n">ocp</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">phase</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]</span>
+    <span class="n">phase</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="p">[[</span><span class="n">y_max</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="n">y_max</span><span class="p">,</span> <span class="o">-</span><span class="n">y_max</span><span class="p">]]</span>
+    <span class="n">phase</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]]</span>
+
+    <span class="c1"># solver settings</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="s2">"second"</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"auto"</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">spectral_method</span> <span class="o">=</span> <span class="s2">"lgl"</span>
+
+    <span class="c1"># ipopt settings</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">sb</span> <span class="o">=</span> <span class="s2">"yes"</span>
+
+    <span class="k">return</span> <span class="n">ocp</span>
+</pre></div>
+</div>
+</div>
+<p>Now set up the problem for a particular maximum value of <span class="math notranslate nohighlight">\(y\)</span> and solve:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># nosecone height of 1.0</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">setup</span><span class="p">(</span><span class="n">y_max</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Total number of variables............................:      294
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:       91
+                     variables with only upper bounds:      182
+Total number of equality constraints.................:      201
+Total number of inequality constraints...............:        1
+        inequality constraints with only lower bounds:        1
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+
+Number of Iterations....: 59
+
+                                   (scaled)                 (unscaled)
+Objective...............:   1.5033522844308491e+00    1.5033522844308491e+00
+Dual infeasibility......:   3.0936845582212611e-09    3.0936845582212611e-09
+Constraint violation....:   2.2645185726588579e-09    2.2645185726588579e-09
+Variable bound violation:   9.0877364369465022e-09    9.0877364369465022e-09
+Complementarity.........:   5.2160979108972393e-09    5.2160979108972393e-09
+Overall NLP error.......:   5.2160979108972393e-09    5.2160979108972393e-09
+
+
+Number of objective function evaluations             = 60
+Number of objective gradient evaluations             = 60
+Number of equality constraint evaluations            = 60
+Number of inequality constraint evaluations          = 60
+Number of equality constraint Jacobian evaluations   = 60
+Number of inequality constraint Jacobian evaluations = 60
+Number of Lagrangian Hessian evaluations             = 59
+Total seconds in IPOPT (w/o function evaluations)    =      0.031
+Total seconds in NLP function evaluations            =      0.059
+
+EXIT: Optimal Solution Found.
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Minimum drag solution has CD = </span><span class="si">{</span><span class="n">solution</span><span class="o">.</span><span class="n">objective</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Minimum drag solution has CD = 1.50335
+</pre></div></div>
+</div>
+<p>We’re going to plot multiple solutions, so define a plot function, and go ahead and plot:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">plot_solution</span><span class="p">(</span><span class="n">solution</span><span class="p">:</span> <span class="n">Solution</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Plot solution."""</span>
+    <span class="c1"># plot style information</span>
+    <span class="n">linewidth</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s2">"font"</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">14</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s2">"font"</span><span class="p">,</span> <span class="n">family</span><span class="o">=</span><span class="s2">"sans-serif"</span><span class="p">)</span>
+
+    <span class="c1"># extract information from solution</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+    <span class="n">y</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="o">-</span><span class="n">r</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">r</span><span class="p">))</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">y</span><span class="p">))</span>
+
+    <span class="c1"># plot</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">"equal"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">2.1</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Radius, $r/R$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Height, $y/R$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">h</span>
+
+
+<span class="c1"># plot solution for nosecone height = 1.0</span>
+<span class="n">plot_solution</span><span class="p">(</span><span class="n">solution</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">get_figure</span><span class="p">()</span><span class="o">.</span><span class="n">set_figheight</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_newton_12_0.png" src="../_images/notebooks_newton_12_0.png"/>
+</div>
+</div>
+<p>If we zoom in on one of the corners of the solution, we see that what we expect would be a sharp corner is in fact quite rounded:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># zoom in on solution to see detail at corner</span>
+<span class="n">h</span> <span class="o">=</span> <span class="n">plot_solution</span><span class="p">(</span><span class="n">solution</span><span class="p">)</span>
+<span class="n">h</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_linewidth</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">h</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_marker</span><span class="p">(</span><span class="s2">"o"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mf">0.975</span><span class="p">,</span> <span class="mf">1.025</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mf">0.28</span><span class="p">,</span> <span class="mf">0.36</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">get_figure</span><span class="p">()</span><span class="o">.</span><span class="n">set_figheight</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_newton_14_0.png" src="../_images/notebooks_newton_14_0.png"/>
+</div>
+</div>
+<p>The reason for this is that the polynomials that represent the height <span class="math notranslate nohighlight">\(y(r)\)</span> can’t represent a sharp corner well. To fix this, we’ll assume that the height is constant below some radius <span class="math notranslate nohighlight">\(r_0\)</span>, so that</p>
+<div class="math notranslate nohighlight">
+\[y(r) = y_\text{max},\quad |r| \le r_0\]</div>
+<p>The radius <span class="math notranslate nohighlight">\(r_0\)</span> becomes our new initial time (instead of 0). To get the right drag, we have to add a new term to the objective which accounts for the integral for <span class="math notranslate nohighlight">\(0 \le r \le r_0\)</span>, which is</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+    4 \int_0^{r_0} r\:dr = 2 r_0^2
+\end{equation}\]</div>
+<p>when <span class="math notranslate nohighlight">\(R=1\)</span> as in our formulation. We must also allow the “initial time” to range over <span class="math notranslate nohighlight">\(0\le r_0 \le 1\)</span>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># modify objective for new problem formulation</span>
+
+
+<span class="k">def</span> <span class="nf">objective2</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Improved objective function for Newton's minimal resistance problem."""</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">integral</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span> <span class="o">**</span> <span class="mi">2</span>
+
+
+<span class="k">def</span> <span class="nf">setup2</span><span class="p">(</span><span class="n">y_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Problem</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Modify original setup to account for the new objective and boundary conditions."""</span>
+    <span class="n">ocp</span> <span class="o">=</span> <span class="n">setup</span><span class="p">(</span><span class="n">y_max</span><span class="p">)</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective2</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">return</span> <span class="n">ocp</span>
+</pre></div>
+</div>
+</div>
+<p>If we now look at the solution, we have a much better result.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># solve new problem formulation with nosecone height = 1.0</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">setup2</span><span class="p">(</span><span class="n">y_max</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Total number of variables............................:      295
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:       92
+                     variables with only upper bounds:      182
+Total number of equality constraints.................:      201
+Total number of inequality constraints...............:        1
+        inequality constraints with only lower bounds:        1
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+
+Number of Iterations....: 14
+
+                                   (scaled)                 (unscaled)
+Objective...............:   1.4992639210690411e+00    1.4992639210690411e+00
+Dual infeasibility......:   6.5203275837075967e-09    6.5203275837075967e-09
+Constraint violation....:   4.2988058668314011e-09    4.2988058668314011e-09
+Variable bound violation:   9.9813749993299165e-09    9.9813749993299165e-09
+Complementarity.........:   1.1308533134621762e-09    1.1308533134621762e-09
+Overall NLP error.......:   6.5203275837075967e-09    6.5203275837075967e-09
+
+
+Number of objective function evaluations             = 16
+Number of objective gradient evaluations             = 15
+Number of equality constraint evaluations            = 16
+Number of inequality constraint evaluations          = 16
+Number of equality constraint Jacobian evaluations   = 15
+Number of inequality constraint Jacobian evaluations = 15
+Number of Lagrangian Hessian evaluations             = 14
+Total seconds in IPOPT (w/o function evaluations)    =      0.008
+Total seconds in NLP function evaluations            =      0.016
+
+EXIT: Optimal Solution Found.
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># plot solution with new problem formulation</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plot_solution</span><span class="p">(</span><span class="n">solution</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">get_figure</span><span class="p">()</span><span class="o">.</span><span class="n">set_figheight</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">h</span> <span class="o">=</span> <span class="n">plot_solution</span><span class="p">(</span><span class="n">solution</span><span class="p">)</span>
+<span class="n">h</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_linewidth</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">h</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_marker</span><span class="p">(</span><span class="s2">"o"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mf">0.99</span><span class="p">,</span> <span class="mf">1.001</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mf">0.33</span><span class="p">,</span> <span class="mf">0.37</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">get_figure</span><span class="p">()</span><span class="o">.</span><span class="n">set_figheight</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_newton_19_0.png" src="../_images/notebooks_newton_19_0.png"/>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_newton_19_1.png" src="../_images/notebooks_newton_19_1.png"/>
+</div>
+</div>
+<p>Optimal nose cones for three different aspect ratios, <span class="math notranslate nohighlight">\(y_{\text{max}}/R=0.5\)</span>, <span class="math notranslate nohighlight">\(y_{\text{max}}/R=1.0\)</span>, and <span class="math notranslate nohighlight">\(y_{\text{max}}/R=2.0\)</span>, using improved objective function.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># plot solution for various nosecone heights</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mf">6.4</span><span class="p">,</span> <span class="mf">6.4</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">y_max</span> <span class="ow">in</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">):</span>
+    <span class="n">problem</span> <span class="o">=</span> <span class="n">setup2</span><span class="p">(</span><span class="n">y_max</span><span class="o">=</span><span class="n">y_max</span><span class="p">)</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+    <span class="n">plot_solution</span><span class="p">(</span><span class="n">solution</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">y_max</span><span class="w"> </span><span class="si">= }</span><span class="s2">, Coefficient of drag = </span><span class="si">{</span><span class="n">solution</span><span class="o">.</span><span class="n">objective</span><span class="si">:</span><span class="s2">0.10f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+y_max = 0.5, Coefficient of drag = 2.4300290384
+y_max = 1.0, Coefficient of drag = 1.4992639211
+y_max = 2.0, Coefficient of drag = 0.6417019938
+
+
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_newton_21_1.png" src="../_images/notebooks_newton_21_1.png"/>
+</div>
+</div>
+<p>It’s straightforward to show that the optimal drag coefficient depends on the nondimensional ratio <span class="math notranslate nohighlight">\(y_{\text{max}}/R\)</span>, so without loss of generality the cases run here are for <span class="math notranslate nohighlight">\(R=1\)</span>. Data for three cases, <span class="math notranslate nohighlight">\(y_{\text{max}}/R=0.5\)</span>, 1.0, and 2.0, are shown below. In the table we also show the limiting cases <span class="math notranslate nohighlight">\(y_{\text{max}}/R=0\)</span> and <span class="math notranslate nohighlight">\(y_{\text{max}}/R=\infty\)</span>.</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{array}{|c|c|}
+    \hline
+    y_{\text{max}}/R &amp; \text{Drag Coefficient, } C_D\\
+    \hline
+    0.0    &amp; 4\hphantom{.00000\dots} \\
+    0.5    &amp; 2.43002\dots \\
+    1.0    &amp; 1.49926\dots \\
+    2.0    &amp; 0.64170\dots \\
+    \infty &amp; 0\hphantom{.00000\dots} \\
+    \hline
+\end{array}\end{split}\]</div>
+<div class="docutils container" id="id4">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="footcite-newton-1687" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id1" role="doc-backlink">1</a><span class="fn-bracket">]</span></span>
+<p>Isaac Newton. <em>Philosophiæ Naturalis Principia Mathematica (Mathematical Principles of Natural Philosophy)</em>. Jussu Societatis Regiae ac Typis Josephi Streater. Prostat apud plures bibliopolas, 1687. <a class="reference external" href="https://doi.org/10.5479/sil.52126.39088015628399">doi:10.5479/sil.52126.39088015628399</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-buttazzo-2001" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id2" role="doc-backlink">2</a><span class="fn-bracket">]</span></span>
+<p>Giuseppe Buttazzo and Bernhard Kawohl. <em>On Newton’s Problem of Minimal Resistance</em>, pages 250–258. Springer New York, New York, NY, 2001. URL: <a class="reference external" href="https://doi.org/10.1007/978-1-4613-0195-0_23">https://doi.org/10.1007/978-1-4613-0195-0_23</a>, <a class="reference external" href="https://doi.org/10.1007/978-1-4613-0195-0_23">doi:10.1007/978-1-4613-0195-0_23</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-comte-2001" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id3" role="doc-backlink">3</a><span class="fn-bracket">]</span></span>
+<p>M. Comte and T. Lachand-Robert. Newton’s problem of the body of minimal resistance under a single-impact assumption. <em>Calculus of Variations and Partial Differential Equations</em>, 12(2):173–211, 2001. URL: <a class="reference external" href="https://doi.org/10.1007/PL00009911">https://doi.org/10.1007/PL00009911</a>, <a class="reference external" href="https://doi.org/10.1007/PL00009911">doi:10.1007/PL00009911</a>.</p>
+</aside>
+</aside>
+</div>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="isoperimetric.html" rel="prev" title="The Isoperimetric Problem"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="goddard_problem_1_phase.html" rel="next" title="The Goddard Problem (One Phase)">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

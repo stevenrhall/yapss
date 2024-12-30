@@ -1,0 +1,274 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>User-Defined Derivatives — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="scaling.html" rel="next" title="Scaling"/>
+<link href="derivatives.html" rel="prev" title="Derivatives"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="derivatives.html">Derivatives</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">User-Defined Derivatives</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-continuous-jacobian-and-hessian">The Continuous Jacobian and Hessian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-objective-gradient-and-hessian">The Objective Gradient and Hessian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-discrete-jacobian-and-hessian">The Discrete Jacobian and Hessian</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item active">User-Defined Derivatives</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/reference/user_derivatives.rst"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="user-defined-derivatives">
+<h1>User-Defined Derivatives<a class="headerlink" href="#user-defined-derivatives" title="Link to this heading"></a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>User-defined derivatives are rarely necessary. While they can be as accurate as
+automatic differentiation and may offer modest speed improvements, calculating them
+correctly requires significant effort. Most users can safely skip this section.</p>
+</div>
+<p>For most problems, the best choice for calculating derivatives is either automatic
+differentiation or central difference numerical differentiation. However, there may be
+cases where the user wants or needs to supply their own derivatives. For example, one
+could have a problem for which almost all the derivatives are known analytically, but a
+few must be calculated numerically. This section explains how to provide user-defined
+derivatives.</p>
+<p>The following example illustrates how to set up a problem with user-defined derivatives.
+We use the classic brachistochrone problem, where the objective is to minimize the time
+for a particle to slide down a curve between two points. This example shows how to specify
+derivatives for objectives and constraints manually. (See the Jupyter Lab notebook for
+additional problem details.) As usual, we start by defining the problem:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span>
+<span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">numpy</span> <span class="k">as</span> <span class="n">np</span>
+<span class="kn">from</span> <span class="nn">yapss.numpy</span> <span class="kn">import</span> <span class="n">cos</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">sin</span>
+
+<span class="n">ocp</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Brachistochrone"</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">nq</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">ocp</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"user"</span>
+<span class="n">ocp</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="s2">"second"</span>
+
+<span class="n">g0</span> <span class="o">=</span> <span class="mf">32.174</span>
+
+<span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span>
+
+<span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="p">(</span><span class="n">u</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">v</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">g0</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Because we’ve specified that we’re using user-defined, second-order derivatives, we need to
+define the gradient and Hessian functions for the objective, and the Jacobian and Hessian
+functions for the continuous functions.</p>
+<section id="the-continuous-jacobian-and-hessian">
+<h2>The Continuous Jacobian and Hessian<a class="headerlink" href="#the-continuous-jacobian-and-hessian" title="Link to this heading"></a></h2>
+<p>We’ll start with the continuous function, which generically computes the dynamics function,
+the integrand array, and the path constraint functions. For our example, the continuous
+Jacobian function is defined as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">continuous_jacobian</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="p">(</span><span class="n">u</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+
+    <span class="n">jacobian</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">jacobian</span>
+    <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">v</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">jacobian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="n">g0</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+
+<span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous_jacobian</span> <span class="o">=</span> <span class="n">continuous_jacobian</span>
+</pre></div>
+</div>
+<p>For each phase <code class="docutils literal notranslate"><span class="pre">p</span></code>, the <cite>jacobian</cite> dictionary (<code class="docutils literal notranslate"><span class="pre">arg.phase[p].jacobian</span></code>) contains entries
+representing partial derivatives. The keys follow the pattern:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">("f",</span> <span class="pre">i)</span></code>: Element <code class="docutils literal notranslate"><span class="pre">i</span></code> of the dynamics function.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">("g",</span> <span class="pre">i)</span></code>: Element <code class="docutils literal notranslate"><span class="pre">i</span></code> of the integrand.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">("h",</span> <span class="pre">i)</span></code>: Element <code class="docutils literal notranslate"><span class="pre">i</span></code> of the path constraint.</p></li>
+</ul>
+<p>Each entry is a partial derivative with respect to a decision variable. The decision variables are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">("x",</span> <span class="pre">i)</span></code>: State vector element <code class="docutils literal notranslate"><span class="pre">i</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">("u",</span> <span class="pre">i)</span></code>: Control vector element <code class="docutils literal notranslate"><span class="pre">i</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">("s",</span> <span class="pre">i)</span></code>: Parameter vector element <code class="docutils literal notranslate"><span class="pre">i</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">("t",</span> <span class="pre">0)</span></code>: Time variable.</p></li>
+</ul>
+<p>The Hessian of the continuous functions is defined similarly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">continuous_hessian</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="p">(</span><span class="n">u</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+
+    <span class="n">hessian</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hessian</span>
+    <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">v</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">v</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">hessian</span><span class="p">[(</span><span class="s2">"f"</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">g0</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+
+<span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous_hessian</span> <span class="o">=</span> <span class="n">continuous_hessian</span>
+</pre></div>
+</div>
+<p>The main difference with the Hessian is that each entry represents a second partial derivative,
+so two keys corresponding to decision variables are required for each partial derivative. Note that
+for mixed partial derivatives, the order of the keys is unimportant. For example, if you set
+<code class="docutils literal notranslate"><span class="pre">hessian[("f",</span> <span class="pre">0),</span> <span class="pre">("x",</span> <span class="pre">2),</span> <span class="pre">("u",</span> <span class="pre">0)]</span></code>, <code class="docutils literal notranslate"><span class="pre">hessian[("f",</span> <span class="pre">0),</span> <span class="pre">("u",</span> <span class="pre">0),</span> <span class="pre">("x",</span> <span class="pre">2)]</span></code> should not be set.</p>
+</section>
+<section id="the-objective-gradient-and-hessian">
+<h2>The Objective Gradient and Hessian<a class="headerlink" href="#the-objective-gradient-and-hessian" title="Link to this heading"></a></h2>
+<p>We’ll start with the derivative functions for the objective. The gradient function
+is defined as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">objective_gradient</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">gradient</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="s2">"tf"</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective_gradient</span> <span class="o">=</span> <span class="n">objective_gradient</span>
+</pre></div>
+</div>
+<p>The gradient values are stored in the dictionary <cite>arg.gradient</cite>. In this example, the key is
+<code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">"tf",</span> <span class="pre">0)</span></code>, which means the gradient is with respect to the final time of phase 0.
+The gradient keys are of the form</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(p,</span> <span class="pre">"x0",</span> <span class="pre">i)</span></code>: Element <code class="docutils literal notranslate"><span class="pre">i</span></code> of the initial state vector in phase <code class="docutils literal notranslate"><span class="pre">p</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(p,</span> <span class="pre">"xf",</span> <span class="pre">i)</span></code>: Element <code class="docutils literal notranslate"><span class="pre">i</span></code> of the final state vector in phase <code class="docutils literal notranslate"><span class="pre">p</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(p,</span> <span class="pre">"t0",</span> <span class="pre">0)</span></code>: The initial time of phase <code class="docutils literal notranslate"><span class="pre">p</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(p,</span> <span class="pre">"tf",</span> <span class="pre">0)</span></code>: The final time of phase <code class="docutils literal notranslate"><span class="pre">p</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">"s",</span> <span class="pre">i)</span></code>: Element <code class="docutils literal notranslate"><span class="pre">i</span></code> of the parameter vector.</p></li>
+</ul>
+<p>Because the gradient is constant with respect to the decision variables, the Hessian function
+is zero, so the Hessian function is simply</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">objective_hessian</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="k">return</span>
+
+<span class="n">ocp</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective_hessian</span> <span class="o">=</span> <span class="n">objective_hessian</span>
+</pre></div>
+</div>
+<p>Had the Hessian been nonzero, each key would have been a tuple of two decision variable keys, so for
+example a key of the dictionary <code class="docutils literal notranslate"><span class="pre">arg.hessian</span></code> in a multiphase problem might be something like
+<code class="docutils literal notranslate"><span class="pre">((3,</span> <span class="pre">"xf",</span> <span class="pre">1),</span> <span class="pre">(0,</span> <span class="pre">"s",</span> <span class="pre">2))</span></code>. More generally, the keys are of the form</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">(p,</span> <span class="pre">var1,</span> <span class="pre">i1),</span> <span class="pre">(p,</span> <span class="pre">var2,</span> <span class="pre">i2)</span></code></p>
+</div></blockquote>
+<p>where <code class="docutils literal notranslate"><span class="pre">p</span></code> is the index of the phase (or 0 for an element of the parameter vector), <code class="docutils literal notranslate"><span class="pre">var1</span></code> and
+<code class="docutils literal notranslate"><span class="pre">var2</span></code> are one of the variables <code class="docutils literal notranslate"><span class="pre">x0</span></code>, <code class="docutils literal notranslate"><span class="pre">xf</span></code>, <code class="docutils literal notranslate"><span class="pre">t0</span></code>, <code class="docutils literal notranslate"><span class="pre">tf</span></code>, or <code class="docutils literal notranslate"><span class="pre">s</span></code>, and <code class="docutils literal notranslate"><span class="pre">i1</span></code> and <code class="docutils literal notranslate"><span class="pre">i2</span></code>
+are the index of the variable (or 0 for <code class="docutils literal notranslate"><span class="pre">t0</span></code> for <code class="docutils literal notranslate"><span class="pre">tf</span></code>).</p>
+</section>
+<section id="the-discrete-jacobian-and-hessian">
+<h2>The Discrete Jacobian and Hessian<a class="headerlink" href="#the-discrete-jacobian-and-hessian" title="Link to this heading"></a></h2>
+<p>For problems with discrete functions, the discrete Jacobian and discrete Hessian are defined
+similarly to the objective functions. The keys for the discrete Jacobian and Hessian dictionaries
+have an additional index for the discrete function:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">(k,</span> <span class="pre">(p,</span> <span class="pre">var,</span> <span class="pre">i))</span></code></p>
+</div></blockquote>
+<p>where <code class="docutils literal notranslate"><span class="pre">k</span></code> is the discrete function index, and <code class="docutils literal notranslate"><span class="pre">p</span></code>, <code class="docutils literal notranslate"><span class="pre">var</span></code>, and <code class="docutils literal notranslate"><span class="pre">i</span></code> are as in
+the objective derivative functions. Finally, the <code class="docutils literal notranslate"><span class="pre">arg.hessian</span></code> keys have the form</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">(k,</span> <span class="pre">(p1,</span> <span class="pre">var1,</span> <span class="pre">i1),</span> <span class="pre">(p2,</span> <span class="pre">var2,</span> <span class="pre">i2))</span></code></p>
+</div></blockquote>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="derivatives.html" rel="prev" title="Derivatives"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="scaling.html" rel="next" title="Scaling">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Scaling — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="mesh_structure.html" rel="next" title="Mesh Structure"/>
+<link href="user_derivatives.html" rel="prev" title="User-Defined Derivatives"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Scaling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#theory">Theory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#yapss-scaling">YAPSS Scaling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item active">Scaling</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/reference/scaling.rst"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="scaling">
+<h1>Scaling<a class="headerlink" href="#scaling" title="Link to this heading"></a></h1>
+<section id="theory">
+<h2>Theory<a class="headerlink" href="#theory" title="Link to this heading"></a></h2>
+<p>YAPSS, like other pseudospectral optimal control solvers, converts the optimal control
+problem into a nonlinear programming problem (NLP) by discretizing the the continuous
+decision variables (the state and control variables) and continuous constraint functions
+(the state dynamics and path constraints). In addition, there are inherently additional
+discrete decision variables (the static parameters) and constraint functions (discrete
+constraints at the boundaries of phases, and bounds on integrals, for example). Together,
+all these discrete decision variables and constraint functions, along with the objective
+function, are passed to the NLP solver (Ipopt) to find the optimal solution.</p>
+<p>An inherent difficulty in solving NLPs is that the problem as described in natural units
+may be very badly scaled. For example, the <a class="reference internal" href="../notebooks/orbit_raising.html"><span class="doc">orbit raising problem</span></a> has different variables with very different
+magnitudes. The distance of the spacecraft from the Sun as it transits from the Earth to
+Mars (one of the decision variables) varies from <span class="math notranslate nohighlight">\(1.5 \times 10^{11}\text{ m}\)</span>
+meters <span class="math notranslate nohighlight">\(1.5 \times 10^{11}\text{ m}\)</span>. On the other hand, the angular position of the
+spacecraft measured in radians varies from 0 to less that <span class="math notranslate nohighlight">\(\pi\)</span>. Large variation in
+magnitudes of the variables and constraints make the problem ill-conditioned, and can
+result in very slow convergence of the NLP solver, or even failure to converge.</p>
+<p>There are two ways to improve the conditioning of the NLP problem:</p>
+<ol class="arabic simple">
+<li><p>The problem can be scaled by hand, by using units that are more appropriate for the
+problem. That is in fact what is done in the orbit raising problem, where the distance
+is measured in astronomical units, and the angle in radians.</p></li>
+<li><p>The problem can be scaled within the NLP solver. Ipopt has has the option to provide
+scaling factors for the variables and constraints, which it then uses to scale the
+problem internally. YAPSS uses this feature to provide scaling through its API.</p></li>
+</ol>
+<p>If scaling a problem by hand, one natural approach to finding the natural scale for a
+decision variable (say, the state <span class="math notranslate nohighlight">\(x\)</span>) is to use the range (or perhaps half the
+range) that the variable is expected to have, and define that to be that variable scale,
+<span class="math notranslate nohighlight">\(S_x\)</span>. Then the nondimensional variable is</p>
+<div class="math notranslate nohighlight">
+\[\bar{x} = \frac{x}{S_x}\]</div>
+<p>The same approach can be used for the control inputs <span class="math notranslate nohighlight">\(u\)</span> and parameters <span class="math notranslate nohighlight">\(p\)</span>.
+(Of course it would be done elementwise for vector variables.) The time scale for the
+independent time variable <span class="math notranslate nohighlight">\(t\)</span> would typically be the expected length of the phase.
+Then the state dynamics</p>
+<div class="math notranslate nohighlight">
+\[\dot{x} = f(x, u, p, t)\]</div>
+<p>can be nondimensionalized as</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\frac{d\bar{x}}{d\bar{t}} &amp;= \bar{f}(\bar{x}, \bar{u}, \bar{p}, \bar{t}) \\
+&amp;= \frac{S_t}{S_x} f(S_x \bar{x}, S_u \bar{u}, S_p \bar{p}, S_t \bar{t})\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(S_t\)</span> is the time scale.</p>
+<p>Scaling the constraints is a bit different. For example, a path constraint of the
+form</p>
+<div class="math notranslate nohighlight">
+\[g(x, u, p, t) = 0\]</div>
+<p>is <em>expected</em> to be zero, and so it’s not obvious how the function should be scaled.
+The answer is that we should consider how the constraint varies with its arguments.
+Perturbations in the constraints are, for small perturbation about the final solution,</p>
+<div class="math notranslate nohighlight">
+\[\delta g = \frac{\partial g}{\partial x} \delta x
+    + \frac{\partial g}{\partial u} \delta u
+    + \frac{\partial g}{\partial p} \delta p
+    + \frac{\partial g}{\partial t} \delta t\]</div>
+<p>If <span class="math notranslate nohighlight">\(g\)</span> were a function of only one variable, say <span class="math notranslate nohighlight">\(x\)</span>, then the scale of the
+constraint function would be</p>
+<div class="math notranslate nohighlight">
+\[S_g = \frac{\partial g}{\partial x} S_x\]</div>
+<p>If the constraint is a function of several variables, then we might take the constraint
+function scale to be</p>
+<div class="math notranslate nohighlight">
+\[S_g = \max\left(\frac{\partial g}{\partial x} S_x, \frac{\partial g}{\partial u} S_u,
+\frac{\partial g}{\partial p} S_p, \frac{\partial g}{\partial t} S_t\right)\]</div>
+<p>or some other combination of the scales of the variables, such as the sum or the root mean
+square.</p>
+<p>Finally, it should be noted that one doesn’t actually have to determine the partial
+derivatives of the constraints to scale the problem — one just needs a good approximation
+of the sensitivity of the constraint to the variables.</p>
+</section>
+<section id="yapss-scaling">
+<h2>YAPSS Scaling<a class="headerlink" href="#yapss-scaling" title="Link to this heading"></a></h2>
+<p>YAPSS provides scaling through the <code class="docutils literal notranslate"><span class="pre">scale</span></code> attribute of <code class="docutils literal notranslate"><span class="pre">Problem</span></code> instances. The
+attributes that can be set are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scale.objective</span></code> (<cite>float</cite>): Object function scale.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scale.parameter</span></code> (<cite>Sequence[float]</cite>): Parameter scale.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scale.discrete</span></code> (<cite>Sequence[float]</cite>): Discrete constraint function scale.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scale.phase[k].state</span></code> (<cite>Sequence[float]</cite>): State variable scale for phase <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scale.phase[k].control</span></code> (<cite>Sequence[float]</cite>): Control variable scale for phase <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scale.phase[k].time</span></code> (<cite>float</cite>): Time variable scale for phase <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scale.phase[k].path</span></code> (<cite>Sequence[float]</cite>): Path constraint function scale for phase <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scale.phase[k].dynamics</span></code> (<cite>Sequence[float]</cite>): Dynamics constraint scale for phase <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scale.phase[k].integral</span></code> (<cite>Sequence[float]</cite>): Integral scale for phase <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p></li>
+</ul>
+<p>Two of these attributes require further explanation. First, the value of an integral over
+a phase is actually a decision variable in the YAPSS implementation, and the condition
+that this decision variable is equal to the integral of the integrand function over the
+phase is a constraint. The <code class="docutils literal notranslate"><span class="pre">scale.phase[k].integral</span></code> attribute is the scale for both the
+decision variable and the constraint.</p>
+<p>Second, based on the discussion in the <a class="reference internal" href="#theory">Theory</a> section, one would expect the dynamics
+constraint scale to be the state scale divided by the time scale. However, because of the
+way the dynamics is implemented, the dynamics scale should usually be set to the state
+scale.</p>
+<p>All the scales described are initialized to 1.0 (or an array of ones), so for problems
+that are nicely scaled, no scaling is necessary.</p>
+<p>Note also that each of the array scales can be set elementwise, or using a slice.</p>
+</section>
+<section id="example">
+<h2>Example<a class="headerlink" href="#example" title="Link to this heading"></a></h2>
+<p>Consider for example the <a class="reference internal" href="../notebooks/dynamic_soaring.html"><span class="doc">dynamic soaring problem</span></a>,
+which is the problem to find a trajectory allows a bird or glider to fly continuously
+using dynamic soaring, with the minimum possible wind speed gradient. The optimization for
+this problems performs quite poorly without proper scaling — it fails to converge at all.</p>
+<p>The state variables are the three spatial positions of the glider, its velocity, its
+flight path angle, and its heading angle. The control variables are the lift coefficient
+and the bank angle. The one parameter is the wind speed gradient. There is one path
+constraint, that the load factor be in the range <span class="math notranslate nohighlight">\([-2,5]\)</span>. There are three discrete
+constraints, that the three components of the initial velocity be equal to the components
+of the final velocity.</p>
+<p>The scales for each variable were set to be roughly the expected range of the variable,
+and the scales for the discrete constraints were set as discussed in the Theory section:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># scales for the problem</span>
+<span class="n">scale</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">scale</span>
+<span class="n">scale</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="mf">0.1</span>
+<span class="n">scale</span><span class="o">.</span><span class="n">parameter</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">]</span>
+<span class="n">scale</span><span class="o">.</span><span class="n">discrete</span> <span class="o">=</span> <span class="p">[</span><span class="mf">200.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">]</span>
+
+<span class="c1"># scales for the first (and only) phase</span>
+<span class="n">phase</span> <span class="o">=</span> <span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">phase</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">6.0</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="mf">30.0</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="p">[</span><span class="mf">7.0</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>With these scales, the problem converges in a quite reasonable number of iterations (about
+32).</p>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="user_derivatives.html" rel="prev" title="User-Defined Derivatives"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="mesh_structure.html" rel="next" title="Mesh Structure">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

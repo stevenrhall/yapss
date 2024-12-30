@@ -1,0 +1,608 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Goddard Problem (Three Phases) — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/nbsphinx-code-cells.css?v=2aa19091" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="orbit_raising.html" rel="next" title="Orbit Raising Problem"/>
+<link href="goddard_problem_1_phase.html" rel="prev" title="The Goddard Problem (One Phase)"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">JupyterLab Notebooks</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="rosenbrock.html">Rosenbrock Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="brachistochrone.html">Brachistochrone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="newton.html">Newton’s Minimal Resistance Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_1_phase.html">The Goddard Problem (One Phase)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">The Goddard Problem (Three Phases)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Problem-Description">Problem Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#YAPSS-Solution">YAPSS Solution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Plot-the-Solution">Plot the Solution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Thrust">Thrust</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Altitude">Altitude</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Velocity">Velocity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Mass">Mass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Hamiltonian">Hamiltonian</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamic_soaring.html">Dynamic Soaring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="minimum_time_to_climb.html">Minimum Time to Climb Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="delta_iii_ascent.html">Delta III Launch Vehicle Ascent Problem</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item"><a href="index.html">JupyterLab Notebooks</a></li>
+<li class="breadcrumb-item active">The Goddard Problem (Three Phases)</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/goddard_problem_3_phase.ipynb"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="The-Goddard-Problem-(Three-Phases)">
+<h1>The Goddard Problem (Three Phases)<a class="headerlink" href="#The-Goddard-Problem-(Three-Phases)" title="Link to this heading"></a></h1>
+<p>For a solution to the Goddard problem with three phases using a Python script instead of a notebook, see the <a class="reference internal" href="../scripts/goddard_problem_3_phase.html"><span class="doc">Python script documentation</span></a>.</p>
+<section id="Problem-Description">
+<h2>Problem Description<a class="headerlink" href="#Problem-Description" title="Link to this heading"></a></h2>
+<p>See the <a class="reference internal" href="goddard_problem_1_phase.html"><span class="doc">Python notebook</span></a> for the Goddard problem with one phase for a general description of the Goddard problem. In that notebook, we found that there is likely a singular arc in the middle portion of the solution.</p>
+<p>For a complete discussion of the singular arc in the Goddard rocket problem, see See Bryson and Ho <a class="footnote-reference brackets" href="#footcite-bryson-1975" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>, Section 8.3. It turns out that for the problem as formulated here (with an exponential atmosphere), there is an additional constraint during the singular arc phase that</p>
+<div class="math notranslate nohighlight">
+\[m(t)g - \left( 1 + \frac{v(t)}{c} \right) D(t) = 0\]</div>
+<p>where <span class="math notranslate nohighlight">\(m(t)\)</span> is the mass of the rocket, <span class="math notranslate nohighlight">\(v(t)\)</span> is the velocity, <span class="math notranslate nohighlight">\(c\)</span> is the exit velocity of the propellant, and <span class="math notranslate nohighlight">\(D(t)\)</span> is the drag. This constraint is enforced by adding a path constraint the the continuous callback function during phase <span class="math notranslate nohighlight">\(p=1\)</span> (<em>i.e.</em>, the second phase).</p>
+</section>
+<section id="YAPSS-Solution">
+<h2>YAPSS Solution<a class="headerlink" href="#YAPSS-Solution" title="Link to this heading"></a></h2>
+<p>We begin by importing the required Python packages, and instantiating the problem with the proper dimensions:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># third party imports</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="c1"># package imports</span>
+<span class="kn">from</span> <span class="nn">yapss.math</span> <span class="kn">import</span> <span class="n">exp</span>
+<span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span>
+
+<span class="c1"># instantiate the problem</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"Goddard Rocket Problem with Singular Arc"</span><span class="p">,</span>
+    <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+    <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+    <span class="n">nh</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+    <span class="n">nq</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+    <span class="n">nd</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>We next define the callback functions, as well as any constants required. We also define any math function required, in this case <code class="docutils literal notranslate"><span class="pre">exp</span></code>, the exponential function.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># physical constants</span>
+<span class="n">Tm</span> <span class="o">=</span> <span class="mi">200</span>
+<span class="n">g</span> <span class="o">=</span> <span class="mf">32.174</span>
+<span class="n">sigma</span> <span class="o">=</span> <span class="mf">5.4915e-05</span>
+<span class="n">c</span> <span class="o">=</span> <span class="mf">1580.9425</span>
+<span class="n">hs</span> <span class="o">=</span> <span class="mi">23800</span>
+
+<span class="c1"># callback functions</span>
+
+
+<span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Goddard Rocket Problem objective function."""</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Goddard Rocket Problem dynamics and path functions."""</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase_list</span><span class="p">:</span>
+        <span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">mass</span><span class="p">)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+        <span class="p">(</span><span class="n">T</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="n">sigma</span> <span class="o">*</span> <span class="n">v</span><span class="o">**</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span> <span class="o">/</span> <span class="n">hs</span><span class="p">)</span>
+        <span class="n">h_dot</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="n">v_dot</span> <span class="o">=</span> <span class="p">(</span><span class="n">T</span> <span class="o">-</span> <span class="n">D</span><span class="p">)</span> <span class="o">/</span> <span class="n">mass</span> <span class="o">-</span> <span class="n">g</span>
+        <span class="n">m_dot</span> <span class="o">=</span> <span class="o">-</span><span class="n">T</span> <span class="o">/</span> <span class="n">c</span>
+        <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="n">h_dot</span><span class="p">,</span> <span class="n">v_dot</span><span class="p">,</span> <span class="n">m_dot</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">p</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># there is a path constraint only for the middle phase (p = 1)</span>
+            <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">path</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mass</span> <span class="o">*</span> <span class="n">g</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">v</span> <span class="o">/</span> <span class="n">c</span><span class="p">)</span> <span class="o">*</span> <span class="n">D</span><span class="p">,)</span>
+
+
+<span class="k">def</span> <span class="nf">discrete</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Goddard Rocket Problem discrete constraint function."""</span>
+    <span class="n">phase</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">(</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span><span class="p">),</span>
+        <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">(</span><span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span><span class="p">),</span>
+    <span class="p">]</span>
+
+
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="o">=</span> <span class="n">continuous</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">discrete</span> <span class="o">=</span> <span class="n">discrete</span>
+</pre></div>
+</div>
+</div>
+<p>We next set bounds on decision variables and constraints. The discrete constraints ensure that the states are continuous across phase boundaries. Note also the path constraint in the second phase (<code class="docutils literal notranslate"><span class="pre">p=1</span></code>) to enforce the singular arc condition.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initial conditions</span>
+<span class="n">h0</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">v0</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">m0</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">mf</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="c1"># begin bounds: phase 0</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">h0</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">m0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">Tm</span>
+
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">h0</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">mf</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">20000</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span> <span class="n">m0</span>
+
+<span class="c1"># ... phase 1</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">Tm</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="c1"># ... phase 2</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">mf</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"inf"</span><span class="p">)</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">discrete</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">discrete</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+</pre></div>
+</div>
+</div>
+<p>The initial guess is very crude. The guess is that the state increases linearly over time; that the velocity is constant; that the mass decreases linearly in time; and that each phase is 15 seconds.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># begin guess</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">[</span><span class="mi">15</span> <span class="o">*</span> <span class="n">p</span><span class="p">,</span> <span class="mi">15</span> <span class="o">*</span> <span class="p">(</span><span class="n">p</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="mi">6000</span> <span class="o">*</span> <span class="n">p</span><span class="p">,</span> <span class="mi">6000</span> <span class="o">*</span> <span class="p">(</span><span class="n">p</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)),</span>
+        <span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="mi">500</span><span class="p">),</span>
+        <span class="p">(</span><span class="mi">3</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">/</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">p</span><span class="p">,</span> <span class="mi">3</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">/</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">(</span><span class="n">p</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)),</span>
+    <span class="p">]</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="p">[(</span><span class="n">Tm</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">Tm</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)]</span>
+</pre></div>
+</div>
+</div>
+<p>Scaling might improve the rate of convergence, but it’s not really needed for this problem. But we do scale the objective by -1, so that the objective (final height) is maximized instead of minimized:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+</pre></div>
+</div>
+</div>
+<p>Set the solver parameters:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">=</span> <span class="mi">500</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="s2">"second"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"auto"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">spectral_method</span> <span class="o">=</span> <span class="s2">"lgl"</span>
+
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-20</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">3</span>
+</pre></div>
+</div>
+</div>
+<p>Find the optimal solution:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit https://github.com/coin-or/Ipopt
+******************************************************************************
+
+Total number of variables............................:     1001
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:      906
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:      999
+Total number of inequality constraints...............:        3
+        inequality constraints with only lower bounds:        3
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+
+Number of Iterations....: 31
+
+                                   (scaled)                 (unscaled)
+Objective...............:  -1.8744477732725565e+04    1.8744477732725565e+04
+Dual infeasibility......:   1.6832757410156773e-11    1.6832757410156773e-11
+Constraint violation....:   8.5992724052630365e-10    8.5992724052630365e-10
+Variable bound violation:   3.3306690738754696e-16    3.3306690738754696e-16
+Complementarity.........:   2.5230702321053512e-15    2.5230702321053512e-15
+Overall NLP error.......:   8.5992724052630365e-10    8.5992724052630365e-10
+
+
+Number of objective function evaluations             = 32
+Number of objective gradient evaluations             = 32
+Number of equality constraint evaluations            = 32
+Number of inequality constraint evaluations          = 32
+Number of equality constraint Jacobian evaluations   = 32
+Number of inequality constraint Jacobian evaluations = 32
+Number of Lagrangian Hessian evaluations             = 31
+Total seconds in IPOPT (w/o function evaluations)    =      0.077
+Total seconds in NLP function evaluations            =      0.127
+
+EXIT: Solved To Acceptable Level.
+</pre></div></div>
+</div>
+</section>
+<section id="Plot-the-Solution">
+<h2>Plot the Solution<a class="headerlink" href="#Plot-the-Solution" title="Link to this heading"></a></h2>
+<p>First, we extract the data from the solution:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># extract information from solution</span>
+<span class="n">time</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">time_c</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">state</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">control</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">costate</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">dynamics</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">integrand</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">time</span><span class="p">)</span>
+    <span class="n">time_c</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">time_c</span><span class="p">)</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">)</span>
+    <span class="n">control</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">control</span><span class="p">)</span>
+    <span class="n">costate</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">costate</span><span class="p">)</span>
+    <span class="n">dynamics</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">)</span>
+    <span class="n">integrand</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">integrand</span><span class="p">)</span>
+
+<span class="n">t0</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span>
+<span class="n">tf</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span>
+
+<span class="c1"># plot defaults</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s2">"lines.linewidth"</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+</pre></div>
+</div>
+</div>
+<section id="Thrust">
+<h3>Thrust<a class="headerlink" href="#Thrust" title="Link to this heading"></a></h3>
+<p>We begin by plotting the thrust history:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># thrust</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">()</span>
+<span class="n">line</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">line1</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time_c</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">control</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">line</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Singular arc occurs between t = </span><span class="si">{</span><span class="n">time</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> and t = </span><span class="si">{</span><span class="n">time</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Thrust, $T$ (lbf)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="s2">"Phase 1"</span><span class="p">,</span> <span class="s2">"Phase 2"</span><span class="p">,</span> <span class="s2">"Phase 3"</span><span class="p">),</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Singular arc occurs between t = 13.14 and t = 21.75.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_3_phase_18_1.png" src="../_images/notebooks_goddard_problem_3_phase_18_1.png"/>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Singular arc occurs between t = </span><span class="si">{</span><span class="n">time</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> and t = </span><span class="si">{</span><span class="n">time</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Singular arc occurs between t = 13.14 and t = 21.75.
+</pre></div></div>
+</div>
+<p>Note that the solution consists of three phases. In the first phase, the thrust is at the thrust upper bound. In the second phase, the thrust is intermediate, due to the singular arc. In the third phase, the thrust is at the thrust lower bound. A control solution of this form is often referred to as <em>bang-singular-bang</em> control.</p>
+</section>
+<section id="Altitude">
+<h3>Altitude<a class="headerlink" href="#Altitude" title="Link to this heading"></a></h3>
+<p>Plot the altitude:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># altitude</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">()</span>
+<span class="n">line</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">line1</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">state</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">line</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Altitude, $h$ (ft)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="s2">"Phase 1"</span><span class="p">,</span> <span class="s2">"Phase 2"</span><span class="p">,</span> <span class="s2">"Phase 3"</span><span class="p">),</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_3_phase_22_0.png" src="../_images/notebooks_goddard_problem_3_phase_22_0.png"/>
+</div>
+</div>
+<p>Note that the velocity history looks essentially the same as the velocity history for the one-phase solution.</p>
+</section>
+<section id="Velocity">
+<h3>Velocity<a class="headerlink" href="#Velocity" title="Link to this heading"></a></h3>
+<p>Plot the velocity:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># velocity</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">()</span>
+<span class="n">line</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">line1</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">state</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">line</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Velocity, $v$ (ft/s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="s2">"Phase 1"</span><span class="p">,</span> <span class="s2">"Phase 2"</span><span class="p">,</span> <span class="s2">"Phase 3"</span><span class="p">),</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_3_phase_24_0.png" src="../_images/notebooks_goddard_problem_3_phase_24_0.png"/>
+</div>
+</div>
+<p>The velocity history looks similar to that in the one-phase solution, except that it does not have the raggedness of the one-phase solution.</p>
+</section>
+<section id="Mass">
+<h3>Mass<a class="headerlink" href="#Mass" title="Link to this heading"></a></h3>
+<p>Plot the mass history:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># mass</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">()</span>
+<span class="n">line</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">line1</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">state</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">line</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Mass, $m$ (slugs)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="s2">"Phase 1"</span><span class="p">,</span> <span class="s2">"Phase 2"</span><span class="p">,</span> <span class="s2">"Phase 3"</span><span class="p">),</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_3_phase_26_0.png" src="../_images/notebooks_goddard_problem_3_phase_26_0.png"/>
+</div>
+</div>
+<p>Again, the history plotted above is similar to that in the one-phase solution, except that there is no raggedness during the singular arc.</p>
+</section>
+<section id="Hamiltonian">
+<h3>Hamiltonian<a class="headerlink" href="#Hamiltonian" title="Link to this heading"></a></h3>
+<p>We next plot the Hamiltonian for the solution:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># hamiltonian</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="c1"># ax = plt.axes()</span>
+<span class="n">line</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">hamiltonian</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">dynamics</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">costate</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time_c</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">hamiltonian</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="s2">"Phase 1"</span><span class="p">,</span> <span class="s2">"Phase 2"</span><span class="p">,</span> <span class="s2">"Phase 3"</span><span class="p">),</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_3_phase_28_0.png" src="../_images/notebooks_goddard_problem_3_phase_28_0.png"/>
+</div>
+</div>
+<p>We see that, unlike in the one-phase solution, the numerical value of the Hamiltonian is in fact constant, as it should be.</p>
+<div class="docutils container" id="id2">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="footcite-bryson-1975" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id1" role="doc-backlink">1</a><span class="fn-bracket">]</span></span>
+<p>Arthur E. Bryson, Jr. and Yu-Chi Ho. <em>Applied Optimal Control: Optimization, Estimation and Control</em>. Routledge, 1975. <a class="reference external" href="https://doi.org/10.1201/9781315137667">doi:10.1201/9781315137667</a>.</p>
+</aside>
+</aside>
+</div>
+</section>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="goddard_problem_1_phase.html" rel="prev" title="The Goddard Problem (One Phase)"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="orbit_raising.html" rel="next" title="Orbit Raising Problem">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

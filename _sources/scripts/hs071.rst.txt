@@ -1,0 +1,29 @@
+HS071 Optimization Problem
+==========================
+
+For a description of the HS071 parameter optimization problem, see the
+`JupyterLab notebook documentation <../notebooks/hs071.ipynb>`_ for this problem.
+
+The python script in this example can be executed from the command line with:
+
+.. code-block:: console
+
+   $ python -m yapss.examples.hs071
+
+Functions
+---------
+
+.. automodule:: yapss.examples.hs071
+   :members:
+
+Code
+----
+
+.. literalinclude:: ../../../src/yapss/examples/hs071.py
+   :language: python
+
+Text Output
+-----------
+
+.. literalinclude:: plots/hs071.txt
+   :language: none

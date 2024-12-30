@@ -1,0 +1,597 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Goddard Problem (One Phase) — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/nbsphinx-code-cells.css?v=2aa19091" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="goddard_problem_3_phase.html" rel="next" title="The Goddard Problem (Three Phases)"/>
+<link href="newton.html" rel="prev" title="Newton’s Minimal Resistance Problem"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">JupyterLab Notebooks</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="rosenbrock.html">Rosenbrock Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="brachistochrone.html">Brachistochrone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="newton.html">Newton’s Minimal Resistance Problem</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">The Goddard Problem (One Phase)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Problem-Description">Problem Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#YAPSS-Solution">YAPSS Solution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Plots">Plots</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Thrust-History">Thrust History</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Altitude">Altitude</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Velocity">Velocity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Mass">Mass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Hamiltonian">Hamiltonian</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_3_phase.html">The Goddard Problem (Three Phases)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamic_soaring.html">Dynamic Soaring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="minimum_time_to_climb.html">Minimum Time to Climb Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="delta_iii_ascent.html">Delta III Launch Vehicle Ascent Problem</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item"><a href="index.html">JupyterLab Notebooks</a></li>
+<li class="breadcrumb-item active">The Goddard Problem (One Phase)</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/goddard_problem_1_phase.ipynb"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="The-Goddard-Problem-(One-Phase)">
+<h1>The Goddard Problem (One Phase)<a class="headerlink" href="#The-Goddard-Problem-(One-Phase)" title="Link to this heading"></a></h1>
+<p>For a solution to the Goddard problem with one phase using a Python script instead of a notebook, see the <a class="reference internal" href="../scripts/goddard_problem_1_phase.html"><span class="doc">Python script documentation</span></a>.</p>
+<section id="Problem-Description">
+<h2>Problem Description<a class="headerlink" href="#Problem-Description" title="Link to this heading"></a></h2>
+<p>Goddard <a class="footnote-reference brackets" href="#footcite-goddard-1920" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> first posed the problem of determining the maximum height that can be achieved by a rocket. In a 1920 paper in <em>Nature</em>, he posed the problem as follows:</p>
+<blockquote>
+<div><p>The basic idea of the method, briefly stated in general terms, is this: Given a mass of explosive material of as great energy content as possible, what height can be reached if a large fraction of this material is shot downwards, on exploding, with as high a speed as possible? It is evident, intuitively, that the height will be great if the fraction of material that remains is small and the velocity of ejection of the gases is high.</p>
+</div></blockquote>
+<p>See Bryson and Ho <a class="footnote-reference brackets" href="#footcite-bryson-1975" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>, Section 8.3, for a detailed treatment of the Goddard Rocket problem and its history. The specific parameters used here are taken from Betts <a class="footnote-reference brackets" href="#footcite-betts-2010" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a>, Problem 4.9. See also the solution using the GPOPS software package by Rao et al. <a class="footnote-reference brackets" href="#footcite-rao-2010" id="id4" role="doc-noteref"><span class="fn-bracket">[</span>4<span class="fn-bracket">]</span></a>.</p>
+<p>The states of the system are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    h(t) &amp;= \text{altitude (ft)} \\
+    v(t) &amp;= \text{velocity (ft/s)} \\
+    m(t) &amp;= \text{mass (slug)}
+\end{aligned}\end{split}\]</div>
+<p>and the control input is</p>
+<div class="math notranslate nohighlight">
+\[\begin{aligned}
+    u(t) = T(t) = \text{thrust (lbf)}
+\end{aligned}\]</div>
+<p>The optimal control problem is to maximize the final height achieved by the rocket,</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+    J = h(t_f)
+\end{equation}\]</div>
+<p>subject to the dynamics and the constraints on the thrust. The dynamics are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    \dot{h} &amp;= v \\
+    \dot{v} &amp;= \frac{1}{m} \left(T - D \right) - g \\
+    \dot{m} &amp;= -\frac{T}{c}
+\end{aligned}\end{split}\]</div>
+<p>where the drag <span class="math notranslate nohighlight">\(D\)</span> is given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    D &amp;= \frac{1}{2} \rho(h) v^2 S C_D \\
+      &amp;= \frac{1}{2} \rho_0 \exp(-h/h_0) v^2 S C_D \\
+      &amp;= \sigma v^2 \exp(-h/h_0)
+\end{aligned}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\rho(h)=\rho_0 \exp(-h/h_0)\)</span> is the air density as a function of altitude, <span class="math notranslate nohighlight">\(h_0\)</span> is the scale height of the atmosphere, <span class="math notranslate nohighlight">\(S\)</span> is the reference area of the rocket, <span class="math notranslate nohighlight">\(C_D\)</span> is the drag coefficient of the rocket, and therefore</p>
+<div class="math notranslate nohighlight">
+\[\begin{aligned}
+    \sigma &amp;= \frac{1}{2} \rho_0 S C_D
+\end{aligned}\]</div>
+<p>The boundary conditions are that</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    h(t_0) &amp;= 0 \\
+    v(t_0) &amp;= 0 \\
+    m(t_0) &amp;= m_0 = 3 \text{ lb} \\
+\end{aligned}\end{split}\]</div>
+<p>and the bounds on the states and control are that</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    0 &amp;\le T \le T_\text{max} \\
+    m_f &amp;\le m \le m_0
+\end{aligned}\end{split}\]</div>
+<p>The problem constants are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    g            &amp;= 32.174 \text{ ft/s}^2 \\
+    T_\text{max} &amp;= 200 \text{ lbf} \\
+    \sigma       &amp;= 5.4915 \times 10^{-5} \text{ slug/ft}\\
+    c            &amp;= 1580.9425 \text{ ft/s} \\
+    h_0          &amp;= \text{23,800  ft}
+\end{aligned}\end{split}\]</div>
+</section>
+<section id="YAPSS-Solution">
+<h2>YAPSS Solution<a class="headerlink" href="#YAPSS-Solution" title="Link to this heading"></a></h2>
+<p>We begin by importing the required Python packages, and instantiating the problem with the proper dimensions:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># third party imports</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="c1"># package imports</span>
+<span class="kn">from</span> <span class="nn">yapss.math</span> <span class="kn">import</span> <span class="n">exp</span>
+<span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">Solution</span>
+
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"One phase Goddard Rocket Problem"</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<p>We next define the callback functions, as well as any constants required. Note that no discrete callback function is required because there are no discrete function constraints.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># physical constants</span>
+<span class="n">Tm</span> <span class="o">=</span> <span class="mi">200</span>
+<span class="n">g</span> <span class="o">=</span> <span class="mf">32.174</span>
+<span class="n">sigma</span> <span class="o">=</span> <span class="mf">5.4915e-05</span>
+<span class="n">c</span> <span class="o">=</span> <span class="mf">1580.9425</span>
+<span class="n">hs</span> <span class="o">=</span> <span class="mi">23800</span>
+
+<span class="c1"># callback functions</span>
+
+
+<span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Goddard Rocket Problem objective function."""</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Goddard Rocket Problem dynamics."""</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="p">(</span><span class="n">T</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+    <span class="n">dynamics</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span>
+    <span class="n">v_dot</span> <span class="o">=</span> <span class="p">(</span><span class="n">T</span> <span class="o">-</span> <span class="n">sigma</span> <span class="o">*</span> <span class="n">v</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span> <span class="o">/</span> <span class="n">hs</span><span class="p">))</span> <span class="o">/</span> <span class="n">m</span> <span class="o">-</span> <span class="n">g</span>
+    <span class="n">m_dot</span> <span class="o">=</span> <span class="o">-</span><span class="n">T</span> <span class="o">/</span> <span class="n">c</span>
+    <span class="n">dynamics</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+    <span class="n">dynamics</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">v_dot</span>
+    <span class="n">dynamics</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">m_dot</span>
+
+
+<span class="n">functions</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">functions</span>
+<span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+<span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="o">=</span> <span class="n">continuous</span>
+</pre></div>
+</div>
+</div>
+<p>Next, set the bounds. The initial states and times are constrained to be the required values, and the control (the thrust) is limited to allowable values. Loose bounds are set on all other variables, except for the final mass, which is constrained to be <span class="math notranslate nohighlight">\(m_f=1\)</span>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># boundary conditions</span>
+<span class="n">h0</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">m0</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span>
+<span class="n">mf</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">hmin</span><span class="p">,</span> <span class="n">hmax</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">30000</span>
+<span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">15000</span>
+<span class="n">t0</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">tf_min</span><span class="p">,</span> <span class="n">tf_max</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">100</span>
+
+<span class="c1"># bounds</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="c1"># initial conditions</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">h0</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">m0</span><span class="p">]</span>
+
+<span class="c1"># final time</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">tf_min</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">tf_max</span>
+
+<span class="c1"># state bounds</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">hmin</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">mf</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">hmax</span><span class="p">,</span> <span class="n">vmax</span><span class="p">,</span> <span class="n">m0</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">hmin</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">mf</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">hmax</span><span class="p">,</span> <span class="n">vmax</span><span class="p">,</span> <span class="n">mf</span><span class="p">]</span>
+
+<span class="c1"># control bounds</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,)</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="n">Tm</span><span class="p">,)</span>
+</pre></div>
+</div>
+</div>
+<p>The initial guess is simply a linear interpolation between plausible initial and final values.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># guess</span>
+<span class="n">phase</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">(</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf_max</span><span class="p">)</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="p">((</span><span class="n">hmin</span><span class="p">,</span> <span class="n">hmax</span><span class="p">),</span> <span class="p">(</span><span class="n">v0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="n">m0</span><span class="p">,</span> <span class="n">mf</span><span class="p">))</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="p">((</span><span class="n">Tm</span><span class="p">,</span> <span class="mi">0</span><span class="p">),)</span>
+</pre></div>
+</div>
+</div>
+<p>We use a mesh with 10 segments, each with 10 collocation points.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># mesh</span>
+<span class="n">m</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">collocation_points</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span><span class="p">,)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">fraction</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">m</span><span class="p">,)</span>
+</pre></div>
+</div>
+</div>
+<p>Scaling is important for this problem, because the range of some of the states (especially altitude) is large compare to 1. We set <code class="docutils literal notranslate"><span class="pre">problem.scale.objective</span> <span class="pre">=</span> <span class="pre">-1</span></code> because this is a maximization problem rather than a minimization problem.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># scale the problem to make it better conditioned</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span> <span class="o">=</span> <span class="mi">18_000</span><span class="p">,</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">3</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="mi">30</span>
+</pre></div>
+</div>
+</div>
+<p>We use the default spectral method and derivatives order and method:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># yapss options</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">spectral_method</span> <span class="o">=</span> <span class="s2">"lgl"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="s2">"second"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"auto"</span>
+
+<span class="c1"># ipopt options</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-20</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">3</span>
+</pre></div>
+</div>
+</div>
+<p>Find the optimal solution:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># find the solution</span>
+<span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit https://github.com/coin-or/Ipopt
+******************************************************************************
+
+Total number of variables............................:      391
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:      361
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:      300
+Total number of inequality constraints...............:        1
+        inequality constraints with only lower bounds:        1
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+
+Number of Iterations....: 67
+
+                                   (scaled)                 (unscaled)
+Objective...............:  -1.8758719133112565e+04    1.8758719133112565e+04
+Dual infeasibility......:   3.0695446184836328e-11    1.0231815394945443e-11
+Constraint violation....:   7.2978660152026948e-14    9.5315044745802879e-10
+Variable bound violation:   1.9999999949504854e-06    1.9999999949504854e-06
+Complementarity.........:   5.0069562641117949e-21    5.0069562641117949e-21
+Overall NLP error.......:   1.6906517289949509e-11    9.5315044745802879e-10
+
+
+Number of objective function evaluations             = 68
+Number of objective gradient evaluations             = 68
+Number of equality constraint evaluations            = 68
+Number of inequality constraint evaluations          = 68
+Number of equality constraint Jacobian evaluations   = 68
+Number of inequality constraint Jacobian evaluations = 68
+Number of Lagrangian Hessian evaluations             = 67
+Total seconds in IPOPT (w/o function evaluations)    =      0.078
+Total seconds in NLP function evaluations            =      0.086
+
+EXIT: Solved To Acceptable Level.
+</pre></div></div>
+</div>
+</section>
+<section id="Plots">
+<h2>Plots<a class="headerlink" href="#Plots" title="Link to this heading"></a></h2>
+<p>First, we need to extract the data from the solution:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># extract information from solution</span>
+<span class="n">time</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+<span class="n">time_c</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time_c</span>
+<span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+<span class="p">(</span><span class="n">T</span><span class="p">,)</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+<span class="n">phase</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">hamiltonian</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">phase</span><span class="o">.</span><span class="n">costate</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">phase</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+
+<span class="c1"># initial and final time</span>
+<span class="n">t0</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span>
+<span class="n">tf</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span>
+</pre></div>
+</div>
+</div>
+<section id="Thrust-History">
+<h3>Thrust History<a class="headerlink" href="#Thrust-History" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># thrust</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time_c</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Thrust, $T$ (lbf)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_1_phase_19_0.png" src="../_images/notebooks_goddard_problem_1_phase_19_0.png"/>
+</div>
+</div>
+<p>Note that the thrust is constant at the beginning at the end of the problem, but in the middle section between about <span class="math notranslate nohighlight">\(t=12.5\)</span> and <span class="math notranslate nohighlight">\(t=22\)</span> seconds the solution is quite noisy. The is due to the presence of a <em>singular arc</em> in the problem. See this <a class="reference internal" href="goddard_problem_3_phase.html"><span class="doc">JupyterLab notebook for the YAPSS solution to this problem taking into account the presence of the singular arc</span></a>.</p>
+</section>
+<section id="Altitude">
+<h3>Altitude<a class="headerlink" href="#Altitude" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># altitude</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Altitude, $h$ (ft)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_1_phase_21_0.png" src="../_images/notebooks_goddard_problem_1_phase_21_0.png"/>
+</div>
+</div>
+</section>
+<section id="Velocity">
+<h3>Velocity<a class="headerlink" href="#Velocity" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># velocity</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Velocity, $v$ (ft/s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_1_phase_23_0.png" src="../_images/notebooks_goddard_problem_1_phase_23_0.png"/>
+</div>
+</div>
+<p>Note the raggedness of the velocity state during the singular arc. The velocity plot is less ragged than the thrust plot, because the velocity is the integral of forces on the rocket (including thrust), divided by mass. The action of integration smooths the high-frequency variation in those forces, specifically the thrust. Likewise, altitude is the integral of velocity, and so the altitude plot is smoother still.</p>
+</section>
+<section id="Mass">
+<h3>Mass<a class="headerlink" href="#Mass" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># mass</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Mass, $m$ (slugs)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_1_phase_25_0.png" src="../_images/notebooks_goddard_problem_1_phase_25_0.png"/>
+</div>
+</div>
+<p>Like the velocity plot, the plot of mass is ragged during the singular arc due to the high-frequency variation in the thrust, and hence the rate of change of mass.</p>
+</section>
+<section id="Hamiltonian">
+<h3>Hamiltonian<a class="headerlink" href="#Hamiltonian" title="Link to this heading"></a></h3>
+<p>Finally, we plot the <em>Hamiltonian</em>. A description of the Hamiltonian in optimal control problems is beyond the scope of this documentation, but a key fact to know about the Hamiltonian is that it is constant for optimal control problems with dynamics, cost function integrands, and path functions that are not explicit functions of time. For such problems, a numerical solution that is not constant (at least to a desired precision) is not converged. For this problem, the Hamiltonian is far from
+constant:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Hamiltonian</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time_c</span><span class="p">,</span> <span class="n">hamiltonian</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Hamiltonian, $\mathcal</span><span class="si">{H}</span><span class="s2">$ (ft/s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_goddard_problem_1_phase_27_0.png" src="../_images/notebooks_goddard_problem_1_phase_27_0.png"/>
+</div>
+</div>
+<p>The Hamiltonian in this case is nearly constant at the beginning and end of the problem time interval, but varies significantly and erratically in the interior, which is a good indication that this problem has a singular arc that is causing a failure of the optimization to converge to the optimal solution.</p>
+<div class="docutils container" id="id5">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="footcite-goddard-1920" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id1" role="doc-backlink">1</a><span class="fn-bracket">]</span></span>
+<p>Robert H. Goddard. A method of reaching extreme altitudes. <em>Nature</em>, 105:809–811, 1920. <a class="reference external" href="https://doi.org/10.1038/105809a0">doi:10.1038/105809a0</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-bryson-1975" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id2" role="doc-backlink">2</a><span class="fn-bracket">]</span></span>
+<p>Arthur E. Bryson, Jr. and Yu-Chi Ho. <em>Applied Optimal Control: Optimization, Estimation and Control</em>. Routledge, 1975. <a class="reference external" href="https://doi.org/10.1201/9781315137667">doi:10.1201/9781315137667</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-betts-2010" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id3" role="doc-backlink">3</a><span class="fn-bracket">]</span></span>
+<p>John T Betts. <em>Practical Methods for Optimal Control and Estimation Using Nonlinear Programming</em>. Volume 19. Siam, 2010. <a class="reference external" href="https://doi.org/10.1137/1.9780898718577">doi:10.1137/1.9780898718577</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-rao-2010" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id4" role="doc-backlink">4</a><span class="fn-bracket">]</span></span>
+<p>Anil V. Rao, David A. Benson, Christopher Darby, Michael A. Patterson, Camila Francolin, Ilyssa Sanders, and Geoffrey T. Huntington. Algorithm 902: GPOPS, a MATLAB software for solving multiple-phase optimal control problems using the Gauss pseudospectral method. <em>ACM Transactions on Mathematical Software (TOMS)</em>, 37(2):1–39, 2010. <a class="reference external" href="https://doi.org/10.1145/1731022.1731032">doi:10.1145/1731022.1731032</a>.</p>
+</aside>
+</aside>
+</div>
+</section>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="newton.html" rel="prev" title="Newton’s Minimal Resistance Problem"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="goddard_problem_3_phase.html" rel="next" title="The Goddard Problem (Three Phases)">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

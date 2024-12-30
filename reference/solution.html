@@ -1,0 +1,342 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Solution Object — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="configuration.html" rel="next" title="Configuring the Ipopt Binary Source"/>
+<link href="ipopt_options.html" rel="prev" title="Ipopt Options"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The Solution Object</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#representation-of-solution-objects">Representation of Solution Objects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#structure-of-a-solution-instance">Structure of a <code class="xref py py-class docutils literal notranslate"><span class="pre">Solution</span></code> Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#attributes-of-a-solutionphase-instance">Attributes of a <code class="xref py py-class docutils literal notranslate"><span class="pre">SolutionPhase</span></code> Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#information-from-ipopt-solver">Information from Ipopt Solver</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#solution-class-reference"><code class="docutils literal notranslate"><span class="pre">Solution</span></code> Class Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#yapss.Solution"><code class="docutils literal notranslate"><span class="pre">Solution</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item active">The Solution Object</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/reference/solution.rst"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="the-solution-object">
+<h1>The Solution Object<a class="headerlink" href="#the-solution-object" title="Link to this heading"></a></h1>
+<p>The <a class="reference internal" href="#yapss.Solution" title="yapss.Solution"><code class="xref py py-class docutils literal notranslate"><span class="pre">yapss.Solution</span></code></a> class stores the solution to an optimal control problem. An
+instance of this class contains detailed information about the optimal decision variables,
+Lagrange multipliers, and additional data relevant to the problem.</p>
+<p>For example, consider the Goddard rocket problem with a trajectory that includes a
+singular arc, requiring a three-phase solution. You can solve this problem and obtain a
+<cite>Solution</cite> object with the following Python code:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">yapss.examples.goddard_problem_3_phase</span> <span class="kn">import</span> <span class="n">setup</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span> <span class="o">=</span> <span class="n">setup</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># Suppress output</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">sb</span> <span class="o">=</span> <span class="s2">"yes"</span>       <span class="c1"># Silent mode</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-8</span>       <span class="c1"># Set solver tolerance</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">solution</span>
+<span class="go">&lt;yapss._private.solution.Solution: 'Goddard Rocket Problem with Singular Arc'&gt;</span>
+</pre></div>
+</div>
+<section id="representation-of-solution-objects">
+<h2>Representation of Solution Objects<a class="headerlink" href="#representation-of-solution-objects" title="Link to this heading"></a></h2>
+<p>The <cite>repr()</cite> output of a <cite>Solution</cite> object confirms that it is an instance of
+<a class="reference internal" href="#yapss.Solution" title="yapss.Solution"><code class="xref py py-class docutils literal notranslate"><span class="pre">Solution</span></code></a> and displays the problem name.</p>
+<p>The <cite>str()</cite> representation provides additional information, including the Ipopt status
+code and message (indicating the success of the optimization) and the objective value at
+the optimal solution:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">solution</span><span class="p">)</span>
+<span class="go">&lt;yapss._private.solution.Solution&gt; object</span>
+<span class="go">    Name: Goddard Rocket Problem with Singular Arc</span>
+<span class="go">    Ipopt Status Code: 0</span>
+<span class="go">    Status Message: Optimal Solution Found</span>
+<span class="go">    Objective Value: 18550.87...</span>
+</pre></div>
+</div>
+</section>
+<section id="structure-of-a-solution-instance">
+<h2>Structure of a <a class="reference internal" href="#yapss.Solution" title="yapss.Solution"><code class="xref py py-class docutils literal notranslate"><span class="pre">Solution</span></code></a> Instance<a class="headerlink" href="#structure-of-a-solution-instance" title="Link to this heading"></a></h2>
+<p>The <cite>Solution</cite> object contains various attributes stored in a relatively flat structure, each representing a key element of the solution:</p>
+<ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>): The name of the optimal control problem.</p></li>
+<li><p><strong>problem</strong> (<em>Problem</em>): A deep copy of the original problem definition.</p></li>
+<li><p><strong>objective</strong> (<em>float</em>): The value of the objective function at the optimal solution.</p></li>
+<li><p><strong>parameter</strong> (<em>np.ndarray</em>): An array of the optimal parameter values.</p></li>
+<li><p><strong>discrete</strong> (<em>np.ndarray</em>): An array of the discrete constraint functions, evaluated at the optimal solution.</p></li>
+<li><p><strong>discrete_multiplier</strong> (<em>np.ndarray</em>): Lagrange multipliers corresponding to the discrete constraint functions.</p></li>
+<li><p><strong>phase</strong> (<em>yapss.SolutionPhases</em>): A tuple of <code class="xref py py-class docutils literal notranslate"><span class="pre">SolutionPhase</span></code> objects, each containing information
+specific to a phase in the solution.</p></li>
+<li><p><strong>nlp_info</strong> (<em>yapss.NLPInfo</em>): A data class container with information returned from the Ipopt NLP solver.</p></li>
+</ul>
+</section>
+<section id="attributes-of-a-solutionphase-instance">
+<h2>Attributes of a <code class="xref py py-class docutils literal notranslate"><span class="pre">SolutionPhase</span></code> Instance<a class="headerlink" href="#attributes-of-a-solutionphase-instance" title="Link to this heading"></a></h2>
+<p>The <cite>phase</cite> attribute is a tuple of <cite>SolutionPhase</cite> objects, one for each phase in the optimal
+control problem. Each <cite>SolutionPhase</cite> object includes:</p>
+<ul class="simple">
+<li><p><strong>index</strong> (<em>int</em>): The phase index, useful for functions that further process phase
+solutions (e.g., plotting).</p></li>
+<li><p><strong>time</strong> (<em>np.ndarray</em>): An array of time values at interpolation points, where only the
+state trajectory is evaluated.</p></li>
+<li><p><strong>time_c</strong> (<em>np.ndarray</em>): An array of time values at collocation points, where dynamics
+and path constraints are enforced. If LGL collocation points are used, <cite>time</cite> and <cite>time_c</cite>
+match, simplifying post-processing.</p></li>
+<li><p><strong>initial_time</strong>, <strong>final_time</strong> (<em>float</em>): The initial and final time of the phase
+(<cite>time[0]</cite> and <cite>time[-1]</cite>).</p></li>
+<li><p><strong>duration</strong> (<em>float</em>): The phase duration, <cite>time[-1] - time[0]</cite>.</p></li>
+<li><p><strong>state</strong> (<em>np.ndarray</em>): Optimal state values at interpolation points.</p></li>
+<li><p><strong>initial_state</strong>, <strong>final_state</strong> (<em>np.ndarray</em>): Initial and final state of the phase,
+<cite>state[:, 0]</cite> and <cite>state[:, -1]</cite>.</p></li>
+<li><p><strong>control</strong> (<em>np.ndarray</em>): Optimal control values at collocation points.</p></li>
+</ul>
+<p>Results of user-defined functions (dynamics, path, etc.) are stored in each <cite>SolutionPhase</cite>:</p>
+<ul class="simple">
+<li><p><strong>dynamics</strong> (<em>np.ndarray</em>): Values of the dynamics function, which represents the time
+derivatives of state variables, evaluated at collocation points.</p></li>
+<li><p><strong>path</strong> (<em>np.ndarray</em>): Values of the path constraint function at collocation points.</p></li>
+<li><p><strong>integrand</strong> (<em>np.ndarray</em>): Values of the integrand function, evaluated at collocation
+points.</p></li>
+<li><p><strong>integral</strong> (<em>float</em>): Value of the integral function at the optimal solution.</p></li>
+</ul>
+<p>Lagrange multipliers for constraints are also stored:</p>
+<ul class="simple">
+<li><p><strong>costate</strong> (<em>np.ndarray</em>): Optimal costate values at collocation points.</p></li>
+<li><p><strong>path_multiplier</strong> (<em>np.ndarray</em>): Lagrange multipliers for the path constraint function.</p></li>
+<li><p><strong>duration_multiplier</strong> (<em>float</em>): Lagrange multiplier associated with the duration constraint.</p></li>
+<li><p><strong>integral_multiplier</strong> (<em>float</em>): Lagrange multiplier associated with the integral constraint,
+enforcing equality of integrals over each phase.</p></li>
+</ul>
+<p>The Hamiltonian function, derived from dynamics, integrand, and integral multipliers, is also
+available:</p>
+<ul class="simple">
+<li><p><strong>hamiltonian</strong> (<em>np.ndarray</em>): Values of the Hamiltonian function, evaluated at collocation
+points.</p></li>
+</ul>
+</section>
+<section id="information-from-ipopt-solver">
+<h2>Information from Ipopt Solver<a class="headerlink" href="#information-from-ipopt-solver" title="Link to this heading"></a></h2>
+<p>The <cite>nlp_info</cite> attribute provides detailed information from the Ipopt solver, including:</p>
+<ul class="simple">
+<li><p><strong>ipopt_status</strong> (<em>int</em>): The Ipopt status code.</p></li>
+<li><p><strong>ipopt_status_message</strong> (<em>str</em>): The corresponding status message.</p></li>
+<li><p><strong>obj_val</strong> (<em>float</em>): Objective function value at the optimal solution.</p></li>
+<li><p><strong>x</strong> (<em>np.ndarray</em>): Optimal values of the NLP decision variables, combining all
+decision variables into a single array.</p></li>
+<li><p><strong>g</strong> (<em>np.ndarray</em>): Values of the NLP constraint functions at the optimal solution.</p></li>
+</ul>
+<p>Lagrange multipliers associated with variable bounds and constraints:</p>
+<ul class="simple">
+<li><p><strong>mult_x_L</strong>, <strong>mult_x_U</strong> (<em>np.ndarray</em>): Lagrange multipliers for the lower and upper
+bounds on decision variables.</p></li>
+<li><p><strong>mult_g</strong> (<em>np.ndarray</em>): Lagrange multipliers for the NLP constraint functions.</p></li>
+</ul>
+</section>
+<section id="solution-class-reference">
+<h2><code class="docutils literal notranslate"><span class="pre">Solution</span></code> Class Reference<a class="headerlink" href="#solution-class-reference" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="yapss.Solution">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Solution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="problem.html#yapss.Problem" title="yapss.Problem"><span class="pre">yapss.Problem</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">objective</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">NDArray</span><span class="p"><span class="pre">[</span></span><span class="pre">np.float64</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter_multiplier</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">NDArray</span><span class="p"><span class="pre">[</span></span><span class="pre">np.float64</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">discrete</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">NDArray</span><span class="p"><span class="pre">[</span></span><span class="pre">np.float64</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">discrete_multiplier</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">NDArray</span><span class="p"><span class="pre">[</span></span><span class="pre">np.float64</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phase</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">SolutionPhases</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlp_info</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">NLPInfo</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/yapss/_private/solution.html#Solution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.Solution" title="Link to this definition"></a></dt>
+<dd><p>Represents the solution of an optimal control problem.</p>
+<p>A Solution object encapsulates the solution to an optimal control problem, including
+the optimal state, control, and parameter decision variables, the objective value,
+Lagrange multipliers, and related data.</p>
+<dl class="field-list">
+<dt class="field-odd">Attributes<span class="colon">:</span></dt>
+<dd class="field-odd"><dl>
+<dt><strong>name</strong><span class="classifier">str</span></dt><dd><p>The name of the problem being solved.</p>
+</dd>
+<dt><strong>problem</strong><span class="classifier">Problem</span></dt><dd><p>Deep copy of the problem definition object that includes all original user-defined
+settings, parameters, and configurations for the NLP problem.</p>
+</dd>
+<dt><strong>objective</strong><span class="classifier">float</span></dt><dd><p>The optimal value of the objective function after solving the optimal control problem.</p>
+</dd>
+<dt><strong>discrete_multiplier</strong><span class="classifier">numpy.ndarray</span></dt><dd><p>An array of Lagrange multipliers associated with the discrete constraints.</p>
+</dd>
+<dt><strong>parameter</strong><span class="classifier">numpy.ndarray</span></dt><dd><p>An array of the optimal parameter values.</p>
+</dd>
+<dt><strong>parameter_multiplier</strong><span class="classifier">numpy.ndarray</span></dt><dd><p>An array of Lagrange multipliers associated with the parameter bounds.</p>
+</dd>
+<dt><strong>phase</strong><span class="classifier">SolutionPhases</span></dt><dd><p>A sequence of <code class="docutils literal notranslate"><span class="pre">SolutionPhase</span></code> objects, each corresponding to a phase of the problem.
+Each phase contains time, state, control, and additional detailed results:</p>
+<dl class="simple">
+<dt>index<span class="classifier">int</span></dt><dd><p>The index of the phase.</p>
+</dd>
+<dt>initial_time<span class="classifier">float</span></dt><dd><p>Initial time of the phase.</p>
+</dd>
+<dt>initial_time_multiplier<span class="classifier">float</span></dt><dd><p>Lagrange multiplier for the initial time bound.</p>
+</dd>
+<dt>final_time<span class="classifier">float</span></dt><dd><p>Final time of the phase.</p>
+</dd>
+<dt>final_time_multiplier<span class="classifier">float</span></dt><dd><p>Lagrange multiplier for the final time bound.</p>
+</dd>
+<dt>duration<span class="classifier">float</span></dt><dd><p>Duration of the phase.</p>
+</dd>
+<dt>duration_multiplier<span class="classifier">float</span></dt><dd><p>Lagrange multiplier for the duration bound.</p>
+</dd>
+<dt>time<span class="classifier">numpy.ndarray</span></dt><dd><p>Array of interpolation time points for the phase.</p>
+</dd>
+<dt>time_c<span class="classifier">numpy.ndarray</span></dt><dd><p>Array of collocation time points for the phase.</p>
+</dd>
+<dt>state<span class="classifier">numpy.ndarray</span></dt><dd><p>State variable values at the interpolation time points.</p>
+</dd>
+<dt>control<span class="classifier">numpy.ndarray</span></dt><dd><p>Control variable values at the collocation time points.</p>
+</dd>
+<dt>control_multiplier<span class="classifier">numpy.ndarray</span></dt><dd><p>Lagrange multipliers for control variable bounds.</p>
+</dd>
+<dt>path<span class="classifier">numpy.ndarray</span></dt><dd><p>Path constraints values at the collocation time points.</p>
+</dd>
+<dt>path_multiplier<span class="classifier">numpy.ndarray</span></dt><dd><p>Lagrange multipliers for path constraints.</p>
+</dd>
+<dt>dynamics<span class="classifier">numpy.ndarray</span></dt><dd><p>Dynamics function evaluated at the collocation time points.</p>
+</dd>
+<dt>costate<span class="classifier">numpy.ndarray</span></dt><dd><p>Costate values at the collocation time points.</p>
+</dd>
+<dt>integrand<span class="classifier">numpy.ndarray</span></dt><dd><p>Integrand values at the collocation time points, used to evaluate the integrals
+used in the discrete constraints or objective function.</p>
+</dd>
+<dt>integral<span class="classifier">numpy.ndarray</span></dt><dd><p>Array of integral values for the phase.</p>
+</dd>
+<dt>integral_multiplier<span class="classifier">numpy.ndarray</span></dt><dd><p>Lagrange multipliers for the integral constraints.</p>
+</dd>
+<dt>hamiltonian<span class="classifier">numpy.ndarray</span></dt><dd><p>Hamiltonian values at the collocation time points.</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>nlp_info</strong><span class="classifier">NLPInfo</span></dt><dd><p>Information about the NLP solver status and results, including the final values of
+decision variables, constraint multipliers, and other information. The attributes are:</p>
+<dl class="simple">
+<dt>ipopt_status<span class="classifier">int</span></dt><dd><p>The status code returned by Ipopt, indicating the success or failure of the
+optimization.</p>
+</dd>
+<dt>ipopt_status_message<span class="classifier">str</span></dt><dd><p>A human-readable message corresponding to the status code. In most cases, it’s
+the same message as that printed in the console by Ipopt.</p>
+</dd>
+<dt>objective<span class="classifier">float</span></dt><dd><p>The optimal value of the objective function after solving the optimal control
+problem.</p>
+</dd>
+<dt>x<span class="classifier">numpy.ndarray</span></dt><dd><p>The optimal values of the NLP decision variables.</p>
+</dd>
+<dt>mult_x_L<span class="classifier">numpy.ndarray</span></dt><dd><p>Lagrange multipliers associated with the lower bounds of the decision variables.</p>
+</dd>
+<dt>mult_x_U<span class="classifier">numpy.ndarray</span></dt><dd><p>Lagrange multipliers associated with the upper bounds of the decision variables.</p>
+</dd>
+<dt>mult_g<span class="classifier">numpy.ndarray</span></dt><dd><p>Lagrange multipliers associated with the constraints.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="ipopt_options.html" rel="prev" title="Ipopt Options"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="configuration.html" rel="next" title="Configuring the Ipopt Binary Source">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

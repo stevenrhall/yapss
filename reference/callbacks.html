@@ -1,0 +1,389 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Callback Functions — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="bounds.html" rel="next" title="Setting Bounds"/>
+<link href="problem.html" rel="prev" title="Problem Definition"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="problem.html">Problem Definition</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Callback Functions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#objective-callback-function">Objective Callback Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#continuous-callback-function">Continuous Callback Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#discrete-callback-function">Discrete Callback Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mathematical-functions">Mathematical Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#available-functions">Available Functions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item active">Callback Functions</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/reference/callbacks.rst"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="callback-functions">
+<h1>Callback Functions<a class="headerlink" href="#callback-functions" title="Link to this heading"></a></h1>
+<p>Callback functions form the core of defining and solving optimal control problems.
+They allow the user to specify the objective, system dynamics, performance integrals,
+path constraints, and discrete constraints of the problem.</p>
+<p>This section outlines the callback functions required to define an optimal control
+problem in YAPSS. Most problems will require at most three callback functions:</p>
+<ul class="simple">
+<li><p>The objective callback is <strong>always required</strong>.</p></li>
+<li><p>The continuous callback is <strong>optional, but required for dynamic problems</strong>.</p></li>
+<li><p>The discrete callback is <strong>optional, but required when discrete constraints exist</strong>.</p></li>
+</ul>
+<p>If a required callback is not defined for a problem, the solver will raise a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>
+when the problem <code class="docutils literal notranslate"><span class="pre">solve()</span></code> method is called.</p>
+<section id="objective-callback-function">
+<h2>Objective Callback Function<a class="headerlink" href="#objective-callback-function" title="Link to this heading"></a></h2>
+<p>The general expression for an objective function for a problem with <span class="math notranslate nohighlight">\(P\)</span> phases is</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+   J=\phi\Big[
+      &amp; x^{(0)}(t_{0}^{(0)}),\ldots,x^{(P-1)}(t_{0}^{(P-1)}),
+         t_{0}^{(0)},\ldots,t_{0}^{(P-1)}, \\
+      &amp; x^{(0)}(t_{f}^{(0)}),\ldots,x^{(P-1)}(t_{f}^{(P-1)}),
+         t_{f}^{(0)},\ldots,t_{f}^{(P-1)},q^{(0)},\ldots,q^{(P-1)},s\Big]
+\end{aligned}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\phi\)</span> is a scalar function, <span class="math notranslate nohighlight">\(x^{(p)}(t)\)</span> is the state vector
+for phase <span class="math notranslate nohighlight">\(p\)</span>, <span class="math notranslate nohighlight">\(t_{0}^{(p)}\)</span> is the initial time for phase <span class="math notranslate nohighlight">\(p\)</span>,
+<span class="math notranslate nohighlight">\(t_{f}^{(p)}\)</span> is the final time for phase <span class="math notranslate nohighlight">\(p\)</span>, <span class="math notranslate nohighlight">\(q^{(p)}\)</span> is
+the vector of integral values for phase <span class="math notranslate nohighlight">\(p\)</span>, and <span class="math notranslate nohighlight">\(s\)</span> is the vector
+of parameter values for the problem. (Note that we use 0-based indexing throughout.)</p>
+<p>For example, consider the <a class="reference internal" href="../notebooks/goddard_problem_3_phase.html"><span class="std std-ref">Goddard rocket problem</span></a>
+with <span class="math notranslate nohighlight">\(P=3\)</span> phases. Each phase has three states: altitude <span class="math notranslate nohighlight">\(h\)</span>, velocity
+<span class="math notranslate nohighlight">\(v\)</span>, and vehicle mass <span class="math notranslate nohighlight">\(m\)</span>. Each phase has a single control, the thrust
+<span class="math notranslate nohighlight">\(T\)</span>. The second phase has a singular arc and a path constraint to enforce the
+optimality condition along the singular arc. Additionally, there are eight discrete
+constraints enforcing the continuity of the time and state variables at the phase boundaries.
+The objective of the problem is to maximize the final altitude of the rocket, which is
+the final altitude of the third phase. Given this description, the problem initialization
+and objective callback function are:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span>
+
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"Goddard Rocket Problem with Singular Arc"</span><span class="p">,</span>
+    <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+    <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+    <span class="n">nh</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+    <span class="n">nd</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Goddard Rocket Problem objective function."""</span>
+    <span class="c1"># Maximize the final altitude of the third phase</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># h_f</span>
+
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+</pre></div>
+</div>
+<p>The discrete variables that can be extracted from the <code class="docutils literal notranslate"><span class="pre">arg</span></code> object are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].initial_state</span></code>: The initial state vector of phase <span class="math notranslate nohighlight">\(p\)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].final_state</span></code>: The final state vector of phase <span class="math notranslate nohighlight">\(p\)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].initial_time</span></code>: The initial time of phase <span class="math notranslate nohighlight">\(p\)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].final_time</span></code>: The final time of phase <span class="math notranslate nohighlight">\(p\)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].integral</span></code>: The integral vector of phase <span class="math notranslate nohighlight">\(p\)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.parameter</span></code>: The parameter vector of the problem.</p></li>
+</ul>
+<p>All these attributes are immutable.</p>
+<p>The value of the objective function is assigned to the <code class="docutils literal notranslate"><span class="pre">arg.objective</span></code> attribute.</p>
+<p>In addition, the <code class="docutils literal notranslate"><span class="pre">arg</span></code> object has the attribute <code class="docutils literal notranslate"><span class="pre">arg.auxdata</span></code>, which is a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">SimpleNamespace</span></code> object that can be used to store any auxiliary data for the
+problem.</p>
+</section>
+<section id="continuous-callback-function">
+<h2>Continuous Callback Function<a class="headerlink" href="#continuous-callback-function" title="Link to this heading"></a></h2>
+<p>The dynamics of the problem for each phase are given by:</p>
+<div class="math notranslate nohighlight">
+\[\dot{x}^{(p)} = f^{(p)} ( x^{(p)}, u^{(p)},
+t, s ),\quad(p=0,\ldots,P-1)\]</div>
+<p>subject to the path constraints:</p>
+<div class="math notranslate nohighlight">
+\[h_{\min }^{(p)} \leq h^{(p)} ( x^{(p)}, u^{(p)},
+t, s ) \leq h_{\max }^{(p)}, \quad(p=0, \ldots, P-1)\]</div>
+<p>In addition, each phase may have integrals associated with it:</p>
+<div class="math notranslate nohighlight">
+\[q^{(p)}=\int_{t_{0}^{(p)}}^{t_{f}^{(p)}}g(x^{(p)},
+u^{(p)},t,s)\,dt,\quad(p=0,\ldots,P-1)\]</div>
+<p>where <span class="math notranslate nohighlight">\(g\)</span> is a vector-valued function. The bounds on the integrals are given by:</p>
+<div class="math notranslate nohighlight">
+\[q_{\min}^{(p)}\leq q^{(p)}\leq q_{\max}^{(p)},\quad(p=0,\ldots,P-1)\]</div>
+<p>The continuous callback function is used to evaluate the dynamics, path constraints, and integrand for each phase. The continuous callback function is called once for each phase in the problem. For example, for the three-phase Goddard rocket problem, the continuous callback function is:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Goddard Rocket Problem dynamics and path functions."""</span>
+    <span class="n">auxdata</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">auxdata</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">sigma</span>
+    <span class="n">h0</span> <span class="o">=</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">h0</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">c</span>
+    <span class="n">g0</span> <span class="o">=</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">g</span>
+    <span class="n">exp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span>
+
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase_list</span><span class="p">:</span>
+        <span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">mass</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+        <span class="n">T</span><span class="p">,</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="n">sigma</span> <span class="o">*</span> <span class="n">v</span><span class="o">**</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span> <span class="o">/</span> <span class="n">h0</span><span class="p">)</span>
+        <span class="n">h_dot</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="n">v_dot</span> <span class="o">=</span> <span class="p">(</span><span class="n">T</span> <span class="o">-</span> <span class="n">D</span><span class="p">)</span> <span class="o">/</span> <span class="n">mass</span> <span class="o">-</span> <span class="n">g0</span>
+        <span class="n">m_dot</span> <span class="o">=</span> <span class="o">-</span><span class="n">T</span> <span class="o">/</span> <span class="n">c</span>
+        <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="n">h_dot</span><span class="p">,</span> <span class="n">v_dot</span><span class="p">,</span> <span class="n">m_dot</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">p</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">path</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mass</span> <span class="o">*</span> <span class="n">g0</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">v</span> <span class="o">/</span> <span class="n">c</span><span class="p">)</span> <span class="o">*</span> <span class="n">D</span><span class="p">,)</span>
+</pre></div>
+</div>
+<p>The continuous callback function is called with a single argument, <code class="docutils literal notranslate"><span class="pre">arg</span></code>, which is an
+instance of the <code class="xref py py-class docutils literal notranslate"><span class="pre">ContinuousArgument</span></code> class. The values that can be extracted
+from the <code class="docutils literal notranslate"><span class="pre">arg</span></code> object are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase_list</span></code>: the phase indices listed as a <em>tuple</em></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].state</span></code>: the state vector for phase <code class="docutils literal notranslate"><span class="pre">p</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].control</span></code>: the control vector for phase <code class="docutils literal notranslate"><span class="pre">p</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].time</span></code>: the time variable for phase <code class="docutils literal notranslate"><span class="pre">p</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.parameter</span></code>: the parameter vector for the problem</p></li>
+</ul>
+<p>In addition, the values of the dynamics, path constraints, and integrand are assigned to
+the attributes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].dynamics</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].path</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arg.phase[p].integrand</span></code></p></li>
+</ul>
+<p>When setting the values of one of these attributes, each value must be a sequence of
+length equal to the number of states, controls, or integrand variables, respectively. Each
+element of the sequence must be a scalar, or an array-like object with the same shape as
+the <code class="docutils literal notranslate"><span class="pre">time</span></code> attribute of the phase.`` The values of the dynamics, path constraints, and
+integrand can also be set as slices of the corresponding attributes.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Always iterate over <cite>arg.phase_list</cite> instead of, say, <cite>range(3)</cite>. It’s essential to
+use this idiom, especially when the derivatives are determined using the
+“central-difference” differentiation method. The finite difference routines calculate
+the derivatives of the continuous functions one phase at a time, and failure to use
+this idiom may require significant extra computation.</p>
+</div>
+</section>
+<section id="discrete-callback-function">
+<h2>Discrete Callback Function<a class="headerlink" href="#discrete-callback-function" title="Link to this heading"></a></h2>
+<p>The general expression for the discrete constraints of a problem with <span class="math notranslate nohighlight">\(P\)</span> phases is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+   d_{\text{min}}\le d\Big[
+      &amp; x^{(0)}(t_{0}^{(0)}),\ldots,x^{(P-1)}(t_{0}^{(P-1)}),
+         t_{0}^{(0)},\ldots,t_{0}^{(P-1)}, \\
+      &amp; x^{(0)}(t_{f}^{(0)}),\ldots,x^{(P-1)}(t_{f}^{(P-1)}),
+         t_{f}^{(0)},\ldots,t_{f}^{(P-1)},q^{(0)},\ldots,q^{(P-1)},s\Big]
+         \le d_{\text{max}}
+\end{aligned}\end{split}\]</div>
+<p>For example, in the three-phase Goddard rocket problem, discrete constraints enforce the continuity of time and state variables at phase boundaries. The discrete function for this problem is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\mathbf{0}\le d[\,\cdot\,]=\left[\begin{array}{c}
+t_{f}^{(0)}-t_{0}^{(1)}\\
+x^{(0)}(t_{f}^{(0)})-x^{(1)}(t_{0}^{(1)})\\
+t_{f}^{(1)}-t_{0}^{(2)}\\
+x^{(1)}(t_{f}^{(1)})-x^{(2)}(t_{0}^{(2)})
+\end{array}\right]\le\mathbf{0}\end{split}\]</div>
+<p>The corresponding discrete callback function for this problem is:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">discrete</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Goddard Rocket Problem discrete constraint function."""</span>
+    <span class="n">phase</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span>
+
+    <span class="c1"># Discrete constraints enforce continuity between phases</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span><span class="p">,</span>  <span class="c1"># Time continuity</span>
+        <span class="o">*</span><span class="p">(</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span><span class="p">),</span>  <span class="c1"># State continuity</span>
+        <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">(</span><span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span><span class="p">),</span>
+    <span class="p">]</span>
+</pre></div>
+</div>
+<p>The discrete variables that can be extracted from the <code class="docutils literal notranslate"><span class="pre">arg</span></code> object are the same as those available in the objective callback function. The value of the discrete function must be assigned to the <code class="docutils literal notranslate"><span class="pre">arg.discrete</span></code> attribute, and it should be a one-dimensional array-like object with length equal to the number of discrete variables, as specified by the <code class="docutils literal notranslate"><span class="pre">nd</span></code> argument in the <code class="xref py py-class docutils literal notranslate"><span class="pre">Problem</span></code> constructor.</p>
+<p>Values in the <code class="docutils literal notranslate"><span class="pre">arg.discrete</span></code> attribute can also be set as slices. For instance, the example above can be rewritten as:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">discrete</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Goddard Rocket Problem discrete constraint function."""</span>
+    <span class="n">phase</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="mi">8</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span>
+</pre></div>
+</div>
+</section>
+<section id="mathematical-functions">
+<h2>Mathematical Functions<a class="headerlink" href="#mathematical-functions" title="Link to this heading"></a></h2>
+<p>When defining callback functions for the optimal control problem, you will often need
+mathematical functions like <code class="docutils literal notranslate"><span class="pre">sin</span></code>, <code class="docutils literal notranslate"><span class="pre">arctan2</span></code>, and <code class="docutils literal notranslate"><span class="pre">log</span></code>. The data type for these
+functions depends on the chosen differentiation method:</p>
+<ul class="simple">
+<li><p>For <strong>user-defined</strong> and <strong>central-difference</strong> differentiation methods, data is
+passed as real NumPy arrays with elements of type <code class="docutils literal notranslate"><span class="pre">np.float</span></code>.</p></li>
+<li><p>For <strong>automatic differentiation</strong>, data is passed as NumPy object arrays, where each
+element is an encapsulated <code class="docutils literal notranslate"><span class="pre">casadi.SX</span></code> instance.</p></li>
+</ul>
+<p>In most cases, Numpy <cite>ufuncs</cite> can be used to evaluate mathematical functions, without regard to the
+data type. However, this fails for a few functions, either because there’s no CasADi equivalent, or
+because the function requires two arguments.</p>
+<p>To handle this, the math functions used in the callback functions should be imported from <code class="docutils literal notranslate"><span class="pre">yapps.math</span></code>
+instead of directly from <code class="docutils literal notranslate"><span class="pre">numpy</span></code>. Essentially, <code class="docutils literal notranslate"><span class="pre">yapps.math</span></code>  is a drop-in replacement for
+<code class="docutils literal notranslate"><span class="pre">numpy</span></code> that works for all numpy objects, and correctly no matter the differentiation method.</p>
+<p>Here’s a usage example for the <code class="docutils literal notranslate"><span class="pre">arctan2</span></code> function within a continuous callback function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">yapss.numpy</span> <span class="kn">import</span> <span class="n">arctan2</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="gp">... </span>   <span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">x3</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+<span class="gp">... </span>   <span class="n">x1_dot</span> <span class="o">=</span> <span class="n">arctan2</span><span class="p">(</span><span class="n">x2</span><span class="p">,</span> <span class="n">x3</span><span class="p">)</span>
+<span class="gp">... </span>   <span class="c1"># more code here</span>
+</pre></div>
+</div>
+<section id="available-functions">
+<h3>Available Functions<a class="headerlink" href="#available-functions" title="Link to this heading"></a></h3>
+<p>Essentially all Numpy <cite>ufuncs</cite> that are likely to be used in callback functions are available in
+<code class="docutils literal notranslate"><span class="pre">yapps.math</span></code>. Here are some of the most commonly used functions:</p>
+<dl class="simple">
+<dt><strong>Trigonometric functions</strong></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cos</span></code>, <code class="docutils literal notranslate"><span class="pre">sin</span></code>, <code class="docutils literal notranslate"><span class="pre">tan</span></code></p></li>
+</ul>
+</dd>
+<dt><strong>Inverse trigonometric functions</strong></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">arccos</span></code>, <code class="docutils literal notranslate"><span class="pre">arcsin</span></code>, <code class="docutils literal notranslate"><span class="pre">arctan</span></code>, <code class="docutils literal notranslate"><span class="pre">arctan2</span></code></p></li>
+</ul>
+</dd>
+<dt><strong>Hyperbolic functions</strong></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cosh</span></code>, <code class="docutils literal notranslate"><span class="pre">sinh</span></code>, <code class="docutils literal notranslate"><span class="pre">tanh</span></code></p></li>
+</ul>
+</dd>
+<dt><strong>Inverse hyperbolic functions</strong></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">arccosh</span></code>, <code class="docutils literal notranslate"><span class="pre">arcsinh</span></code>, <code class="docutils literal notranslate"><span class="pre">arctanh</span></code></p></li>
+</ul>
+</dd>
+<dt><strong>Angular conversion</strong></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">degrees</span></code>, <code class="docutils literal notranslate"><span class="pre">radians</span></code>, <code class="docutils literal notranslate"><span class="pre">deg2rad</span></code>, <code class="docutils literal notranslate"><span class="pre">rad2deg</span></code></p></li>
+</ul>
+</dd>
+<dt><strong>Exponentials and logarithms</strong></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">exp</span></code>, <code class="docutils literal notranslate"><span class="pre">exp2</span></code>, <code class="docutils literal notranslate"><span class="pre">log</span></code>, <code class="docutils literal notranslate"><span class="pre">log2</span></code>, <code class="docutils literal notranslate"><span class="pre">log10</span></code></p></li>
+</ul>
+</dd>
+<dt><strong>Comparison functions</strong></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">maximum</span></code>, <code class="docutils literal notranslate"><span class="pre">minimum</span></code></p></li>
+</ul>
+</dd>
+<dt><strong>Miscellaneous functions</strong></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">abs</span></code>, <code class="docutils literal notranslate"><span class="pre">cbrt</span></code>, <code class="docutils literal notranslate"><span class="pre">hypot</span></code>, <code class="docutils literal notranslate"><span class="pre">power</span></code>, <code class="docutils literal notranslate"><span class="pre">sign</span></code>, <code class="docutils literal notranslate"><span class="pre">reciprocal</span></code>, <code class="docutils literal notranslate"><span class="pre">square</span></code>, <code class="docutils literal notranslate"><span class="pre">sqrt</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</section>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="problem.html" rel="prev" title="Problem Definition"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="bounds.html" rel="next" title="Setting Bounds">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

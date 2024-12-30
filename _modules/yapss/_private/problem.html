@@ -1,0 +1,882 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../../../" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>yapss._private.problem — YAPSS 0.1.1.dev0</title>
+<link href="../../../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../../../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../../../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../../../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../../../_static/jquery.js?v=5d32c60e"></script>
+<script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../../../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../../../_static/doctools.js?v=9a2dae69"></script>
+<script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../../../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script src="../../../_static/js/theme.js"></script>
+<link href="../../../genindex.html" rel="index" title="Index"/>
+<link href="../../../search.html" rel="search" title="Search"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../../../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../../../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../../../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../../../index.html"></a></li>
+<li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+<li class="breadcrumb-item active">yapss._private.problem</li>
+<li class="wy-breadcrumbs-aside">
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<h1>Source code for yapss._private.problem</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+
+<span class="sd">Module problem.</span>
+
+<span class="sd">"""</span>
+
+<span class="c1"># future imports</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Problem"</span><span class="p">]</span>
+
+<span class="kn">import</span> <span class="nn">inspect</span>
+
+<span class="c1"># standard imports</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Sequence</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">FrameType</span><span class="p">,</span> <span class="n">SimpleNamespace</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+
+<span class="c1"># third party imports</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">float64</span>
+
+<span class="c1"># package imports</span>
+<span class="kn">from</span> <span class="nn">.bounds</span> <span class="kn">import</span> <span class="n">Bounds</span>
+<span class="kn">from</span> <span class="nn">.guess</span> <span class="kn">import</span> <span class="n">Guess</span>
+<span class="kn">from</span> <span class="nn">.ipopt_options</span> <span class="kn">import</span> <span class="n">IpoptOptions</span>
+<span class="kn">from</span> <span class="nn">.solver</span> <span class="kn">import</span> <span class="n">solve</span>
+<span class="kn">from</span> <span class="nn">.types_</span> <span class="kn">import</span> <span class="n">LimitOptions</span><span class="p">,</span> <span class="n">Protected</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="c1"># third party imports</span>
+    <span class="kn">from</span> <span class="nn">numpy.typing</span> <span class="kn">import</span> <span class="n">NDArray</span>
+
+    <span class="c1"># package imports</span>
+    <span class="kn">import</span> <span class="nn">yapss</span>
+
+    <span class="kn">from</span> <span class="nn">.input_args</span> <span class="kn">import</span> <span class="p">(</span>
+        <span class="n">ContinuousFunction</span><span class="p">,</span>
+        <span class="n">ContinuousHessianFunction</span><span class="p">,</span>
+        <span class="n">ContinuousJacobianFunction</span><span class="p">,</span>
+        <span class="n">DiscreteFunction</span><span class="p">,</span>
+        <span class="n">DiscreteHessianFunction</span><span class="p">,</span>
+        <span class="n">DiscreteJacobianFunction</span><span class="p">,</span>
+        <span class="n">ObjectiveFunction</span><span class="p">,</span>
+        <span class="n">ObjectiveGradientFunction</span><span class="p">,</span>
+        <span class="n">ObjectiveHessianFunction</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="kn">from</span> <span class="nn">.solution</span> <span class="kn">import</span> <span class="n">Solution</span>
+
+    <span class="n">Array</span> <span class="o">=</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">float64</span><span class="p">]</span>
+
+<span class="c1"># default options</span>
+<span class="n">DEFAULT_NUMBER_OF_SEGMENTS</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">DEFAULT_NUMBER_OF_COLLOCATION_POINTS</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">DEFAULT_SPECTRAL_METHOD</span> <span class="o">=</span> <span class="s2">"lgl"</span>
+<span class="n">DEFAULT_DERIVATIVE_METHOD</span> <span class="o">=</span> <span class="s2">"auto"</span>
+<span class="n">DEFAULT_DERIVATIVE_ORDER</span> <span class="o">=</span> <span class="s2">"second"</span>
+
+
+<div class="viewcode-block" id="Problem">
+<a class="viewcode-back" href="../../../reference/problem.html#yapss._private.problem.Problem">[docs]</a>
+<span class="k">class</span> <span class="nc">Problem</span><span class="p">(</span><span class="n">Protected</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Instances of the `Problem` class define the optimal control problem.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name : str</span>
+<span class="sd">        Name of the optimal control problem</span>
+<span class="sd">    nx : Sequence[int]</span>
+<span class="sd">        Number of states in each phase</span>
+<span class="sd">    nu : Optional[Sequence[int]]</span>
+<span class="sd">        Number of controls in each phase</span>
+<span class="sd">    nq : Sequence[int], optional</span>
+<span class="sd">        Number of integrals in each phase</span>
+<span class="sd">    nh : Sequence[int], optional</span>
+<span class="sd">        Number of path constraints in each phase</span>
+<span class="sd">    ns : int, optional</span>
+<span class="sd">        Number of parameters in problem</span>
+<span class="sd">    nd : int, optional</span>
+<span class="sd">        Number of discrete constraints in problem</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name : str</span>
+<span class="sd">        The name of the problem.</span>
+<span class="sd">    np : int</span>
+<span class="sd">        The number of phases in the problem.</span>
+<span class="sd">    nx : tuple[int, ...]</span>
+<span class="sd">        The number of state variables in each phase.</span>
+<span class="sd">    nu : tuple[int, ...]</span>
+<span class="sd">        The number of control variables in each phase.</span>
+<span class="sd">    nq : tuple[int, ...]</span>
+<span class="sd">        The number of integrals in each phase.</span>
+<span class="sd">    nh : tuple[int, ...]</span>
+<span class="sd">        The number of path constraints in each phase.</span>
+<span class="sd">    nd : int</span>
+<span class="sd">        The number of discrete constraints in the problem.</span>
+<span class="sd">    ns : int</span>
+<span class="sd">        The number of parameters in the problem.</span>
+<span class="sd">    auxdata : Auxdata</span>
+<span class="sd">        The auxiliary data for the problem.</span>
+<span class="sd">    bounds : Bounds</span>
+<span class="sd">        The bounds object structure for the problem.</span>
+<span class="sd">    derivatives : Derivatives</span>
+<span class="sd">        The derivative options for the problem. Attributes: `method`, `order`.</span>
+<span class="sd">    functions : UserFunctions</span>
+<span class="sd">        The user-defined functions for the problem. Attributes: `objective`, `continuous`,</span>
+<span class="sd">        `discrete`, `objective_gradient`, `objective_hessian`, `continuous_jacobian`,</span>
+<span class="sd">        `continuous_hessian`, `discrete_jacobian`, `discrete_hessian`.</span>
+<span class="sd">    guess : Guess</span>
+<span class="sd">        The initial guess for the problem. **Attributes**: `parameter`, `phase[p].time`,</span>
+<span class="sd">        `phase[p].state`, `phase[p].control`, `phase[p].integral`.</span>
+<span class="sd">    ipopt_options : IpoptOptions</span>
+<span class="sd">        The user-selected Ipopt options for the problem. To select a particular Ipopt</span>
+<span class="sd">        option, use the `ipopt_options` attribute of the `Problem` class. For example,</span>
+<span class="sd">        for a Problem instance `problem`, set the `tol` option to 1e-6 by setting</span>
+<span class="sd">        ``problem.ipopt_options.tol = 1e-6``.</span>
+<span class="sd">    scale : Scale</span>
+<span class="sd">        The scaling data structure for the problem.</span>
+<span class="sd">    mesh : Mesh</span>
+<span class="sd">        The mesh data structure for the problem.</span>
+<span class="sd">    spectral_method : {"lg", "lgr", "lgl"}</span>
+<span class="sd">        The type of interpolation used for the problem.</span>
+<span class="sd">    """</span>
+
+    <span class="n">auxdata</span><span class="p">:</span> <span class="n">Auxdata</span>
+
+    <span class="n">catch_keyboard_interrupt</span><span class="p">:</span> <span class="n">LimitOptions</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="n">LimitOptions</span><span class="p">((</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">np</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">nx</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">nu</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">nq</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">nh</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">ns</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">nd</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span>
+    <span class="n">functions</span><span class="p">:</span> <span class="n">UserFunctions</span>
+    <span class="n">guess</span><span class="p">:</span> <span class="n">Guess</span>
+    <span class="n">derivatives</span><span class="p">:</span> <span class="n">Derivatives</span>
+    <span class="n">ipopt_options</span><span class="p">:</span> <span class="n">IpoptOptions</span>
+    <span class="n">scale</span><span class="p">:</span> <span class="n">Scale</span>
+    <span class="n">mesh</span><span class="p">:</span> <span class="n">Mesh</span>
+    <span class="n">spectral_method</span><span class="p">:</span> <span class="n">LimitOptions</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">LimitOptions</span><span class="p">((</span><span class="s2">"lgl"</span><span class="p">,</span> <span class="s2">"lgr"</span><span class="p">,</span> <span class="s2">"lg"</span><span class="p">))</span>
+
+    <span class="c1"># TODO: mesh should be ReadOnlyProperty</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">nx</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">nu</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">nq</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">nh</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ns</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">nd</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initialize the optimal control problem name and dimensions.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name : str</span>
+<span class="sd">            Name of the optimal control problem</span>
+<span class="sd">        nx : {List[int], tuple[int, ...]}</span>
+<span class="sd">            Number of states in each phase</span>
+<span class="sd">        nu : {List[int], tuple[int, ...]}</span>
+<span class="sd">            Number of controls in each phase</span>
+<span class="sd">        nq : {List[int], tuple[int, ...]}</span>
+<span class="sd">            Number of integrals in each phase</span>
+<span class="sd">        nh : {List[int], tuple[int, ...]}</span>
+<span class="sd">            Number of path constraints in each phase</span>
+<span class="sd">        ns : int</span>
+<span class="sd">            Number of parameters in problem</span>
+<span class="sd">        nd : int</span>
+<span class="sd">            Number of discrete constraints in problem</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nx</span> <span class="o">=</span> <span class="n">nx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nu</span> <span class="o">=</span> <span class="n">nu</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nq</span> <span class="o">=</span> <span class="n">nq</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nh</span> <span class="o">=</span> <span class="n">nh</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ns</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">ns</span> <span class="k">if</span> <span class="n">ns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nd</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">nd</span> <span class="k">if</span> <span class="n">nd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_np</span><span class="p">:</span> <span class="nb">int</span>
+
+        <span class="c1"># validate input and put in canonical form</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_input</span><span class="p">()</span>
+
+        <span class="c1"># fields for user input</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auxdata</span><span class="p">:</span> <span class="n">Auxdata</span> <span class="o">=</span> <span class="n">Auxdata</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span> <span class="o">=</span> <span class="n">Bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">derivatives</span><span class="p">:</span> <span class="n">Derivatives</span> <span class="o">=</span> <span class="n">Derivatives</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span> <span class="o">=</span> <span class="n">UserFunctions</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">guess</span> <span class="o">=</span> <span class="n">Guess</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipopt_options</span> <span class="o">=</span> <span class="n">IpoptOptions</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_scale</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mesh</span> <span class="o">=</span> <span class="n">Mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">"_ipopt_source"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"default"</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_abort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">catch_keyboard_interrupt</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allowed_del_attrs</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allowed_attrs</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">"spectral_method"</span><span class="p">,</span>
+            <span class="s2">"_spectral_method"</span><span class="p">,</span>
+            <span class="s2">"catch_keyboard_interrupt"</span><span class="p">,</span>
+            <span class="s2">"ipopt_source"</span><span class="p">,</span>
+            <span class="s2">"_abort"</span><span class="p">,</span>
+            <span class="s2">"_catch_keyboard_interrupt"</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spectral_method</span> <span class="o">=</span> <span class="n">DEFAULT_SPECTRAL_METHOD</span>
+
+    <span class="c1"># ipopt_source getter</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ipopt_source</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">"_ipopt_source"</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"Internal error: 'ipopt_source' must have type 'str'"</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="nd">@ipopt_source</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">ipopt_source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"'ipopt_source' must have type 'str', not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>  <span class="c1"># type: ignore[unreachable]</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">"_ipopt_source"</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="Problem.solve">
+<a class="viewcode-back" href="../../../reference/problem.html#yapss._private.problem.Problem.solve">[docs]</a>
+    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Solution</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Solve the optimal control problem.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        solution : Solution</span>
+<span class="sd">            The solution to the optimal control problem.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Problem.validate">
+<a class="viewcode-back" href="../../../reference/problem.html#yapss._private.problem.Problem.validate">[docs]</a>
+    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Validate the optimal control problem input.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the problem is invalid.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_functions</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_validate_functions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Validate the user-defined functions.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the functions are invalid.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'functions.objective' function is required."</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">np</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'functions.continuous' function is required."</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nd</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">discrete</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'functions.discrete' function is required."</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">"user"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective_gradient</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'functions.objective_gradient' function is required."</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">np</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous_jacobian</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'functions.continuous_jacobian' function is required."</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nd</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">discrete_jacobian</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'functions.discrete_jacobian' function is required."</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">==</span> <span class="s2">"second"</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective_hessian</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'functions.objective_hessian' function is required."</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">np</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous_hessian</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'functions.continuous_hessian' function is required."</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nd</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">discrete_hessian</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'functions.discrete_hessian' function is required."</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return repr(self)."""</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Problem(</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"    name='</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">',</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"    nx=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nx</span><span class="si">}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"    nu=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nu</span><span class="si">}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"    nq=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nq</span><span class="si">}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"    nh=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nh</span><span class="si">}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"    nd=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nd</span><span class="si">}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"    ns=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ns</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">")"</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_validate_integer_array</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">array</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">arg_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">np</span> <span class="o">*</span> <span class="p">(</span><span class="mi">0</span><span class="p">,)</span>
+        <span class="k">if</span> <span class="n">arg_name</span> <span class="o">==</span> <span class="s2">"nx"</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Keyword '</span><span class="si">{</span><span class="n">arg_name</span><span class="si">}</span><span class="s2">' must be a tuple or list of positive integers."</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Keyword '</span><span class="si">{</span><span class="n">arg_name</span><span class="si">}</span><span class="s2">' must be a tuple or list of nonnegative integers, "</span>
+                <span class="sa">f</span><span class="s2">"or None."</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">array</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">item</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">arg_name</span> <span class="o">==</span> <span class="s2">"nx"</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">array</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">arg_name</span> <span class="o">!=</span> <span class="s2">"nx"</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">np</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Length of '</span><span class="si">{</span><span class="n">arg_name</span><span class="si">}</span><span class="s2">' must be the same as length of 'nx'."</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_check_input</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Check the validity of the arguments.</span>
+
+<span class="sd">        * The user must supply a value for `name` that is a string</span>
+<span class="sd">        * The value of `nx` must be a list or tuple of positive integers</span>
+<span class="sd">        * Each of `nu`, `nq`, and `nh` must be `None`, or a list or tuple of non-negative</span>
+<span class="sd">          integers the same length as `nx`</span>
+<span class="sd">        * ns, nd must be nonnegative integers</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        TypeError, ValueError</span>
+<span class="sd">        """</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"Value of keyword 'name' must be a nonempty string."</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_integer_array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nx</span><span class="p">,</span> <span class="s2">"nx"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">np</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nx</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_integer_array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nu</span><span class="p">,</span> <span class="s2">"nu"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nq</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_integer_array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nq</span><span class="p">,</span> <span class="s2">"nq"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_integer_array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nh</span><span class="p">,</span> <span class="s2">"nh"</span><span class="p">)</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"Argument 'ns' must a nonnegative integer or None."</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ns</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ns</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"Argument 'nd' must a nonnegative integer or None."</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nd</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_init_scale</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Scale</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initialize the scaling object."""</span>
+
+        <span class="k">def</span> <span class="nf">make_scale</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SimpleNamespace</span><span class="p">:</span>
+            <span class="n">scale_shift</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">()</span>
+            <span class="n">scale_shift</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float64</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">scale_shift</span>
+
+        <span class="n">scales</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">()</span>
+        <span class="n">scales</span><span class="o">.</span><span class="n">parameter</span> <span class="o">=</span> <span class="n">make_scale</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ns</span><span class="p">)</span>
+        <span class="n">scales</span><span class="o">.</span><span class="n">discrete</span> <span class="o">=</span> <span class="n">make_scale</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nd</span><span class="p">)</span>
+        <span class="n">scales</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">()</span>
+        <span class="n">scales</span><span class="o">.</span><span class="n">objective</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="n">scales</span><span class="o">.</span><span class="n">phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">np</span> <span class="o">*</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span>
+        <span class="n">p</span><span class="p">:</span> <span class="nb">int</span>
+        <span class="n">scales</span><span class="o">.</span><span class="n">phase</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">np</span><span class="p">):</span>
+            <span class="n">phase</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">()</span>
+            <span class="n">phase</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">make_scale</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nx</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+            <span class="n">phase</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="n">make_scale</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nu</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+            <span class="n">phase</span><span class="o">.</span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">make_scale</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nx</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+            <span class="n">phase</span><span class="o">.</span><span class="n">integral</span> <span class="o">=</span> <span class="n">make_scale</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nq</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+            <span class="n">phase</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">make_scale</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nh</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+            <span class="n">phase</span><span class="o">.</span><span class="n">initial_time</span> <span class="o">=</span> <span class="n">make_scale</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">phase</span><span class="o">.</span><span class="n">final_time</span> <span class="o">=</span> <span class="n">make_scale</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">scales</span><span class="o">.</span><span class="n">phase</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Scale</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_signal_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signum</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">frame</span><span class="p">:</span> <span class="n">FrameType</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># noqa: ARG002</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_abort</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_intermediate_cb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>  <span class="c1"># noqa: ARG002</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_abort</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_abort</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+
+<span class="k">class</span> <span class="nc">Auxdata</span><span class="p">(</span><span class="n">SimpleNamespace</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Auxiliary problem data, which can be anything."""</span>
+
+
+<span class="k">class</span> <span class="nc">ScaleArray</span><span class="p">(</span><span class="n">Protected</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Scale array."""</span>
+
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+
+    <span class="k">def</span> <span class="nf">__set_name__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="nb">type</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Set the name of the attribute."""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="k">def</span> <span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">:</span> <span class="n">ScalePhase</span> <span class="o">|</span> <span class="n">Scale</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="nb">type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get the value of the scale array."""</span>
+        <span class="k">if</span> <span class="n">instance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"attribute '</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">' can be accessed on instance objects only."</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="s2">"_"</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Internal error: '</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">' must be a numpy array."</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="fm">__set__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">instance</span><span class="p">:</span> <span class="n">ScalePhase</span> <span class="o">|</span> <span class="n">Scale</span><span class="p">,</span>
+        <span class="n">value</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="n">Array</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Set the value of the scale array."""</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="s2">"_"</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">if</span> <span class="n">scale</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">shape</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="s2">"_p"</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Scale '</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">' in phase </span><span class="si">{</span><span class="n">instance</span><span class="o">.</span><span class="n">_p</span><span class="si">}</span><span class="s2"> must be an array of length "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">."</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Scale '</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">' must be an array of length </span><span class="si">{</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">."</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="s2">"_"</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ScalePhase</span><span class="p">(</span><span class="n">Protected</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""One phase of the scaling object.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    time : float</span>
+<span class="sd">    state : ScaleArray</span>
+<span class="sd">    control : ScaleArray</span>
+<span class="sd">    integral : ScaleArray</span>
+<span class="sd">    dynamics : ScaleArray</span>
+<span class="sd">    path : ScaleArray</span>
+<span class="sd">    """</span>
+
+    <span class="n">_allowed_attrs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"state"</span><span class="p">,</span>
+        <span class="s2">"control"</span><span class="p">,</span>
+        <span class="s2">"integral"</span><span class="p">,</span>
+        <span class="s2">"dynamics"</span><span class="p">,</span>
+        <span class="s2">"path"</span><span class="p">,</span>
+        <span class="s2">"time"</span><span class="p">,</span>
+        <span class="s2">"_state"</span><span class="p">,</span>
+        <span class="s2">"_control"</span><span class="p">,</span>
+        <span class="s2">"_integral"</span><span class="p">,</span>
+        <span class="s2">"_dynamics"</span><span class="p">,</span>
+        <span class="s2">"_path"</span><span class="p">,</span>
+        <span class="s2">"_p"</span><span class="p">,</span>
+        <span class="s2">"p"</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">state</span><span class="p">:</span> <span class="n">ScaleArray</span> <span class="o">=</span> <span class="n">ScaleArray</span><span class="p">()</span>
+<span class="w">    </span><span class="sd">"""State scaling array for a single phase."""</span>
+    <span class="n">control</span><span class="p">:</span> <span class="n">ScaleArray</span> <span class="o">=</span> <span class="n">ScaleArray</span><span class="p">()</span>
+<span class="w">    </span><span class="sd">"""Control scaling array for a single phase."""</span>
+    <span class="n">integral</span><span class="p">:</span> <span class="n">ScaleArray</span> <span class="o">=</span> <span class="n">ScaleArray</span><span class="p">()</span>
+<span class="w">    </span><span class="sd">"""Integral scaling array for a single phase."""</span>
+    <span class="n">dynamics</span><span class="p">:</span> <span class="n">ScaleArray</span> <span class="o">=</span> <span class="n">ScaleArray</span><span class="p">()</span>
+<span class="w">    </span><span class="sd">"""Dynamics scaling array for a single phase."""</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">ScaleArray</span> <span class="o">=</span> <span class="n">ScaleArray</span><span class="p">()</span>
+<span class="w">    </span><span class="sd">"""Path scaling array for a single phase."""</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">yapss</span><span class="o">.</span><span class="n">Problem</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initialize the scaling object.</span>
+
+<span class="sd">        Initialize the scaling object for phase `p` of  the problem, based on the `problem`</span>
+<span class="sd">        object.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        problem : Problem</span>
+<span class="sd">            The problem object.</span>
+<span class="sd">        p : int</span>
+<span class="sd">            The phase index.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_p</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">p</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">:</span> <span class="n">Array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">problem</span><span class="o">.</span><span class="n">nx</span><span class="p">[</span><span class="n">p</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_control</span><span class="p">:</span> <span class="n">Array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">problem</span><span class="o">.</span><span class="n">nu</span><span class="p">[</span><span class="n">p</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_integral</span><span class="p">:</span> <span class="n">Array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">problem</span><span class="o">.</span><span class="n">nq</span><span class="p">[</span><span class="n">p</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dynamics</span><span class="p">:</span> <span class="n">Array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">problem</span><span class="o">.</span><span class="n">nx</span><span class="p">[</span><span class="n">p</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_path</span><span class="p">:</span> <span class="n">Array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">problem</span><span class="o">.</span><span class="n">nh</span><span class="p">[</span><span class="n">p</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Scale</span><span class="p">(</span><span class="n">Protected</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Scaling object."""</span>
+
+    <span class="n">_allowed_attrs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"_phase"</span><span class="p">,</span>
+        <span class="s2">"_discrete"</span><span class="p">,</span>
+        <span class="s2">"_parameter"</span><span class="p">,</span>
+        <span class="s2">"objective"</span><span class="p">,</span>
+        <span class="s2">"phase"</span><span class="p">,</span>
+        <span class="s2">"discrete"</span><span class="p">,</span>
+        <span class="s2">"parameter"</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">phase</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ScalePhase</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">discrete</span><span class="p">:</span> <span class="n">ScaleArray</span> <span class="o">=</span> <span class="n">ScaleArray</span><span class="p">()</span>
+    <span class="n">parameter</span><span class="p">:</span> <span class="n">ScaleArray</span> <span class="o">=</span> <span class="n">ScaleArray</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ocp</span><span class="p">:</span> <span class="n">Problem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phase</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">ScalePhase</span><span class="p">(</span><span class="n">ocp</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ocp</span><span class="o">.</span><span class="n">np</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_discrete</span><span class="p">:</span> <span class="n">Array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">ocp</span><span class="o">.</span><span class="n">nd</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span><span class="p">:</span> <span class="n">Array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">ocp</span><span class="o">.</span><span class="n">ns</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>  <span class="c1"># TODO: not correct</span>
+<span class="w">        </span><span class="sd">"""Get the scale value for a given item."""</span>
+        <span class="n">p</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">i</span> <span class="o">=</span> <span class="n">item</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">"s"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"x0"</span><span class="p">,</span> <span class="s2">"xf"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">"u"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">control</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"t"</span><span class="p">,</span> <span class="s2">"t0"</span><span class="p">,</span> <span class="s2">"tf"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">"q"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">integral</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span>
+
+
+<div class="viewcode-block" id="Derivatives">
+<a class="viewcode-back" href="../../../reference/derivatives.html#yapss._private.problem.Derivatives">[docs]</a>
+<span class="k">class</span> <span class="nc">Derivatives</span><span class="p">(</span><span class="n">Protected</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Derivative class.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    method : {"auto", "central-difference", "central-difference-full", "user"}</span>
+<span class="sd">    order : {"first", "second"}</span>
+<span class="sd">    """</span>
+
+    <span class="n">_allowed_attrs</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"_method"</span><span class="p">,</span> <span class="s2">"_order"</span><span class="p">,</span> <span class="s2">"method"</span><span class="p">,</span> <span class="s2">"order"</span><span class="p">)</span>
+
+    <span class="n">order</span><span class="p">:</span> <span class="n">LimitOptions</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">LimitOptions</span><span class="p">((</span><span class="s2">"first"</span><span class="p">,</span> <span class="s2">"second"</span><span class="p">))</span>
+<span class="w">    </span><span class="sd">"""Order of derivatives used in search for optimum."""</span>
+
+    <span class="n">method</span><span class="p">:</span> <span class="n">LimitOptions</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">LimitOptions</span><span class="p">(</span>
+        <span class="p">(</span><span class="s2">"auto"</span><span class="p">,</span> <span class="s2">"central-difference"</span><span class="p">,</span> <span class="s2">"central-difference-full"</span><span class="p">,</span> <span class="s2">"user"</span><span class="p">),</span>
+    <span class="p">)</span>
+<span class="w">    </span><span class="sd">"""Method used to compute derivatives."""</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initialize the derivative object with default values."""</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_method</span> <span class="o">=</span> <span class="n">DEFAULT_DERIVATIVE_METHOD</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_order</span> <span class="o">=</span> <span class="n">DEFAULT_DERIVATIVE_ORDER</span></div>
+
+
+
+<span class="k">class</span> <span class="nc">UserFunctions</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Container for the user-defined callback functions and their derivatives.</span>
+
+<span class="sd">    The `functions` attribute of a `Problem` instance is an instance of the `UserFunctions`</span>
+<span class="sd">    class, which stores the user-defined callback functions and their derivatives. Every</span>
+<span class="sd">    optimal control problem must have at least an objective function. Most problems will have</span>
+<span class="sd">    one or more phases with dynamics, path constraints, and/or integrands, and these problems</span>
+<span class="sd">    require at least a `continuous` callback function. Problems with discrete constraints</span>
+<span class="sd">    require at least a `discrete` callback function.</span>
+
+<span class="sd">    For problems that use automatic differentiation, or differentiation by finite differences,</span>
+<span class="sd">    no further callbacks are required. For problems that use user-supplied derivatives,</span>
+<span class="sd">    additional callback functions are required. The `objective_gradient` callback is required</span>
+<span class="sd">    for problems that use user-supplied gradients, and the `objective_hessian` callback is</span>
+<span class="sd">    required for problems that use user-supplied Hessians. The `continuous_jacobian`,</span>
+<span class="sd">    `continuous_hessian`, `discrete_jacobian`, and `discrete_hessian` callbacks are required</span>
+<span class="sd">    as appropriate for problems that use user-supplied derivatives.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    objective : ObjectiveFunction | None</span>
+<span class="sd">    continuous : ContinuousFunction | None</span>
+<span class="sd">    discrete : DiscreteFunction | None</span>
+<span class="sd">    objective_gradient : ObjectiveGradientFunction | None</span>
+<span class="sd">    continuous_jacobian : ContinuousJacobianFunction | None</span>
+<span class="sd">    discrete_jacobian : DiscreteJacobianFunction | None</span>
+<span class="sd">    objective_hessian : ObjectiveHessianFunction | None</span>
+<span class="sd">    continuous_hessian : ContinuousHessianFunction | None</span>
+<span class="sd">    discrete_hessian : DiscreteHessianFunction | None</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initialize the user functions."""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objective</span><span class="p">:</span> <span class="n">ObjectiveFunction</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objective_gradient</span><span class="p">:</span> <span class="n">ObjectiveGradientFunction</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objective_hessian</span><span class="p">:</span> <span class="n">ObjectiveHessianFunction</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">continuous</span><span class="p">:</span> <span class="n">ContinuousFunction</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">continuous_jacobian</span><span class="p">:</span> <span class="n">ContinuousJacobianFunction</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">continuous_hessian</span><span class="p">:</span> <span class="n">ContinuousHessianFunction</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">discrete</span><span class="p">:</span> <span class="n">DiscreteFunction</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">discrete_jacobian</span><span class="p">:</span> <span class="n">DiscreteJacobianFunction</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">discrete_hessian</span><span class="p">:</span> <span class="n">DiscreteHessianFunction</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">_function_names</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"objective"</span><span class="p">,</span>
+        <span class="s2">"objective_gradient"</span><span class="p">,</span>
+        <span class="s2">"objective_hessian"</span><span class="p">,</span>
+        <span class="s2">"continuous"</span><span class="p">,</span>
+        <span class="s2">"continuous_jacobian"</span><span class="p">,</span>
+        <span class="s2">"continuous_hessian"</span><span class="p">,</span>
+        <span class="s2">"discrete"</span><span class="p">,</span>
+        <span class="s2">"discrete_jacobian"</span><span class="p">,</span>
+        <span class="s2">"discrete_hessian"</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Set the value of the attribute."""</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_function_names</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Cannot set 'UserFunctions' attribute '</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">'"</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="c1"># None is a valid value</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Check if the value is a callable object with one argument</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Value of '</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">' must be a callable object with one argument, or None."</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="c1"># Count the parameters in the signature</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="o">.</span><span class="n">POSITIONAL_OR_KEYWORD</span><span class="p">,</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="o">.</span><span class="n">POSITIONAL_ONLY</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__delattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Raise an error if the attribute is deleted."""</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_function_names</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Cannot delete function '</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">'; set to None instead."</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Cannot delete 'UserFunctions' attribute '</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">'"</span>
+        <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">MeshPhase</span><span class="p">(</span><span class="n">Protected</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""MeshPhase instances represent the mesh structure of a phase of the NLP."""</span>
+
+    <span class="n">_allowed_attrs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"collocation_points"</span><span class="p">,</span>
+        <span class="s2">"fraction"</span><span class="p">,</span>
+        <span class="s2">"_fraction"</span><span class="p">,</span>
+        <span class="s2">"_collocation_points"</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">_allowed_del_attrs</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fraction</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">*</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_collocation_points</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">*</span> <span class="p">(</span><span class="mi">10</span><span class="p">,)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fraction</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fraction</span>
+
+    <span class="nd">@fraction</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">fraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">and</span> <span class="n">f</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">value</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"fraction must be a sequence of floats"</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Sum of mesh fractions must be close to 1.0. Sum is </span><span class="si">{</span><span class="n">s</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fraction</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">fraction</span> <span class="o">/</span> <span class="n">s</span> <span class="k">for</span> <span class="n">fraction</span> <span class="ow">in</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">collocation_points</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_collocation_points</span>
+
+    <span class="nd">@collocation_points</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">collocation_points</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"collocation_points must be a sequence of positive integers, not </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span>  <span class="c1"># type: ignore[unreachable]</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="c1"># TODO: Change to minimum number of collocation points. 3?</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">value</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"collocation_points must be a sequence of positive integers"</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_collocation_points</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Mesh</span><span class="p">(</span><span class="n">Protected</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Mesh data for a problem."""</span>
+
+    <span class="n">phase</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">MeshPhase</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">yapss</span><span class="o">.</span><span class="n">Problem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initialize the mesh object."""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phase</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">MeshPhase</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">np</span><span class="p">))</span>
+        <span class="n">segments</span> <span class="o">=</span> <span class="n">DEFAULT_NUMBER_OF_SEGMENTS</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="n">DEFAULT_NUMBER_OF_COLLOCATION_POINTS</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">np</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">collocation_points</span> <span class="o">=</span> <span class="n">segments</span> <span class="o">*</span> <span class="p">(</span><span class="n">segments</span><span class="p">,)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">fraction</span> <span class="o">=</span> <span class="n">segments</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">points</span><span class="p">,)</span>
+
+    <span class="c1"># TODO: should just init mesh inside class?</span>
+
+    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Validate the user-supplied mesh geometry.</span>
+
+<span class="sd">        The method raises a `ValueError` or `TypeError` if the user supplied _mesh data is</span>
+<span class="sd">        invalid.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">        """</span>
+        <span class="c1"># fix below to use enumerate</span>
+
+        <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">phase</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">):</span>
+            <span class="n">cp</span> <span class="o">=</span> <span class="n">phase</span><span class="o">.</span><span class="n">collocation_points</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">phase</span><span class="o">.</span><span class="n">fraction</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cp</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+                <span class="c1"># TODO: Check error message</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s2">"mesh.phase[</span><span class="si">{}</span><span class="s2">].col_points and mesh.phase[</span><span class="si">{}</span><span class="s2">].fraction must be the same length"</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">p</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<footer>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

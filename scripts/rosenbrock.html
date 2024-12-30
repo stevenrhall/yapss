@@ -1,0 +1,402 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rosenbrock Function — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="hs071.html" rel="next" title="HS071 Optimization Problem"/>
+<link href="index.html" rel="prev" title="Python Scripts"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Python Scripts</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Rosenbrock Function</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-yapss.examples.rosenbrock">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#yapss.examples.rosenbrock.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#yapss.examples.rosenbrock.plot_rosenbrock"><code class="docutils literal notranslate"><span class="pre">plot_rosenbrock()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#yapss.examples.rosenbrock.setup"><code class="docutils literal notranslate"><span class="pre">setup()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#code">Code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#text-output">Text Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#plots">Plots</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="brachistochrone_minimal.html">Brachistochrone (Minimal Implementation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="brachistochrone.html">Brachistochrone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="newton.html">Newton’s Minimal Resistance Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_1_phase.html">The Goddard Problem (One Phase)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_3_phase.html">The Goddard Problem (Three Phases)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamic_soaring.html">Dynamic Soaring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="minimum_time_to_climb.html">Minimum Time to Climb Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="delta_iii_ascent.html">Delta III Launch Vehicle Ascent Problem</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item"><a href="index.html">Python Scripts</a></li>
+<li class="breadcrumb-item active">Rosenbrock Function</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/scripts/rosenbrock.rst"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="rosenbrock-function">
+<h1>Rosenbrock Function<a class="headerlink" href="#rosenbrock-function" title="Link to this heading"></a></h1>
+<p>For a description of the Rosenbrock function minimization problem, see the
+<a class="reference internal" href="../notebooks/rosenbrock.html"><span class="doc">JupyterLab notebook documentation</span></a> for this problem.</p>
+<p>The python script in this example can be executed from the command line with:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python<span class="w"> </span>-m<span class="w"> </span>yapss.examples.rosenbrock
+</pre></div>
+</div>
+<section id="module-yapss.examples.rosenbrock">
+<span id="functions"></span><h2>Functions<a class="headerlink" href="#module-yapss.examples.rosenbrock" title="Link to this heading"></a></h2>
+<p>YAPSS solution to the minimization of the Rosenbrock function.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="yapss.examples.rosenbrock.main">
+<span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/yapss/examples/rosenbrock.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.examples.rosenbrock.main" title="Link to this definition"></a></dt>
+<dd><p>Demonstrate the solution to the Rosenbrock function minimization problem.</p>
+</dd></dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="yapss.examples.rosenbrock.plot_rosenbrock">
+<span class="sig-name descname"><span class="pre">plot_rosenbrock</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/yapss/examples/rosenbrock.html#plot_rosenbrock"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.examples.rosenbrock.plot_rosenbrock" title="Link to this definition"></a></dt>
+<dd><p>Make a contour plot of the Rosenbrock function.</p>
+</dd></dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="yapss.examples.rosenbrock.setup">
+<span class="sig-name descname"><span class="pre">setup</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference internal" href="../reference/problem.html#yapss.Problem" title="yapss._private.problem.Problem"><span class="pre">Problem</span></a></span></span><a class="reference internal" href="../_modules/yapss/examples/rosenbrock.html#setup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss.examples.rosenbrock.setup" title="Link to this definition"></a></dt>
+<dd><p>Set up the problem to minimize the Rosenbrock problem.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>problem</strong><span class="classifier">Problem</span></dt><dd><p>The Rosenbrock function minimization problem.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+</section>
+<section id="code">
+<h2>Code<a class="headerlink" href="#code" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">"""</span>
+
+<span class="sd">YAPSS solution to the minimization of the Rosenbrock function.</span>
+
+<span class="sd">"""</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"main"</span><span class="p">,</span> <span class="s2">"plot_rosenbrock"</span><span class="p">,</span> <span class="s2">"setup"</span><span class="p">]</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># third party imports</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+
+<span class="c1"># package imports</span>
+<span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">ObjectiveArg</span><span class="p">,</span> <span class="n">Problem</span>
+
+
+<span class="k">def</span> <span class="nf">setup</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Problem</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Set up the problem to minimize the Rosenbrock problem.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    problem : Problem</span>
+<span class="sd">        The Rosenbrock function minimization problem.</span>
+<span class="sd">    """</span>
+    <span class="c1"># problem has no dynamic phases, and 2 parameters</span>
+    <span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Rosenbrock"</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="p">[],</span> <span class="n">ns</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="n">ObjectiveArg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Rosenbrock objective callback function."""</span>
+        <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">parameter</span>
+        <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="p">(</span><span class="n">x1</span> <span class="o">-</span> <span class="n">x0</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">x0</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+
+    <span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+
+    <span class="c1"># guess</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">parameter</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.2</span><span class="p">,</span> <span class="mf">1.0</span>
+
+    <span class="c1"># yapss options</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="s2">"second"</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"auto"</span>
+
+    <span class="c1"># ipopt options</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-20</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">5</span>
+
+    <span class="k">return</span> <span class="n">problem</span>
+
+
+<span class="k">def</span> <span class="nf">plot_rosenbrock</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Make a contour plot of the Rosenbrock function."""</span>
+    <span class="n">x0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">400</span><span class="p">)</span>
+    <span class="n">x1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">400</span><span class="p">)</span>
+    <span class="n">x0_grid</span><span class="p">,</span> <span class="n">x1_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="p">(</span><span class="n">x1_grid</span> <span class="o">-</span> <span class="n">x0_grid</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">x0_grid</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">levels</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">300</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">3000</span><span class="p">]</span>
+    <span class="n">cp</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">contour</span><span class="p">(</span><span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">levels</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="s2">"black"</span><span class="p">,</span> <span class="n">linewidths</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">clabel</span><span class="p">(</span><span class="n">cp</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">".r"</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$x_0$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$x_1$"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">"Rosenbrock function"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Demonstrate the solution to the Rosenbrock function minimization problem."""</span>
+    <span class="n">ocp</span> <span class="o">=</span> <span class="n">setup</span><span class="p">()</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"auto"</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="s2">"first"</span>
+    <span class="n">ocp</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">solution</span> <span class="o">=</span> <span class="n">ocp</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+    <span class="n">x_opt</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">parameter</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">The optimal solution is at the point x = (</span><span class="si">{</span><span class="n">x_opt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">x_opt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+    <span class="n">plot_rosenbrock</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="text-output">
+<h2>Text Output<a class="headerlink" href="#text-output" title="Link to this heading"></a></h2>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit https://github.com/coin-or/Ipopt
+******************************************************************************
+
+This is Ipopt version 3.14.11, running with linear solver ma27.
+
+Number of nonzeros in equality constraint Jacobian...:        0
+Number of nonzeros in inequality constraint Jacobian.:        0
+Number of nonzeros in Lagrangian Hessian.............:        0
+
+Total number of variables............................:        2
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:        0
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:        0
+Total number of inequality constraints...............:        0
+        inequality constraints with only lower bounds:        0
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+   0  2.4200000e+01 0.00e+00 2.16e+02   0.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  5.1011127e+00 0.00e+00 3.83e+01 -20.3 2.16e+02    -  1.00e+00 9.77e-04f 11
+   2  4.1537855e+00 0.00e+00 6.66e+00 -20.3 3.17e-02    -  1.00e+00 1.00e+00f  1
+   3  4.1172110e+00 0.00e+00 1.41e+00 -20.3 6.68e-03    -  1.00e+00 1.00e+00f  1
+   4  4.1138478e+00 0.00e+00 1.41e+00 -20.3 1.69e-03    -  1.00e+00 1.00e+00f  1
+   5  4.1104835e+00 0.00e+00 1.41e+00 -20.3 1.70e-03    -  1.00e+00 1.00e+00f  1
+   6  4.1071181e+00 0.00e+00 1.41e+00 -20.3 1.70e-03    -  1.00e+00 1.00e+00f  1
+   7  4.0822962e+00 0.00e+00 9.98e+00 -20.3 1.41e+00    -  1.00e+00 3.12e-02f  6
+   8  3.8443255e+00 0.00e+00 3.06e+01 -20.3 7.47e-01    -  1.00e+00 1.00e+00f  1
+   9  3.6988415e+00 0.00e+00 5.33e+00 -20.3 5.80e-01    -  1.00e+00 1.00e+00f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  10  3.3152088e+00 0.00e+00 2.27e+00 -20.3 1.68e-01    -  1.00e+00 1.00e+00f  1
+  11  2.9568858e+00 0.00e+00 7.41e+00 -20.3 1.84e-01    -  1.00e+00 1.00e+00f  1
+  12  2.9202278e+00 0.00e+00 1.86e+01 -20.3 4.84e-01    -  1.00e+00 5.00e-01f  2
+  13  2.7122136e+00 0.00e+00 9.58e+00 -20.3 1.15e-01    -  1.00e+00 1.00e+00f  1
+  14  2.5807322e+00 0.00e+00 7.78e+00 -20.3 3.40e-02    -  1.00e+00 1.00e+00f  1
+  15  2.3268760e+00 0.00e+00 1.50e+01 -20.3 3.01e-01    -  1.00e+00 1.00e+00f  1
+  16  2.0281526e+00 0.00e+00 2.76e+00 -20.3 1.47e-01    -  1.00e+00 1.00e+00f  1
+  17  1.8126691e+00 0.00e+00 3.81e+00 -20.3 8.02e-02    -  1.00e+00 1.00e+00f  1
+  18  1.6383532e+00 0.00e+00 8.83e+00 -20.3 5.69e-01    -  1.00e+00 2.50e-01f  3
+  19  1.4959030e+00 0.00e+00 4.54e+00 -20.3 2.15e-02    -  1.00e+00 1.00e+00f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  20  1.1803097e+00 0.00e+00 3.26e+00 -20.3 1.28e-01    -  1.00e+00 1.00e+00f  1
+  21  1.0292074e+00 0.00e+00 9.27e+00 -20.3 1.72e-01    -  1.00e+00 1.00e+00f  1
+  22  7.5166671e-01 0.00e+00 1.80e+00 -20.3 5.58e-02    -  1.00e+00 1.00e+00f  1
+  23  6.0644063e-01 0.00e+00 6.82e+00 -20.3 1.67e-01    -  1.00e+00 1.00e+00f  1
+  24  5.2258332e-01 0.00e+00 1.45e+00 -20.3 1.91e-02    -  1.00e+00 1.00e+00f  1
+  25  4.0323347e-01 0.00e+00 1.65e+00 -20.3 8.96e-02    -  1.00e+00 1.00e+00f  1
+  26  3.3584793e-01 0.00e+00 5.09e+00 -20.3 2.18e-01    -  1.00e+00 5.00e-01f  2
+  27  2.4948751e-01 0.00e+00 2.19e+00 -20.3 4.75e-02    -  1.00e+00 1.00e+00f  1
+  28  1.9589467e-01 0.00e+00 6.24e+00 -20.3 1.41e-01    -  1.00e+00 1.00e+00f  1
+  29  1.2414558e-01 0.00e+00 9.25e-01 -20.3 2.76e-02    -  1.00e+00 1.00e+00f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  30  8.0268178e-02 0.00e+00 1.11e+00 -20.3 9.55e-02    -  1.00e+00 1.00e+00f  1
+  31  6.5323884e-02 0.00e+00 4.20e+00 -20.3 1.88e-01    -  1.00e+00 5.00e-01f  2
+  32  4.4521129e-02 0.00e+00 1.77e+00 -20.3 2.36e-02    -  1.00e+00 1.00e+00f  1
+  33  2.0462411e-02 0.00e+00 1.65e+00 -20.3 1.14e-01    -  1.00e+00 1.00e+00f  1
+  34  9.0735624e-03 0.00e+00 8.46e-01 -20.3 7.55e-02    -  1.00e+00 1.00e+00f  1
+  35  3.6184055e-03 0.00e+00 1.30e+00 -20.3 7.98e-02    -  1.00e+00 1.00e+00f  1
+  36  2.7049282e-03 0.00e+00 1.47e+00 -20.3 4.30e-01    -  1.00e+00 6.25e-02f  5
+  37  1.6821955e-04 0.00e+00 3.29e-01 -20.3 4.99e-02    -  1.00e+00 1.00e+00f  1
+  38  5.1511301e-05 0.00e+00 1.44e-01 -20.3 7.50e-03    -  1.00e+00 1.00e+00f  1
+  39  1.4954434e-06 0.00e+00 4.89e-02 -20.3 1.22e-02    -  1.00e+00 1.00e+00f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  40  4.4755737e-07 0.00e+00 2.42e-02 -20.3 4.33e-04    -  1.00e+00 1.00e+00f  1
+  41  1.1094447e-10 0.00e+00 2.44e-05 -20.3 5.50e-04    -  1.00e+00 1.00e+00f  1
+  42  2.3489568e-13 0.00e+00 5.82e-06 -20.3 2.20e-05    -  1.00e+00 1.00e+00f  1
+  43  2.4754109e-14 0.00e+00 6.29e-06 -20.3 9.04e-07    -  1.00e+00 1.00e+00f  1
+  44  1.3468074e-14 0.00e+00 2.76e-06 -20.3 4.17e-07    -  1.00e+00 5.00e-01f  2
+  45  5.4807572e-18 0.00e+00 3.93e-08 -20.3 1.91e-07    -  1.00e+00 1.00e+00f  1
+  46  6.9478349e-21 0.00e+00 2.72e-09 -20.3 4.35e-09    -  1.00e+00 1.00e+00f  1
+  47  3.1179318e-23 0.00e+00 2.01e-10 -20.3 9.20e-11    -  1.00e+00 1.00e+00f  1
+  48  4.2471908e-24 0.00e+00 1.97e-11 -20.3 1.77e-11    -  1.00e+00 5.00e-01f  2
+  49  6.6120460e-26 0.00e+00 7.20e-12 -20.3 4.38e-12    -  1.00e+00 1.00e+00f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  50  4.8657434e-27 0.00e+00 2.67e-12 -20.3 3.27e-13    -  1.00e+00 1.00e+00f  1
+  51  1.0137356e-27 0.00e+00 7.63e-13 -20.3 9.26e-14    -  1.00e+00 1.00e+00f  1
+  52  4.5716955e-29 0.00e+00 1.21e-13 -20.3 6.32e-14    -  1.00e+00 1.00e+00f  1
+  53  6.7053177e-30 0.00e+00 8.62e-14 -20.3 1.49e-14    -  1.00e+00 1.00e+00f  1
+  54  5.2385294e-30 0.00e+00 8.77e-14 -20.3 4.21e-15    -  1.00e+00 1.00e+00   0
+  55  5.1275959e-30 0.00e+00 8.79e-14 -20.3 2.49e-15    -  1.00e+00 1.00e+00T  0
+  56  5.1275959e-30 0.00e+00 8.79e-14 -20.3 8.79e-14    -  1.00e+00 1.16e-10f 34
+  57  5.1275959e-30 0.00e+00 8.79e-14 -20.3 8.79e-14    -  1.00e+00 1.16e-10f 34
+  58  5.1275959e-30 0.00e+00 8.79e-14 -20.3 8.79e-14    -  1.00e+00 1.16e-10f 34
+  59  5.1275959e-30 0.00e+00 8.79e-14 -20.3 8.79e-14    -  1.00e+00 1.16e-10f 34
+
+Number of Iterations....: 59
+
+                                   (scaled)                 (unscaled)
+Objective...............:   5.1275958839365767e-30    5.1275958839365767e-30
+Dual infeasibility......:   8.7929663550312436e-14    8.7929663550312436e-14
+Constraint violation....:   0.0000000000000000e+00    0.0000000000000000e+00
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   0.0000000000000000e+00    0.0000000000000000e+00
+Overall NLP error.......:   8.7929663550312436e-14    8.7929663550312436e-14
+
+
+Number of objective function evaluations             = 270
+Number of objective gradient evaluations             = 60
+Number of equality constraint evaluations            = 0
+Number of inequality constraint evaluations          = 0
+Number of equality constraint Jacobian evaluations   = 0
+Number of inequality constraint Jacobian evaluations = 0
+Number of Lagrangian Hessian evaluations             = 0
+Total seconds in IPOPT (w/o function evaluations)    =      0.011
+Total seconds in NLP function evaluations            =      0.006
+
+EXIT: Solved To Acceptable Level.
+
+The optimal solution is at the point x = (1.0000000000000004, 1.000000000000001)
+</pre></div>
+</div>
+</section>
+<section id="plots">
+<h2>Plots<a class="headerlink" href="#plots" title="Link to this heading"></a></h2>
+<p>Plotted below is a contour plot of the Rosenbrock function, with the minimum indicated by a red dot.
+Note that the minimum lies is a long, narrow valley, which makes optimization difficult.</p>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/rosenbrock_plot_1.png"><img alt="../_images/rosenbrock_plot_1.png" src="../_images/rosenbrock_plot_1.png" style="width: 400pt;"/>
+</a>
+</figure>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="index.html" rel="prev" title="Python Scripts"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="hs071.html" rel="next" title="HS071 Optimization Problem">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

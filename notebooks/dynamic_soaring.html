@@ -1,0 +1,751 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dynamic Soaring — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/nbsphinx-code-cells.css?v=2aa19091" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="minimum_time_to_climb.html" rel="next" title="Minimum Time to Climb Problem"/>
+<link href="orbit_raising.html" rel="prev" title="Orbit Raising Problem"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">JupyterLab Notebooks</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="rosenbrock.html">Rosenbrock Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="brachistochrone.html">Brachistochrone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="newton.html">Newton’s Minimal Resistance Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_1_phase.html">The Goddard Problem (One Phase)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_3_phase.html">The Goddard Problem (Three Phases)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Dynamic Soaring</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Description">Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#YAPSS-Solution">YAPSS Solution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Plot-the-Solution">Plot the Solution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#3D-Flight-Path">3D Flight Path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Lift-Coefficient-History">Lift Coefficient History</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Velocity-History">Velocity History</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Flight-Path-Angle-History">Flight Path Angle History</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Heading-Angle-History">Heading Angle History</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Bank-Angle-History">Bank Angle History</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Hamiltonian">Hamiltonian</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#References">References</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="minimum_time_to_climb.html">Minimum Time to Climb Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="delta_iii_ascent.html">Delta III Launch Vehicle Ascent Problem</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item"><a href="index.html">JupyterLab Notebooks</a></li>
+<li class="breadcrumb-item active">Dynamic Soaring</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/dynamic_soaring.ipynb"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="Dynamic-Soaring">
+<h1>Dynamic Soaring<a class="headerlink" href="#Dynamic-Soaring" title="Link to this heading"></a></h1>
+<p>For a solution to the dynamic soaring problem using a Python script instead of a notebook, see the corresponding <a class="reference internal" href="../scripts/dynamic_soaring.html"><span class="doc">Python script documentation</span></a>.</p>
+<section id="Description">
+<h2>Description<a class="headerlink" href="#Description" title="Link to this heading"></a></h2>
+<p>In 1883, Lord Rayleigh (John William Strutt, 3rd Baron Rayleigh) was the first to describe the mechanism of dynamic soaring, by which birds can maintain flight without flapping in the presence of wind gradients. He wrote <a class="footnote-reference brackets" href="#footcite-rayleigh-1883" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>:</p>
+<blockquote>
+<div><p>The first step is, if necessary, to turn round until the relative motion is to leeward, and then to drop gradually down through the plane of separation. In falling down to the level of the plane there is a gain of relative velocity, but this is of no significance for the present purpose, as it is purchased by the loss of elevation; but in passing through the plane there is a really effective gain. In entering the lower stratum the actual velocity is indeed unaltered, but the velocity
+relatively to the surrounding air is increased. The bird must now wheel round in the lower stratum until the direction of motion is to windward, and then return to the upper stratum, in entering which there is a second increment of relative velocity. This process may evidently be repeated indefinitely; and if the successive increments of relative velocity squared are large enough to outweigh the inevitable waste which is in progress all the while, the bird may maintain his level, and even
+increase his available energy, without doing a stroke of work.</p>
+</div></blockquote>
+<p>Zhao <a class="footnote-reference brackets" href="#footcite-zhao-2004" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a> formulated the dynamic soaring problem as an optimal control problem, and looked at optimizing a number of parameters, including the least required wind gradient slope that can sustain dynamic soaring flight. Darby et al. <a class="footnote-reference brackets" href="#footcite-darby-2011" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a> presented a solution using the LGR pseudospectral method implemented in the GPOPS software package. The example presented here is slightly modified version of that problem, implemented in YAPSS. (In our modification, the closed
+path is clockwise, so that larger bank angles are positive instead of negative.)</p>
+<p>The states of the system are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+   x(t) &amp;= \text{distance north} \\
+   y(t) &amp;= \text{distance east} \\
+   h(t) &amp;= \text{altitude} \\
+   v(t) &amp;= \text{velocity} \\
+   \gamma(t) &amp;= \text{flight path angle} \\
+   \psi(t) &amp;= \text{heading angle}
+\end{aligned}\end{split}\]</div>
+<p>and the control inputs are</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+   C_{L}(t) &amp;= \text{lift coefficient} \\
+   \phi(t)  &amp;= \text{bank angle (rad)}
+\end{aligned}\end{split}\]</div>
+<p>The differential equations for the states are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+   \dot{x} &amp;= v \cos\gamma \,\sin\psi + W_{x} \\
+   \dot{y} &amp;= v \cos\gamma \,\cos\psi \\
+   \dot{h} &amp;= v \sin\gamma \\
+   \dot{v} &amp;= -\frac{D}{m} - g \sin\gamma - \dot{W}_{x} \cos\gamma \,\sin\psi \\
+   \dot{\gamma} &amp;= \frac{1}{mv} \left(\,L \cos \phi - mg \cos \gamma
+                     + m \dot{W}_{x} \sin\gamma \,\sin\psi\,\right) \\
+   \dot{\psi} &amp;= \frac{L \sin\phi - m \dot{W}_{x} \cos\psi}{m v\cos\gamma}
+\end{aligned}\end{split}\]</div>
+<p>The lift and drag are given by</p>
+<div class="math notranslate nohighlight">
+\[L = q S C_{L}, \quad D = q S C_{D}\]</div>
+<p>where <span class="math notranslate nohighlight">\(S\)</span> is the wing reference area, and the dynamic pressure is</p>
+<div class="math notranslate nohighlight">
+\[q = \frac{1}{2} \rho v^{2}\]</div>
+<p>The drag coefficient is a constant (the profile drag) plus a term dependent of the lift coefficient squared (the induced drag):</p>
+<div class="math notranslate nohighlight">
+\[C_{D} = C_{D 0} + K C_{L}^{2}\]</div>
+<p>The winds are out of the north, with magnitude increasing linearly with altitutde, so that</p>
+<div class="math notranslate nohighlight">
+\[W_{x} =\beta h, \quad \dot{W}_{x} =\beta \dot{h}\]</div>
+<p>The goal of this problem are to find the minimum value of the gradient <span class="math notranslate nohighlight">\(\beta\)</span> that can sustain a continuous cycle of dynamic soaring, that is to minimize</p>
+<div class="math notranslate nohighlight">
+\[J = \beta\]</div>
+<p>subject to the boundary conditions</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+   x(t_f) &amp;= x(0) = 0 \\
+   y(t_f) &amp;= y(0) = 0 \\
+   h(t_f) &amp;= h(0) = 0 \\
+   v(t_f) &amp;= v(0) \\
+   \phi(t_f) &amp;= \phi(0) \\
+   \psi(t_f) &amp;= \psi(0) + 2 \pi
+   \end{aligned}\end{split}\]</div>
+<p>There is a limit on the second control (the coefficient of lift), given as</p>
+<div class="math notranslate nohighlight">
+\[0 \le C_L(t) \le {C_L}_\text{max} = 1.5\]</div>
+<p>In addition to the boundary conditions, there is a load limit on the glider that limits the acceleration due to lift with the path constraint</p>
+<div class="math notranslate nohighlight">
+\[-2 \le \frac{L}{mg} \le 5\]</div>
+<p>Box bounds on the state variables are imposed in order to speed the convergence to the optimumn but none of these bounds are active at the final solution:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    -1500 &amp;\leq x(t) \leq 1500 \\
+    -1000 &amp;\leq y(t) \leq 1000 \\
+    0 &amp;\leq h(t) \leq 1000 \\
+    10 &amp;\leq v(t) \leq 350 \\
+    0^{\circ} &amp;\leq \gamma(t) \leq 75^{\circ} \\
+    -225^{\circ} &amp;\leq \psi(t) \leq 225^{\circ}
+\end{aligned}\end{split}\]</div>
+<p>Finally, the constants for this problem are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{alignat*}{3}
+  g &amp;= 32.2 \text{ ft/s$^2$}, \quad &amp;
+     C_{D 0} &amp;= 0.00873, \quad &amp;
+     \rho &amp;= 0.002378 \text{ slug/ft$^3$} \\
+  m &amp;= 5.6 \text{ slug}, \quad &amp;
+     S &amp;= 45.09703 \text{ ft$^2$}, \quad &amp;
+     K &amp;= 0.045
+\end{alignat*}\end{split}\]</div>
+</section>
+<section id="YAPSS-Solution">
+<h2>YAPSS Solution<a class="headerlink" href="#YAPSS-Solution" title="Link to this heading"></a></h2>
+<p>Begin by importing required packages:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># third party imports</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="kn">import</span> <span class="n">Axes3D</span>
+<span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span>
+
+<span class="c1"># package imports</span>
+<span class="kn">from</span> <span class="nn">yapss.math</span> <span class="kn">import</span> <span class="n">cos</span><span class="p">,</span> <span class="n">sin</span>
+</pre></div>
+</div>
+</div>
+<p>Next, initialize the problem instance, and define the required callback functions:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># The problem has one phase, with 6 state variables, 2 control variables, 1 path</span>
+<span class="c1"># constraint, 1 paramter, and 3 discrete constraints</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Dynamic Soaring"</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span> <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">nh</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">ns</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">nd</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+<span class="c1"># The objective is to minimimize the wind gradient required for continuous dynamic</span>
+<span class="c1"># soaring.</span>
+
+
+<span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">parameter</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="c1"># The constinuous callback function defines the state dynamics and the path constraints.</span>
+
+
+<span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="c1"># Extract the state and control variables, and the wind gradient parameter</span>
+    <span class="n">auxdata</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">auxdata</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">psi</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="n">cl</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+    <span class="n">beta</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">parameter</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Weight of the aircraft</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">m</span> <span class="o">*</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">g0</span>
+
+    <span class="c1"># Determine the lift and drag</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">rho0</span> <span class="o">*</span> <span class="n">v</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">cd</span> <span class="o">=</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">cd0</span> <span class="o">+</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">k</span> <span class="o">*</span> <span class="n">cl</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">lift</span> <span class="o">=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">s</span> <span class="o">*</span> <span class="n">cl</span>
+    <span class="n">drag</span> <span class="o">=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">s</span> <span class="o">*</span> <span class="n">cd</span>
+
+    <span class="c1"># wind velocity as determined by the wind gradient and altitude</span>
+    <span class="n">wx</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">*</span> <span class="n">h</span> <span class="o">+</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">w0</span>
+
+    <span class="c1"># Sine and cosine of the angles gamma, psi, and phi</span>
+    <span class="n">cos_gamma</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">gamma</span><span class="p">)</span>
+    <span class="n">sin_gamma</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">gamma</span><span class="p">)</span>
+    <span class="n">cos_psi</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">psi</span><span class="p">)</span>
+    <span class="n">sin_psi</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">psi</span><span class="p">)</span>
+    <span class="n">cos_phi</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+    <span class="n">sin_phi</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+
+    <span class="c1"># State dynamics</span>
+    <span class="n">x_dot</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">cos_gamma</span> <span class="o">*</span> <span class="n">sin_psi</span> <span class="o">+</span> <span class="n">wx</span>
+    <span class="n">y_dot</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">cos_gamma</span> <span class="o">*</span> <span class="n">cos_psi</span>
+    <span class="n">h_dot</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">sin_gamma</span>
+    <span class="n">wx_dot</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">*</span> <span class="n">h_dot</span>
+    <span class="n">v_dot</span> <span class="o">=</span> <span class="o">-</span><span class="n">drag</span> <span class="o">/</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">m</span> <span class="o">-</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">g0</span> <span class="o">*</span> <span class="n">sin_gamma</span> <span class="o">-</span> <span class="n">wx_dot</span> <span class="o">*</span> <span class="n">cos_gamma</span> <span class="o">*</span> <span class="n">sin_psi</span>
+    <span class="n">gamma_dot</span> <span class="o">=</span> <span class="p">(</span><span class="n">lift</span> <span class="o">*</span> <span class="n">cos_phi</span> <span class="o">-</span> <span class="n">w</span> <span class="o">*</span> <span class="n">cos_gamma</span> <span class="o">+</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">m</span> <span class="o">*</span> <span class="n">wx_dot</span> <span class="o">*</span> <span class="n">sin_gamma</span> <span class="o">*</span> <span class="n">sin_psi</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+        <span class="n">auxdata</span><span class="o">.</span><span class="n">m</span> <span class="o">*</span> <span class="n">v</span>
+    <span class="p">)</span>
+    <span class="n">psi_dot</span> <span class="o">=</span> <span class="p">(</span><span class="n">lift</span> <span class="o">*</span> <span class="n">sin_phi</span> <span class="o">-</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">m</span> <span class="o">*</span> <span class="n">wx_dot</span> <span class="o">*</span> <span class="n">cos_psi</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">auxdata</span><span class="o">.</span><span class="n">m</span> <span class="o">*</span> <span class="n">v</span> <span class="o">*</span> <span class="n">cos_gamma</span><span class="p">)</span>
+
+    <span class="c1"># Return dynamics and path variables</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">x_dot</span><span class="p">,</span> <span class="n">y_dot</span><span class="p">,</span> <span class="n">h_dot</span><span class="p">,</span> <span class="n">v_dot</span><span class="p">,</span> <span class="n">gamma_dot</span><span class="p">,</span> <span class="n">psi_dot</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">path</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">rho0</span> <span class="o">*</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">s</span> <span class="o">/</span> <span class="n">w</span><span class="p">)</span> <span class="o">*</span> <span class="n">cl</span> <span class="o">*</span> <span class="n">v</span><span class="o">**</span><span class="mi">2</span>
+
+
+<span class="c1"># Discrete constraints</span>
+
+
+<span class="k">def</span> <span class="nf">discrete</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="c1"># Constrain the initial and final flight path angle and heading angle to be the same,</span>
+    <span class="c1"># and the heading angle to change by 360 degrees.</span>
+    <span class="c1"># The initial and final state are constrained to be the same by the state bounds.</span>
+    <span class="n">x0</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span>
+    <span class="n">xf</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span> <span class="o">=</span> <span class="n">xf</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span> <span class="o">-</span> <span class="n">x0</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
+
+
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="o">=</span> <span class="n">continuous</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">discrete</span> <span class="o">=</span> <span class="n">discrete</span>
+</pre></div>
+</div>
+</div>
+<p>Define the constants that will be passed to the callback function through the <code class="docutils literal notranslate"><span class="pre">arg.auxdata</span></code> attribute:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">auxdata</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">auxdata</span>
+<span class="n">auxdata</span><span class="o">.</span><span class="n">w0</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">auxdata</span><span class="o">.</span><span class="n">g0</span> <span class="o">=</span> <span class="mf">32.2</span>
+<span class="n">auxdata</span><span class="o">.</span><span class="n">cd0</span> <span class="o">=</span> <span class="mf">0.00873</span>
+<span class="n">auxdata</span><span class="o">.</span><span class="n">rho0</span> <span class="o">=</span> <span class="mf">0.002378</span>
+<span class="n">auxdata</span><span class="o">.</span><span class="n">m</span> <span class="o">=</span> <span class="mf">5.6</span>
+<span class="n">auxdata</span><span class="o">.</span><span class="n">s</span> <span class="o">=</span> <span class="mf">45.09703</span>
+<span class="n">auxdata</span><span class="o">.</span><span class="n">k</span> <span class="o">=</span> <span class="mf">0.045</span>
+</pre></div>
+</div>
+</div>
+<p>Set the bounds on the decision variables and constraint functions:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="c1"># The initial time is fixed to be 0. The final time will be between 10 and 30.</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mi">30</span>
+
+<span class="c1"># The initial and final positions are at the origin</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+
+<span class="c1"># Set loose box bounds on the state.</span>
+<span class="c1"># None of these should be active in the solution.</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1500</span><span class="p">,</span> <span class="o">-</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="o">-</span><span class="mi">75</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="o">-</span><span class="mi">225</span><span class="p">)</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="o">+</span><span class="mi">1500</span><span class="p">,</span> <span class="o">+</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">350</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">75</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">225</span><span class="p">)</span>
+
+<span class="c1"># CL_max &lt;= 1.5. Set loose box bound on bank angle.</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="o">-</span><span class="mi">75</span><span class="p">)</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mf">1.5</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">75</span><span class="p">)</span>
+
+<span class="c1"># Limits on the normal load</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,)</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="p">(</span><span class="mi">5</span><span class="p">,)</span>
+
+
+<span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">discrete</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">discrete</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">360</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Provide scaling information to improve the convergence rate:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">scale</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">scale</span>
+<span class="n">scale</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="mf">0.1</span>
+<span class="n">scale</span><span class="o">.</span><span class="n">parameter</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">]</span>
+<span class="n">scale</span><span class="o">.</span><span class="n">discrete</span> <span class="o">=</span> <span class="p">[</span><span class="mf">200.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">]</span>
+<span class="n">phase</span> <span class="o">=</span> <span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">phase</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">6.0</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="mf">30.0</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="p">[</span><span class="mf">7.0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<p>Provide a simple initial guess. Note that the guess does not have to be consistent; for this example, the initial flight path is tilted, but that’s not reflected in the guess for the flight path angle.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+<span class="n">tf</span> <span class="o">=</span> <span class="mi">24</span>
+<span class="n">one</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+<span class="c1"># initial path is a tilted ellipse</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tf</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="o">-</span><span class="mi">200</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">t</span> <span class="o">/</span> <span class="n">tf</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="mi">600</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">t</span> <span class="o">/</span> <span class="n">tf</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">h</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.7</span> <span class="o">*</span> <span class="n">x</span>
+
+<span class="c1"># velocity is 150 ft/s</span>
+<span class="n">v</span> <span class="o">=</span> <span class="mi">150</span> <span class="o">*</span> <span class="n">one</span>
+
+<span class="c1"># flight path angle is zero</span>
+<span class="n">gamma</span> <span class="o">=</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">one</span>
+
+<span class="c1"># heading changes linearly with time</span>
+<span class="n">psi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">t</span> <span class="o">/</span> <span class="n">tf</span> <span class="o">*</span> <span class="mi">360</span><span class="p">)</span>
+
+<span class="c1"># constant CL and bank angle</span>
+<span class="n">cl</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">one</span>
+<span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">45</span><span class="p">)</span> <span class="o">*</span> <span class="n">one</span>
+
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">t</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">psi</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="n">cl</span><span class="p">,</span> <span class="n">phi</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">parameter</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.08</span><span class="p">,)</span>
+</pre></div>
+</div>
+</div>
+<p>Define the computational mesh for the phase. Here we are using a fairly large number (50) of segments, with a relatively number of collocation points (6) per segment. That’s because there will be a discontinuity in derivatives of the state when the <span class="math notranslate nohighlight">\(C_L\)</span> constraint switches from active to inactive or vice versa, and discontinuities are better resolved by shorter, low order segments.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># define mesh</span>
+<span class="n">m</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">6</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">collocation_points</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span><span class="p">,)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">fraction</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">m</span><span class="p">,)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">spectral_method</span> <span class="o">=</span> <span class="s2">"lgl"</span>
+</pre></div>
+</div>
+</div>
+<p>The fastest convergence is obtained if exact derivatives are obtained using automatic differentiation, and second derivatives are provided.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"auto"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="s2">"second"</span>
+</pre></div>
+</div>
+</div>
+<p>Solve the problem:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set options to limit Ipopt output</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_user_options</span> <span class="o">=</span> <span class="s2">"no"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">sb</span> <span class="o">=</span> <span class="s2">"yes"</span>
+
+<span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Total number of variables............................:     2304
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:     2003
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:     1803
+Total number of inequality constraints...............:      252
+        inequality constraints with only lower bounds:        1
+   inequality constraints with lower and upper bounds:      251
+        inequality constraints with only upper bounds:        0
+
+
+Number of Iterations....: 32
+
+                                   (scaled)                 (unscaled)
+Objective...............:   6.3586558207092647e-01    6.3586558207092650e-02
+Dual infeasibility......:   1.8260122533001553e-13    1.8260122533001554e-14
+Constraint violation....:   9.3821256319515101e-11    4.7948311987511261e-10
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   1.0051386897434197e-11    1.0051386897434196e-12
+Overall NLP error.......:   9.3821256319515101e-11    4.7948311987511261e-10
+
+
+Number of objective function evaluations             = 33
+Number of objective gradient evaluations             = 33
+Number of equality constraint evaluations            = 33
+Number of inequality constraint evaluations          = 33
+Number of equality constraint Jacobian evaluations   = 33
+Number of inequality constraint Jacobian evaluations = 33
+Number of Lagrangian Hessian evaluations             = 32
+Total seconds in IPOPT (w/o function evaluations)    =      0.194
+Total seconds in NLP function evaluations            =      0.285
+
+EXIT: Optimal Solution Found.
+</pre></div></div>
+</div>
+</section>
+<section id="Plot-the-Solution">
+<h2>Plot the Solution<a class="headerlink" href="#Plot-the-Solution" title="Link to this heading"></a></h2>
+<p>First extract the states, controls, dynamics, and costates from the solution:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">auxdata</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">auxdata</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+<span class="n">tc</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time_c</span>
+<span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">psi</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+<span class="n">cl</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+<span class="n">costate</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">costate</span>
+<span class="n">dynamics</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span>
+</pre></div>
+</div>
+</div>
+<section id="3D-Flight-Path">
+<h3>3D Flight Path<a class="headerlink" href="#3D-Flight-Path" title="Link to this heading"></a></h3>
+<p>Plot the flight path in 3D:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># %matplotlib notebook</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">(</span><span class="n">projection</span><span class="o">=</span><span class="n">Axes3D</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot3D</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot3D</span><span class="p">(</span><span class="mi">0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">-</span> <span class="mi">1200</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="s2">"r--"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot3D</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">y</span> <span class="o">+</span> <span class="mi">500</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="s2">"r--"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot3D</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">h</span> <span class="o">-</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">"r--"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1200</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">600</span><span class="p">,</span> <span class="mi">500</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_zlim</span><span class="p">([</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$x$ (ft)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$y$ (ft)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_zlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$h$ (ft)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_box_aspect</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">zoom</span><span class="o">=</span><span class="mf">0.85</span><span class="p">)</span>
+<span class="c1"># ax.view_init(elev=30, azim=45)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_dynamic_soaring_23_0.png" src="../_images/notebooks_dynamic_soaring_23_0.png"/>
+</div>
+</div>
+</section>
+<section id="Lift-Coefficient-History">
+<h3>Lift Coefficient History<a class="headerlink" href="#Lift-Coefficient-History" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">limit</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="p">(</span><span class="n">auxdata</span><span class="o">.</span><span class="n">m</span> <span class="o">*</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">g0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">rho0</span> <span class="o">*</span> <span class="n">auxdata</span><span class="o">.</span><span class="n">s</span> <span class="o">*</span> <span class="n">v</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="s2">"r--"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">tc</span><span class="p">,</span> <span class="n">cl</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="n">legend</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="s2">"Load factor limit"</span><span class="p">,</span> <span class="s2">"Lift coefficient, $C_</span><span class="si">{L}</span><span class="s2">$"</span><span class="p">])</span>
+<span class="n">legend</span><span class="o">.</span><span class="n">get_frame</span><span class="p">()</span><span class="o">.</span><span class="n">set_facecolor</span><span class="p">(</span><span class="s2">"white"</span><span class="p">)</span>
+<span class="n">legend</span><span class="o">.</span><span class="n">get_frame</span><span class="p">()</span><span class="o">.</span><span class="n">set_alpha</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">legend</span><span class="o">.</span><span class="n">get_frame</span><span class="p">()</span><span class="o">.</span><span class="n">set_linewidth</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Lift coefficient, $C_L$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_dynamic_soaring_25_0.png" src="../_images/notebooks_dynamic_soaring_25_0.png"/>
+</div>
+</div>
+</section>
+<section id="Velocity-History">
+<h3>Velocity History<a class="headerlink" href="#Velocity-History" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Velocity, $v$ (ft/s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_dynamic_soaring_27_0.png" src="../_images/notebooks_dynamic_soaring_27_0.png"/>
+</div>
+</div>
+</section>
+<section id="Flight-Path-Angle-History">
+<h3>Flight Path Angle History<a class="headerlink" href="#Flight-Path-Angle-History" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Plot the flight path angle</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="n">gamma</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Flight path angle, $\gamma$ (deg)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_dynamic_soaring_29_0.png" src="../_images/notebooks_dynamic_soaring_29_0.png"/>
+</div>
+</div>
+</section>
+<section id="Heading-Angle-History">
+<h3>Heading Angle History<a class="headerlink" href="#Heading-Angle-History" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="n">psi</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Heading angle, $\psi$ (deg)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_dynamic_soaring_31_0.png" src="../_images/notebooks_dynamic_soaring_31_0.png"/>
+</div>
+</div>
+</section>
+<section id="Bank-Angle-History">
+<h3>Bank Angle History<a class="headerlink" href="#Bank-Angle-History" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">tc</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="n">phi</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Bank angle, $\phi$ (deg)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_dynamic_soaring_33_0.png" src="../_images/notebooks_dynamic_soaring_33_0.png"/>
+</div>
+</div>
+</section>
+<section id="Hamiltonian">
+<h3>Hamiltonian<a class="headerlink" href="#Hamiltonian" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">hamiltonian</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hamiltonian</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">tc</span><span class="p">,</span> <span class="n">hamiltonian</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (sec)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Hamiltonian, $\mathcal</span><span class="si">{H}</span><span class="s2">$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_dynamic_soaring_35_0.png" src="../_images/notebooks_dynamic_soaring_35_0.png"/>
+</div>
+</div>
+</section>
+</section>
+<section id="References">
+<h2>References<a class="headerlink" href="#References" title="Link to this heading"></a></h2>
+<div class="docutils container" id="id4">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="footcite-rayleigh-1883" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id1" role="doc-backlink">1</a><span class="fn-bracket">]</span></span>
+<p>Rayleigh. The soaring of birds. <em>Nature</em>, 27(701):534–535, 1883. <a class="reference external" href="https://doi.org/10.1038/027534a0">doi:10.1038/027534a0</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-zhao-2004" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id2" role="doc-backlink">2</a><span class="fn-bracket">]</span></span>
+<p>Yiyuan J Zhao. Optimal patterns of glider dynamic soaring. <em>Optimal control applications and methods</em>, 25(2):67–89, 2004. <a class="reference external" href="https://doi.org/10.1002/oca.739">doi:10.1002/oca.739</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-darby-2011" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id3" role="doc-backlink">3</a><span class="fn-bracket">]</span></span>
+<p>Christopher L. Darby, William W. Hager, and Anil V. Rao. An hp-adaptive pseudospectral method for solving optimal control problems. <em>Optimal Control Applications and Methods</em>, 32(4):476–502, 2011. <a class="reference external" href="https://doi.org/10.1002/oca.957">doi:10.1002/oca.957</a>.</p>
+</aside>
+</aside>
+</div>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="orbit_raising.html" rel="prev" title="Orbit Raising Problem"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="minimum_time_to_climb.html" rel="next" title="Minimum Time to Climb Problem">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

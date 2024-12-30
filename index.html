@@ -1,1 +1,308 @@
-YAPSS Documentation Coming Soon
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="./" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>YAPSS: Yet Another Pseudo-Spectral Solver — YAPSS 0.1.1.dev0</title>
+<link href="_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="_static/jquery.js?v=5d32c60e"></script>
+<script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="_static/documentation_options.js?v=091d38aa"></script>
+<script src="_static/doctools.js?v=9a2dae69"></script>
+<script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="_static/js/theme.js"></script>
+<link href="genindex.html" rel="index" title="Index"/>
+<link href="search.html" rel="search" title="Search"/>
+<link href="notebooks/tutorial.html" rel="next" title="Tutorial Example"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="#">
+            YAPSS
+          </a>
+<div role="search">
+<form action="search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="#">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="#"></a></li>
+<li class="breadcrumb-item active">YAPSS: Yet Another Pseudo-Spectral Solver</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/index.md"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="yapss-yet-another-pseudo-spectral-solver">
+<h1>YAPSS: Yet Another Pseudo-Spectral Solver<a class="headerlink" href="#yapss-yet-another-pseudo-spectral-solver" title="Link to this heading"></a></h1>
+<p>YAPSS is a Python package for numerically solving optimal control problems using
+pseudospectral methods. Features include:</p>
+<ul class="simple">
+<li><p>Computational approach based on the GPOPS-II algorithm of
+<a class="reference external" href="https://dl.acm.org/doi/pdf/10.1145/2558904">Patterson and Rao (2014)</a></p></li>
+<li><p>Support for multiple differentiation methods: automatic differentiation via the CasADi
+package, user-defined derivatives, and central difference numerical differentiation for
+problems not amenable to automatic differentiation.</p></li>
+<li><p>Choice of collocation method, including Legendre-Gauss (LG), Legendre-Gauss-Radau (LGR),
+and Legendre-Gauss-Lobatto (LGL) options.</p></li>
+<li><p>Segmented mesh support, enabling mesh refinement in specific regions. (Automatic mesh
+refinement is not yet available.)</p></li>
+<li><p>An API for defining optimal control problems designed to catch common errors
+and provide helpful messages.</p></li>
+<li><p>Documentation covering installation, setup, and example usage.</p></li>
+<li><p>Examples available as both Python scripts and Jupyter notebooks.</p></li>
+</ul>
+<section id="quickstart">
+<h2>Quickstart<a class="headerlink" href="#quickstart" title="Link to this heading"></a></h2>
+<p>To get started, install YAPSS  and verify the installation using pip:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>yapss-env
+<span class="gp">$ </span><span class="nb">source</span><span class="w"> </span>yapss-env/bin/activate
+<span class="gp gp-VirtualEnv">(yapss-env)</span> <span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>yapss
+<span class="gp gp-VirtualEnv">(yapss-env)</span> <span class="gp">$ </span>python<span class="w"> </span>-m<span class="w"> </span>yapss.examples.isoperimetric
+</pre></div>
+</div>
+<p>If the console output shows a small relative error and a Matplotlib window displays
+a circle, the installation is successful!</p>
+<p>For more detailed installation instructions, see the next section.</p>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>YAPSS supports installation via Conda or pip. It requires Python 3.9 or later..</p>
+<section id="option-1-using-conda">
+<h3>Option 1: Using Conda<a class="headerlink" href="#option-1-using-conda" title="Link to this heading"></a></h3>
+<p>Create and activate a virtual environment, and install YAPSS:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>yapss-env<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.9
+<span class="gp">$ </span>conda<span class="w"> </span>activate<span class="w"> </span>yapss-env
+<span class="gp gp-VirtualEnv">(yapss-env)</span> <span class="gp">$ </span>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>yapss
+</pre></div>
+</div>
+<p>If you encounter the following error during installation</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>PackagesNotFoundError: The following packages are not available from current channels:
+  - yapss
+</pre></div>
+</div>
+<p>then YAPSS is not yet available on conda-forge. In this case, install from source as follows:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp gp-VirtualEnv">(yapss-env)</span> <span class="gp">$ </span>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>numpy<span class="w"> </span>casadi<span class="w"> </span>scipy<span class="w"> </span>mpmath<span class="w"> </span>matplotlib<span class="w"> </span>cyipopt<span class="w"> </span>-y
+<span class="gp gp-VirtualEnv">(yapss-env)</span> <span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/stevenrhall/yapss.git@v0.1.0<span class="w"> </span>--no-deps
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">--no-deps</span></code> flag is important — it prevents pip from reinstalling dependencies that
+Conda has already installed, avoiding conflicts. You can delete the tag <code class="docutils literal notranslate"><span class="pre">@v0.1.0</span></code> to
+install the latest version, or specify a different version tag.</p>
+</section>
+<section id="option-2-using-pip">
+<h3>Option 2: Using Pip<a class="headerlink" href="#option-2-using-pip" title="Link to this heading"></a></h3>
+<p>Create and activate a virtual environment, then install YAPSS:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>yapss-env
+<span class="gp">$ </span><span class="nb">source</span><span class="w"> </span>yapss-env/bin/activate
+<span class="gp gp-VirtualEnv">(yapss-env)</span> <span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>yapss
+</pre></div>
+</div>
+<p>To install from source:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp gp-VirtualEnv">(yapss-env)</span> <span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/stevenrhall/yapss.git@v0.1.0
+</pre></div>
+</div>
+</section>
+<section id="verify-the-installation">
+<h3>Verify the Installation<a class="headerlink" href="#verify-the-installation" title="Link to this heading"></a></h3>
+<p>To verify the installation, run the isoperimetric example:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp gp-VirtualEnv">(yapss-env)</span> <span class="gp">$ </span>python<span class="w"> </span>-m<span class="w"> </span>yapss.examples.isoperimetric
+</pre></div>
+</div>
+<p>The result should be a matplotlib window with a plot of the optimal curve (a circle), and
+console output that concludes with something similar to</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Maximum area = 0.07957747154594766 (Should be 1 / (4 pi) = 0.07957747154594767)
+Relative error in solution = 1.743934249004316e-16
+</pre></div>
+</div>
+<p>If the plot does not display, add <code class="docutils literal notranslate"><span class="pre">%matplotlib</span> <span class="pre">inline</span></code> in a Jupyter notebook or set the
+backend with <code class="docutils literal notranslate"><span class="pre">matplotlib.use('Agg')</span></code> for headless environments.</p>
+<p>The console output may differ slightly depending on machine precision. Minor deviations in
+the final digits are normal, and the relative error should be on the order of machine
+precision. If it is, the installation is correct.</p>
+<p>Additional examples are available in</p>
+<ul class="simple">
+<li><p>the examples/notebooks directory</p></li>
+<li><p>the src/yapss/examples directory</p></li>
+<li><p>the Examples section of the documentation.</p></li>
+</ul>
+</section>
+</section>
+<section id="license">
+<h2>License<a class="headerlink" href="#license" title="Link to this heading"></a></h2>
+<p>YAPSS is licensed under the MIT License. See the LICENSE file for more information.</p>
+</section>
+<section id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading"></a></h2>
+<p>The <a class="reference external" href="https://yapss.readthedocs.io/">documentation</a> is available on Read the Docs.</p>
+</section>
+<section id="contributing">
+<h2>Contributing<a class="headerlink" href="#contributing" title="Link to this heading"></a></h2>
+<p>YAPSS is open source — contributions are not only welcome but encouraged. See
+<a class="reference external" href="https://github.com/stevenrhall/yapss/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> for details.</p>
+<!-- End README.md -->
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/tutorial.html">Tutorial Example</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#Installation-and-Configuration">Installation and Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#Problem-Formulation-and-Instantiation">Problem Formulation and Instantiation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#Defining-the-Callback-Functions">Defining the Callback Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#Setting-Bounds">Setting Bounds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#Setting-the-Initial-Guess">Setting the Initial Guess</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#Setting-YAPSS-and-Ipopt-Options">Setting YAPSS and Ipopt Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#Solution">Solution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#The-Hamiltonian">The Hamiltonian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#Conclusion">Conclusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/tutorial.html#References">References</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/index.html">JupyterLab Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/rosenbrock.html">Rosenbrock Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/brachistochrone.html">Brachistochrone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/newton.html">Newton’s Minimal Resistance Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/goddard_problem_1_phase.html">The Goddard Problem (One Phase)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/goddard_problem_3_phase.html">The Goddard Problem (Three Phases)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/dynamic_soaring.html">Dynamic Soaring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/minimum_time_to_climb.html">Minimum Time to Climb Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/delta_iii_ascent.html">Delta III Launch Vehicle Ascent Problem</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scripts/index.html">Python Scripts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scripts/rosenbrock.html">Rosenbrock Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/brachistochrone_minimal.html">Brachistochrone (Minimal Implementation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/brachistochrone.html">Brachistochrone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/newton.html">Newton’s Minimal Resistance Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/goddard_problem_1_phase.html">The Goddard Problem (One Phase)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/goddard_problem_3_phase.html">The Goddard Problem (Three Phases)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/dynamic_soaring.html">Dynamic Soaring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/minimum_time_to_climb.html">Minimum Time to Climb Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scripts/delta_iii_ascent.html">Delta III Launch Vehicle Ascent Problem</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="n" class="btn btn-neutral float-right" href="notebooks/tutorial.html" rel="next" title="Tutorial Example">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

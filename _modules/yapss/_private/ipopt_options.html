@@ -1,0 +1,506 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../../../" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>yapss._private.ipopt_options — YAPSS 0.1.1.dev0</title>
+<link href="../../../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../../../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../../../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../../../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../../../_static/jquery.js?v=5d32c60e"></script>
+<script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../../../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../../../_static/doctools.js?v=9a2dae69"></script>
+<script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../../../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script src="../../../_static/js/theme.js"></script>
+<link href="../../../genindex.html" rel="index" title="Index"/>
+<link href="../../../search.html" rel="search" title="Search"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../../../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../../../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../../../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../../../index.html"></a></li>
+<li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+<li class="breadcrumb-item active">yapss._private.ipopt_options</li>
+<li class="wy-breadcrumbs-aside">
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<h1>Source code for yapss._private.ipopt_options</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+
+<span class="sd">Provides the class ``IpoptOptions``, which is a container for Ipopt options.</span>
+
+<span class="sd">Instances of ``IpoptOptions`` function much like SimpleNamespace instances, but have the</span>
+<span class="sd">advantage that ``IpoptOptions`` has type annotations, which allows an IDE such as</span>
+<span class="sd">PyCharm to provide type hints and autocompletions.</span>
+
+<span class="sd">"""</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"IpoptOptions"</span><span class="p">]</span>
+
+<span class="n">DEFAULT_IPOPT_OPTIONS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"mu_strategy"</span><span class="p">:</span> <span class="s2">"adaptive"</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">"""Default Ipopt options."""</span>
+
+
+<div class="viewcode-block" id="IpoptOptions">
+<a class="viewcode-back" href="../../../reference/ipopt_options.html#yapss._private.ipopt_options.IpoptOptions">[docs]</a>
+<span class="k">class</span> <span class="nc">IpoptOptions</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Container for Ipopt options.</span>
+
+<span class="sd">    For a ``Problem`` instance `problem`, the user can set an Ipopt option as follows:</span>
+
+<span class="sd">    &gt;&gt;&gt; problem.ipopt_options.max_iter = 500  # doctest: +SKIP</span>
+
+<span class="sd">    An option can be deleted by setting it to ``None``, in which case Ipopt will use the default</span>
+<span class="sd">    value for that option:</span>
+
+<span class="sd">    &gt;&gt;&gt; problem.ipopt_options.max_iter = None  # doctest: +SKIP</span>
+
+<span class="sd">    There are a large number of Ipopt options (over 300!). See the YAPSS documentation for</span>
+<span class="sd">    commonly used options. A complete list of options is available in the `Ipopt options</span>
+<span class="sd">    reference &lt;https://coin-or.github.io/Ipopt/OPTIONS.html#OPTIONS_REF&gt;`_. Some options</span>
+<span class="sd">    may conflict with options set by YAPSS, so some care is required when setting</span>
+<span class="sd">    ipopt_options.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initialize an IpoptOptions instance."""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Set an option value, or delete the option if value is None."""</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+                <span class="nb">delattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+<div class="viewcode-block" id="IpoptOptions.reset">
+<a class="viewcode-back" href="../../../reference/ipopt_options.html#yapss._private.ipopt_options.IpoptOptions.reset">[docs]</a>
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Reset all options to their default values."""</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"_"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"reset"</span><span class="p">,</span> <span class="s2">"get_options"</span><span class="p">):</span>
+                <span class="nb">delattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">DEFAULT_IPOPT_OPTIONS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IpoptOptions.get_options">
+<a class="viewcode-back" href="../../../reference/ipopt_options.html#yapss._private.ipopt_options.IpoptOptions.get_options">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_options</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return a dictionary of all defined option values."""</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">}</span></div>
+
+
+    <span class="c1"># retrieved from https://coin-or.github.io/Ipopt/OPTIONS.html 2024-10-27</span>
+    <span class="n">accept_after_max_steps</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">accept_every_trial_step</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">acceptable_compl_inf_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">acceptable_constr_viol_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">acceptable_dual_inf_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">acceptable_iter</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">acceptable_obj_change_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">acceptable_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">adaptive_mu_globalization</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">adaptive_mu_kkt_norm_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">adaptive_mu_kkterror_red_fact</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">adaptive_mu_kkterror_red_iters</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">adaptive_mu_monotone_init_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">adaptive_mu_restore_previous_iterate</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">alpha_for_y</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">alpha_for_y_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">alpha_min_frac</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">alpha_red_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">barrier_tol_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">bound_frac</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">bound_mult_init_method</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">bound_mult_init_val</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">bound_mult_reset_threshold</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">bound_push</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">bound_relax_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">check_derivatives_for_naninf</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">compl_inf_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">constr_mult_init_max</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">constr_mult_reset_threshold</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">constr_viol_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">constraint_violation_norm_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">corrector_compl_avrg_red_fact</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">corrector_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">delta</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">dependency_detection_with_rhs</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">dependency_detector</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">derivative_test</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">derivative_test_first_index</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">derivative_test_perturbation</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">derivative_test_print_all</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">derivative_test_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">diverging_iterates_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">dual_inf_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">eta_phi</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">evaluate_orig_obj_at_resto_trial</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">expect_infeasible_problem</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">expect_infeasible_problem_ctol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">expect_infeasible_problem_ytol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">fast_step_computation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="c1"># only works when read from the ipopt.opt options file</span>
+    <span class="c1"># file_append: str</span>
+    <span class="c1"># file_print_level: int</span>
+    <span class="n">filter_margin_fact</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">filter_max_margin</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">filter_reset_trigger</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">findiff_perturbation</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">first_hessian_perturbation</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">fixed_mu_oracle</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">fixed_variable_treatment</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">gamma_phi</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">gamma_theta</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">grad_f_constant</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">gradient_approximation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">hessian_approximation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">hessian_approximation_space</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">hessian_constant</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">honor_original_bounds</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">hsllib</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">inf_pr_output</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">jac_c_constant</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">jac_d_constant</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">jacobian_approximation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">jacobian_regularization_exponent</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">jacobian_regularization_value</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">kappa_d</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">kappa_sigma</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">kappa_soc</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">least_square_init_duals</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">least_square_init_primal</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">limited_memory_aug_solver</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">limited_memory_init_val</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">limited_memory_init_val_max</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">limited_memory_init_val_min</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">limited_memory_initialization</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">limited_memory_max_history</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">limited_memory_max_skipping</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">limited_memory_special_for_resto</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">limited_memory_update_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">line_search_method</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">linear_scaling_on_demand</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">linear_solver</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">linear_system_scaling</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma27_ignore_singularity</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma27_la_init_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma27_liw_init_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma27_meminc_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma27_pivtol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma27_pivtolmax</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma27_print_level</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma27_skip_inertia_check</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma28_pivtol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma57_automatic_scaling</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma57_block_size</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma57_node_amalgamation</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma57_pivot_order</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma57_pivtol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma57_pivtolmax</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma57_pre_alloc</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma57_print_level</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma57_small_pivot_flag</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma77_buffer_lpage</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma77_buffer_npage</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma77_file_size</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma77_maxstore</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma77_nemin</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma77_order</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma77_print_level</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma77_small</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma77_static</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma77_u</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma77_umax</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma86_nemin</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma86_order</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma86_print_level</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma86_scaling</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma86_small</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma86_static</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma86_u</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma86_umax</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma97_nemin</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma97_order</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma97_print_level</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">ma97_scaling1</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma97_scaling2</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma97_scaling3</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma97_scaling</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma97_small</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma97_solve_blas3</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma97_switch1</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma97_switch2</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma97_switch3</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ma97_u</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ma97_umax</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">max_cpu_time</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">max_filter_resets</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">max_hessian_perturbation</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">max_refinement_steps</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">max_resto_iter</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">max_soc</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">max_soft_resto_iters</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">max_wall_time</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mehrotra_algorithm</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">min_hessian_perturbation</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">min_refinement_steps</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">mu_allow_fast_monotone_decrease</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">mu_init</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mu_linear_decrease_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mu_max</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mu_max_fact</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mu_min</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mu_oracle</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">mu_strategy</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">mu_superlinear_decrease_power</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mu_target</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mumps_dep_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mumps_mem_percent</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">mumps_permuting_scaling</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">mumps_pivot_order</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">mumps_pivtol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mumps_pivtolmax</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mumps_print_level</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">mumps_scaling</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">neg_curv_test_reg</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">neg_curv_test_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">nlp_lower_bound_inf</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">nlp_scaling_constr_target_gradient</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">nlp_scaling_max_gradient</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">nlp_scaling_method</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">nlp_scaling_min_value</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">nlp_scaling_obj_target_gradient</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">nlp_upper_bound_inf</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">nu_inc</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">nu_init</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">num_linear_variables</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">obj_max_inc</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">obj_scaling_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">option_file_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="c1"># only works when read from the ipopt.opt options file</span>
+    <span class="c1"># output_file: str</span>
+    <span class="n">pardiso_iter_coarse_size</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pardiso_iter_dropping_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">pardiso_iter_dropping_schur</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">pardiso_iter_inverse_norm_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">pardiso_iter_max_levels</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pardiso_iter_max_row_fill</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pardiso_iter_relative_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">pardiso_iterative</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardiso_matching_strategy</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardiso_max_droptol_corrections</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pardiso_max_iter</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pardiso_max_iterative_refinement_steps</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pardiso_msglvl</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pardiso_order</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardiso_redo_symbolic_fact_only_if_inertia_wrong</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardiso_repeated_perturbation_means_singular</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardiso_skip_inertia_check</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardisolib</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardisomkl_matching_strategy</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardisomkl_max_iterative_refinement_steps</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pardisomkl_msglvl</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pardisomkl_order</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardisomkl_redo_symbolic_fact_only_if_inertia_wrong</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardisomkl_repeated_perturbation_means_singular</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pardisomkl_skip_inertia_check</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">perturb_always_cd</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">perturb_dec_fact</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">perturb_inc_fact</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">perturb_inc_fact_first</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">point_perturbation_radius</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">print_advanced_options</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">print_frequency_iter</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">print_frequency_time</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">print_info_string</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">print_level</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">print_options_documentation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">print_options_mode</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">print_timing_statistics</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">print_user_options</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">quality_function_balancing_term</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">quality_function_centrality</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">quality_function_max_section_steps</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">quality_function_norm_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">quality_function_section_qf_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">quality_function_section_sigma_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">recalc_y</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">recalc_y_feas_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">replace_bounds</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">required_infeasibility_reduction</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">residual_improvement_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">residual_ratio_max</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">residual_ratio_singular</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">resto_failure_feasibility_threshold</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">resto_penalty_parameter</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">resto_proximity_weight</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">rho</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">s_max</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">s_phi</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">s_theta</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">sb</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">sigma_max</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">sigma_min</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">skip_corr_if_neg_curv</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">skip_corr_in_monotone_mode</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">skip_finalize_solution_call</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">slack_bound_frac</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">slack_bound_push</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">slack_move</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">soc_method</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">soft_resto_pderror_reduction_factor</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">spral_cpu_block_size</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">spral_gpu_perf_coeff</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">spral_ignore_numa</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_max_load_inbalance</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">spral_min_gpu_work</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">spral_nemin</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">spral_order</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_pivot_method</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_print_level</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">spral_scaling</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_scaling_1</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_scaling_2</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_scaling_3</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_small</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">spral_small_subtree_threshold</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">spral_switch_1</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_switch_2</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_switch_3</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">spral_u</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">spral_umax</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">spral_use_gpu</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">start_with_resto</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">tau_min</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">theta_max_fact</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">theta_min_fact</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">timing_statistics</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">tiny_step_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">tiny_step_y_tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">warm_start_bound_frac</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">warm_start_bound_push</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">warm_start_entire_iterate</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">warm_start_init_point</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">warm_start_mult_bound_push</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">warm_start_mult_init_max</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">warm_start_same_structure</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">warm_start_slack_bound_frac</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">warm_start_slack_bound_push</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">warm_start_target_mu</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">watchdog_shortened_iter_trigger</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">watchdog_trial_iter_max</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">wsmp_inexact_droptol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">wsmp_inexact_fillin_limit</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">wsmp_max_iter</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">wsmp_no_pivoting</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">wsmp_num_threads</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">wsmp_ordering_option2</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">wsmp_ordering_option</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">wsmp_pivtol</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">wsmp_pivtolmax</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">wsmp_scaling</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">wsmp_singularity_threshold</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">wsmp_skip_inertia_check</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">wsmp_write_matrix_iteration</span><span class="p">:</span> <span class="nb">int</span></div>
+
+</pre></div>
+</div>
+</div>
+<footer>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

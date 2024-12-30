@@ -1,0 +1,244 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ipopt Options — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="solution.html" rel="next" title="The Solution Object"/>
+<link href="mesh_structure.html" rel="prev" title="Mesh Structure"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Ipopt Options</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#ipoptoptions-class-reference"><code class="docutils literal notranslate"><span class="pre">IpoptOptions</span></code> Class Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#yapss._private.ipopt_options.IpoptOptions"><code class="docutils literal notranslate"><span class="pre">IpoptOptions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#yapss._private.ipopt_options.IpoptOptions.get_options"><code class="docutils literal notranslate"><span class="pre">IpoptOptions.get_options()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#yapss._private.ipopt_options.IpoptOptions.reset"><code class="docutils literal notranslate"><span class="pre">IpoptOptions.reset()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item active">Ipopt Options</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/reference/ipopt_options.rst"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="ipopt-options">
+<h1>Ipopt Options<a class="headerlink" href="#ipopt-options" title="Link to this heading"></a></h1>
+<p>YAPSS uses <a class="reference external" href="https://coin-or.github.io/Ipopt/index.html">Ipopt</a> <a class="footnote-reference brackets" href="#footcite-wachter-2006" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> (Interior
+Point Optimizer) to solve the NLP problem formulated by YAPSS to represent the optimal control
+problem. Ipopt is an open-source software package for large-scale nonlinear optimization. As noted
+in the Ipopt documentation,</p>
+<blockquote>
+<div><p>Ipopt has many (maybe too many) options that can be adjusted for the algorithm.</p>
+<p>Options are all identified by a string name, and their values can be of one of three
+types: Number (real), Integer, or String. Number options are used for things like
+tolerances, integer options are used for things like maximum number of iterations, and
+string options are used for setting algorithm details, like the NLP scaling method.
+Options can be set through the code that interfaces Ipopt (have a look at the examples
+to see how this is done) or by creating a ipopt.opt file in the directory you are
+executing Ipopt.</p>
+</div></blockquote>
+<p>Users can set Ipopt options by setting attributes of the <code class="docutils literal notranslate"><span class="pre">ipopt_options</span></code> attribute of
+instances of the <code class="docutils literal notranslate"><span class="pre">Problem</span></code> class. So for example, to set the print level of the Ipopt output, the
+user would set the <code class="docutils literal notranslate"><span class="pre">ipopt_options</span></code> attribute as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">5</span>
+</pre></div>
+</div>
+<p>An attribute is used instead of a dictionary to allow for tab completion in an interactive
+environment such as the PyCharm IDE. For example, in the PyCharm IDE, typing
+<code class="docutils literal notranslate"><span class="pre">problem.ipopt_options.tol</span></code> will show a list of available options including “tol” as part of
+the option name. (There are more than 30 such options!)</p>
+<p>A complete description of the Ipopt options is available in the <a class="reference external" href="https://coin-or.github.io/Ipopt/OPTIONS.html">Ipopt options documentation</a>. For most problems, the default Ipopt options will
+be sufficient. The most common options that users may want to change are:</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">max_iter</span></code></dt><dd><p>Maximum number of iterations. (<code class="docutils literal notranslate"><span class="pre">max_iter</span></code> <span class="math notranslate nohighlight">\(\ge\)</span> 0, default: 3000).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">tol</span></code></dt><dd><p>Desired convergence tolerance (relative). (<code class="docutils literal notranslate"><span class="pre">tol</span></code> &gt; 0, default: 1e-8). Determines the maximum
+(scaled) NLP error required for convergence.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">linear_solver</span></code></dt><dd><p>Linear solver used for step computations. Determines which linear algebra package is to be used
+for the solution of the augmented linear system (for obtaining the search directions). The Ipopt
+default is “ma27”, but for most installations, the MA27 is not available, and Ipopt falls back
+to the “mumps” solver. The available options are:</p>
+<ul class="simple">
+<li><p>“ma27”: use the Harwell routine MA27</p></li>
+<li><p>“ma57”: use the Harwell routine MA57</p></li>
+<li><p>“ma77”: use the Harwell routine HSL_MA77</p></li>
+<li><p>“ma86”: use the Harwell routine HSL_MA86</p></li>
+<li><p>“ma97”: use the Harwell routine HSL_MA97</p></li>
+<li><p>“pardiso”: use the Pardiso package from pardiso-project.org</p></li>
+<li><p>“pardisomkl”: use the Pardiso package from Intel MKL</p></li>
+<li><p>“spral”: use the Spral package</p></li>
+<li><p>“wsmp”: use the Wsmp package</p></li>
+<li><p>“mumps”: use the Mumps package</p></li>
+<li><p>“custom”: use custom linear solver (expert use)</p></li>
+</ul>
+<p>MA27 is part of the Harwell Subroutine Library (HSL), and requires a separate license.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">hsllib</span></code></dt><dd><p>Name of library (possibly including path information) containing HSL routines for load at runtime.</p>
+<p>In some installations, Ipopt is built without the HSL linear solvers (ma27, ma57, ma77, ma86, ma97),
+which are compiled separately into a dynamic library that can be loaded at runtime. This option
+allows Ipopt to access those libraries. The default value for this string option is “libhsl.so”
+(“libhsl.dylib” on macOS, “libhsl.dll” on Windows)</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">pardisolib</span></code></dt><dd><p>Name of library (possibly including path information) containing Pardiso routines
+(from pardiso-project.org) for load at runtime.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">print_user_options</span></code></dt><dd><p>Print all options set by the user. (“yes” or “no”, default: “no”) It can be helpful to print
+the options set by the user to verify that the options are as intended.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">sb</span></code></dt><dd><p>Suppress banner. (“yes” or “no”, default: “yes”) (Not documented in the Ipopt documentation.)
+Suppresses the Ipopt banner at the beginning of the output.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">print_level</span></code></dt><dd><p>Output verbosity level. (<code class="docutils literal notranslate"><span class="pre">print_level</span></code><span class="math notranslate nohighlight">\(\ge\)</span> 0, default: 5)</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Changing some Ipopt options may not have the expected affect. In particular, YAPSS sets the
+<code class="docutils literal notranslate"><span class="pre">hessian_approximation</span></code>, <code class="docutils literal notranslate"><span class="pre">nlp_scaling_method</span></code>, and <code class="docutils literal notranslate"><span class="pre">obj_scaling_factor</span></code> options based on
+the problem definition, and setting these options manually will have no effect.</p>
+</div>
+<section id="ipoptoptions-class-reference">
+<h2><code class="docutils literal notranslate"><span class="pre">IpoptOptions</span></code> Class Reference<a class="headerlink" href="#ipoptoptions-class-reference" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="yapss._private.ipopt_options.IpoptOptions">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">IpoptOptions</span></span><a class="reference internal" href="../_modules/yapss/_private/ipopt_options.html#IpoptOptions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss._private.ipopt_options.IpoptOptions" title="Link to this definition"></a></dt>
+<dd><p>Container for Ipopt options.</p>
+<p>For a <code class="docutils literal notranslate"><span class="pre">Problem</span></code> instance <cite>problem</cite>, the user can set an Ipopt option as follows:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">=</span> <span class="mi">500</span>  
+</pre></div>
+</div>
+<p>An option can be deleted by setting it to <code class="docutils literal notranslate"><span class="pre">None</span></code>, in which case Ipopt will use the default
+value for that option:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">=</span> <span class="kc">None</span>  
+</pre></div>
+</div>
+<p>There are a large number of Ipopt options (over 300!). See the YAPSS documentation for
+commonly used options. A complete list of options is available in the <a class="reference external" href="https://coin-or.github.io/Ipopt/OPTIONS.html#OPTIONS_REF">Ipopt options
+reference</a>. Some options
+may conflict with options set by YAPSS, so some care is required when setting
+ipopt_options.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="yapss._private.ipopt_options.IpoptOptions.get_options">
+<span class="sig-name descname"><span class="pre">get_options</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/yapss/_private/ipopt_options.html#IpoptOptions.get_options"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss._private.ipopt_options.IpoptOptions.get_options" title="Link to this definition"></a></dt>
+<dd><p>Return a dictionary of all defined option values.</p>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="yapss._private.ipopt_options.IpoptOptions.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/yapss/_private/ipopt_options.html#IpoptOptions.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#yapss._private.ipopt_options.IpoptOptions.reset" title="Link to this definition"></a></dt>
+<dd><p>Reset all options to their default values.</p>
+</dd></dl>
+</dd></dl>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="mesh_structure.html" rel="prev" title="Mesh Structure"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="solution.html" rel="next" title="The Solution Object">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

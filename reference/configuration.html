@@ -1,0 +1,245 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Configuring the Ipopt Binary Source — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="../notebooks/index.html" rel="next" title="JupyterLab Notebooks"/>
+<link href="solution.html" rel="prev" title="The Solution Object"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="solution.html">The Solution Object</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Configuring the Ipopt Binary Source</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#why-two-interfaces-to-ipopt">Why Two Interfaces to Ipopt?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration-options">Configuration Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tips-for-improving-performance">Tips for Improving Performance</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item active">Configuring the Ipopt Binary Source</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/reference/configuration.rst"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="configuring-the-ipopt-binary-source">
+<h1>Configuring the Ipopt Binary Source<a class="headerlink" href="#configuring-the-ipopt-binary-source" title="Link to this heading"></a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This section is intended for advanced users who need to configure the interface
+between YAPSS and the Ipopt library. Most users can safely ignore this section.</p>
+</div>
+<p>YAPSS solves optimal control problems by first converting them into nonlinear programs
+(NLPs) and then using the Ipopt software package for large-scale nonlinear optimization to
+solve. For reasons explained below, YAPSS uses two different interfaces to connect to
+Ipopt, but for most users, no configuration of the interface is necessary. For users who
+need to change the default behavior, or want to get the best possible performance, YAPSS
+provides options for configuring the Ipopt interface.</p>
+<section id="why-two-interfaces-to-ipopt">
+<h2>Why Two Interfaces to Ipopt?<a class="headerlink" href="#why-two-interfaces-to-ipopt" title="Link to this heading"></a></h2>
+<p>Understanding why two interfaces are necessary requires a bit of background. There are
+multiple ways to connect C/C++ libraries to Python. For our purposes, we consider two
+available Python packages that connect to Ipopt: cyipopt and mseipopt.</p>
+<p><strong>cyipopt</strong> is a Cython wrapper around the Ipopt library. In principle, it works in both
+pip and Conda environments. In a Conda environment, cyipopt can be installed with a single
+command. Therefore, cyipopt is the default interface to Ipopt in YAPSS when using Conda.</p>
+<p>In a pip environment, however, cyipopt can be challenging to install, since it requires
+a C/C++ compiler, and the user must install Ipopt on their system. The process is
+more or less difficult depending on the operating system. On MacOS, it’s actually
+fairly straightforward using Homebrew. However, there is no way to install cyipopt
+in a pip environment with a single command.</p>
+<p><strong>mseipopt</strong> is a pure Python interface to the Ipopt library using the ctypes package,
+which is a foreign function library that allows Python code to call C functions in shared
+libraries. Because no compiler is required, mseipopt can be installed in a pip
+environment, so long as a compiled Ipopt library is available. As it turns out, the CasADi
+package used by YAPSS includes the Ipopt library in its distribution package, which allows
+YAPSS to connect to Ipopt using mseipopt without any additional installation steps. This
+is the default interface to Ipopt in YAPSS in a pip environment.</p>
+<p>Unfortunately, mseipopt is not available as a Conda package. While it’s easy to install
+mseipopt in a Conda environment using pip install, including mseipopt as a dependency
+would make YAPSS incompatible with Conda packaging. As a result, both interfaces are
+necessary to make YAPSS available to both Conda and pip users.</p>
+<p>Note that in either a pip or Conda environment, it’s possible to install both the cyipopt
+and mseipopt interfaces. In pip, the installation would be</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>yapss<span class="w"> </span>cyipopt
+</pre></div>
+</div>
+<p>with the understanding that the user would have to ensure that the Ipopt library and a Cython
+compiler is available on the system. In a Conda environment, the installation would be</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>yapss
+$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>mseipopt
+</pre></div>
+</div>
+</section>
+<section id="configuration-options">
+<h2>Configuration Options<a class="headerlink" href="#configuration-options" title="Link to this heading"></a></h2>
+<p>The configuration of the Ipopt source and interface is controlled by the <code class="docutils literal notranslate"><span class="pre">ipopt_source</span></code>
+attribute of a <code class="docutils literal notranslate"><span class="pre">yapss.Problem</span></code> instance, and by the YAPSS_IPOPT_SOURCE environment
+variable. The <code class="docutils literal notranslate"><span class="pre">ipopt_source</span></code> attribute can take the following values:</p>
+<ul class="simple">
+<li><p><strong>“default”</strong>: The default behavior. YAPSS will check for the presence of the
+environment variable YAPSS_IPOPT_SOURCE. If the environment variable matches one of
+the options below, YAPSS will configure the Ipopt interface based on that setting. If the
+environment variable is not set, YAPSS will connect to Ipopt using the cyipopt interface
+if possible, otherwise connect to the Ipopt library in the CasADi package directory
+using the mseipopt interface.</p></li>
+<li><p><strong>“cyipopt”:</strong> Connect to Ipopt using the cyipopt interface. If it is unavailable, an
+exception is raised.</p></li>
+<li><p><strong>“casadi”:</strong> Connect to Ipopt using the mseipopt interface to the Ipopt library in the
+CasADi package directory. If it is unavailable, an exception is raised. Note that while
+this option is available in a Conda environment if mseipopt is installed, it won’t change
+performance by much if at all, since the same Ipopt library is used in both cases.</p></li>
+<li><p><strong>Custom path:</strong> Provide a fully qualified path to the desired Ipopt library as a
+string. YAPSS will attempt to connect to the specified library using the mseipopt
+interface, and an exception is raised if it is unable to do so.</p></li>
+</ul>
+<p>For example:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Instantiate a problem</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Brachistochrone"</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Example 1: Use cyipopt explicitly</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_source</span> <span class="o">=</span> <span class="s2">"cyipopt"</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Example 2: Use Ipopt from CasADi package</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_source</span> <span class="o">=</span> <span class="s2">"casadi"</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Example 3: Use a custom Ipopt library</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">ipopt_source</span> <span class="o">=</span> <span class="s2">"/path/to/custom/ipopt.so"</span>
+</pre></div>
+</div>
+</section>
+<section id="tips-for-improving-performance">
+<h2>Tips for Improving Performance<a class="headerlink" href="#tips-for-improving-performance" title="Link to this heading"></a></h2>
+<p>Based on limited testing, default performance in pip and Conda environments is generally
+similar on a given machine (within about 30% on a test suite of example problems). If
+performance is an issue, testing both Conda and pip is recommended. In my testing, I found
+the pip environment to be faster for MacOS (M1 processor) and Windows (Intel i7), while
+the Conda environment was faster for Linux (Intel i7). The difference in performance is
+likely due to the different compilers used to build the Ipopt library in the two
+environments.</p>
+<p>For Windows, pre-built Ipopt binaries are available from the
+<a class="reference external" href="https://github.com/coin-or/Ipopt/releases">Ipopt GitHub site</a>. Using these binaries
+is about 30% faster than the default performance in either a pip or Conda environment.
+To use these binaries, download and unzip the latest release
+(Ipopt-3.14.17-win64-msvs2022-md.zip as of this writing), and set the environment
+variable</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">$env</span>:YAPSS_IPOPT_SOURCE<span class="o">=</span><span class="s2">"C:/path/to/Ipopt-3.14.17-win64-msvs2022-md/bin/ipopt.dll"</span>
+</pre></div>
+</div>
+<p>and make sure the <code class="docutils literal notranslate"><span class="pre">ipopt_source</span></code> attribute of the problem is set to “default”.</p>
+<p>For both Windows and Linux in the pip environment, the CasADi package Ipopt binary is
+compiled with the optional SPRAL linear solver, which in those cases is the default linear
+solver. In limited testing, the MUMPS linear solver was about 10% faster than the SPRAL.
+To use the MUMPS linear solver, either set the <code class="docutils literal notranslate"><span class="pre">ipopt_options.linear_solver</span></code> attribute
+of the problem to “mumps”, or to make MUMPS the default linear solver, create a file named
+<code class="docutils literal notranslate"><span class="pre">ipopt.opt</span></code> in the working directory with the following content:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>linear_solver mumps
+</pre></div>
+</div>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="solution.html" rel="prev" title="The Solution Object"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="../notebooks/index.html" rel="next" title="JupyterLab Notebooks">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

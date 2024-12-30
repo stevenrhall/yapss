@@ -1,0 +1,1223 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Delta III Launch Vehicle Ascent Problem — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/nbsphinx-code-cells.css?v=2aa19091" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="../scripts/index.html" rel="next" title="Python Scripts"/>
+<link href="minimum_time_to_climb.html" rel="prev" title="Minimum Time to Climb Problem"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">JupyterLab Notebooks</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="rosenbrock.html">Rosenbrock Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="brachistochrone.html">Brachistochrone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="newton.html">Newton’s Minimal Resistance Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_1_phase.html">The Goddard Problem (One Phase)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_3_phase.html">The Goddard Problem (Three Phases)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamic_soaring.html">Dynamic Soaring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="minimum_time_to_climb.html">Minimum Time to Climb Problem</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Delta III Launch Vehicle Ascent Problem</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Problem-Definition">Problem Definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#YAPSS-Solution">YAPSS Solution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Problem-Instantation">Problem Instantation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Constants">Constants</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Callback-Functions">Callback Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Bounds">Bounds</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Initial-Guess">Initial Guess</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Scaling">Scaling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Solver-Options">Solver Options</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#Plots-of-Solution">Plots of Solution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Altitude">Altitude</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Vehicle-Position">Vehicle Position</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Vehicle-Velocity">Vehicle Velocity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Control-Inputs-(Thrust-Directions)">Control Inputs (Thrust Directions)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Vehicle-Mass">Vehicle Mass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Hamiltonian">Hamiltonian</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#References">References</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item"><a href="index.html">JupyterLab Notebooks</a></li>
+<li class="breadcrumb-item active">Delta III Launch Vehicle Ascent Problem</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/delta_iii_ascent.ipynb"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="Delta-III-Launch-Vehicle-Ascent-Problem">
+<h1>Delta III Launch Vehicle Ascent Problem<a class="headerlink" href="#Delta-III-Launch-Vehicle-Ascent-Problem" title="Link to this heading"></a></h1>
+<p>In his PhD thesis, Benson <a class="footnote-reference brackets" href="#footcite-benson-2005" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> presents the example of the optimization of the Delta III launch vehicle to minimize fuel used to achieve a specific orbit. Rao et al. <a class="footnote-reference brackets" href="#footcite-rao-2010" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a> and Patterson and Rao <a class="footnote-reference brackets" href="#footcite-patterson-2014" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a> used the same example (with only very slightly modified numerical parameters) as an example in their papers describing the GPOPS and GPOPS-II algorithms. The problem is also described in some detail by Betts <a class="footnote-reference brackets" href="#footcite-betts-2010" id="id4" role="doc-noteref"><span class="fn-bracket">[</span>4<span class="fn-bracket">]</span></a>.</p>
+<p>For a solution to the Delta III launch vehicle ascent problem using a Python script instead of a notebook, see the corresponding <a class="reference internal" href="../scripts/delta_iii_ascent.html"><span class="doc">Python script documentation</span></a>.</p>
+<section id="Problem-Definition">
+<h2>Problem Definition<a class="headerlink" href="#Problem-Definition" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line">The Delta III launch vehicle consists of a payload, two liquid-fueled rocket stages, and nine solid rocket boosters (SRBs). The launch is composed of four phases. In the first phase, the first stage rocket and six of nine SRBs are ignited. The first phase ends at <span class="math notranslate nohighlight">\(t=75.2\)</span> seconds when the six SRBs are exhaust their fuel and are jettisoned. During the second phase, the three remaining SRBs are ignited, and burn for an additional 75.2 seconds, and then are jettisoned. The third phase then
+begins at <span class="math notranslate nohighlight">\(t=150.4\)</span> seconds, and ends at <span class="math notranslate nohighlight">\(t=261\)</span> seconds when the fuel from the first stage is exhausted (main engine cuttoff, or MECO). The final phase then begins with the ignition of the second stage engine, and ends at some time before <span class="math notranslate nohighlight">\(t=961\)</span> seconds when the payload reaches the desired orbit. The objective of the optimization is to maximize the mass of the vehicle in orbit, that is, to minimize the total fuel burn. The mass and propulsion properties of the Delta III
+launch system are shown below in Table 1:</div>
+<div class="line"><span class="math notranslate nohighlight">\(~\)</span></div>
+</div>
+<table class="docutils align-center" id="id6">
+<caption><span class="caption-text"><span class="target" id="table-1">Table 1</span>. Mass and Propulsion Properties of Delta III Rocket</span><a class="headerlink" href="#id6" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 25.9%"/>
+<col style="width: 13.8%"/>
+<col style="width: 25.9%"/>
+<col style="width: 17.2%"/>
+<col style="width: 17.2%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Quantity</p></th>
+<th class="head"><p>Symbol</p></th>
+<th class="head"><p>Solid rocket boosters</p></th>
+<th class="head"><p>Stage 1</p></th>
+<th class="head"><p>Stage 2</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Total mass (kg)</p></td>
+<td><p><span class="math notranslate nohighlight">\(\pi_i\)</span></p></td>
+<td><p>19290</p></td>
+<td><p>104380</p></td>
+<td><p>19300</p></td>
+</tr>
+<tr class="row-odd"><td><p>Propellant mass (kg)</p></td>
+<td><p><span class="math notranslate nohighlight">\(\rho_i\)</span></p></td>
+<td><p>17010</p></td>
+<td><p>95550</p></td>
+<td><p>16820</p></td>
+</tr>
+<tr class="row-even"><td><p>Structure Mass (kg)</p></td>
+<td><p><span class="math notranslate nohighlight">\(\varphi_i\)</span></p></td>
+<td><p>2280</p></td>
+<td><p>8830</p></td>
+<td><p>2480</p></td>
+</tr>
+<tr class="row-odd"><td><p>Engine thrust (N)</p></td>
+<td><p><span class="math notranslate nohighlight">\(T_i\)</span></p></td>
+<td><p>628500</p></td>
+<td><p>1083100</p></td>
+<td><p>110094</p></td>
+</tr>
+<tr class="row-even"><td><p>Specific impulse (s)</p></td>
+<td><p><span class="math notranslate nohighlight">\(\mathcal{I_i}\)</span></p></td>
+<td><p>283.33364</p></td>
+<td><p>301.68776</p></td>
+<td><p>467.21311</p></td>
+</tr>
+<tr class="row-odd"><td><p>Number of engines</p></td>
+<td><p><span class="math notranslate nohighlight">\(N\)</span></p></td>
+<td><p>9</p></td>
+<td><p>1</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-even"><td><p>Burn time (s)</p></td>
+<td><p><span class="math notranslate nohighlight">\(\tau_i\)</span></p></td>
+<td><p>75.2</p></td>
+<td><p>261</p></td>
+<td><p>700 (max)</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Dynamics.</strong> The dynamics are described in an Earth-centered inertial (ECI) coordinate system. The seven states are the three elements of the position vector <span class="math notranslate nohighlight">\(\mathbf{r}\)</span>, the three elements of the inertial velocity vector <span class="math notranslate nohighlight">\(\mathbf{v}\)</span>, and the vehicle mass <span class="math notranslate nohighlight">\(m\)</span>. The dynamics for each stage are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+\dot{\mathbf{r}} &amp;=\mathbf{v} \\
+\dot{\mathbf{v}} &amp;=-\frac{\mu}{\|\mathbf{r}\|^{3}} \mathbf{r}+\frac{T}{m}
+\mathbf{u}+\frac{1}{m} \mathbf{D} \\
+\dot{m} &amp;=-\xi \\
+\end{aligned}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mu\)</span> is the gravitational parameter for Earth, <span class="math notranslate nohighlight">\(T\)</span> is the thrust, <span class="math notranslate nohighlight">\(\mathbf{u}\)</span> is the control input, <span class="math notranslate nohighlight">\(\mathbf{D}\)</span> is the drag force, and <span class="math notranslate nohighlight">\(\xi\)</span> is the propellant burn rate. The control vector defines the thrust direction, and so is a 3-vector with the constraint</p>
+<div class="math notranslate nohighlight">
+\[\|\mathbf{u}\| = 1\]</div>
+<p>An additional constraint is that</p>
+<div class="math notranslate nohighlight">
+\[\|\mathbf{r}\| \ge R_E\]</div>
+<p>where <span class="math notranslate nohighlight">\(R_{E}\)</span> is the radius of the earth. That is, that the vehicle always has nonnegative altitude. The constraints are expressed as path constraints in the <code class="docutils literal notranslate"><span class="pre">continuous</span></code> callback function.</p>
+<p><strong>Aerodynamics</strong>. The drag force is always in the opposite direction to the relative velocity of the vehicle through the atmosphere, and so</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{D} = -\frac{1}{2} \rho C_{D} S \left\|\mathbf{v}_{r}\right\|
+\mathbf{v}_{r}\]</div>
+<p>where</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{v}_{r} = \mathbf{v} - \boldsymbol{\Omega} \times \mathbf{r}\]</div>
+<p>Here <span class="math notranslate nohighlight">\(\boldsymbol{\Omega} = (0, 0, \omega_E)\)</span> is the angular velocity of the earth. The density of the atmosphere is assumed to be exponential</p>
+<div class="math notranslate nohighlight">
+\[\rho=\rho_{0} \exp(-h/H)\]</div>
+<p>where <span class="math notranslate nohighlight">\(\rho_{0}\)</span> is the sea-level density of the atmosphere, and <span class="math notranslate nohighlight">\(H\)</span> is the scale height of the atmosphere.</p>
+<table class="docutils align-center" id="id7">
+<caption><span class="caption-text"><span class="target" id="table-2">Table 2</span>. Terminal condition in terms of orbital elements.</span><a class="headerlink" href="#id7" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 50.0%"/>
+<col style="width: 20.0%"/>
+<col style="width: 30.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Orbital Element</p></th>
+<th class="head"><p>Symbol</p></th>
+<th class="head"><p>Value at final time</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Semimajor axis</p></td>
+<td><p><span class="math notranslate nohighlight">\(a_f\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(2.4361140\times10^7\)</span> m</p></td>
+</tr>
+<tr class="row-odd"><td><p>Eccentricity</p></td>
+<td><p><span class="math notranslate nohighlight">\(e_f\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(0.7308\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>Inclination</p></td>
+<td><p><span class="math notranslate nohighlight">\(i_f\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(28.5^{\circ}\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>Longitude of the ascending node</p></td>
+<td><p><span class="math notranslate nohighlight">\(\Omega_f\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(269.8^{\circ}\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>Argument of the periapsis</p></td>
+<td><p><span class="math notranslate nohighlight">\(\omega_f\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(130.5^{\circ}\)</span></p></td>
+</tr>
+</tbody>
+</table>
+<div class="line-block">
+<div class="line"><span class="math notranslate nohighlight">\(~\)</span></div>
+<div class="line"><span class="math notranslate nohighlight">\(~\)</span></div>
+</div>
+<table class="docutils align-center" id="id8">
+<caption><span class="caption-text"><span class="target" id="table-3">Table 3</span>. Values of other constants used in this problem.</span><a class="headerlink" href="#id8" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 42.9%"/>
+<col style="width: 14.3%"/>
+<col style="width: 42.9%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Constant</p></th>
+<th class="head"><p>Symbol</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Payload Mass</p></td>
+<td><p><span class="math notranslate nohighlight">\(\pi_\text{p}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(4164 \text{ kg}\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>Aerodynamic reference area</p></td>
+<td><p><span class="math notranslate nohighlight">\(S\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(4 \pi \text{ m}^{2}\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>Coefficient of drag</p></td>
+<td><p><span class="math notranslate nohighlight">\(C_{D}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(0.5\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>Atmospheric density at sea level</p></td>
+<td><p><span class="math notranslate nohighlight">\(\rho_{0}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(1.225 \text{ kg/m}^{3}\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>Atmospheric density scale height</p></td>
+<td><p><span class="math notranslate nohighlight">\(H\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(7200 \text{ m}\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>Time at end of first phase</p></td>
+<td><p><span class="math notranslate nohighlight">\(t_{1}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(75.2 \text{ s}\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>Time at end of second phase</p></td>
+<td><p><span class="math notranslate nohighlight">\(t_{2}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(150.4 \text{ s}\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>Time at end of third phase</p></td>
+<td><p><span class="math notranslate nohighlight">\(t_{3}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(261 \text{ s}\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>Radius of earth</p></td>
+<td><p><span class="math notranslate nohighlight">\(R_E\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(6378145 \text{ m}\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>Earth rotation rate</p></td>
+<td><p><span class="math notranslate nohighlight">\(\Omega\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(7.29211585 \times 10^{-5} \text{ rad}/\text{s}\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>Earth gravitational parameter</p></td>
+<td><p><span class="math notranslate nohighlight">\(\mu\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(3.986012 \times 10^{14} \text { m}^3/\text{s}^2.\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>Standard gravity</p></td>
+<td><p><span class="math notranslate nohighlight">\(g_{0}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(9.80665 \text{ m} / \text{s}^{2}\)</span></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="YAPSS-Solution">
+<h2>YAPSS Solution<a class="headerlink" href="#YAPSS-Solution" title="Link to this heading"></a></h2>
+<section id="Problem-Instantation">
+<h3>Problem Instantation<a class="headerlink" href="#Problem-Instantation" title="Link to this heading"></a></h3>
+<p>First import needed packages and instantiate problem:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># third party imports</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+
+<span class="c1"># package imports</span>
+<span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span>
+<span class="kn">from</span> <span class="nn">yapss.math</span> <span class="kn">import</span> <span class="n">cos</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">sin</span><span class="p">,</span> <span class="n">sqrt</span>
+
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"Delta III Ascent Trajectory Optimization"</span><span class="p">,</span>
+    <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span>
+    <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+    <span class="n">nh</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+    <span class="n">nd</span><span class="o">=</span><span class="mi">23</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Constants">
+<h3>Constants<a class="headerlink" href="#Constants" title="Link to this heading"></a></h3>
+<p>The problem has lots of constants that must be defined:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Dynamic Model Parameters</span>
+<span class="n">mu</span> <span class="o">=</span> <span class="mf">3.986012e14</span>  <span class="c1"># earth gravity parameter</span>
+<span class="n">R_e</span> <span class="o">=</span> <span class="mf">6378145.0</span>  <span class="c1"># earth radius</span>
+<span class="n">g0</span> <span class="o">=</span> <span class="mf">9.80665</span>  <span class="c1"># sea-level gravity</span>
+<span class="n">h0</span> <span class="o">=</span> <span class="mf">7200.0</span>  <span class="c1"># atmospheric density scale height</span>
+<span class="n">rho0</span> <span class="o">=</span> <span class="mf">1.225</span>  <span class="c1"># sea-level air density</span>
+<span class="n">omega_e</span> <span class="o">=</span> <span class="mf">7.29211585e-5</span>  <span class="c1"># earth rotation rate</span>
+<span class="n">CD</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># coefficient of drag</span>
+<span class="n">S</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">pi</span>  <span class="c1"># aerodynamic reference area</span>
+<span class="n">psi_l</span> <span class="o">=</span> <span class="mf">28.5</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">/</span> <span class="mf">180.0</span>  <span class="c1"># latitude of launch site</span>
+<span class="n">q_max</span> <span class="o">=</span> <span class="mf">100000.0</span>  <span class="c1"># dynamic pressure bound</span>
+
+<span class="c1"># Vehicle parameters</span>
+<span class="c1"># srb, first stage, second stage, payload masses (kg)</span>
+<span class="n">pi_s</span><span class="p">,</span> <span class="n">pi_1</span><span class="p">,</span> <span class="n">pi_2</span><span class="p">,</span> <span class="n">pi_p</span> <span class="o">=</span> <span class="mf">19290.0</span><span class="p">,</span> <span class="mf">104380.0</span><span class="p">,</span> <span class="mf">19300.0</span><span class="p">,</span> <span class="mf">4164.0</span>
+
+<span class="c1"># propellant masses (kg)</span>
+<span class="n">rho_s</span><span class="p">,</span> <span class="n">rho_1</span><span class="p">,</span> <span class="n">rho_2</span> <span class="o">=</span> <span class="mf">17010.0</span><span class="p">,</span> <span class="mf">95550.0</span><span class="p">,</span> <span class="mf">16820.0</span>
+
+<span class="c1"># dry masses</span>
+<span class="n">phi_s</span> <span class="o">=</span> <span class="n">pi_s</span> <span class="o">-</span> <span class="n">rho_s</span>
+<span class="n">phi_1</span> <span class="o">=</span> <span class="n">pi_1</span> <span class="o">-</span> <span class="n">rho_1</span>
+<span class="n">phi_2</span> <span class="o">=</span> <span class="n">pi_2</span> <span class="o">-</span> <span class="n">rho_2</span>
+
+<span class="c1"># srb, first stage, second stage thrust (N)</span>
+<span class="n">Ts</span><span class="p">,</span> <span class="n">T1</span><span class="p">,</span> <span class="n">T2</span> <span class="o">=</span> <span class="mf">628500.0</span><span class="p">,</span> <span class="mf">1083100.0</span><span class="p">,</span> <span class="mf">110094.0</span>
+
+<span class="c1"># burn times</span>
+<span class="n">tau_s</span><span class="p">,</span> <span class="n">tau_1</span><span class="p">,</span> <span class="n">tau_2</span> <span class="o">=</span> <span class="mf">75.2</span><span class="p">,</span> <span class="mf">261.0</span><span class="p">,</span> <span class="mf">700.0</span>
+
+<span class="c1"># initial total mass of vehicle</span>
+<span class="n">m_total</span> <span class="o">=</span> <span class="mi">9</span> <span class="o">*</span> <span class="n">pi_s</span> <span class="o">+</span> <span class="n">pi_1</span> <span class="o">+</span> <span class="n">pi_2</span> <span class="o">+</span> <span class="n">pi_p</span>
+
+<span class="c1"># initial time for each phase</span>
+<span class="n">t0</span><span class="p">,</span> <span class="n">t1</span><span class="p">,</span> <span class="n">t2</span><span class="p">,</span> <span class="n">t3</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">75.2</span><span class="p">,</span> <span class="mf">150.4</span><span class="p">,</span> <span class="mf">261.0</span>
+
+<span class="c1"># max final time</span>
+<span class="n">t4_max</span> <span class="o">=</span> <span class="n">t3</span> <span class="o">+</span> <span class="n">tau_2</span>
+
+<span class="c1"># srb, first stage, second stage specific impulse (sec)</span>
+<span class="n">Is</span> <span class="o">=</span> <span class="n">Ts</span> <span class="o">*</span> <span class="n">tau_s</span> <span class="o">/</span> <span class="p">(</span><span class="n">rho_s</span> <span class="o">*</span> <span class="n">g0</span><span class="p">)</span>
+<span class="n">I1</span> <span class="o">=</span> <span class="n">T1</span> <span class="o">*</span> <span class="n">tau_1</span> <span class="o">/</span> <span class="p">(</span><span class="n">rho_1</span> <span class="o">*</span> <span class="n">g0</span><span class="p">)</span>
+<span class="n">I2</span> <span class="o">=</span> <span class="n">T2</span> <span class="o">*</span> <span class="n">tau_2</span> <span class="o">/</span> <span class="p">(</span><span class="n">rho_2</span> <span class="o">*</span> <span class="n">g0</span><span class="p">)</span>
+
+<span class="c1"># orbital parameters for desired orbit</span>
+<span class="n">a_f</span><span class="p">,</span> <span class="n">e_f</span><span class="p">,</span> <span class="n">i_f</span><span class="p">,</span> <span class="n">Omega_f</span><span class="p">,</span> <span class="n">omega_f</span> <span class="o">=</span> <span class="mi">24361140</span><span class="p">,</span> <span class="mf">0.7308</span><span class="p">,</span> <span class="mf">28.5</span><span class="p">,</span> <span class="mf">269.8</span><span class="p">,</span> <span class="mf">130.5</span>
+
+<span class="c1"># initial position</span>
+<span class="n">r0_vec</span> <span class="o">=</span> <span class="n">R_e</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">psi_l</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">R_e</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">psi_l</span><span class="p">)</span>
+
+<span class="c1"># initial and final masses for the 4 phases</span>
+<span class="n">mi_0</span> <span class="o">=</span> <span class="mi">9</span> <span class="o">*</span> <span class="n">pi_s</span> <span class="o">+</span> <span class="n">pi_1</span> <span class="o">+</span> <span class="n">pi_2</span> <span class="o">+</span> <span class="n">pi_p</span>
+<span class="n">mf_0</span> <span class="o">=</span> <span class="n">mi_0</span> <span class="o">-</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">rho_s</span> <span class="o">-</span> <span class="n">tau_s</span> <span class="o">/</span> <span class="n">tau_1</span> <span class="o">*</span> <span class="n">rho_1</span>
+
+<span class="n">mi_1</span> <span class="o">=</span> <span class="n">mf_0</span> <span class="o">-</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">phi_s</span>
+<span class="n">mf_1</span> <span class="o">=</span> <span class="n">mi_1</span> <span class="o">-</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">rho_s</span> <span class="o">-</span> <span class="n">tau_s</span> <span class="o">/</span> <span class="n">tau_1</span> <span class="o">*</span> <span class="n">rho_1</span>
+
+<span class="n">mi_2</span> <span class="o">=</span> <span class="n">mf_1</span> <span class="o">-</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">phi_s</span>
+<span class="n">mf_2</span> <span class="o">=</span> <span class="n">mi_2</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">tau_s</span> <span class="o">/</span> <span class="n">tau_1</span><span class="p">)</span> <span class="o">*</span> <span class="n">rho_1</span>
+
+<span class="n">mi_3</span> <span class="o">=</span> <span class="n">mf_2</span> <span class="o">-</span> <span class="n">phi_1</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Callback-Functions">
+<h3>Callback Functions<a class="headerlink" href="#Callback-Functions" title="Link to this heading"></a></h3>
+<p>Before defining the callback functions, we need some helper functions to compute cross products, magnitudes, and dot products for vectors:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">cross</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Vector cross product."""</span>
+    <span class="n">x3</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">x3</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">x1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">x2</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">x1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">x2</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">x3</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">x1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">x2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">x2</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">x3</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">x1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">x2</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">x1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">x2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">x3</span>
+
+
+<span class="k">def</span> <span class="nf">mag</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Vector magnitude."""</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">xi</span><span class="o">**</span><span class="mi">2</span> <span class="k">for</span> <span class="n">xi</span> <span class="ow">in</span> <span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-100</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span>
+
+
+<span class="k">def</span> <span class="nf">dot</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Vector _dot product."""</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">x1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">x2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<p>Functions that convert back and forth between between orbital elements and position, velocity vectors:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">oe_to_rv</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">Omega</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">nu</span><span class="p">,</span> <span class="n">mu_</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Convert orbital elements to cartesian position and velocity.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        a: semimajor axis</span>
+<span class="sd">        e: eccentricity</span>
+<span class="sd">        i: inclination</span>
+<span class="sd">        Omega: longitude of the ascending node (degrees)</span>
+<span class="sd">        omega: argument of the periapsis (degrees)</span>
+<span class="sd">        nu: true anomaly</span>
+<span class="sd">        mu: Gravitational parameter</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        Tuple[ArrayLike]: Inertial position and velocity vectors</span>
+<span class="sd">    """</span>
+    <span class="c1"># pylint: disable=too-many-arguments</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">e</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">p</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">e</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">nu</span><span class="p">))</span>
+    <span class="n">r_vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">r</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">nu</span><span class="p">),</span> <span class="n">r</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">nu</span><span class="p">),</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="n">v_vec</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">mu_</span> <span class="o">/</span> <span class="n">p</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">nu</span><span class="p">),</span> <span class="n">e</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="n">nu</span><span class="p">),</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="n">deg_to_rad</span> <span class="o">=</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
+    <span class="n">c_O</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">deg_to_rad</span> <span class="o">*</span> <span class="n">Omega</span><span class="p">)</span>
+    <span class="n">s_O</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">deg_to_rad</span> <span class="o">*</span> <span class="n">Omega</span><span class="p">)</span>
+    <span class="n">c_o</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">deg_to_rad</span> <span class="o">*</span> <span class="n">omega</span><span class="p">)</span>
+    <span class="n">s_o</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">deg_to_rad</span> <span class="o">*</span> <span class="n">omega</span><span class="p">)</span>
+    <span class="n">c_i</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">deg_to_rad</span> <span class="o">*</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">s_i</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">deg_to_rad</span> <span class="o">*</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">[</span><span class="n">c_O</span> <span class="o">*</span> <span class="n">c_o</span> <span class="o">-</span> <span class="n">s_O</span> <span class="o">*</span> <span class="n">s_o</span> <span class="o">*</span> <span class="n">c_i</span><span class="p">,</span> <span class="o">-</span><span class="n">c_O</span> <span class="o">*</span> <span class="n">s_o</span> <span class="o">-</span> <span class="n">s_O</span> <span class="o">*</span> <span class="n">c_o</span> <span class="o">*</span> <span class="n">c_i</span><span class="p">,</span> <span class="o">+</span><span class="n">s_O</span> <span class="o">*</span> <span class="n">s_i</span><span class="p">],</span>
+        <span class="p">[</span><span class="n">s_O</span> <span class="o">*</span> <span class="n">c_o</span> <span class="o">+</span> <span class="n">c_O</span> <span class="o">*</span> <span class="n">s_o</span> <span class="o">*</span> <span class="n">c_i</span><span class="p">,</span> <span class="o">-</span><span class="n">s_O</span> <span class="o">*</span> <span class="n">s_o</span> <span class="o">+</span> <span class="n">c_O</span> <span class="o">*</span> <span class="n">c_o</span> <span class="o">*</span> <span class="n">c_i</span><span class="p">,</span> <span class="o">-</span><span class="n">c_O</span> <span class="o">*</span> <span class="n">s_i</span><span class="p">],</span>
+        <span class="p">[</span><span class="n">s_o</span> <span class="o">*</span> <span class="n">s_i</span><span class="p">,</span> <span class="n">c_o</span> <span class="o">*</span> <span class="n">s_i</span><span class="p">,</span> <span class="n">c_i</span><span class="p">],</span>
+    <span class="p">]</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+    <span class="n">r_vec</span> <span class="o">=</span> <span class="n">R</span> <span class="o">@</span> <span class="n">r_vec</span>
+    <span class="n">v_vec</span> <span class="o">=</span> <span class="n">R</span> <span class="o">@</span> <span class="n">v_vec</span>
+    <span class="k">return</span> <span class="n">r_vec</span><span class="p">,</span> <span class="n">v_vec</span>
+
+
+<span class="k">def</span> <span class="nf">rv_to_oe</span><span class="p">(</span><span class="n">r_vec</span><span class="p">,</span> <span class="n">v_vec</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Compute orbital elements from position and velocity vectors.</span>
+
+<span class="sd">    The function is a simplified calculation of (some of) the orbital elements, without</span>
+<span class="sd">    checking for special cases.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        r_vec : 3-dimensional position vector</span>
+<span class="sd">        v_vec : 3-dimensional velocity vector</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Tuple[ArrayLike]</span>
+<span class="sd">        Five of the six orbital elements: semimajor axis, eccentricity, inclination,</span>
+<span class="sd">        longitude of the ascending node, argument of the periapsis</span>
+<span class="sd">    """</span>
+    <span class="c1"># http://www.aerospacengineering.net/determining-orbital-elements/</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">mag</span><span class="p">(</span><span class="n">r_vec</span><span class="p">)</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">mag</span><span class="p">(</span><span class="n">v_vec</span><span class="p">)</span>
+    <span class="n">h_vec</span> <span class="o">=</span> <span class="n">cross</span><span class="p">(</span><span class="n">r_vec</span><span class="p">,</span> <span class="n">v_vec</span><span class="p">)</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">mag</span><span class="p">(</span><span class="n">h_vec</span><span class="p">)</span>
+    <span class="n">n_vec</span> <span class="o">=</span> <span class="n">cross</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">h_vec</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">mag</span><span class="p">(</span><span class="n">n_vec</span><span class="p">)</span>
+    <span class="n">e0</span> <span class="o">=</span> <span class="p">((</span><span class="n">v</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="n">mu</span> <span class="o">/</span> <span class="n">r</span><span class="p">)</span> <span class="o">*</span> <span class="n">r_vec</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">dot</span><span class="p">(</span><span class="n">r_vec</span><span class="p">,</span> <span class="n">v_vec</span><span class="p">)</span> <span class="o">*</span> <span class="n">v_vec</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">mu</span>
+    <span class="n">e1</span> <span class="o">=</span> <span class="p">((</span><span class="n">v</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="n">mu</span> <span class="o">/</span> <span class="n">r</span><span class="p">)</span> <span class="o">*</span> <span class="n">r_vec</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">dot</span><span class="p">(</span><span class="n">r_vec</span><span class="p">,</span> <span class="n">v_vec</span><span class="p">)</span> <span class="o">*</span> <span class="n">v_vec</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">mu</span>
+    <span class="n">e2</span> <span class="o">=</span> <span class="p">((</span><span class="n">v</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="n">mu</span> <span class="o">/</span> <span class="n">r</span><span class="p">)</span> <span class="o">*</span> <span class="n">r_vec</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">dot</span><span class="p">(</span><span class="n">r_vec</span><span class="p">,</span> <span class="n">v_vec</span><span class="p">)</span> <span class="o">*</span> <span class="n">v_vec</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">/</span> <span class="n">mu</span>
+    <span class="n">e_vec</span> <span class="o">=</span> <span class="p">(</span><span class="n">e0</span><span class="p">,</span> <span class="n">e1</span><span class="p">,</span> <span class="n">e2</span><span class="p">)</span>
+    <span class="n">e</span> <span class="o">=</span> <span class="n">mag</span><span class="p">(</span><span class="n">e_vec</span><span class="p">)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">/</span> <span class="n">r</span> <span class="o">-</span> <span class="n">v</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">mu</span><span class="p">)</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span><span class="n">h_vec</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">h</span><span class="p">)</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">pi</span>
+    <span class="n">Omega</span> <span class="o">=</span> <span class="mi">360</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span><span class="n">n_vec</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">pi</span>
+    <span class="n">omega</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span><span class="n">dot</span><span class="p">(</span><span class="n">n_vec</span><span class="p">,</span> <span class="n">e_vec</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">e</span><span class="p">))</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">pi</span>
+    <span class="k">return</span> <span class="n">a</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">Omega</span><span class="p">,</span> <span class="n">omega</span>
+</pre></div>
+</div>
+</div>
+<p>The callback functions:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Calculate Delta III ascent trajectory optimization problem objective."""</span>
+    <span class="c1"># maximize the final mass</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="o">-</span><span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Calculate Delta III ascent optimization problem dynamics and path constraints."""</span>
+
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase_list</span><span class="p">:</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+        <span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">,</span> <span class="n">r3</span> <span class="o">=</span> <span class="n">r_vec</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">,</span> <span class="n">v3</span> <span class="o">=</span> <span class="n">v_vec</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span>
+        <span class="n">u1</span><span class="p">,</span> <span class="n">u2</span><span class="p">,</span> <span class="n">u3</span> <span class="o">=</span> <span class="n">u_vec</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>  <span class="c1"># already non-dimensional</span>
+
+        <span class="k">if</span> <span class="n">p</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">thrust</span> <span class="o">=</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">Ts</span> <span class="o">+</span> <span class="n">T1</span>
+            <span class="n">m_dot</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="n">Ts</span> <span class="o">/</span> <span class="p">(</span><span class="n">g0</span> <span class="o">*</span> <span class="n">Is</span><span class="p">)</span> <span class="o">+</span> <span class="n">T1</span> <span class="o">/</span> <span class="p">(</span><span class="n">g0</span> <span class="o">*</span> <span class="n">I1</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">p</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">thrust</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">Ts</span> <span class="o">+</span> <span class="n">T1</span>
+            <span class="n">m_dot</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">Ts</span> <span class="o">/</span> <span class="p">(</span><span class="n">g0</span> <span class="o">*</span> <span class="n">Is</span><span class="p">)</span> <span class="o">+</span> <span class="n">T1</span> <span class="o">/</span> <span class="p">(</span><span class="n">g0</span> <span class="o">*</span> <span class="n">I1</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">p</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">thrust</span> <span class="o">=</span> <span class="n">T1</span>
+            <span class="n">m_dot</span> <span class="o">=</span> <span class="o">-</span><span class="n">T1</span> <span class="o">/</span> <span class="p">(</span><span class="n">g0</span> <span class="o">*</span> <span class="n">I1</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">p</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">thrust</span> <span class="o">=</span> <span class="n">T2</span>
+            <span class="n">m_dot</span> <span class="o">=</span> <span class="o">-</span><span class="n">T2</span> <span class="o">/</span> <span class="p">(</span><span class="n">g0</span> <span class="o">*</span> <span class="n">I2</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span>
+
+        <span class="c1"># kinematics</span>
+        <span class="n">r1_dot</span><span class="p">,</span> <span class="n">r2_dot</span><span class="p">,</span> <span class="n">r3_dot</span> <span class="o">=</span> <span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">,</span> <span class="n">v3</span>
+
+        <span class="c1"># air density</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="p">(</span><span class="n">r1</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">r2</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">r3</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">r</span> <span class="o">-</span> <span class="n">R_e</span>
+        <span class="n">rho</span> <span class="o">=</span> <span class="n">rho0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span> <span class="o">/</span> <span class="n">h0</span><span class="p">)</span>
+
+        <span class="c1"># aerodynamics</span>
+        <span class="n">omega_cross_r</span> <span class="o">=</span> <span class="n">cross</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">omega_e</span><span class="p">],</span> <span class="n">r_vec</span><span class="p">)</span>
+        <span class="n">vr_vec</span> <span class="o">=</span> <span class="p">[</span><span class="n">v_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">omega_cross_r</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+        <span class="n">vr</span> <span class="o">=</span> <span class="n">mag</span><span class="p">(</span><span class="n">vr_vec</span><span class="p">)</span>
+        <span class="n">q_over_vr</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">rho</span> <span class="o">*</span> <span class="n">vr</span>
+        <span class="n">q_factor</span> <span class="o">=</span> <span class="n">q_over_vr</span> <span class="o">*</span> <span class="n">CD</span> <span class="o">*</span> <span class="n">S</span>
+        <span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">,</span> <span class="n">d3</span> <span class="o">=</span> <span class="o">-</span><span class="n">q_factor</span> <span class="o">*</span> <span class="n">vr_vec</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="n">q_factor</span> <span class="o">*</span> <span class="n">vr_vec</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="n">q_factor</span> <span class="o">*</span> <span class="n">vr_vec</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># dynamics</span>
+        <span class="n">mu_over_r3</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">/</span> <span class="n">r</span><span class="o">**</span><span class="mi">3</span>
+        <span class="n">thrust_over_m</span> <span class="o">=</span> <span class="n">thrust</span> <span class="o">/</span> <span class="n">m</span>
+        <span class="n">one_over_m</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">m</span>
+        <span class="n">v1_dot</span> <span class="o">=</span> <span class="o">-</span><span class="n">mu_over_r3</span> <span class="o">*</span> <span class="n">r1</span> <span class="o">+</span> <span class="n">thrust_over_m</span> <span class="o">*</span> <span class="n">u1</span> <span class="o">+</span> <span class="n">one_over_m</span> <span class="o">*</span> <span class="n">d1</span>
+        <span class="n">v2_dot</span> <span class="o">=</span> <span class="o">-</span><span class="n">mu_over_r3</span> <span class="o">*</span> <span class="n">r2</span> <span class="o">+</span> <span class="n">thrust_over_m</span> <span class="o">*</span> <span class="n">u2</span> <span class="o">+</span> <span class="n">one_over_m</span> <span class="o">*</span> <span class="n">d2</span>
+        <span class="n">v3_dot</span> <span class="o">=</span> <span class="o">-</span><span class="n">mu_over_r3</span> <span class="o">*</span> <span class="n">r3</span> <span class="o">+</span> <span class="n">thrust_over_m</span> <span class="o">*</span> <span class="n">u3</span> <span class="o">+</span> <span class="n">one_over_m</span> <span class="o">*</span> <span class="n">d3</span>
+        <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">r1_dot</span><span class="p">,</span> <span class="n">r2_dot</span><span class="p">,</span> <span class="n">r3_dot</span><span class="p">,</span> <span class="n">v1_dot</span><span class="p">,</span> <span class="n">v2_dot</span><span class="p">,</span> <span class="n">v3_dot</span><span class="p">,</span> <span class="n">m_dot</span>
+
+        <span class="c1"># path constraints</span>
+        <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">path</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">mag</span><span class="p">(</span><span class="n">u_vec</span><span class="p">),</span> <span class="n">mag</span><span class="p">(</span><span class="n">r_vec</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">discrete</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Calculate the Delta III ascent trajectory optimization problem discrete constraints.</span>
+
+<span class="sd">    The discrete constraints are that:</span>
+<span class="sd">        * The final position and velocity of each phase are the same as the</span>
+<span class="sd">          initial position and velocity at the next phase, if there is one.</span>
+<span class="sd">        * The final position and velocity of the last phase is in the desired</span>
+<span class="sd">          orbit.</span>
+<span class="sd">    """</span>
+    <span class="n">phase</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">12</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">12</span><span class="p">:</span><span class="mi">18</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">-</span> <span class="n">phase</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">initial_state</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">x</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
+    <span class="n">oe</span> <span class="o">=</span> <span class="n">rv_to_oe</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">18</span><span class="p">:</span><span class="mi">23</span><span class="p">]</span> <span class="o">=</span> <span class="n">oe</span>
+
+
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="o">=</span> <span class="n">continuous</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">discrete</span> <span class="o">=</span> <span class="n">discrete</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Bounds">
+<h3>Bounds<a class="headerlink" href="#Bounds" title="Link to this heading"></a></h3>
+<p>The initial conditions are the rocket position is the location of the launch pad on Earth,</p>
+<div class="math notranslate nohighlight">
+\[\begin{aligned}
+\mathbf{r}^{(0)}\left(t_{0}\right)&amp;=\mathbf{r}_{0}=\left(R_E \cos \phi_{0}, 0,
+R_E \sin \phi_{0}\right)
+\end{aligned}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\phi_{0}\)</span> is the latitude of the launch site. (The ECI coordinate system is chosen so that the launch site is in the <span class="math notranslate nohighlight">\(x\)</span>-<span class="math notranslate nohighlight">\(z\)</span> plane at the initial time.) The initial inertial velocity of the vehicle is the same as the inertial velocity of the launch site, and is given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{aligned}
+\mathbf{v}\left(t_{0}\right) &amp;=\mathbf{v}_{0}=\boldsymbol \Omega \times \text{r}_{0}
+\end{aligned}\]</div>
+<p>Finally, the initial mass is given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{aligned}
+  m\left(t_{0}\right) &amp;=m_{0}=301\,454 \text{ kg}
+\end{aligned}\]</div>
+<p>There are also boundary conditions that connect the phases. In particular, we must have that the terminal position and velocity of a phase is the same as the initial position and velocity of the next phase (if there is one):</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+\mathbf{r}^{(p)}\left(t_{f}^{(p)}\right)-\mathbf{r}^{(p+1)}\left(t_{0}^{(p+1)}
+   \right) &amp;=\mathbf{0} \\
+\mathbf{v}^{(p)}\left(t_{f}^{(p)}\right)-\mathbf{v}^{(p+1)}\left(t_{0}^{(p+1)}
+   \right) &amp;=\mathbf{0}, \quad (p=0, 1, 2)
+\end{aligned}\end{split}\]</div>
+<p>Here the superscript “<span class="math notranslate nohighlight">\((p)\)</span>” means the state associated with phase <span class="math notranslate nohighlight">\(p\)</span>. (Note that we use zero-based indexing, consistent with the Python code.)</p>
+<div class="line-block">
+<div class="line">Finally, the payload is required to end up in a specific orbit, defined by five of the six standard orbital elements, as given in Table 2 below:</div>
+<div class="line"><span class="math notranslate nohighlight">\(~\)</span></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">x0</span> <span class="o">=</span> <span class="p">[</span><span class="n">R_e</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">psi_l</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">R_e</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">psi_l</span><span class="p">)]</span>
+<span class="n">v0</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">R_e</span> <span class="o">*</span> <span class="n">omega_e</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">psi_l</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">]</span>
+<span class="n">state_0</span> <span class="o">=</span> <span class="mi">7</span> <span class="o">*</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]</span>
+<span class="n">state_0</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">x0</span>
+<span class="n">state_0</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">v0</span>
+<span class="n">state_0</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_0</span>
+
+<span class="n">r_max</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">R_e</span>
+<span class="n">v_max</span> <span class="o">=</span> <span class="mf">10000.0</span>
+
+<span class="c1"># 10 kg leeway on box bounds</span>
+<span class="n">ten</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="c1"># box bounds on position and velocity</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="o">-</span><span class="n">r_max</span><span class="p">]</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="o">-</span><span class="n">v_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="n">r_max</span><span class="p">]</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="n">v_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="o">-</span><span class="n">r_max</span><span class="p">]</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="o">-</span><span class="n">v_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="n">r_max</span><span class="p">]</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="n">v_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="o">-</span><span class="n">r_max</span><span class="p">]</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="o">-</span><span class="n">v_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="n">r_max</span><span class="p">]</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">[</span><span class="n">v_max</span><span class="p">]</span>
+
+<span class="c1"># phase 0 time and state bounds</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t1</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">state_0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mf_0</span> <span class="o">-</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_0</span> <span class="o">+</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mf_0</span> <span class="o">-</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_0</span> <span class="o">+</span> <span class="n">ten</span>
+
+<span class="c1"># phase 1</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t1</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t2</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_1</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mf_1</span> <span class="o">-</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_1</span> <span class="o">+</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mf_1</span> <span class="o">-</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_1</span> <span class="o">+</span> <span class="n">ten</span>
+
+<span class="c1"># phase 2</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t2</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t3</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_2</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mf_2</span> <span class="o">-</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_2</span> <span class="o">+</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mf_2</span> <span class="o">-</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_2</span> <span class="o">+</span> <span class="n">ten</span>
+
+<span class="c1"># phase 3</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t3</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">t3</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t4_max</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_3</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">pi_p</span> <span class="o">-</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_3</span> <span class="o">+</span> <span class="n">ten</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">pi_p</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mi_3</span> <span class="o">+</span> <span class="n">ten</span>
+
+<span class="c1"># path and control constraints</span>
+<span class="k">for</span> <span class="n">p_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p_</span><span class="p">]</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">R_e</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p_</span><span class="p">]</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p_</span><span class="p">]</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">lower</span><span class="p">[:]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.1</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p_</span><span class="p">]</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span><span class="p">[:]</span> <span class="o">=</span> <span class="o">+</span><span class="mf">1.1</span>
+
+<span class="c1"># discrete constraints</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">discrete</span><span class="o">.</span><span class="n">lower</span><span class="p">[:</span><span class="mi">18</span><span class="p">]</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">discrete</span><span class="o">.</span><span class="n">upper</span><span class="p">[:</span><span class="mi">18</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">discrete</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">18</span><span class="p">:</span><span class="mi">23</span><span class="p">]</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">discrete</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">18</span><span class="p">:</span><span class="mi">23</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">a_f</span><span class="p">,</span>
+    <span class="n">e_f</span><span class="p">,</span>
+    <span class="n">i_f</span><span class="p">,</span>
+    <span class="n">Omega_f</span><span class="p">,</span>
+    <span class="n">omega_f</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Initial-Guess">
+<h3>Initial Guess<a class="headerlink" href="#Initial-Guess" title="Link to this heading"></a></h3>
+<p>An initial guess is required for this problem. For many simple problems, the solution will converge for almost any initial guess, and it’s often convenient to set the state and control histories to zero as the initial guess. However, that doesn’t work here, because (among other things), the acceleration due to gravity at <span class="math notranslate nohighlight">\(\mathbf{r}=\mathbf{0}\)</span> is infinite!</p>
+<p>We know the initial and final times of each phase, except for the final phase, for which we don’t know the final time, but we know its maximum value. So we use those values for the time guess. Similarly, we know the initial and final masses (again except for the final phase where we know the minimum mass), and so we use those for the guess. For the position and velocities, we use a very crude guess, namely that for phases 0 and 1, the position and velocity are constant and equal to the initial
+position and velocity, and for phases 2 and 3, the position and velocity are constant and equal to the position and velocity implied by the desired orbital elements of the final state. Although crude, that’s good enough to get the algorithm started and reach a converged solution in only a couple seconds of computation.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># time guess</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">(</span><span class="n">t0</span><span class="p">,</span> <span class="n">t1</span><span class="p">)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">(</span><span class="n">t1</span><span class="p">,</span> <span class="n">t2</span><span class="p">)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">(</span><span class="n">t2</span><span class="p">,</span> <span class="n">t3</span><span class="p">)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">(</span><span class="n">t3</span><span class="p">,</span> <span class="n">t4_max</span><span class="p">)</span>
+
+
+<span class="c1"># initialize state guess</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="mi">7</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+
+<span class="c1"># mass guess</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mi_0</span><span class="p">,</span> <span class="n">mf_0</span><span class="p">)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mi_1</span><span class="p">,</span> <span class="n">mf_1</span><span class="p">)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mi_2</span><span class="p">,</span> <span class="n">mf_2</span><span class="p">)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mi_3</span><span class="p">,</span> <span class="n">pi_p</span><span class="p">)</span>
+
+<span class="c1"># position, velocity, and control guess</span>
+<span class="k">for</span> <span class="n">p_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+    <span class="n">guess</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p_</span><span class="p">]</span>
+    <span class="n">guess</span><span class="o">.</span><span class="n">state</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="p">[[</span><span class="n">x0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x0</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">x0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">x0</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">x0</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">x0</span><span class="p">[</span><span class="mi">2</span><span class="p">]]]</span>
+    <span class="n">guess</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="p">[[</span><span class="n">v0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">v0</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">v0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">v0</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">v0</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">v0</span><span class="p">[</span><span class="mi">2</span><span class="p">]]]</span>
+    <span class="n">guess</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]]</span>
+
+<span class="c1"># terminal state</span>
+<span class="n">xv_f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">oe_to_rv</span><span class="p">(</span><span class="n">a_f</span><span class="p">,</span> <span class="n">e_f</span><span class="p">,</span> <span class="n">i_f</span><span class="p">,</span> <span class="n">Omega_f</span><span class="p">,</span> <span class="n">omega_f</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">mu</span><span class="p">))</span>
+<span class="n">xv_f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">xv_f</span><span class="p">,</span> <span class="n">xv_f</span><span class="p">])</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+<span class="c1"># print(temp)</span>
+
+<span class="k">for</span> <span class="n">p_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">):</span>
+    <span class="n">guess</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p_</span><span class="p">]</span>
+    <span class="n">guess</span><span class="o">.</span><span class="n">state</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">xv_f</span>
+    <span class="n">guess</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]]</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Scaling">
+<h3>Scaling<a class="headerlink" href="#Scaling" title="Link to this heading"></a></h3>
+<p>In metric units, many of the variables and parameters in this problem are quite large or quite small. For example, the radius of the Earth is</p>
+<div class="math notranslate nohighlight">
+\[R_E = 6.378145\times10^6 \text{ m}\]</div>
+<p>and the Earth’s gravity parameter is</p>
+<div class="math notranslate nohighlight">
+\[\mu = 3.986012\times10^{14}\text{ m}^3/\text{s}^2\]</div>
+<p>On the other hand, Earth’s rotation rate is only</p>
+<div class="math notranslate nohighlight">
+\[\omega_E = 7.29211585\times10^{-5} \text{ rad/sec}\]</div>
+<p>Without scaling, the problem is hopelessly ill-conditioned. Therefore, scaling is essential. To improve the problem conditioning, we choose length, velocity, time, and mass scales as</p>
+<div class="math notranslate nohighlight">
+\[L = R_E, \quad
+V = \sqrt{\frac{\mu}{R_E}}, \quad
+T = \frac{L}{V}, \quad
+M = m_0\]</div>
+<p>where <span class="math notranslate nohighlight">\(m_0\)</span> is the total mass of the vehicle at the initial time. When scaled by these values, the resulting variables are nondimensional and of order 1, greatly improving the conditioning of the system.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">length_scale</span> <span class="o">=</span> <span class="n">R_e</span>
+<span class="n">mass_scale</span> <span class="o">=</span> <span class="n">m_total</span>
+<span class="n">velocity_scale</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">mu</span> <span class="o">/</span> <span class="n">length_scale</span><span class="p">)</span>
+<span class="n">time_scale</span> <span class="o">=</span> <span class="n">length_scale</span> <span class="o">/</span> <span class="n">velocity_scale</span>
+
+<span class="n">state_scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">7</span><span class="p">])</span>
+<span class="n">state_scale</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">*=</span> <span class="n">length_scale</span>
+<span class="n">state_scale</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">*=</span> <span class="n">velocity_scale</span>
+<span class="n">state_scale</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">*=</span> <span class="n">mass_scale</span>
+
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">length_scale</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">velocity_scale</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mass_scale</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">length_scale</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">velocity_scale</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">mass_scale</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">time_scale</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">path</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">length_scale</span>
+
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">0</span> <span class="o">+</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">p</span> <span class="p">:</span> <span class="mi">3</span> <span class="o">+</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">length_scale</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">p</span> <span class="p">:</span> <span class="mi">6</span> <span class="o">+</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">velocity_scale</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">discrete</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span> <span class="o">=</span> <span class="n">length_scale</span>
+
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">mass_scale</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Solver-Options">
+<h3>Solver Options<a class="headerlink" href="#Solver-Options" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># spectral method and derivatives</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">spectral_method</span> <span class="o">=</span> <span class="s2">"lgl"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"auto"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="s2">"second"</span>
+
+<span class="c1"># mesh structure</span>
+<span class="n">m</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span>
+<span class="k">for</span> <span class="n">p_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p_</span><span class="p">]</span><span class="o">.</span><span class="n">collocation_points</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span><span class="p">,)</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p_</span><span class="p">]</span><span class="o">.</span><span class="n">fraction</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">m</span><span class="p">,)</span>
+
+<span class="c1"># Ipopt options</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-20</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">sb</span> <span class="o">=</span> <span class="s2">"yes"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_user_options</span> <span class="o">=</span> <span class="s2">"no"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">linear_solver</span> <span class="o">=</span> <span class="s2">"mumps"</span>
+
+<span class="c1"># solve</span>
+<span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/var/folders/rb/n6nbw5cd7xjbzttsgqrgx35h0000gn/T/ipykernel_37654/3145274888.py:49: RuntimeWarning: invalid value encountered in divide
+  mu_over_r3 = mu / r**3
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Total number of variables............................:      971
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:      831
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:      807
+Total number of inequality constraints...............:       88
+        inequality constraints with only lower bounds:       88
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+
+Number of Iterations....: 58
+
+                                   (scaled)                 (unscaled)
+Objective...............:  -2.4977980946064005e-02   -7.5297122681147794e+03
+Dual infeasibility......:   9.0087415641580845e-15    2.2910049459069196e-13
+Constraint violation....:   1.4210854715202004e-14    3.8533471524715424e-08
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   5.0000000000114319e-21    1.5072700000034463e-15
+Overall NLP error.......:   1.4210854715202004e-14    3.8533471524715424e-08
+
+
+Number of objective function evaluations             = 117
+Number of objective gradient evaluations             = 55
+Number of equality constraint evaluations            = 117
+Number of inequality constraint evaluations          = 117
+Number of equality constraint Jacobian evaluations   = 60
+Number of inequality constraint Jacobian evaluations = 60
+Number of Lagrangian Hessian evaluations             = 58
+Total seconds in IPOPT (w/o function evaluations)    =      0.205
+Total seconds in NLP function evaluations            =      0.638
+
+EXIT: Solved To Acceptable Level.
+</pre></div></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Most likely, the evaluation of the above cell produced a warning:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">RuntimeWarning: invalid value encountered in divide mu_over_r3 = mu / r**3</span>
+</pre></div>
+</div>
+<p>This warning is a result of a bug in the way that the CasADi and NumPy packages
+interact. The warning is sometimes produced when (as in this case), arithmetic operations
+are performed on symbolic expressions with large numerical constants (greater than
+<span class="math notranslate nohighlight">\(2^{31} \approx 2.147 \times 10^9\)</span>). See the <a class="reference external" href="https://github.com/numpy/numpy/issues/21416">NumPy Github issue</a> for more details.</p>
+<p>There are two ways to silence the warning. The warning can be silenced globally by the code:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">np</span><span class="o">.</span><span class="n">seterr</span><span class="p">(</span><span class="n">invalid</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It’s probably preferable to silence the warning with a context manager:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">invalid</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">):</span>
+    <span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+<section id="Plots-of-Solution">
+<h2>Plots of Solution<a class="headerlink" href="#Plots-of-Solution" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># extract the state, control, costate, dynamics, path, and time variables</span>
+<span class="n">x</span> <span class="o">=</span> <span class="p">[</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">state</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span>
+<span class="n">u</span> <span class="o">=</span> <span class="p">[</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">control</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span>
+<span class="n">p</span> <span class="o">=</span> <span class="p">[</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">costate</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span>
+<span class="n">f</span> <span class="o">=</span> <span class="p">[</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span>
+<span class="n">t</span> <span class="o">=</span> <span class="p">[</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span>
+<span class="n">tc</span> <span class="o">=</span> <span class="p">[</span><span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">time_c</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span>
+
+<span class="n">tf</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">time</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="c1"># velocity for plotting</span>
+<span class="n">v</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span>
+<span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">v</span><span class="p">[</span><span class="n">phase</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">phase</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">x</span><span class="p">[</span><span class="n">phase</span><span class="p">][</span><span class="mi">4</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">x</span><span class="p">[</span><span class="n">phase</span><span class="p">][</span><span class="mi">5</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># form the Hamiltonian</span>
+<span class="n">hamiltonian</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">hamiltonian</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">f</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">7</span><span class="p">)))</span>
+
+<span class="c1"># plot settings</span>
+<span class="n">color</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"darkblue"</span><span class="p">,</span> <span class="s2">"maroon"</span><span class="p">,</span> <span class="s2">"darkorange"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<section id="Altitude">
+<h3>Altitude<a class="headerlink" href="#Altitude" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">phase</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)))</span> <span class="o">-</span> <span class="n">R_e</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="n">phase</span><span class="p">],</span> <span class="n">h</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">color</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tf</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">250</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Altitude, $h$ (km)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="s2">"both"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_delta_iii_ascent_30_0.png" src="../_images/notebooks_delta_iii_ascent_30_0.png"/>
+</div>
+</div>
+</section>
+<section id="Vehicle-Position">
+<h3>Vehicle Position<a class="headerlink" href="#Vehicle-Position" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="n">phase</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="n">phase</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span> <span class="n">color</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="sa">r</span><span class="s2">"$r_</span><span class="si">{1}</span><span class="s2">(t)$"</span><span class="p">,</span> <span class="sa">r</span><span class="s2">"$r_</span><span class="si">{2}</span><span class="s2">(t)$"</span><span class="p">,</span> <span class="sa">r</span><span class="s2">"$r_</span><span class="si">{3}</span><span class="s2">(t)$"</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tf</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Position Vector (1000 km)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="s2">"on"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_delta_iii_ascent_32_0.png" src="../_images/notebooks_delta_iii_ascent_32_0.png"/>
+</div>
+</div>
+</section>
+<section id="Vehicle-Velocity">
+<h3>Vehicle Velocity<a class="headerlink" href="#Vehicle-Velocity" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="n">phase</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="n">phase</span><span class="p">][</span><span class="n">i</span><span class="p">],</span> <span class="n">color</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">3</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="sa">r</span><span class="s2">"$v_</span><span class="si">{1}</span><span class="s2">(t)$"</span><span class="p">,</span> <span class="sa">r</span><span class="s2">"$v_</span><span class="si">{2}</span><span class="s2">(t)$"</span><span class="p">,</span> <span class="sa">r</span><span class="s2">"$v_</span><span class="si">{3}</span><span class="s2">(t)$"</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tf</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Inertial Velocity Vector (m/s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="s2">"on"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_delta_iii_ascent_34_0.png" src="../_images/notebooks_delta_iii_ascent_34_0.png"/>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="n">phase</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="n">phase</span><span class="p">],</span> <span class="n">color</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tf</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">12000</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Magnitude of Inertial Velocity, $v(t)$ (m/s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="s2">"on"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_delta_iii_ascent_35_0.png" src="../_images/notebooks_delta_iii_ascent_35_0.png"/>
+</div>
+</div>
+</section>
+<section id="Control-Inputs-(Thrust-Directions)">
+<h3>Control Inputs (Thrust Directions)<a class="headerlink" href="#Control-Inputs-(Thrust-Directions)" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">tc</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">u</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">i</span><span class="p">],</span> <span class="n">color</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="sa">r</span><span class="s2">"$u_</span><span class="si">{1}</span><span class="s2">(t)$"</span><span class="p">,</span> <span class="sa">r</span><span class="s2">"$u_</span><span class="si">{2}</span><span class="s2">(t)$"</span><span class="p">,</span> <span class="sa">r</span><span class="s2">"$u_</span><span class="si">{3}</span><span class="s2">(t)$"</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tf</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Components of thrust direction vector, $u(t)$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="s2">"on"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_delta_iii_ascent_37_0.png" src="../_images/notebooks_delta_iii_ascent_37_0.png"/>
+</div>
+</div>
+</section>
+<section id="Vehicle-Mass">
+<h3>Vehicle Mass<a class="headerlink" href="#Vehicle-Mass" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="mi">6</span><span class="p">]</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Vehicle mass, $m$ (1000 kg)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tf</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">300</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="s2">"on"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_delta_iii_ascent_39_0.png" src="../_images/notebooks_delta_iii_ascent_39_0.png"/>
+</div>
+</div>
+</section>
+<section id="Hamiltonian">
+<h3>Hamiltonian<a class="headerlink" href="#Hamiltonian" title="Link to this heading"></a></h3>
+<p>The dynamics are time-invariant within phases, and the cost function has no integral terms, and so the Hamiltonian should be be constant within each phase.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">tc</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">hamiltonian</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">color</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tf</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Hamiltonian, $\lambda^T f$ (kg/s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="s2">"both"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_delta_iii_ascent_42_0.png" src="../_images/notebooks_delta_iii_ascent_42_0.png"/>
+</div>
+</div>
+</section>
+</section>
+<section id="References">
+<h2>References<a class="headerlink" href="#References" title="Link to this heading"></a></h2>
+<div class="docutils container" id="id5">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="footcite-benson-2005" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id1" role="doc-backlink">1</a><span class="fn-bracket">]</span></span>
+<p>David Benson. <em>A Gauss pseudospectral transcription for optimal control</em>. PhD thesis, Massachusetts Institute of Technology, 2005. <a class="reference external" href="https://doi.org/1721.1/28919">doi:1721.1/28919</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-rao-2010" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id2" role="doc-backlink">2</a><span class="fn-bracket">]</span></span>
+<p>Anil V. Rao, David A. Benson, Christopher Darby, Michael A. Patterson, Camila Francolin, Ilyssa Sanders, and Geoffrey T. Huntington. Algorithm 902: GPOPS, a MATLAB software for solving multiple-phase optimal control problems using the Gauss pseudospectral method. <em>ACM Transactions on Mathematical Software (TOMS)</em>, 37(2):1–39, 2010. <a class="reference external" href="https://doi.org/10.1145/1731022.1731032">doi:10.1145/1731022.1731032</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-patterson-2014" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id3" role="doc-backlink">3</a><span class="fn-bracket">]</span></span>
+<p>Michael A. Patterson and Anil V. Rao. GPOPS-II: A MATLAB software for solving multiple-phase optimal control problems using hp-adaptive Gaussian quadrature collocation methods and sparse nonlinear programming. <em>ACM Trans. Math. Softw.</em>, oct 2014. <a class="reference external" href="https://doi.org/10.1145/2558904">doi:10.1145/2558904</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-betts-2010" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id4" role="doc-backlink">4</a><span class="fn-bracket">]</span></span>
+<p>John T Betts. <em>Practical Methods for Optimal Control and Estimation Using Nonlinear Programming</em>. Volume 19. Siam, 2010. <a class="reference external" href="https://doi.org/10.1137/1.9780898718577">doi:10.1137/1.9780898718577</a>.</p>
+</aside>
+</aside>
+</div>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="minimum_time_to_climb.html" rel="prev" title="Minimum Time to Climb Problem"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="../scripts/index.html" rel="next" title="Python Scripts">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

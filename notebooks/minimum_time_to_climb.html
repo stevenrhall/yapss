@@ -1,0 +1,1231 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Minimum Time to Climb Problem — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/nbsphinx-code-cells.css?v=2aa19091" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="delta_iii_ascent.html" rel="next" title="Delta III Launch Vehicle Ascent Problem"/>
+<link href="dynamic_soaring.html" rel="prev" title="Dynamic Soaring"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">JupyterLab Notebooks</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="rosenbrock.html">Rosenbrock Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hs071.html">HS071 Optimization Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="brachistochrone.html">Brachistochrone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isoperimetric.html">The Isoperimetric Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="newton.html">Newton’s Minimal Resistance Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_1_phase.html">The Goddard Problem (One Phase)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="goddard_problem_3_phase.html">The Goddard Problem (Three Phases)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orbit_raising.html">Orbit Raising Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamic_soaring.html">Dynamic Soaring</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Minimum Time to Climb Problem</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Problem-Definition">Problem Definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Interpolation-of-Aerodynamic-Data">Interpolation of Aerodynamic Data</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Density-and-Speed-of-Sound">Density and Speed of Sound</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Available-Thrust">Available Thrust</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Lift-and-Drag-Coefficients">Lift and Drag Coefficients</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#YAPSS-Solution">YAPSS Solution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Plots-of-Solution">Plots of Solution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Altitude-vs.-Velocity">Altitude vs. Velocity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Altitude">Altitude</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Velocity">Velocity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Flight-Path-Angle">Flight Path Angle</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Vehicle-Mass">Vehicle Mass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Angle-of-Attack">Angle of Attack</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#Minimum-Fuel-to-Climb">Minimum Fuel to Climb</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#References">References</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="delta_iii_ascent.html">Delta III Launch Vehicle Ascent Problem</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item"><a href="index.html">JupyterLab Notebooks</a></li>
+<li class="breadcrumb-item active">Minimum Time to Climb Problem</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/minimum_time_to_climb.ipynb"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="Minimum-Time-to-Climb-Problem">
+<h1>Minimum Time to Climb Problem<a class="headerlink" href="#Minimum-Time-to-Climb-Problem" title="Link to this heading"></a></h1>
+<p>For a solution to the minimum time to climb problem using a Python script instead of a notebook, see the corresponding <a class="reference internal" href="../scripts/minimum_time_to_climb.html"><span class="doc">Python script documentation</span></a>.</p>
+<p>This notebook reproduces one of the main results of the seminal paper by Bryson <em>et al.</em> <a class="footnote-reference brackets" href="#footcite-bryson-1969" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>, namely, to find the minimum time to climb to a given altitude by a supersonic interceptor aircraft. The equations of motion and boundary conditions are straightforward; the main difficulty in this problem is to represent the aerodynamics, which are given in tabular form.</p>
+<p>Betts <a class="footnote-reference brackets" href="#footcite-betts-2010" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a> discusses in some detail the difficulty in treating tabular data in the context of this problem. There are two problems to address: First, the thrust is a function of two variables, Mach number and altitude, and the table representing the function is coarse and incomplete. As a result, a conventional two-dimensional interpolation cannot be used. Second, the nondimensional aerodynamic coefficients are given in tabular form as functions of Mach number, for only nine
+Mach numbers. A naive spline fit to the data gives unsatisfactory results, and care must be taken to ensure that the fit to the data is realistic. So while the problem is conceptually straightforward, the implementation requires some care.</p>
+<section id="Problem-Definition">
+<h2>Problem Definition<a class="headerlink" href="#Problem-Definition" title="Link to this heading"></a></h2>
+<p>The objective of the problem is to minimize the objective <span class="math notranslate nohighlight">\(J\)</span>, where</p>
+<div class="math notranslate nohighlight">
+\[J = t_f\]</div>
+<p>is the time to climb to 65,600 ft (20,000 m). The equations of motion are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    \dot{h} &amp;= v \sin \gamma \\
+    \dot{v} &amp;= \frac{T \cos \alpha - D}{m} - g \sin \gamma \\
+    \dot{\gamma} &amp;=\frac{T \sin \alpha+L}{m v} - \frac{g \cos \gamma}{v} \\
+    \dot{m} &amp;= -\frac{T}{g I_\text{sp}}
+\end{aligned}\end{split}\]</div>
+<p>where the states are the aircraft altitude <span class="math notranslate nohighlight">\(h\)</span>, velocity <span class="math notranslate nohighlight">\(v\)</span>, flight path angle <span class="math notranslate nohighlight">\(\gamma\)</span>, and the aircraft mass <span class="math notranslate nohighlight">\(m\)</span>. The gravitational constant is</p>
+<div class="math notranslate nohighlight">
+\[g = 32.174 \text{ft}/\text{s}^2\]</div>
+<p>and the specific impulse is</p>
+<div class="math notranslate nohighlight">
+\[I_\text{sp} = 1{,}600 \text{ s}\]</div>
+<p>The single available control is the aircraft angle of attack <span class="math notranslate nohighlight">\(\alpha\)</span>, which appears explicity in the equations of motion, but also appears implicitly through the lift <span class="math notranslate nohighlight">\(L\)</span> and drag <span class="math notranslate nohighlight">\(D\)</span>. The lift and drag are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    L &amp;=\frac{1}{2} C_{L} S \rho v^{2} \\
+    D &amp;=\frac{1}{2} C_{D} S \rho v^{2}
+\end{aligned}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\rho\)</span> is the density of the atmosphere, which depends on the aircraft altitude, and <span class="math notranslate nohighlight">\(S=530\text{ ft}^2\)</span> is the wing area. The coefficients of lift and drag are given by</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    C_{L} &amp;=C_{L \alpha} \alpha \\
+    C_{D} &amp;=C_{D 0}+\eta C_{L \alpha} \alpha^{2}
+\end{aligned}\end{split}\]</div>
+<p>where the lift curve slope <span class="math notranslate nohighlight">\(C_{L \alpha}\)</span>, drag coefficient at zero angle of attack <span class="math notranslate nohighlight">\(C_{D0}\)</span>, and the induced drag factor <span class="math notranslate nohighlight">\(\eta\)</span> are all functions of Mach number <span class="math notranslate nohighlight">\(M\)</span> and are expressed in tabular form in Table 1.</p>
+<table class="docutils align-center" id="id4">
+<caption><span class="caption-text">Table 1: Nondimensional aerodynamic coefficients as a function of Mach number.</span><a class="headerlink" href="#id4" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 10.0%"/>
+<col style="width: 10.0%"/>
+<col style="width: 10.0%"/>
+<col style="width: 10.0%"/>
+<col style="width: 10.0%"/>
+<col style="width: 10.0%"/>
+<col style="width: 10.0%"/>
+<col style="width: 10.0%"/>
+<col style="width: 10.0%"/>
+<col style="width: 10.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="math notranslate nohighlight">\(M\)</span></p></th>
+<th class="head"><p>0.0</p></th>
+<th class="head"><p>0.4</p></th>
+<th class="head"><p>0.8</p></th>
+<th class="head"><p>0.9</p></th>
+<th class="head"><p>1.0</p></th>
+<th class="head"><p>1.2</p></th>
+<th class="head"><p>1.4</p></th>
+<th class="head"><p>1.6</p></th>
+<th class="head"><p>1.8</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\({C_L}_{\alpha}\)</span></p></td>
+<td><p>3.44</p></td>
+<td><p>3.44</p></td>
+<td><p>3.44</p></td>
+<td><p>3.58</p></td>
+<td><p>4.44</p></td>
+<td><p>3.44</p></td>
+<td><p>3.01</p></td>
+<td><p>2.86</p></td>
+<td><p>2.44</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\({C_D}_0\)</span></p></td>
+<td><p>0.013</p></td>
+<td><p>0.013</p></td>
+<td><p>0.013</p></td>
+<td><p>0.014</p></td>
+<td><p>0.031</p></td>
+<td><p>0.041</p></td>
+<td><p>0.039</p></td>
+<td><p>0.036</p></td>
+<td><p>0.035</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\eta\)</span></p></td>
+<td><p>0.54</p></td>
+<td><p>0.54</p></td>
+<td><p>0.54</p></td>
+<td><p>0.75</p></td>
+<td><p>0.79</p></td>
+<td><p>0.78</p></td>
+<td><p>0.89</p></td>
+<td><p>0.93</p></td>
+<td><p>0.93</p></td>
+</tr>
+</tbody>
+</table>
+<p>The available thrust is a function of Mach number and altitude, and the data are given in Table 2.</p>
+<table class="docutils align-center" id="id5">
+<caption><span class="caption-text"><span class="target" id="table-2">Table 2</span>: Maximum aircraft thrust (in thousands of pounds force) as a function of Mach number and altitude.</span><a class="headerlink" href="#id5" title="Link to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head" rowspan="2"><p>Mach</p>
+<p>Number</p>
+</th>
+<th class="head" colspan="10"><p>Altitude (thousands of feet)</p></th>
+</tr>
+<tr class="row-even"><th class="head"><p>0</p></th>
+<th class="head"><p>5</p></th>
+<th class="head"><p>10</p></th>
+<th class="head"><p>15</p></th>
+<th class="head"><p>20</p></th>
+<th class="head"><p>25</p></th>
+<th class="head"><p>30</p></th>
+<th class="head"><p>40</p></th>
+<th class="head"><p>50</p></th>
+<th class="head"><p>70</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-odd"><td><p>0.0</p></td>
+<td><p>24.2</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0.2</p></td>
+<td><p>28.0</p></td>
+<td><p>24.6</p></td>
+<td><p>21.1</p></td>
+<td><p>18.1</p></td>
+<td><p>15.2</p></td>
+<td><p>12.8</p></td>
+<td><p>10.7</p></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0.4</p></td>
+<td><p>28.3</p></td>
+<td><p>25.2</p></td>
+<td><p>21.9</p></td>
+<td><p>18.7</p></td>
+<td><p>15.9</p></td>
+<td><p>13.4</p></td>
+<td><p>11.2</p></td>
+<td><p>7.3</p></td>
+<td><p>4.4</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0.6</p></td>
+<td><p>30.8</p></td>
+<td><p>27.2</p></td>
+<td><p>23.8</p></td>
+<td><p>20.5</p></td>
+<td><p>17.3</p></td>
+<td><p>14.7</p></td>
+<td><p>12.3</p></td>
+<td><p>8.1</p></td>
+<td><p>4.9</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0.8</p></td>
+<td><p>34.5</p></td>
+<td><p>30.3</p></td>
+<td><p>26.6</p></td>
+<td><p>23.2</p></td>
+<td><p>19.8</p></td>
+<td><p>16.8</p></td>
+<td><p>14.1</p></td>
+<td><p>9.4</p></td>
+<td><p>5.6</p></td>
+<td><p>1.1</p></td>
+</tr>
+<tr class="row-even"><td><p>1.0</p></td>
+<td><p>37.9</p></td>
+<td><p>34.3</p></td>
+<td><p>30.4</p></td>
+<td><p>26.8</p></td>
+<td><p>23.3</p></td>
+<td><p>19.8</p></td>
+<td><p>16.8</p></td>
+<td><p>11.2</p></td>
+<td><p>6.8</p></td>
+<td><p>1.4</p></td>
+</tr>
+<tr class="row-odd"><td><p>1.2</p></td>
+<td><p>36.1</p></td>
+<td><p>38.0</p></td>
+<td><p>34.9</p></td>
+<td><p>31.3</p></td>
+<td><p>27.3</p></td>
+<td><p>23.6</p></td>
+<td><p>20.1</p></td>
+<td><p>13.4</p></td>
+<td><p>8.3</p></td>
+<td><p>1.7</p></td>
+</tr>
+<tr class="row-even"><td><p>1.4</p></td>
+<td></td>
+<td><p>36.6</p></td>
+<td><p>38.5</p></td>
+<td><p>36.1</p></td>
+<td><p>31.6</p></td>
+<td><p>28.1</p></td>
+<td><p>24.2</p></td>
+<td><p>16.2</p></td>
+<td><p>10.0</p></td>
+<td><p>2.2</p></td>
+</tr>
+<tr class="row-odd"><td><p>1.6</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td><p>38.7</p></td>
+<td><p>35.7</p></td>
+<td><p>32.0</p></td>
+<td><p>28.1</p></td>
+<td><p>19.3</p></td>
+<td><p>11.9</p></td>
+<td><p>2.9</p></td>
+</tr>
+<tr class="row-even"><td><p>1.8</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td><p>34.6</p></td>
+<td><p>31.1</p></td>
+<td><p>21.7</p></td>
+<td><p>13.3</p></td>
+<td><p>3.1</p></td>
+</tr>
+</tbody>
+</table>
+<p>Note that the data in the paper by Bryson <em>et al.</em> is missing data points for high altitude and low Mach number (for which no data is available because it is below the stall speed of the aircraft), and for low altitude and high Mach number (for which data is also not available, most likely because these speeds are beyond the never exceed speeds for the aircraft).</p>
+<p>Finally, the initial boundary conditions are</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    h(0) &amp;= 0 \text{ ft} \\
+    v(0) &amp;= 424.260 \text{ ft/s} = \text{Mach 0.38} \\
+    \gamma(0) &amp;= 0 \text{ rad} \\
+    m(0) &amp;= 42{,}000 \text{ lbm}
+\end{aligned}\end{split}\]</div>
+<p>and the terminal boundary conditions are</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    h(t_f) &amp;= 65{,}600 \text{ ft} = 20{,}000 \text{ m}\\
+    v(t_f) &amp;= 968.148 \text{ ft/s} = \text{Mach 1.0} \\
+    \gamma(t_f) &amp;= 0 \text{ rad}
+\end{aligned}\end{split}\]</div>
+</section>
+<section id="Interpolation-of-Aerodynamic-Data">
+<h2>Interpolation of Aerodynamic Data<a class="headerlink" href="#Interpolation-of-Aerodynamic-Data" title="Link to this heading"></a></h2>
+<section id="Density-and-Speed-of-Sound">
+<h3>Density and Speed of Sound<a class="headerlink" href="#Density-and-Speed-of-Sound" title="Link to this heading"></a></h3>
+<p>The equations of motion depend on the density of air, <span class="math notranslate nohighlight">\(\rho\)</span>, and on the speed of sound, <span class="math notranslate nohighlight">\(c\)</span>, which is needed to compute the Mach number. These quantities are determined from the <a class="reference external" href="http://www.pdas.com/atmosTable1US.html">1976 U.S. Standard Atmosphere</a>, using a cubic spline interpolation of the tabular data. The resulting interpolation functions are <code class="docutils literal notranslate"><span class="pre">get_rho</span></code> and <code class="docutils literal notranslate"><span class="pre">get_c</span></code>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">CubicSpline</span>
+
+<span class="c1"># make splines of atmospheric data, using the U.S. 1976 Standard Atmosphere in US</span>
+<span class="c1"># customary units. Data from: http://www.pdas.com/atmosTable1US.html</span>
+
+<span class="c1"># fmt: off</span>
+
+<span class="c1"># density rho (slug/ft^3) and speed of sound c (ft/s) as a function of altitude h (ft)</span>
+<span class="n">atmosphere_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+    <span class="c1">#    h       rho       c</span>
+    <span class="c1"># ------  --------  ------</span>
+    <span class="p">[[</span>     <span class="mi">0</span><span class="p">,</span> <span class="mf">2.377E-3</span><span class="p">,</span> <span class="mf">1116.5</span><span class="p">],</span>
+     <span class="p">[</span> <span class="mi">5_000</span><span class="p">,</span> <span class="mf">2.048E-3</span><span class="p">,</span> <span class="mf">1097.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">10_000</span><span class="p">,</span> <span class="mf">1.756E-3</span><span class="p">,</span> <span class="mf">1077.4</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">15_000</span><span class="p">,</span> <span class="mf">1.496E-3</span><span class="p">,</span> <span class="mf">1057.4</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">20_000</span><span class="p">,</span> <span class="mf">1.267E-3</span><span class="p">,</span> <span class="mf">1036.9</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">25_000</span><span class="p">,</span> <span class="mf">1.066E-3</span><span class="p">,</span> <span class="mf">1016.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">30_000</span><span class="p">,</span> <span class="mf">8.907E-4</span><span class="p">,</span>  <span class="mf">994.8</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">35_000</span><span class="p">,</span> <span class="mf">7.382E-4</span><span class="p">,</span>  <span class="mf">973.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">40_000</span><span class="p">,</span> <span class="mf">5.873E-4</span><span class="p">,</span>  <span class="mf">968.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">45_000</span><span class="p">,</span> <span class="mf">4.623E-4</span><span class="p">,</span>  <span class="mf">968.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">50_000</span><span class="p">,</span> <span class="mf">3.639E-4</span><span class="p">,</span>  <span class="mf">968.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">55_000</span><span class="p">,</span> <span class="mf">2.865E-4</span><span class="p">,</span>  <span class="mf">968.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">60_000</span><span class="p">,</span> <span class="mf">2.256E-4</span><span class="p">,</span>  <span class="mf">968.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">65_000</span><span class="p">,</span> <span class="mf">1.777E-4</span><span class="p">,</span>  <span class="mf">968.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">70_000</span><span class="p">,</span> <span class="mf">1.392E-4</span><span class="p">,</span>  <span class="mf">970.9</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">75_000</span><span class="p">,</span> <span class="mf">1.091E-4</span><span class="p">,</span>  <span class="mf">974.3</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">80_000</span><span class="p">,</span> <span class="mf">8.571E-5</span><span class="p">,</span>  <span class="mf">977.6</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">85_000</span><span class="p">,</span> <span class="mf">6.743E-5</span><span class="p">,</span>  <span class="mf">981.0</span><span class="p">],</span>
+     <span class="p">[</span><span class="mi">90_000</span><span class="p">,</span> <span class="mf">5.315E-5</span><span class="p">,</span>  <span class="mf">984.3</span><span class="p">]],</span>
+<span class="p">)</span>
+<span class="c1"># fmt: on</span>
+
+<span class="n">get_rho</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">atmosphere_data</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">atmosphere_data</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="n">get_c</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">atmosphere_data</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">atmosphere_data</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Available-Thrust">
+<h3>Available Thrust<a class="headerlink" href="#Available-Thrust" title="Link to this heading"></a></h3>
+<p>As discussed earlier, the tabular data for available thrust (Table 2) is missing data outside the flight envelope. As a result, a simple two-dimensional spline is not feasible. Instead, we use a radial basis function (RBF) interpolation, which is appropriate for unstructured data. We first scale the independent axes to a range of <span class="math notranslate nohighlight">\([0,1]\)</span>, and then pass the data to the SciPy function <code class="docutils literal notranslate"><span class="pre">RBFInterpolator</span></code> to generate the interpolation function <code class="docutils literal notranslate"><span class="pre">thrust_function</span></code>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Import required packages</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="kn">import</span> <span class="n">Axes3D</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">pi</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">RBFInterpolator</span>
+<span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span>
+
+<span class="c1"># Mach number and altitude arrays</span>
+<span class="n">mach_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">,</span> <span class="mf">1.6</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">))</span>
+<span class="c1"># Data is in thousands of feet</span>
+<span class="n">h_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">70</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+<span class="c1"># normalize so that each array has range [0,1]</span>
+<span class="n">h_data</span> <span class="o">/=</span> <span class="mf">70.0</span>
+<span class="n">mach_data</span> <span class="o">/=</span> <span class="mf">1.8</span>
+
+<span class="c1"># Thrust data. Note that there are zero entries where the data is unknown or</span>
+<span class="c1"># undefined. Thrust is in thousands of lbf.</span>
+<span class="c1"># fmt: off</span>
+<span class="n">thrust_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+    <span class="p">[[</span><span class="mf">24.2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+     <span class="p">[</span><span class="mf">28.0</span><span class="p">,</span> <span class="mf">24.6</span><span class="p">,</span> <span class="mf">21.1</span><span class="p">,</span> <span class="mf">18.1</span><span class="p">,</span> <span class="mf">15.2</span><span class="p">,</span> <span class="mf">12.8</span><span class="p">,</span> <span class="mf">10.7</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+     <span class="p">[</span><span class="mf">28.3</span><span class="p">,</span> <span class="mf">25.2</span><span class="p">,</span> <span class="mf">21.9</span><span class="p">,</span> <span class="mf">18.7</span><span class="p">,</span> <span class="mf">15.9</span><span class="p">,</span> <span class="mf">13.4</span><span class="p">,</span> <span class="mf">11.2</span><span class="p">,</span>  <span class="mf">7.3</span><span class="p">,</span>  <span class="mf">4.4</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+     <span class="p">[</span><span class="mf">30.8</span><span class="p">,</span> <span class="mf">27.2</span><span class="p">,</span> <span class="mf">23.8</span><span class="p">,</span> <span class="mf">20.5</span><span class="p">,</span> <span class="mf">17.3</span><span class="p">,</span> <span class="mf">14.7</span><span class="p">,</span> <span class="mf">12.3</span><span class="p">,</span>  <span class="mf">8.1</span><span class="p">,</span>  <span class="mf">4.9</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+     <span class="p">[</span><span class="mf">34.5</span><span class="p">,</span> <span class="mf">30.3</span><span class="p">,</span> <span class="mf">26.6</span><span class="p">,</span> <span class="mf">23.2</span><span class="p">,</span> <span class="mf">19.8</span><span class="p">,</span> <span class="mf">16.8</span><span class="p">,</span> <span class="mf">14.1</span><span class="p">,</span>  <span class="mf">9.4</span><span class="p">,</span>  <span class="mf">5.6</span><span class="p">,</span>  <span class="mf">1.1</span><span class="p">],</span>
+     <span class="p">[</span><span class="mf">37.9</span><span class="p">,</span> <span class="mf">34.3</span><span class="p">,</span> <span class="mf">30.4</span><span class="p">,</span> <span class="mf">26.8</span><span class="p">,</span> <span class="mf">23.3</span><span class="p">,</span> <span class="mf">19.8</span><span class="p">,</span> <span class="mf">16.8</span><span class="p">,</span> <span class="mf">11.2</span><span class="p">,</span>  <span class="mf">6.8</span><span class="p">,</span>  <span class="mf">1.4</span><span class="p">],</span>
+     <span class="p">[</span><span class="mf">36.1</span><span class="p">,</span> <span class="mf">38.0</span><span class="p">,</span> <span class="mf">34.9</span><span class="p">,</span> <span class="mf">31.3</span><span class="p">,</span> <span class="mf">27.3</span><span class="p">,</span> <span class="mf">23.6</span><span class="p">,</span> <span class="mf">20.1</span><span class="p">,</span> <span class="mf">13.4</span><span class="p">,</span>  <span class="mf">8.3</span><span class="p">,</span>  <span class="mf">1.7</span><span class="p">],</span>
+     <span class="p">[</span>   <span class="mi">0</span><span class="p">,</span> <span class="mf">36.6</span><span class="p">,</span> <span class="mf">38.5</span><span class="p">,</span> <span class="mf">36.1</span><span class="p">,</span> <span class="mf">31.6</span><span class="p">,</span> <span class="mf">28.1</span><span class="p">,</span> <span class="mf">24.2</span><span class="p">,</span> <span class="mf">16.2</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span>  <span class="mf">2.2</span><span class="p">],</span>
+     <span class="p">[</span>   <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span> <span class="mf">38.7</span><span class="p">,</span> <span class="mf">35.7</span><span class="p">,</span> <span class="mf">32.0</span><span class="p">,</span> <span class="mf">28.1</span><span class="p">,</span> <span class="mf">19.3</span><span class="p">,</span> <span class="mf">11.9</span><span class="p">,</span>  <span class="mf">2.9</span><span class="p">],</span>
+     <span class="p">[</span>   <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span> <span class="mf">34.6</span><span class="p">,</span> <span class="mf">31.1</span><span class="p">,</span> <span class="mf">21.7</span><span class="p">,</span> <span class="mf">13.3</span><span class="p">,</span>  <span class="mf">3.1</span><span class="p">]],</span>
+<span class="p">)</span>  <span class="c1"># fmt: on</span>
+
+<span class="c1"># convert to lbf</span>
+<span class="n">thrust_data</span> <span class="o">*=</span> <span class="mi">1000</span>
+
+<span class="c1"># Find non-empty entries in thrust table, and form argument and value arrays for the</span>
+<span class="c1"># radial basis function interpolator</span>
+<span class="n">thrust_table</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">mh</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">mj</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mach_data</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">hk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">h_data</span><span class="p">):</span>
+        <span class="n">thrust_data_point</span> <span class="o">=</span> <span class="n">thrust_data</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">thrust_data_point</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">thrust_table</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">thrust_data_point</span><span class="p">)</span>
+            <span class="n">mh</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">mj</span><span class="p">,</span> <span class="n">hk</span><span class="p">])</span>
+
+<span class="n">thrust_rbf_interpolator</span> <span class="o">=</span> <span class="n">RBFInterpolator</span><span class="p">(</span>
+    <span class="n">mh</span><span class="p">,</span>
+    <span class="n">thrust_table</span><span class="p">,</span>
+    <span class="n">smoothing</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">kernel</span><span class="o">=</span><span class="s2">"cubic"</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">thrust_function</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">h</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Determine the thrust available at the given mach numbers and altitudes."""</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">mach</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">shape</span><span class="p">:</span>
+        <span class="n">length</span> <span class="o">*=</span> <span class="n">i</span>
+    <span class="n">mach</span> <span class="o">=</span> <span class="n">mach</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="n">length</span><span class="p">])</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">h</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="n">length</span><span class="p">])</span>
+    <span class="n">thrust</span> <span class="o">=</span> <span class="n">thrust_rbf_interpolator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">mach</span> <span class="o">/</span> <span class="mf">1.8</span><span class="p">,</span> <span class="n">h</span> <span class="o">/</span> <span class="mi">70000</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">thrust</span> <span class="o">=</span> <span class="n">thrust</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">thrust</span>
+</pre></div>
+</div>
+</div>
+<p>To determine how well the interpolation works, a 3D wireframe mesh of the calculated thrust versus Mach number and altitude is plotted:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Form a regular mesh of Mach numbers and altitudes</span>
+<span class="n">mach</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<span class="n">h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">70000</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<span class="n">mach</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+<span class="n">thrust</span> <span class="o">=</span> <span class="n">thrust_function</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+
+<span class="c1"># Plot the wireframe mesh</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">projection</span><span class="o">=</span><span class="s2">"3d"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot_wireframe</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">h</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">thrust</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">rstride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">cstride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">linewidths</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"k"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Mach Number, $M$"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"Altitude, $h$ ($10^3$ feet)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_zlabel</span><span class="p">(</span><span class="s2">"Thrust, $T$ ($10^3$ lbf)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_box_aspect</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">],</span> <span class="n">zoom</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">view_init</span><span class="p">(</span><span class="n">elev</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">azim</span><span class="o">=</span><span class="mi">240</span><span class="p">,</span> <span class="n">roll</span><span class="o">=-</span><span class="mi">4</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_12_0.png" src="../_images/notebooks_minimum_time_to_climb_12_0.png"/>
+</div>
+</div>
+<p>Looking at the plot above, we see that there is a small amount of rippling in the contours for Mach numbers <span class="math notranslate nohighlight">\(M \ge 1.25\)</span> and altitudes below 25,000 ft. As it turns out, the optimal trajectory does not pass through this region, and so this interpolation should suffice.</p>
+</section>
+<section id="Lift-and-Drag-Coefficients">
+<h3>Lift and Drag Coefficients<a class="headerlink" href="#Lift-and-Drag-Coefficients" title="Link to this heading"></a></h3>
+<p>The lift and drag coefficients are determined by the data in Table 1. The data is fairly sparse, and a simple cubic spline interpolation gives unsatisfactory results. For example, here is the cubic spline for the zero-lift drag coefficient <span class="math notranslate nohighlight">\({C_D}_0\)</span>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mach_cd0</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">,</span> <span class="mf">1.6</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">]</span>
+<span class="n">cd0</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.013</span><span class="p">,</span> <span class="mf">0.013</span><span class="p">,</span> <span class="mf">0.013</span><span class="p">,</span> <span class="mf">0.014</span><span class="p">,</span> <span class="mf">0.031</span><span class="p">,</span> <span class="mf">0.041</span><span class="p">,</span> <span class="mf">0.039</span><span class="p">,</span> <span class="mf">0.036</span><span class="p">,</span> <span class="mf">0.035</span><span class="p">]</span>
+<span class="n">get_cd0</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">mach_cd0</span><span class="p">,</span> <span class="n">cd0</span><span class="p">)</span>
+
+<span class="n">mach</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">get_cd0</span><span class="p">(</span><span class="n">mach</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mach_cd0</span><span class="p">,</span> <span class="n">cd0</span><span class="p">,</span> <span class="s2">"."</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"zero-lift drag coefficient, $C_{D_</span><span class="si">{0}</span><span class="s2">}$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Mach number, $M$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.045</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_15_0.png" src="../_images/notebooks_minimum_time_to_climb_15_0.png"/>
+</div>
+</div>
+<p>It seems clear that the drag coefficient is supposed to be constant (or nearly so) in the subsonic regime <span class="math notranslate nohighlight">\(M \le 0.8\)</span>. Because of the sparse data, some artistic license is necessary to interpret the data. To get a reasonable result, we add additional knots near <span class="math notranslate nohighlight">\(M=0.80\)</span> and at <span class="math notranslate nohighlight">\(M=0.86\)</span> to constrain the curve of <span class="math notranslate nohighlight">\({C_D}_0\)</span> from falling below the subsonic value of 0.013.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># define the spline for {C_D}_0</span>
+<span class="n">eps</span> <span class="o">=</span> <span class="mf">1e-5</span>
+<span class="n">mach_cd0</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.86</span> <span class="o">-</span> <span class="n">eps</span><span class="p">,</span> <span class="mf">0.86</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">,</span> <span class="mf">1.6</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">]</span>
+<span class="n">cd0</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.013</span><span class="p">,</span> <span class="mf">0.013</span><span class="p">,</span> <span class="mf">0.013</span><span class="p">,</span> <span class="mf">0.013</span><span class="p">,</span> <span class="mf">0.013</span><span class="p">,</span> <span class="mf">0.014</span><span class="p">,</span> <span class="mf">0.031</span><span class="p">,</span> <span class="mf">0.041</span><span class="p">,</span> <span class="mf">0.039</span><span class="p">,</span> <span class="mf">0.036</span><span class="p">,</span> <span class="mf">0.035</span><span class="p">]</span>
+<span class="n">get_cd0</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">mach_cd0</span><span class="p">,</span> <span class="n">cd0</span><span class="p">)</span>
+
+<span class="n">mach</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">get_cd0</span><span class="p">(</span><span class="n">mach</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mach_cd0</span><span class="p">,</span> <span class="n">cd0</span><span class="p">,</span> <span class="s2">"."</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"zero-lift drag coefficient, $C_{D_</span><span class="si">{0}</span><span class="s2">}$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Mach number, $M$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.045</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_17_0.png" src="../_images/notebooks_minimum_time_to_climb_17_0.png"/>
+</div>
+</div>
+<p>We do the same for the lift curve <span class="math notranslate nohighlight">\({C_L}_\alpha\)</span> and the induced drag parameter <span class="math notranslate nohighlight">\(\eta\)</span>.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># lift curve slope (CLalpha)</span>
+<span class="n">mach_cla</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.84</span> <span class="o">-</span> <span class="n">eps</span><span class="p">,</span> <span class="mf">0.84</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">,</span> <span class="mf">1.6</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">]</span>
+<span class="n">cla</span> <span class="o">=</span> <span class="p">[</span><span class="mf">3.44</span><span class="p">,</span> <span class="mf">3.44</span><span class="p">,</span> <span class="mf">3.44</span><span class="p">,</span> <span class="mf">3.44</span><span class="p">,</span> <span class="mf">3.44</span><span class="p">,</span> <span class="mf">3.58</span><span class="p">,</span> <span class="mf">4.44</span><span class="p">,</span> <span class="mf">3.44</span><span class="p">,</span> <span class="mf">3.01</span><span class="p">,</span> <span class="mf">2.86</span><span class="p">,</span> <span class="mf">2.44</span><span class="p">]</span>
+<span class="n">get_cla</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">mach_cla</span><span class="p">,</span> <span class="n">cla</span><span class="p">)</span>
+
+<span class="n">mach</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">get_cla</span><span class="p">(</span><span class="n">mach</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mach_cla</span><span class="p">,</span> <span class="n">cla</span><span class="p">,</span> <span class="s2">"."</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Lift curve slope, $C_{L_{\alpha}}$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Mach number, $M$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_19_0.png" src="../_images/notebooks_minimum_time_to_climb_19_0.png"/>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># eta</span>
+<span class="c1"># fmt: off</span>
+<span class="n">mach_eta</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="mi">0</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.8</span> <span class="o">-</span> <span class="n">eps</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">eps</span><span class="p">,</span> <span class="mf">1.2</span> <span class="o">-</span> <span class="n">eps</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">,</span>
+    <span class="mf">1.6</span><span class="p">,</span> <span class="mf">1.6</span> <span class="o">+</span> <span class="n">eps</span><span class="p">,</span> <span class="mf">1.8</span> <span class="o">-</span> <span class="n">eps</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">eta_data</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="mf">0.54</span><span class="p">,</span> <span class="mf">0.54</span><span class="p">,</span> <span class="mf">0.54</span><span class="p">,</span> <span class="mf">0.54</span><span class="p">,</span> <span class="mf">0.75</span> <span class="o">-</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.79</span><span class="p">,</span> <span class="mf">0.79</span> <span class="o">-</span> <span class="n">eps</span> <span class="o">/</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="mf">0.78</span> <span class="o">+</span> <span class="n">eps</span> <span class="o">/</span> <span class="mi">10</span><span class="p">,</span> <span class="mf">0.78</span><span class="p">,</span> <span class="mf">0.89</span><span class="p">,</span> <span class="mf">0.93</span><span class="p">,</span> <span class="mf">0.93</span><span class="p">,</span> <span class="mf">0.93</span><span class="p">,</span> <span class="mf">0.93</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="c1"># fmt: on</span>
+
+<span class="n">get_eta</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">mach_eta</span><span class="p">,</span> <span class="n">eta_data</span><span class="p">)</span>
+
+<span class="n">mach</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">get_eta</span><span class="p">(</span><span class="n">mach</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mach_eta</span><span class="p">,</span> <span class="n">eta_data</span><span class="p">,</span> <span class="s2">"."</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Induced drag coefficient, $\eta$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Mach number, $M$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_20_0.png" src="../_images/notebooks_minimum_time_to_climb_20_0.png"/>
+</div>
+</div>
+</section>
+</section>
+<section id="YAPSS-Solution">
+<h2>YAPSS Solution<a class="headerlink" href="#YAPSS-Solution" title="Link to this heading"></a></h2>
+<p>The optimal control problem has four states: altitude (<span class="math notranslate nohighlight">\(h\)</span>), velocity (<span class="math notranslate nohighlight">\(v\)</span>), flight path angle (<span class="math notranslate nohighlight">\(\gamma\)</span>), and vehicle mass (<span class="math notranslate nohighlight">\(M\)</span>). There is a single control, the aircraft angle of attack (<span class="math notranslate nohighlight">\(\alpha\)</span>)). So the problem is instantiated as:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">yapss</span> <span class="kn">import</span> <span class="n">Problem</span>
+
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Bryson Minimum Time to Climb"</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<p>The objective and continuous callback functions are straightforward translations from the problem definition:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">yapss.math</span> <span class="kn">import</span> <span class="n">cos</span><span class="p">,</span> <span class="n">sin</span>
+
+<span class="c1"># constants</span>
+<span class="n">S</span> <span class="o">=</span> <span class="mi">530</span>
+<span class="n">g</span> <span class="o">=</span> <span class="mf">32.174</span>
+<span class="n">Isp</span> <span class="o">=</span> <span class="mi">1600</span>
+
+
+<span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Minimize the total time to climb"""</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span>
+
+
+<span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">mass</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="p">(</span><span class="n">alpha</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+
+    <span class="c1"># get atmospheric data and coefficients</span>
+    <span class="n">rho</span> <span class="o">=</span> <span class="n">get_rho</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">get_c</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+    <span class="n">mach</span> <span class="o">=</span> <span class="n">v</span> <span class="o">/</span> <span class="n">c</span>
+    <span class="n">CD0</span> <span class="o">=</span> <span class="n">get_cd0</span><span class="p">(</span><span class="n">mach</span><span class="p">)</span>
+    <span class="n">Clalpha</span> <span class="o">=</span> <span class="n">get_cla</span><span class="p">(</span><span class="n">mach</span><span class="p">)</span>
+    <span class="n">eta</span> <span class="o">=</span> <span class="n">get_eta</span><span class="p">(</span><span class="n">mach</span><span class="p">)</span>
+    <span class="n">CD</span> <span class="o">=</span> <span class="n">CD0</span> <span class="o">+</span> <span class="n">eta</span> <span class="o">*</span> <span class="n">Clalpha</span> <span class="o">*</span> <span class="n">alpha</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">CL</span> <span class="o">=</span> <span class="n">Clalpha</span> <span class="o">*</span> <span class="n">alpha</span>
+
+    <span class="c1"># compute the forces</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">rho</span> <span class="o">*</span> <span class="n">v</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">D</span> <span class="o">=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">S</span> <span class="o">*</span> <span class="n">CD</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">S</span> <span class="o">*</span> <span class="n">CL</span>
+    <span class="n">thrust</span> <span class="o">=</span> <span class="n">thrust_function</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+
+    <span class="c1"># compute the state derivatives</span>
+    <span class="n">hdot</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">gamma</span><span class="p">)</span>
+    <span class="n">vdot</span> <span class="o">=</span> <span class="p">(</span><span class="n">thrust</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">-</span> <span class="n">D</span><span class="p">)</span> <span class="o">/</span> <span class="n">mass</span> <span class="o">-</span> <span class="n">g</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">gamma</span><span class="p">)</span>
+    <span class="n">gammadot</span> <span class="o">=</span> <span class="p">(</span><span class="n">thrust</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="n">L</span> <span class="o">-</span> <span class="n">mass</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">gamma</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">mass</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span>
+    <span class="n">mdot</span> <span class="o">=</span> <span class="o">-</span><span class="n">thrust</span> <span class="o">/</span> <span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="n">Isp</span><span class="p">)</span>
+
+    <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">hdot</span><span class="p">,</span> <span class="n">vdot</span><span class="p">,</span> <span class="n">gammadot</span><span class="p">,</span> <span class="n">mdot</span>
+
+
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="o">=</span> <span class="n">continuous</span>
+</pre></div>
+</div>
+</div>
+<p>The bounds for the problem are determined by the initial and final conditions. We are set loose box bounds on the decision variables:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># initial and final conditions</span>
+<span class="n">t0</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">h0</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">gamma_0</span><span class="p">,</span> <span class="n">m0</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">424.260</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">42000.0</span> <span class="o">/</span> <span class="n">g</span>
+<span class="n">hf</span><span class="p">,</span> <span class="n">vf</span><span class="p">,</span> <span class="n">gamma_f</span> <span class="o">=</span> <span class="mi">65600</span><span class="p">,</span> <span class="mf">968.148</span><span class="p">,</span> <span class="mi">0</span>
+
+<span class="c1"># variable ranges</span>
+<span class="n">tf_min</span><span class="p">,</span> <span class="n">tf_max</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">800</span>
+<span class="n">h_min</span><span class="p">,</span> <span class="n">h_max</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">69000</span>
+<span class="n">v_min</span><span class="p">,</span> <span class="n">v_max</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2000</span>
+<span class="n">gamma_min</span> <span class="o">=</span> <span class="o">-</span><span class="mi">40</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
+<span class="n">gamma_max</span> <span class="o">=</span> <span class="mi">40</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
+<span class="n">m_min</span><span class="p">,</span> <span class="n">m_max</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">45000</span> <span class="o">/</span> <span class="n">g</span>
+<span class="n">alpha_min</span><span class="p">,</span> <span class="n">alpha_max</span> <span class="o">=</span> <span class="o">-</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span><span class="p">,</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span>
+
+<span class="c1"># set the bounds</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">t0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">tf_min</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">tf_max</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">h0</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">gamma_0</span><span class="p">,</span> <span class="n">m0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">h_min</span><span class="p">,</span> <span class="n">v_min</span><span class="p">,</span> <span class="n">gamma_min</span><span class="p">,</span> <span class="n">m_min</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">h_max</span><span class="p">,</span> <span class="n">v_max</span><span class="p">,</span> <span class="n">gamma_max</span><span class="p">,</span> <span class="n">m_max</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">hf</span><span class="p">,</span> <span class="n">vf</span><span class="p">,</span> <span class="n">gamma_f</span><span class="p">,</span> <span class="n">m_min</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">hf</span><span class="p">,</span> <span class="n">vf</span><span class="p">,</span> <span class="n">gamma_f</span><span class="p">,</span> <span class="n">m_max</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="p">(</span><span class="n">alpha_min</span><span class="p">,)</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="p">(</span><span class="n">alpha_max</span><span class="p">,)</span>
+</pre></div>
+</div>
+</div>
+<p>The initial guess of the state trajectory is a straight line interpolation between the initial and final conditions, except for the mass, for which the guess is a constant value. The initial guess for the final time is <span class="math notranslate nohighlight">\(t_f = 300 \text{ s}\)</span>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># guess</span>
+<span class="n">guess</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">guess</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">300</span><span class="p">]</span>
+<span class="n">guess</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="p">[[</span><span class="n">h0</span><span class="p">,</span> <span class="n">hf</span><span class="p">],</span> <span class="p">[</span><span class="n">v0</span><span class="p">,</span> <span class="n">vf</span><span class="p">],</span> <span class="p">[</span><span class="n">gamma_0</span><span class="p">,</span> <span class="n">gamma_f</span><span class="p">],</span> <span class="p">[</span><span class="n">m0</span><span class="p">,</span> <span class="n">m0</span><span class="p">]]</span>
+<span class="n">guess</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span>
+</pre></div>
+</div>
+</div>
+<p>The scale factors are taken to be roughly half the range of each of the variables:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># scaling</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="p">[</span><span class="mf">30000.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">500.0</span><span class="p">]</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.2</span><span class="p">]</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="mi">200</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="mi">200</span>
+</pre></div>
+</div>
+</div>
+<p>Finally, we set the YAPSS and Ipopt options and solve. Note that because the aerodynamic data cannot be automatically differentiated, the differentiation must be performed numerically.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"central-difference"</span>
+
+<span class="c1"># mesh</span>
+<span class="n">m</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">8</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">collocation_points</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span><span class="p">,)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">fraction</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">m</span><span class="p">,)</span>
+
+<span class="c1"># ipopt options</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-10</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">acceptable_tol</span> <span class="o">=</span> <span class="mf">1e-8</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">sb</span> <span class="o">=</span> <span class="s2">"yes"</span>
+
+<span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Total number of variables............................:     1169
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:     1049
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:      960
+Total number of inequality constraints...............:        1
+        inequality constraints with only lower bounds:        1
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+
+Number of Iterations....: 46
+
+                                   (scaled)                 (unscaled)
+Objective...............:   1.6022943189845054e+00    3.2045886379690108e+02
+Dual infeasibility......:   4.7766135378325322e-10    1.1404999261448903e-09
+Constraint violation....:   6.2277649703901258e-13    7.8289303928613663e-09
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   1.0000000000000012e-11    2.0000000000000026e-09
+Overall NLP error.......:   4.7766135378325322e-10    7.8289303928613663e-09
+
+
+Number of objective function evaluations             = 53
+Number of objective gradient evaluations             = 47
+Number of equality constraint evaluations            = 53
+Number of inequality constraint evaluations          = 53
+Number of equality constraint Jacobian evaluations   = 47
+Number of inequality constraint Jacobian evaluations = 47
+Number of Lagrangian Hessian evaluations             = 46
+Total seconds in IPOPT (w/o function evaluations)    =      0.130
+Total seconds in NLP function evaluations            =      0.583
+
+EXIT: Solved To Acceptable Level.
+</pre></div></div>
+</div>
+</section>
+<section id="Plots-of-Solution">
+<h2>Plots of Solution<a class="headerlink" href="#Plots-of-Solution" title="Link to this heading"></a></h2>
+<p>To plot the solution, we first extract the state, control, and time histories:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># extract state and control histories</span>
+<span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">mass</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+<span class="n">alpha</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="c1"># time arrays</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>  <span class="c1"># interpolation points</span>
+<span class="n">tc</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time_c</span>  <span class="c1"># collocation points</span>
+</pre></div>
+</div>
+</div>
+<section id="Altitude-vs.-Velocity">
+<h3>Altitude vs. Velocity<a class="headerlink" href="#Altitude-vs.-Velocity" title="Link to this heading"></a></h3>
+<p>The most useful plot for understanding the solution is a plot of the trajectory on altitude vs. velocity axes, on which are superimposed contours of excess power and total energy height. The excess power is</p>
+<div class="math notranslate nohighlight">
+\[\mathbb{P_\text{e}} = (T-D) v\]</div>
+<p>and the energy height is</p>
+<div class="math notranslate nohighlight">
+\[h_\text{E} = h + \frac{v^2}{2g}\]</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_excess_power</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Determine the excess power available at each altitude h and airspeed v."""</span>
+    <span class="c1"># use rough average weight to compute excess power</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="mi">40000</span> <span class="o">/</span> <span class="n">g</span>
+
+    <span class="c1"># calculate required thrust for level flight</span>
+    <span class="n">mach</span> <span class="o">=</span> <span class="n">v</span> <span class="o">/</span> <span class="n">get_c</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+    <span class="n">CD0</span> <span class="o">=</span> <span class="n">get_cd0</span><span class="p">(</span><span class="n">mach</span><span class="p">)</span>
+    <span class="n">Clalpha</span> <span class="o">=</span> <span class="n">get_cla</span><span class="p">(</span><span class="n">mach</span><span class="p">)</span>
+    <span class="n">eta</span> <span class="o">=</span> <span class="n">get_eta</span><span class="p">(</span><span class="n">mach</span><span class="p">)</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">get_rho</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="o">*</span> <span class="n">v</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">S</span>
+    <span class="n">CL</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="n">g</span> <span class="o">/</span> <span class="n">qs</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="n">CL</span> <span class="o">/</span> <span class="n">Clalpha</span>
+    <span class="n">CD</span> <span class="o">=</span> <span class="n">CD0</span> <span class="o">+</span> <span class="n">eta</span> <span class="o">*</span> <span class="n">Clalpha</span> <span class="o">*</span> <span class="n">alpha</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">D</span> <span class="o">=</span> <span class="n">qs</span> <span class="o">*</span> <span class="n">CD</span>
+    <span class="n">thrust</span> <span class="o">=</span> <span class="n">thrust_function</span><span class="p">(</span><span class="n">mach</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">thrust</span> <span class="o">-</span> <span class="n">D</span><span class="p">)</span> <span class="o">*</span> <span class="n">v</span>
+
+
+<span class="k">def</span> <span class="nf">plot_trajectory</span><span class="p">(</span><span class="n">solution</span><span class="p">):</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">mass</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+    <span class="n">tc</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time_c</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="mf">32.174</span>  <span class="c1"># 9.80665</span>
+    <span class="k">for</span> <span class="n">h_energy</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">10000</span><span class="p">,</span> <span class="mi">100000</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="n">h_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">h_energy</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">v_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="p">(</span><span class="n">h_energy</span> <span class="o">-</span> <span class="n">h_</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">v_</span> <span class="o">/</span> <span class="n">get_c</span><span class="p">(</span><span class="n">h_</span><span class="p">),</span> <span class="n">h_</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span> <span class="s2">"grey"</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># excess power contours</span>
+    <span class="n">h_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">70000</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">v_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">2000</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">v_grid</span><span class="p">,</span> <span class="n">h_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">v_grid</span><span class="p">,</span> <span class="n">h_grid</span><span class="p">)</span>
+    <span class="n">power</span> <span class="o">=</span> <span class="n">get_excess_power</span><span class="p">(</span><span class="n">h_grid</span><span class="p">,</span> <span class="n">v_grid</span><span class="p">)</span>
+    <span class="n">mach_grid</span> <span class="o">=</span> <span class="n">v_grid</span> <span class="o">/</span> <span class="n">get_c</span><span class="p">(</span><span class="n">h_grid</span><span class="p">)</span>
+    <span class="n">cp</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">contour</span><span class="p">(</span>
+        <span class="n">mach_grid</span><span class="p">,</span>
+        <span class="n">h_grid</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span>
+        <span class="n">power</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
+        <span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">20</span><span class="p">],</span>
+        <span class="n">colors</span><span class="o">=</span><span class="s2">"k"</span><span class="p">,</span>
+        <span class="n">linewidths</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">clabel</span><span class="p">(</span><span class="n">cp</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="sa">r</span><span class="s2">"</span><span class="si">%1.0f</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="n">get_c</span><span class="p">(</span><span class="n">h</span><span class="p">),</span> <span class="n">h</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Velocity, $v$ (ft/s)"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Altitude, $h$ (1000 ft)"</span><span class="p">)</span>
+    <span class="c1"># plt.xlim(0, 1800)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.3</span><span class="p">,</span> <span class="mi">65</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+
+
+<span class="n">plot_trajectory</span><span class="p">(</span><span class="n">solution</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_38_0.png" src="../_images/notebooks_minimum_time_to_climb_38_0.png"/>
+</div>
+</div>
+<p>The units of the labels for the excess power contours are <span class="math notranslate nohighlight">\(10^6\)</span> ft-lbf/s. The trajectory has five phases:</p>
+<ol class="arabic simple">
+<li><p>The aircraft flies at sea level, accelerating to about Mach 0.87.</p></li>
+<li><p>The aircraft then climbs at nearly constant Mach number, operating at close to the speed for maximum excess power at each altitude, just below the large increase in drag in the transonic region.</p></li>
+<li><p>At about 44,000 ft, the aircraft then dives to rapidly accelerate through the transonic region, to reach an island of large excess power.</p></li>
+<li><p>In the region of large excess power, the aircraft maintains level flight until achieving the required energy height.</p></li>
+<li><p>Finally, the aircraft performs a zoom climb at large flight path angle to reach the desired final altitude.</p></li>
+</ol>
+<p>The state and control histories are plotted in the sections below.</p>
+</section>
+<section id="Altitude">
+<h3>Altitude<a class="headerlink" href="#Altitude" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">h</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Altitude, $h$ (km)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_41_0.png" src="../_images/notebooks_minimum_time_to_climb_41_0.png"/>
+</div>
+</div>
+</section>
+<section id="Velocity">
+<h3>Velocity<a class="headerlink" href="#Velocity" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Velocity, $v$ (m/s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_43_0.png" src="../_images/notebooks_minimum_time_to_climb_43_0.png"/>
+</div>
+</div>
+</section>
+<section id="Flight-Path-Angle">
+<h3>Flight Path Angle<a class="headerlink" href="#Flight-Path-Angle" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">gamma</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Flight path angle, $\gamma$ (deg)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_45_0.png" src="../_images/notebooks_minimum_time_to_climb_45_0.png"/>
+</div>
+</div>
+</section>
+<section id="Vehicle-Mass">
+<h3>Vehicle Mass<a class="headerlink" href="#Vehicle-Mass" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">mass</span> <span class="o">*</span> <span class="mf">32.174</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Mass, $m$ (lbm)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_47_0.png" src="../_images/notebooks_minimum_time_to_climb_47_0.png"/>
+</div>
+</div>
+</section>
+<section id="Angle-of-Attack">
+<h3>Angle of Attack<a class="headerlink" href="#Angle-of-Attack" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">tc</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Time, $t$ (s)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Angle of attack, $\alpha$ (deg)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_49_0.png" src="../_images/notebooks_minimum_time_to_climb_49_0.png"/>
+</div>
+</div>
+</section>
+</section>
+<section id="Minimum-Fuel-to-Climb">
+<h2>Minimum Fuel to Climb<a class="headerlink" href="#Minimum-Fuel-to-Climb" title="Link to this heading"></a></h2>
+<p>Finally, given the effort to get this point, it’s straightforward to solve a different but related problem, namely to minimize the fuel required to climb to the same final condition. It’s only necessary to change the objective. Note that we use the original solution to generate the guess for this problem, which reduces slightly the required solution time.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Minimum fuel to climb objective"""</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="o">-</span><span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_state</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+
+
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+
+<span class="c1"># original guess would work, but the prior solution is a much better guess</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="p">(</span><span class="n">solution</span><span class="p">)</span>
+
+<span class="c1"># reduce the printout</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">3</span>
+
+<span class="c1"># solve</span>
+<span class="n">solution_2</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Total number of variables............................:     1169
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:     1049
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:      960
+Total number of inequality constraints...............:        1
+        inequality constraints with only lower bounds:        1
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+
+Number of Iterations....: 31
+
+                                   (scaled)                 (unscaled)
+Objective...............:  -5.8883546863072027e+00   -1.1776709372614405e+03
+Dual infeasibility......:   2.0863381180972117e-10    6.9316149315366955e-10
+Constraint violation....:   5.0113158067688350e-13    1.0135408956557512e-08
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   1.0000000000000012e-11    2.0000000000000026e-09
+Overall NLP error.......:   2.0863381180972117e-10    1.0135408956557512e-08
+
+
+Number of objective function evaluations             = 39
+Number of objective gradient evaluations             = 32
+Number of equality constraint evaluations            = 39
+Number of inequality constraint evaluations          = 39
+Number of equality constraint Jacobian evaluations   = 32
+Number of inequality constraint Jacobian evaluations = 32
+Number of Lagrangian Hessian evaluations             = 31
+Total seconds in IPOPT (w/o function evaluations)    =      0.078
+Total seconds in NLP function evaluations            =      0.395
+
+EXIT: Solved To Acceptable Level.
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_trajectory</span><span class="p">(</span><span class="n">solution_2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">"Minimum Fuel to Climb Trajectory"</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_minimum_time_to_climb_52_0.png" src="../_images/notebooks_minimum_time_to_climb_52_0.png"/>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">delta_m</span> <span class="o">=</span> <span class="n">solution_2</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">delta_t</span> <span class="o">=</span> <span class="n">solution_2</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span> <span class="o">-</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">delta_m</span><span class="w"> </span><span class="si">= :</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> lbm"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">delta_t</span><span class="w"> </span><span class="si">= :</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> s"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+delta_m = 16.4 lbm
+delta_t = 61.1 s
+</pre></div></div>
+</div>
+<p>So the minimum fuel trajectory saves 16.4 pounds of fuel, but takes 61.1 s longer to reach the desired final state.</p>
+</section>
+<section id="References">
+<h2>References<a class="headerlink" href="#References" title="Link to this heading"></a></h2>
+<div class="docutils container" id="id3">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="footcite-bryson-1969" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id1" role="doc-backlink">1</a><span class="fn-bracket">]</span></span>
+<p>Arthur E. Bryson, Jr., Mukund N. Desai, and William C. Hoffman. Energy-state approximation in performance optimization of supersonic aircraft. <em>Journal of Aircraft</em>, 6(6):481–488, 1969. <a class="reference external" href="https://doi.org/10.2514/3.44093">doi:10.2514/3.44093</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-betts-2010" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id2" role="doc-backlink">2</a><span class="fn-bracket">]</span></span>
+<p>John T Betts. <em>Practical Methods for Optimal Control and Estimation Using Nonlinear Programming</em>. Volume 19. Siam, 2010. <a class="reference external" href="https://doi.org/10.1137/1.9780898718577">doi:10.1137/1.9780898718577</a>.</p>
+</aside>
+</aside>
+</div>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="dynamic_soaring.html" rel="prev" title="Dynamic Soaring"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="delta_iii_ascent.html" rel="next" title="Delta III Launch Vehicle Ascent Problem">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>

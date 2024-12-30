@@ -1,0 +1,731 @@
+
+<!DOCTYPE html>
+
+<html class="writer-html5" data-content_root="../" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tutorial Example — YAPSS 0.1.1.dev0</title>
+<link href="../_static/pygments.css?v=77553476" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/theme.css?v=e59714d7" rel="stylesheet" type="text/css"/>
+<link href="../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../_static/nbsphinx-code-cells.css?v=2aa19091" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css" rel="stylesheet" type="text/css"/>
+<script src="../_static/jquery.js?v=5d32c60e"></script>
+<script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+<script src="../_static/documentation_options.js?v=091d38aa"></script>
+<script src="../_static/doctools.js?v=9a2dae69"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../_static/copybutton.js?v=35a8b989"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="../_static/js/theme.js"></script>
+<link href="../genindex.html" rel="index" title="Index"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="../reference/problem.html" rel="next" title="Problem Definition"/>
+<link href="../index.html" rel="prev" title="YAPSS: Yet Another Pseudo-Spectral Solver"/>
+</head>
+<body class="wy-body-for-nav">
+<div class="wy-grid-for-nav">
+<nav class="wy-nav-side" data-toggle="wy-nav-shift">
+<div class="wy-side-scroll">
+<div class="wy-side-nav-search">
+<a class="icon icon-home" href="../index.html">
+            YAPSS
+          </a>
+<div role="search">
+<form action="../search.html" class="wy-form" id="rtd-search-form" method="get">
+<input aria-label="Search docs" name="q" placeholder="Search docs" type="text"/>
+<input name="check_keywords" type="hidden" value="yes"/>
+<input name="area" type="hidden" value="default"/>
+</form>
+</div>
+</div><div aria-label="Navigation menu" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial Example</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#Installation-and-Configuration">Installation and Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Problem-Formulation-and-Instantiation">Problem Formulation and Instantiation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Defining-the-Callback-Functions">Defining the Callback Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#The-Objective-Callback-Function">The Objective Callback Function</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#The-Continuous-Callback-Function">The Continuous Callback Function</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#Setting-Bounds">Setting Bounds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Setting-the-Initial-Guess">Setting the Initial Guess</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Setting-YAPSS-and-Ipopt-Options">Setting YAPSS and Ipopt Options</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#YAPSS-Options">YAPSS Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Ipopt-Options">Ipopt Options</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#Solution">Solution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#The-Hamiltonian">The Hamiltonian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Conclusion">Conclusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#References">References</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/problem.html">Problem Definition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/callbacks.html">Callback Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/bounds.html">Setting Bounds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/guess.html">Initial Guess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/derivatives.html">Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/user_derivatives.html">User-Defined Derivatives</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/scaling.html">Scaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/mesh_structure.html">Mesh Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/ipopt_options.html">Ipopt Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/solution.html">The Solution Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/configuration.html">Configuring the Ipopt Binary Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html">JupyterLab Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts/index.html">Python Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING.html">Contributing to YAPSS</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<section class="wy-nav-content-wrap" data-toggle="wy-nav-shift"><nav aria-label="Mobile navigation menu" class="wy-nav-top">
+<i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+<a href="../index.html">YAPSS</a>
+</nav>
+<div class="wy-nav-content">
+<div class="rst-content">
+<div aria-label="Page navigation" role="navigation">
+<ul class="wy-breadcrumbs">
+<li><a aria-label="Home" class="icon icon-home" href="../index.html"></a></li>
+<li class="breadcrumb-item active">Tutorial Example</li>
+<li class="wy-breadcrumbs-aside">
+<a class="fa fa-github" href="https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/tutorial.ipynb"> Edit on GitHub</a>
+</li>
+</ul>
+<hr/>
+</div>
+<div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+<div itemprop="articleBody">
+<section id="Tutorial-Example">
+<h1>Tutorial Example<a class="headerlink" href="#Tutorial-Example" title="Link to this heading"></a></h1>
+<p>In this tutorial example, we walk through all the steps of solving an optimal control problem using YAPSS, in this case, the brachistochrone problem with a path constraint. The steps are:</p>
+<ol class="arabic simple">
+<li><p>Installation and configuration</p></li>
+<li><p>Problem formulation and instantiation</p></li>
+<li><p>Definition of callback functions needed to define the performance objective function, systems dynamics, path and endpoint constraints, etc.</p></li>
+<li><p>Specification of bounds on the decision variables (the states, control inputs, and parameters), as well as bounds on only path variables and integrals over each phase of the problem.</p></li>
+<li><p>Setting of the options that govern the behavior of the YAPSS solver, and of the underlying NLP solver Ipopt.</p></li>
+<li><p>Solving the problem and extracting the solution.</p></li>
+</ol>
+<p>This tutorial is written in a JupyterLab notebook. For a solution to the brachistochrone problem using a Python script instead of a notebook, see the brachistochrone problem <a class="reference internal" href="../scripts/brachistochrone.html"><span class="doc">Python script documentation</span></a>.</p>
+<section id="Installation-and-Configuration">
+<h2>Installation and Configuration<a class="headerlink" href="#Installation-and-Configuration" title="Link to this heading"></a></h2>
+<p>Installation is straightforward on machines with macOS, Linux, or Windows operating systems. In a terminal window,</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>yapss
+</pre></div>
+</div>
+<p>or</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>yapss
+</pre></div>
+</div>
+<p>Many of the examples provided (including this tutorial) are JupyterLab Notebooks.</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>jupyterlab<span class="w"> </span>jupyterlab-code-formatter<span class="w"> </span>jupyterlab-spellchecker<span class="w"> </span>black<span class="w"> </span>isort
+</pre></div>
+</div>
+<p>or use the similar conda command. (Only jupyterlab is needed, but the other packages are helpful.) Then in the directory where the notebooks are, launch JupyterLab by entering</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>jupyter<span class="w"> </span>lab
+</pre></div>
+</div>
+<p>and open the desired notebook, or start a new one. To test your setup, execute the cell</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">yapss</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"YAPSS is installed correctly."</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"YAPSS is not installed."</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+YAPSS is installed correctly.
+</pre></div></div>
+</div>
+<p>This basic installation of YAPSS uses a version of Ipopt that (most likely) uses the linear solver MUMPS. Ipopt can be compiled with or linked to libraries with other linear solvers that can improve the performance of Ipopt, and YAPSS can be configured to take advantage of those libraries. However, the version of Ipopt in the basic installation of YAPSS is more than adequate for most purposes.</p>
+<p>To learn more about how to configure YAPSS and IPOPT, see the <a class="reference internal" href="../reference/configuration.html"><span class="doc">Configuring the Ipopt Source</span></a> page.</p>
+</section>
+<section id="Problem-Formulation-and-Instantiation">
+<h2>Problem Formulation and Instantiation<a class="headerlink" href="#Problem-Formulation-and-Instantiation" title="Link to this heading"></a></h2>
+<p>The problem we will solve in this tutorial is a version of the <em>brachistochrone</em> problem. The brachistochrone problem is a classic problem in the calculus of variations, posed by Johann Bernoulli in June 1696 <a class="footnote-reference brackets" href="#footcite-bernoulli-1696" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> in a challenge to the mathematicians of his time. The problem can be stated as follows: Given two points A and B in a vertical plane, what is the path that a particle, starting from rest and accelerated by a uniform gravitational force, will take to descend from A
+to B in the least time? Physically, we can imagine a heavy bead sliding along a wire without friction, under the action of gravity. The optimal path can be shown to have the shape of an inverted cycloid.</p>
+<p>In this tutorial, we consider an (only slightly) more complicated version of this problem (see Bryson <em>et al.</em> <a class="footnote-reference brackets" href="#footcite-bryson-1963" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>), in which the bead starts at a specific location <span class="math notranslate nohighlight">\((x(0),y(0))=(0,0)\)</span> in the vertical plane at time <span class="math notranslate nohighlight">\(t_0=0\)</span>, and slides to a final position <span class="math notranslate nohighlight">\((x(t_f),y(t_f))\)</span> at final time <span class="math notranslate nohighlight">\(t_f\)</span>. Here <span class="math notranslate nohighlight">\(x\)</span> is the horizontal axis, and <span class="math notranslate nohighlight">\(y\)</span> is the vertical axis, with positive <span class="math notranslate nohighlight">\(y\)</span> down. The goal of the problem is to minimize the cost objective</p>
+<div class="math notranslate nohighlight">
+\[J = t_F\]</div>
+<p>subject to the constraints that that the final horizontal position of the bead satisfy</p>
+<div class="math notranslate nohighlight">
+\[x(t_f) = x_f\]</div>
+<p>for a given <span class="math notranslate nohighlight">\(x_f\)</span>, and that the path lies above an inclined line (a wall), so that</p>
+<div class="math notranslate nohighlight">
+\[h(t) = y(t) - \left( c_1 x(t) + c_0 \right),\qquad 0 \le t \le t_f\]</div>
+<p>That is, the path must always lie above a line with (downward) slope <span class="math notranslate nohighlight">\(c_1\)</span> and <span class="math notranslate nohighlight">\(y\)</span> intercept <span class="math notranslate nohighlight">\(c_0\)</span> below the origin. For this problem, we’ll take <span class="math notranslate nohighlight">\(x_f = 1\)</span> ft (about right for a tabletop brachistochrone), <span class="math notranslate nohighlight">\(c_1=\frac{1}{2}\)</span> (a <span class="math notranslate nohighlight">\(30^\circ\)</span> slope) and <span class="math notranslate nohighlight">\(c_0=0.1\)</span> ft.</p>
+<p>We take the control input at time <span class="math notranslate nohighlight">\(t\)</span> to be <span class="math notranslate nohighlight">\(\gamma(t)\)</span>, the angle of the velocity vector below the horizontal. Bryson <em>et al.</em> give the dynamics as</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+    &amp; \dot{x}(t) = (2 g y)^{1 / 2} \cos \gamma(t) \\
+    &amp; \dot{y}(t) = (2 g y)^{1 / 2} \sin \gamma(t)
+\end{aligned}\end{split}\]</div>
+<p>In this formulation, the velocity is implicitly a function of the vertical position,</p>
+<div class="math notranslate nohighlight">
+\[v = (2 g y)^{1 / 2}\]</div>
+<p>which follows from conservation of energy. It turns out that it’s better to keep velocity as an explicit state, so the equations of motion become</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align}
+  \dot x(t) &amp;= v(t) \cos \gamma(t)  \\
+  \dot y(t) &amp;= v(t) \sin \gamma(t)  \\
+  \dot v(t) &amp;= g \sin \gamma(t)
+\end{align}\end{split}\]</div>
+<p>(The problem with the first formulation is that when we take the derivatives of the state dynamics with respect to <span class="math notranslate nohighlight">\(y\)</span>, the result is proportional to <span class="math notranslate nohighlight">\(\frac{1}{\sqrt{y}}\)</span>, so that there is a singularity at the initial time.)</p>
+<p>We’re now ready to instantiate the problem. The problem has one phase, and for that phase, there are three states, <span class="math notranslate nohighlight">\(\boldsymbol{x}=(x, y, v)\)</span>, one control, <span class="math notranslate nohighlight">\(\boldsymbol{u}=\gamma\)</span>, and one path constraint function, <span class="math notranslate nohighlight">\(h\)</span>. So we instantiate the problem as follows:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">yapss</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">pi</span>
+<span class="kn">from</span> <span class="nn">yapss.math</span> <span class="kn">import</span> <span class="n">cos</span><span class="p">,</span> <span class="n">sin</span>
+
+<span class="n">problem</span> <span class="o">=</span> <span class="n">yapss</span><span class="o">.</span><span class="n">Problem</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Brachistochrone"</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">nu</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">nh</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Defining-the-Callback-Functions">
+<h2>Defining the Callback Functions<a class="headerlink" href="#Defining-the-Callback-Functions" title="Link to this heading"></a></h2>
+<p>The next step is to define callback functions that define the state dynamics, path constraints, and objective function.</p>
+<section id="The-Objective-Callback-Function">
+<h3>The Objective Callback Function<a class="headerlink" href="#The-Objective-Callback-Function" title="Link to this heading"></a></h3>
+<p>We start with the objective function. The objective function can depend on a number of discrete quantities: the initial and final times of each phase, the initial and final states of each phase, the values of any integrals evaluated over each phase, and any parameters in the optimization problem. Our objective is to minimize the final time of the first (and only!) phase. So the objective function is simply:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span>
+
+
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">objective</span> <span class="o">=</span> <span class="n">objective</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="The-Continuous-Callback-Function">
+<h3>The Continuous Callback Function<a class="headerlink" href="#The-Continuous-Callback-Function" title="Link to this heading"></a></h3>
+<p>The continuous callback function defines the dynamics, path constraint functions, and integrands for any integrals, again for each phase. For our problem, we need to define the state dynamics and path function:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># define the gravitational constant (here using U.S customary units)</span>
+<span class="n">g0</span> <span class="o">=</span> <span class="mf">32.174</span>
+
+<span class="c1"># set the constants defining the barrier</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">auxdata</span><span class="o">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">c1</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">auxdata</span><span class="o">.</span><span class="n">c0</span> <span class="o">=</span> <span class="n">c0</span> <span class="o">=</span> <span class="mf">0.1</span>
+
+
+<span class="k">def</span> <span class="nf">continuous</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+    <span class="c1"># extract the elements of the state vector</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+
+    <span class="c1"># extract elements of the control vector. note that even though there's</span>
+    <span class="c1"># only one control, we must still treat arg.phase[0].control as an array</span>
+    <span class="p">(</span><span class="n">u</span><span class="p">,)</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+
+    <span class="c1"># extract the constants</span>
+    <span class="n">c1</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">auxdata</span><span class="o">.</span><span class="n">c1</span>
+    <span class="n">c0</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">auxdata</span><span class="o">.</span><span class="n">c0</span>
+
+    <span class="c1"># define the state dynamics</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">v</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">g0</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">u</span><span class="p">)]</span>
+
+    <span class="c1"># define the path constraint function</span>
+    <span class="n">arg</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="p">[</span><span class="n">y</span> <span class="o">-</span> <span class="n">c1</span> <span class="o">*</span> <span class="n">x</span> <span class="o">-</span> <span class="n">c0</span><span class="p">]</span>
+
+
+<span class="n">problem</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">continuous</span> <span class="o">=</span> <span class="n">continuous</span>
+</pre></div>
+</div>
+</div>
+<p>Two subtleties should be highlighted here. First, the common math functions are provided by the <code class="docutils literal notranslate"><span class="pre">yapss.numpy</span></code> module which is a drop-in replacement for the numpy package. This is done to get the proper behavior when CasADi objects are used for automatic differentiation.</p>
+<p>Second, the use of the <code class="docutils literal notranslate"><span class="pre">auxdata</span></code> attribute requires some explanation. We could have defined <code class="docutils literal notranslate"><span class="pre">c_0</span></code> and <code class="docutils literal notranslate"><span class="pre">c_1</span></code> as constants just as we did <code class="docutils literal notranslate"><span class="pre">g0</span></code>. However, by using the auxdata mechanism, we can easily change the problem, even if the problem has been defined in another module. For example, we could do this in a python console:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">yapss.examples.brachistochrone</span> <span class="kn">import</span> <span class="n">setup</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem2</span> <span class="o">=</span> <span class="n">setup</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">problem2</span><span class="o">.</span><span class="n">auxdata</span><span class="o">.</span><span class="n">c0</span> <span class="o">=</span> <span class="mf">0.05</span>
+</pre></div>
+</div>
+<p>which would change the problem definition, without having to edit the original code.</p>
+<p>You can learn more on the <a class="reference internal" href="../reference/callbacks.html"><span class="doc">Callback Functions</span></a> page.</p>
+</section>
+</section>
+<section id="Setting-Bounds">
+<h2>Setting Bounds<a class="headerlink" href="#Setting-Bounds" title="Link to this heading"></a></h2>
+<p>Setting the bounds is straightforward for this problem. See the comments in the code snippet below for specifics.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># get the bounds object for the phase, to make code below this briefer</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="c1"># Bounds for time and initial state</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_time</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">initial_state</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+
+<span class="c1"># Bounds for final state in x-axis</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">final_state</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="c1"># Path constraints (should be less that or equal to 0)</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<p>There were no constraints on the control <span class="math notranslate nohighlight">\(u(t) = \gamma(t)\)</span>. However, because <span class="math notranslate nohighlight">\(\gamma\)</span> is an angle, its value is unique only up to mod <span class="math notranslate nohighlight">\(2\pi\)</span>. To get a unique solution, we constrain it to lie in the interval <span class="math notranslate nohighlight">\([-\pi/2,\pi/2]\)</span>, that is, the bead always moves in the positive <span class="math notranslate nohighlight">\(x\)</span> direction.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">]</span>
+<span class="n">bounds</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="p">[</span><span class="o">+</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<p>You can learn more on the <a class="reference internal" href="../reference/bounds.html"><span class="doc">Setting Bounds</span></a> page.</p>
+</section>
+<section id="Setting-the-Initial-Guess">
+<h2>Setting the Initial Guess<a class="headerlink" href="#Setting-the-Initial-Guess" title="Link to this heading"></a></h2>
+<p>Ipopt solves nonlinear programming (NLP) problems using a primal-dual interior point method. The method finds a solution to minimization problems by beginning with an initial guess for the decision variables, and iteratively approximates the NLP problem with a series of quadratic programming subproblems, which is solves to determine a search direction. By necessity, the algorithm requires an initial guess for the solution, and therefore one must be provided to YAPSS.</p>
+<p>The initial guess provided by the user is interpolated to obtain a guess for all the discretization points, and therefore all the decision variables. For complicated problems, a good initial guess can be crucial for finding the solution. For simple problems, often a very simple guess will suffice. For this problem, we guess that the initial time and state correspond to the boundary conditions on the initial time (all of these variables are zero). We guess that the final time is <span class="math notranslate nohighlight">\(t_f = 1\)</span>,
+the final state is <span class="math notranslate nohighlight">\(\boldsymbol{x}_f = (1,1,1)\)</span>, and that the control is zero for all times. That’s not a very good guess as it turns out, but it’s enough to get a solution.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">phase</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">guess</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]]</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">control</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]]</span>
+</pre></div>
+</div>
+</div>
+<p>To understand more about how the user sets the initial guess, see the <a class="reference internal" href="../reference/guess.html"><span class="doc">Setting the Initial Guess</span></a> page.</p>
+</section>
+<section id="Setting-YAPSS-and-Ipopt-Options">
+<h2>Setting YAPSS and Ipopt Options<a class="headerlink" href="#Setting-YAPSS-and-Ipopt-Options" title="Link to this heading"></a></h2>
+<section id="YAPSS-Options">
+<h3>YAPSS Options<a class="headerlink" href="#YAPSS-Options" title="Link to this heading"></a></h3>
+<p>There are three items that can be configured in the YAPSS solver to improve the solution, although all three have defaults that will usually yield good results.</p>
+<p><strong>Derivatives.</strong> The <code class="docutils literal notranslate"><span class="pre">derivatives.method</span></code> option can take on one of three values:</p>
+<ul class="simple">
+<li><p><strong>“auto”</strong> (default), for automatic differentiation using the casadi package.</p></li>
+<li><p><strong>“central-difference”</strong>, for derivatives calculated using central difference techniques.</p></li>
+<li><p><strong>“user”</strong>, in which case the user must supply the first and perhaps second derivatives.</p></li>
+</ul>
+<p>Nearly all problems are best solved using “auto” or “central-difference”, and when the automatic differentiation can be used, it is usually the best choice. So we’ll use the default “auto”.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">derivatives.order</span></code> option can take on one of two values, “first” or “second”. When using automatic differentiation, it’s almost always better to use “second”. When using the central difference method, it can sometimes be advantageous to use only first order derivatives, because taking second derivatives is computationally expensive. So again we’ll use the default value.</p>
+<p><strong>Choice of Spectral Method.</strong> The original GPOPS-II algorithm <a class="footnote-reference brackets" href="#footcite-patterson-2014" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a> uses Legendre-Gauss-Radau collocation points, but YAPSS implements three choices for the pseudospectral method used, set by the <code class="docutils literal notranslate"><span class="pre">spectral_method</span></code> option attribute:</p>
+<ul class="simple">
+<li><p><strong>“lg”</strong>: Lagrange polynomials based on Legendre-Gauss (LG) collocation points.</p></li>
+<li><p><strong>“lgr”</strong>: Lagrange polynomials based on Legendre-Gauss-Radau (LGR) collocation points.</p></li>
+<li><p><strong>“lgl”</strong> (default): Lagrange polynomials based on Legendre-Gauss-Lobatto (LGL) collocation points.</p></li>
+</ul>
+<p>As a practical matter, all have similar performance. The main drawback of LGR and LG collocation points is that one or both endpoints for each phase are not collocation points, meaning that there’s no requirement that the dynamics equation be satisfied there. As a result, the values of the control input, costate, and Hamiltonian are not determined at one or both endpoints (although the state vector is). These values can be found by interpolation, but this may in values that violate the
+constraints on the control. For this reason, the “lgl” method is the default, and we’ll use it for the example.</p>
+<p><strong>Mesh Geometry.</strong> The computational mesh for each phase consists of a number of mesh segments (of possibly varying length), each with a number of collocation points where the values of the state and control are used to calculate the dynamics, path constraint functions, and integrands of integrals over the segment. The number of collocation points can vary by segment as well.</p>
+<p>The YAPSS default is to have 10 segments of equal length, each with 10 collocation points. For most problems, this default mesh will give very good results, yielding relative errors in the solution on the order of <span class="math notranslate nohighlight">\(10^{-8}\)</span> or better. There are exceptions of course: (1) when there are discontinuities in the derivatives of the state (because the interpolation polynomials are best at representing smooth functions), and (2) when there are very fast timescale dynamics, often at the beginning
+or end of a phase. For the example problem here, the default values work pretty well, and so we won’t change them.</p>
+<p>Had we wanted to specify these defaults values explicitly, here is the code that would be used:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># derivatives</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s2">"auto"</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">derivatives</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="s2">"second"</span>
+
+<span class="c1"># choice of basis</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">spectral_method</span> <span class="o">=</span> <span class="s2">"lgl"</span>
+
+<span class="c1"># mesh geometry</span>
+<span class="n">segments</span><span class="p">,</span> <span class="n">points</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">collocation_points</span> <span class="o">=</span> <span class="n">segments</span> <span class="o">*</span> <span class="p">[</span><span class="n">points</span><span class="p">]</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">fraction</span> <span class="o">=</span> <span class="n">segments</span> <span class="o">*</span> <span class="p">[</span><span class="mi">1</span> <span class="o">/</span> <span class="n">segments</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<p>The number of collocation points in each segment <code class="docutils literal notranslate"><span class="pre">k</span></code> is determined by the <code class="docutils literal notranslate"><span class="pre">mesh.phase[k].collocation_points</span></code> attribute, and the duration of each segment (as a fraction of the duration of the phase) is determined by the <code class="docutils literal notranslate"><span class="pre">mesh.phase[k].fraction</span></code> attribute.</p>
+</section>
+<section id="Ipopt-Options">
+<h3>Ipopt Options<a class="headerlink" href="#Ipopt-Options" title="Link to this heading"></a></h3>
+<p>There are <em>lots</em> of Ipopt options, and most users will end up changing very few. YAPSS uses the default <a class="reference external" href="https://coin-or.github.io/Ipopt/OPTIONS.html">IPOPT options</a> for the most part, mostly because we don’t want users who are familiar with Ipopt to be surprised by our choices. There are two exceptions:</p>
+<ol class="arabic simple">
+<li><p>In some cases, the proper functioning of Ipopt depends on specific Ipopt settings. A good example is the <code class="docutils literal notranslate"><span class="pre">hessian_approximation</span></code>, which must be “exact” when second derivatives are used, and “limited-memory” when only first derivatives are used. In addition the mseipopt package that YAPSS uses in some cases sets <code class="docutils literal notranslate"><span class="pre">warm_start_init_point</span></code> to “no” because YAPSS does not (yet) provide a warm-start interface.</p></li>
+<li><p>While we try not to be opinionated about Ipopt options, we do set the YAPSS default <code class="docutils literal notranslate"><span class="pre">mu_strategy</span></code> to “adaptive” rather than the Ipopt default “monotone”. The YAPSS test suite takes about 30% longer to run using the Ipopt default, and we find that the Ipopt solver sometimes fails to converge for difficult problems using the Ipopt default.</p></li>
+</ol>
+<p>For this problem, we’ll use the following settings:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># This is the YAPSS (but not Ipopt) default</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">mu_strategy</span> <span class="o">=</span> <span class="s2">"adaptive"</span>
+
+<span class="c1"># Ipopt default print_level is 5, which produces lots of output.</span>
+<span class="c1"># 3 is the minimum level to get informative output</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_level</span> <span class="o">=</span> <span class="mi">3</span>
+
+<span class="c1"># It's a good idea to show selected user options</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">print_user_options</span> <span class="o">=</span> <span class="s2">"yes"</span>
+
+<span class="c1"># Not necessary, but it can interesting to see how long it takes to solve</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">timing_statistics</span> <span class="o">=</span> <span class="s2">"yes"</span>
+
+<span class="c1"># Suppresses the Ipopt banner</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">sb</span> <span class="o">=</span> <span class="s2">"yes"</span>
+
+<span class="c1"># The default tolerance is 1e-8.</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">ipopt_options</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-12</span>
+</pre></div>
+</div>
+</div>
+<p>See the <a class="reference internal" href="../reference/ipopt_options.html"><span class="doc">Ipopt Options</span></a> page for more information about choosing Ipopt options.</p>
+</section>
+</section>
+<section id="Solution">
+<h2>Solution<a class="headerlink" href="#Solution" title="Link to this heading"></a></h2>
+<p>Now that the problem is completely set up, all that remains is to find the solution.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+List of user-set options:
+
+                                    Name   Value                used
+                             mu_strategy = adaptive              yes
+                      nlp_scaling_method = user-scaling          yes
+                             print_level = 3                     yes
+                      print_user_options = yes                   yes
+                                      sb = yes                   yes
+                       timing_statistics = yes                   yes
+                                     tol = 1e-12                 yes
+Total number of variables............................:      391
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:       91
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:      300
+Total number of inequality constraints...............:       92
+        inequality constraints with only lower bounds:        1
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:       91
+
+
+Number of Iterations....: 32
+
+                                   (scaled)                 (unscaled)
+Objective...............:   3.2333117593539551e-01    3.2333117593539551e-01
+Dual infeasibility......:   2.2204460492503131e-16    2.2204460492503131e-16
+Constraint violation....:   2.0261570199409107e-13    2.0261570199409107e-13
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   5.0000771611859236e-13    5.0000771611859236e-13
+Overall NLP error.......:   5.0000771611859236e-13    5.0000771611859236e-13
+
+
+Number of objective function evaluations             = 38
+Number of objective gradient evaluations             = 33
+Number of equality constraint evaluations            = 38
+Number of inequality constraint evaluations          = 38
+Number of equality constraint Jacobian evaluations   = 33
+Number of inequality constraint Jacobian evaluations = 33
+Number of Lagrangian Hessian evaluations             = 32
+Total seconds in IPOPT (w/o function evaluations)    =      0.033
+Total seconds in NLP function evaluations            =      0.045
+
+EXIT: Optimal Solution Found.
+</pre></div></div>
+</div>
+<p>There’s useful information about the size of the problem, number of function calls, etc., but the most important number is the “Overall NLP error”. For our problem, it’s really quite small (and smaller than the tolerance we asked for), so it looks like we have a good solution. Let’s see how good!</p>
+<p>It turns out the optimal minimum time can be found exactly — it’s</p>
+<div class="math notranslate nohighlight">
+\[t_f = \left(\frac{2}{g}\left(\tan^{-1}c_{1}+\frac{1}{c_{1}}\right)\left(x_{f}+\frac{c_{0}}{c_{1}}\right)\right)^{1/2}-
+       \left(\frac{2c_{0}}{gc_{1}}\left(\tan^{-1}c_{1}+\frac{1}{c_{1}}-\frac{\pi}{2}\right)\right)^{1/2}\]</div>
+<p>Let’s compare the YAPSS result with the exact solution:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">arctan</span><span class="p">,</span> <span class="n">sqrt</span>
+
+<span class="n">xf</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">tf_yapss</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">objective</span>
+<span class="n">tf_exact</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">/</span> <span class="n">g0</span> <span class="o">*</span> <span class="p">(</span><span class="n">arctan</span><span class="p">(</span><span class="n">c1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">c1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">xf</span> <span class="o">+</span> <span class="n">c0</span> <span class="o">/</span> <span class="n">c1</span><span class="p">))</span>
+<span class="n">tf_exact</span> <span class="o">-=</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">c0</span> <span class="o">/</span> <span class="p">(</span><span class="n">g0</span> <span class="o">*</span> <span class="n">c1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">arctan</span><span class="p">(</span><span class="n">c1</span><span class="p">)</span> <span class="o">-</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">c1</span><span class="p">))</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Exact solution is </span><span class="si">{</span><span class="n">tf_exact</span><span class="w"> </span><span class="si">= :</span><span class="s2">.9f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"YAPSS solution is </span><span class="si">{</span><span class="n">tf_yapss</span><span class="w"> </span><span class="si">= :</span><span class="s2">.9f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Relative error is </span><span class="si">{</span><span class="n">tf_yapss</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">tf_exact</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">:</span><span class="s2">.3e</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+Exact solution is tf_exact = 0.323331164
+YAPSS solution is tf_yapss = 0.323331176
+Relative error is 3.683e-08
+
+</pre></div></div>
+</div>
+<p>To plot the solution, we extract the arrays for the state vector, control vector, and time points for the phase. Because we use the LGL formulation, the number of points for each control variable and input variable is the same. However, if we were to use the LGR formulation, the number of time points for the control variables would be one less (the final time point is missing). Therefore, it’s good practice to extract both time arrays, <code class="docutils literal notranslate"><span class="pre">solution.phase[p].time</span></code> and <code class="docutils literal notranslate"><span class="pre">solution.phase[p].time_c</span></code>
+for each phase to avoid an error should you change the to the LG or LGR formulation.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># extract state and control vectors, and time array</span>
+<span class="n">state</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">state</span>
+<span class="n">control</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">control</span>
+<span class="n">time</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+
+<span class="c1"># times array for control may have different length</span>
+<span class="n">time_c</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time_c</span>
+
+<span class="c1"># initial and final times</span>
+<span class="n">t0</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">initial_time</span>
+<span class="n">tf</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">final_time</span>
+
+<span class="c1"># we're not showing the costate, but if we did here's how to extract it.</span>
+<span class="n">costate</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">costate</span>
+
+<span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">state</span>
+<span class="p">(</span><span class="n">gamma</span><span class="p">,)</span> <span class="o">=</span> <span class="n">control</span>
+</pre></div>
+</div>
+</div>
+<p>Of course we’re interested in the path that the bead takes. Here’s the code to plot it and the plot itself:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">"k"</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"$x(t)$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"$y(t)$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">1.05</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mf">0.7</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.05</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">"equal"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="s2">"Wall"</span><span class="p">,</span> <span class="s2">"Trajectory"</span><span class="p">),</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_tutorial_35_0.png" src="../_images/notebooks_tutorial_35_0.png"/>
+</div>
+</div>
+<p>It’s about what we would expect. We can plot the history of each of the state variables, although that doesn’t tell us quite as much as the plot above:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"States"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="s2">"$x(t)$"</span><span class="p">,</span> <span class="s2">"$y(t)$"</span><span class="p">,</span> <span class="s2">"$v(t)$"</span><span class="p">),</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_tutorial_37_0.png" src="../_images/notebooks_tutorial_37_0.png"/>
+</div>
+</div>
+<p>Finally, let’s look at the control history. Recall that the control <span class="math notranslate nohighlight">\(u(t) = \gamma(t)\)</span> is the angle of the velocity vector below the horizontal:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time_c</span><span class="p">,</span> <span class="n">control</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ [s]"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Control, $u(t)$ [rad]"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">1.6</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_tutorial_39_0.png" src="../_images/notebooks_tutorial_39_0.png"/>
+</div>
+</div>
+<p>Note that the control history consists of three straight lines. It’s known that for the solution of the unconstrained brachistochrone problem, the angle of the velocity vector <span class="math notranslate nohighlight">\(\gamma\)</span> varies linearly with time, and so we should expect that to be the case at the beginning and end of the optimal trajectory, when the path constraint is not active. For the middle section, the angle <span class="math notranslate nohighlight">\(\gamma = 30^\circ=\pi/6\text{ rad}\)</span>, the angle of the barrier with respect to horizontal.</p>
+<p>If you look closely at the plot above, you’ll see that the corners aren’t sharp. The polynomials that represent the solution have difficulty representing functions with discontinuous derivatives, as is the case here. The solution (which is already pretty good!) can be improved by mesh refinement. YAPSS does not (yet) have automatic mesh refinement, so while it’s inefficient, one way to improve the solution is just to increase the mesh density everywhere. So if we use 50 segments of 10 points
+instead of 10 segments of 10 points, we get a much better result. (If you’re reading the HMTL version, some cells are hidden just to keep it brief.)</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">print_solution</span><span class="p">()</span>
+<span class="n">plot_control</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+Exact solution is tf_exact = 0.323331164
+YAPSS solution is tf_yapss = 0.323331176
+Relative error is 3.683e-08
+
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_tutorial_43_1.png" src="../_images/notebooks_tutorial_43_1.png"/>
+</div>
+</div>
+</section>
+<section id="The-Hamiltonian">
+<h2>The Hamiltonian<a class="headerlink" href="#The-Hamiltonian" title="Link to this heading"></a></h2>
+<p>It’s often useful to plot the Hamiltonian. When the Hamiltonian is not an explicit function of time (as in this problem), it should be a constant along optimal trajectories. Plotting the Hamiltonian can indicate whether there’s an error in the solution — if the Hamiltonian evaluated along the optimal trajectory is non-constant or noisy, that indicates that the solution is inaccurate, either due to a <em>singular arc</em>, or because the mesh should be refined.</p>
+<p>(A singular arc occurs Pontryagin’s minimum principle fails to determine the optimal value of the control variable. See the <a class="reference internal" href="goddard_problem_1_phase.html"><span class="doc">Goddard problem JupyterLab notebook</span></a> for an example of an optimal control problem with a singular arc.)</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">plot_hamiltonian</span><span class="p">(</span><span class="n">output</span><span class="p">):</span>
+    <span class="c1"># extract costate and dynamics vectors, and time array</span>
+    <span class="n">costate</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">costate</span>
+    <span class="n">dynamics</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dynamics</span>
+    <span class="n">time_c</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time_c</span>
+    <span class="n">hamiltonian</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">phase</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hamiltonian</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time_c</span><span class="p">,</span> <span class="p">(</span><span class="n">hamiltonian</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Time, $t$ [s]"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Error in Hamiltonian, $\mathcal</span><span class="si">{H}</span><span class="s2">(x,p,t)-1$   ($10^{-6}$)"</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+
+
+<span class="n">plot_hamiltonian</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_tutorial_45_0.png" src="../_images/notebooks_tutorial_45_0.png"/>
+</div>
+</div>
+<p>As can be seen in the plot above, the Hamiltonian is nearly constant, with a variation of only <span class="math notranslate nohighlight">\(\pm 8\times 10^{-6}\)</span>, which is low and does not generally indicate a significant problem. There is clearly some variation in the Hamiltonian at times corresponding to discontinuities in the derivative of the control input, and that’s to be expected. For most applications, this level of accuracy is sufficient; however, refining the mesh in the vicinity of the discontinuities could improve
+solution accuracy.</p>
+</section>
+<section id="Conclusion">
+<h2>Conclusion<a class="headerlink" href="#Conclusion" title="Link to this heading"></a></h2>
+<p>For more examples of varying complexity, refer to the <a class="reference internal" href="index.html"><span class="doc">JupyterLab notebook examples</span></a>. More details of the YAPSS interface can be found in the Reference section of this user guide.</p>
+</section>
+<section id="References">
+<h2>References<a class="headerlink" href="#References" title="Link to this heading"></a></h2>
+<div class="docutils container" id="id4">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="footcite-bernoulli-1696" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id1" role="doc-backlink">1</a><span class="fn-bracket">]</span></span>
+<p>Johann Bernoulli. Problema novum ad cujus solutionem Mathematici invitantur [A new problem to whose solution mathematicians are invited]. <em>Acta Eruditorum</em>, June 1696.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-bryson-1963" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id2" role="doc-backlink">2</a><span class="fn-bracket">]</span></span>
+<p>Arthur E. Bryson, Jr., Walter F. Denham, and Stewart E. Dreyfus. Optimal programming problems with inequality constraints. <em>AIAA Journal</em>, 1(11):2544–2550, 1963. <a class="reference external" href="https://doi.org/10.2514/3.2107">doi:10.2514/3.2107</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-patterson-2014" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a href="#id3" role="doc-backlink">3</a><span class="fn-bracket">]</span></span>
+<p>Michael A. Patterson and Anil V. Rao. GPOPS-II: A MATLAB software for solving multiple-phase optimal control problems using hp-adaptive Gaussian quadrature collocation methods and sparse nonlinear programming. <em>ACM Trans. Math. Softw.</em>, oct 2014. <a class="reference external" href="https://doi.org/10.1145/2558904">doi:10.1145/2558904</a>.</p>
+</aside>
+</aside>
+</div>
+</section>
+</section>
+</div>
+</div>
+<footer><div aria-label="Footer" class="rst-footer-buttons" role="navigation">
+<a accesskey="p" class="btn btn-neutral float-left" href="../index.html" rel="prev" title="YAPSS: Yet Another Pseudo-Spectral Solver"><span aria-hidden="true" class="fa fa-arrow-circle-left"></span> Previous</a>
+<a accesskey="n" class="btn btn-neutral float-right" href="../reference/problem.html" rel="next" title="Problem Definition">Next <span aria-hidden="true" class="fa fa-arrow-circle-right"></span></a>
+</div>
+<hr/>
+<div role="contentinfo">
+<p>© Copyright 2021-2024 MIT.
+      <span class="lastupdated">Last updated on Dec 29, 2024.
+      </span></p>
+</div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+</div>
+</div>
+</section>
+</div>
+<script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+</body>
+</html>
