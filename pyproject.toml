@@ -28,7 +28,8 @@ classifiers = [
 dependencies = [
     "casadi>=3.6.0",
     "scipy",
-    "numpy",
+    # TODO: Remove temporary NumPy upper bound after NumPy 2.5 compatibility work.
+    "numpy<2.5",
     "mpmath",
     "matplotlib",
     "mseipopt",
@@ -51,8 +52,8 @@ notebook = [
     "jupyterlab_code_formatter",
     "jupyterlab-spellchecker",
     "ipython",
-    "black[jupyter]>=24.0.0,<25.0.0",
-    "isort",
+#    "black[jupyter]",
+#    "isort",
 ]
 dev = [
     # everything from doc
@@ -68,15 +69,16 @@ dev = [
     # plus everything from notebook
     "jupyterlab_code_formatter",
     "jupyterlab-spellchecker",
-    "black[jupyter]>=24.0.0,<25.0.0",
-    "isort",
+    "black[jupyter]==24.10.0",
+    "isort==5.13.2",
     # plus development tools
-    "tox",
+    "tox==4.58.0",
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff",
-    "mypy",
+    "ruff==0.8.5",
+    "mypy==1.13.0",
+    "toml",
     "lxml",
     "nbwipers",
     "pyyaml",
