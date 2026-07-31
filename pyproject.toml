@@ -7,7 +7,7 @@ name = "yapss"
 dynamic = ["version"]
 description = "A Python package for solving optimal control problems using pseudospectral methods."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = ["optimal control", "optimization", "pseudospectral methods"]
 authors = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
 maintainers = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
@@ -18,11 +18,11 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
@@ -160,7 +160,7 @@ ignore_missing_imports = true
 [tool.ruff]
 exclude = ["tests", "docs"]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -180,8 +180,16 @@ ignore = [
     "I001", # Import block is un-sorted or un-formatted
     "ISC001", # causes conflicts with formatter
     "COM812", # causes conflicts with formatter
+    # TODO: Below are temporary, needed to get v0.1.1 working. Review and remove
+    "B905",
+    "UP007",
+    "UP035",
+    "UP038",
 ]
-fixable = ["A", "B", "C", "D", "E", "F", "I", "COM", "PT", "UP", "TRY", "RET"]
+fixable = [
+    "A", "B", "C", "D", "E", "F", "I",
+    "COM", "PT", "UP", "TRY", "RET"
+]
 exclude = [
     ".eggs",
     ".git",
@@ -212,7 +220,8 @@ known-third-party = ["numpy", "scipy", "matplotlib", "casadi", "pytest"]
 
 [tool.black]
 line-length = 100
-target-version = ["py39", "py310", "py311", "py312"]
+# TODO: Include py313 in target. This will require pinning to a later version of black
+target-version = ["py310", "py311", "py312", "py313"]
 
 # ======================================== isort =========================================
 
