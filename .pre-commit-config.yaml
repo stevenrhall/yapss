@@ -22,8 +22,9 @@ repos:
     rev: v1.14.0
     hooks:
       - id: mypy
+        language_version: python3.10
         additional_dependencies:
-          - numpy
+          - numpy<2.0.0
           - types-toml
         entry: bash -c "cd src && mypy yapss --config-file ../pyproject.toml"
 
