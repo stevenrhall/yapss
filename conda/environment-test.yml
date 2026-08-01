@@ -1,12 +1,19 @@
-name: yapss-pytest
+name: yapss-test
 channels:
   - conda-forge
 dependencies:
-  - python=3.9
-  - numpy
+  - python=3.13
+  # Same NumPy typing-import bug as the pip stack (see pyproject.toml). This
+  # file isn't consulted by `pip install .` -- CI installs with --no-deps so
+  # it doesn't clobber the conda-linked cyipopt build -- so the ceiling has
+  # to be declared here explicitly rather than inherited.
+  - numpy<2.5
   - scipy
   - mpmath
   - matplotlib
+  # No CasADi ceiling here: the pip-side <=3.7.2 cap is specifically about
+  # mseipopt hard-wiring a path into CasADi's bundled IPOPT. This env uses
+  # cyipopt (conda-forge's own IPOPT build), so that risk doesn't apply.
   - casadi>=3.6.0
   - cyipopt
   - pytest

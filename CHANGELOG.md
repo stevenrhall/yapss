@@ -46,3 +46,23 @@ Initial release of the software package. Features include:
 - Documentation covering installation, setup, and example usage.
 - Examples available as both Python scripts and Jupyter notebooks.
 - Nearly complete test coverage for all modules.
+
+## 0.1.1 - 2026-08-01
+
+### Changed
+
+- Updated the supported Python versions to 3.10 and newer in `pyproject.toml` and `tox.ini` to match
+  the supported test matrix. This change is consistent with Python 3.9 having reached its end-of-life
+  phase in October 2025.
+- The `notebook` extra no longer installs `black`, `isort`, or `jupyterlab_code_formatter` by
+  default. These remain available via the `dev` extra for contributors; installing `yapss[notebook]`
+  no longer forces an opinionated formatting setup on end users.
+
+### Fixed
+
+- Restricted NumPy to versions earlier than 2.5. NumPy 2.5 causes YAPSS 0.1.0 to fail on import due
+  to changes in NumPy's typing implementation.
+- Restricted CasADi to versions 3.6.0 through 3.7.2. `mseipopt` hard-wires a path into CasADi's
+  bundled IPOPT library, which is not part of CasADi's public interface and could change in any
+  release; pinning avoids a known crash risk until `mseipopt` is no longer the default solver
+  backend for pip installations.

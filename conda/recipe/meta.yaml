@@ -1,4 +1,4 @@
-{% set name = "yass" %}
+{% set name = "yapss" %}
 #{% set version = "0.1.0" %}
 {% set version = environ.get('GIT_DESCRIBE_TAG').lstrip('v') %}
 
@@ -8,7 +8,7 @@ package:
 
 source:
   path: ..
-  # url: https://github.com/stevenrhall/simplejson/yapss/v{{ version }}.tar.gz
+  # url: https://github.com/stevenrhall/yapss/archive/v{{ version }}.tar.gz
   # sha256: generate this with `openssl sha256 <filename>`
 
 build:
@@ -17,13 +17,13 @@ build:
 
 requirements:
   host:
-    - python>=3.9,<3.14
+    - python>=3.10,<3.15
     - hatchling
     - hatch-vcs
     - pip
   run:
-    - python>=3.9,<3.14
-    - numpy
+    - python>=3.10,<3.15
+    - numpy<2.5
     - casadi>=3.6.0
     - scipy
     - mpmath
@@ -36,13 +36,13 @@ outputs:
       script: "{{ PYTHON }} -m pip install . --no-deps -vv"
     requirements:
       host:
-        - python>=3.9,<3.14
+        - python>=3.10,<3.15
         - hatchling
         - hatch-vcs
         - pip
       run:
-        - python>=3.9,<3.14
-        - numpy
+        - python>=3.10,<3.15
+        - numpy<2.5
         - casadi>=3.6.0
         - scipy
         - mpmath
@@ -76,14 +76,14 @@ outputs:
       script: "{{ PYTHON }} -m pip install .[dev] --no-deps -vv"
     requirements:
       host:
-        - python>=3.9,<3.14
+        - python>=3.10,<3.15
         - hatchling
         - hatch-vcs
         - pip
       run:
         # yapss dependencies
-        - python>=3.9,<3.14
-        - numpy
+        - python>=3.10,<3.15
+        - numpy<2.5
         - casadi>=3.6.0
         - scipy
         - mpmath

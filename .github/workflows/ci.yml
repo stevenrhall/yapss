@@ -1,5 +1,17 @@
 name: CI
-'on':
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Weekly drift check (Mondays, 07:23 UTC -- off the hour to avoid queue contention)
+    - cron: '23 7 * * 1'
   workflow_dispatch:
     inputs:
       job:
@@ -11,116 +23,228 @@ name: CI
           - all
           - test
           - test-conda
-          - ubuntu-py310-only
+          - lint
+          - docs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
-    if: ${{ github.event.inputs.job == 'all' || github.event.inputs.job == 'test' }}
-    runs-on: '${{ matrix.os }}'
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
-        python-version:
-          - '3.9'
-          - '3.10'
-          - '3.11'
-          - '3.12'
-        exclude:
-          - os: windows-latest
-            python-version: '3.10'
-          - os: windows-latest
-            python-version: '3.11'
-          - os: windows-latest
-            python-version: '3.12'
-          - os: macos-latest
-            python-version: '3.10'
-          - os: macos-latest
-            python-version: '3.11'
-          - os: macos-latest
-            python-version: '3.12'
-      fail-fast: false
+
+  # ---------------------------------------------------------------- smoke ---
+  # Fast single-instance check that gates the full matrix below -- catches an
+  # obviously broken push or PR before spending 9 parallel runners on it.
+  # Replaces the old standalone tests.yml, which only ran on manual dispatch
+  # and so never actually gated anything.
+  smoke:
+    if: >-
+      github.event_name != 'workflow_dispatch'
+      || contains(fromJSON('["all", "test"]'), inputs.job)
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: 'Set up Python ${{ matrix.python-version }}'
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
         with:
-          python-version: '${{ matrix.python-version }}'
-      - name: Install pandoc (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt install pandoc
-      - name: Install pandoc (macOS)
-        if: matrix.os == 'macos-latest'
-        run: brew install pandoc
-      - name: Install pandoc (Windows)
-        if: matrix.os == 'windows-latest'
-        run: choco install pandoc
-      - name: Install dependencies
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: tox.ini
+
+      - name: Install tox
         run: |
           python -m pip install --upgrade pip
-          pip install tox tox-gh-actions
+          python -m pip install tox
+
       - name: Test with tox
         env:
           YAPSS_LOGGING: DEBUG
-        run: tox
+        run: tox -e py314
 
-  ubuntu-py310-test:
-    if: ${{ github.event.inputs.job == 'all' || github.event.inputs.job == 'ubuntu-py310-only' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: 'Set up Python 3.10'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - name: Install pandoc
-        run: sudo apt install pandoc
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install tox tox-gh-actions
-      - name: Run tests with tox
-        env:
-          YAPSS_LOGGING: DEBUG
-        run: tox
-
-  test-conda:
-    if: ${{ github.event.inputs.job == 'all' || github.event.inputs.job == 'test-conda' }}
-    runs-on: '${{ matrix.os }}'
+  # ---------------------------------------------------------------- tests ---
+  test:
+    needs: smoke
+    if: >-
+      github.event_name != 'workflow_dispatch'
+      || contains(fromJSON('["all", "test"]'), inputs.job)
+    name: ${{ matrix.os }} / py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        # Full sweep on Linux ...
         os:
           - ubuntu-latest
-          - windows-latest
-          - macos-latest
         python-version:
-          - '3.9'
-      fail-fast: false
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - '3.14'
+        # ... newest two on Windows and macOS.
+        include:
+          - os: windows-latest
+            python-version: '3.13'
+          - os: windows-latest
+            python-version: '3.14'
+          - os: macos-latest
+            python-version: '3.13'
+          - os: macos-latest
+            python-version: '3.14'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: tox.ini
+
+      - name: Install tox
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install tox
+
+      - name: Test with tox
+        env:
+          YAPSS_LOGGING: DEBUG
+          # Keeps coverage filenames unique across runners so they can be combined.
+          COVERAGE_SUFFIX: -${{ matrix.os }}
+        run: tox
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: .tox/.coverage.*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 5
+
+  # ------------------------------------------------------------- conda ------
+  # Weekly canary only -- not run on push/PR. cyipopt links conda-forge's own
+  # IPOPT build, a materially different path from the pip stack's mseipopt;
+  # nothing else here exercises it. See conda/environment-test.yml for why
+  # the NumPy ceiling is repeated here instead of inherited.
+  test-conda:
+    if: >-
+      github.event_name == 'schedule'
+      || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all", "test-conda"]'), inputs.job))
+    runs-on: ubuntu-latest
     defaults:
       run:
-        shell: 'bash -l {0}'
+        shell: bash -el {0}
     steps:
-      - name: Set up Conda
-        uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/checkout@v6
+
+      - uses: conda-incubator/setup-miniconda@v4
         with:
-          miniconda-version: latest
-          python-version: 3.9
-          activate-environment: yapss-pytest
-          auto-update-conda: true
+          miniforge-version: latest
+          activate-environment: yapss-test
           channels: conda-forge
-      - name: Cache Conda Environment
-        uses: actions/cache@v3
-        with:
-          path: /usr/share/miniconda/envs
-          key: '${{ runner.os }}-conda-${{ hashFiles(''**/environment*.yml'') }}'
-          restore-keys: |
-            ${{ runner.os }}-conda-
+          conda-remove-defaults: true
+
       - name: Install test dependencies
-        run: conda env update --file conda/environment-test.yml
-      - name: Install the package
+        run: conda env update --name yapss-test --file conda/environment-test.yml
+
+      - name: Install yapss (--no-deps so pip doesn't override the conda-linked solver build)
         run: python -m pip install --no-deps --no-build-isolation .
+
       - name: Test with pytest
-        run: python -m pytest tests/examples/test_brachistochrone_minimal.py
+        run: python -m pytest tests/
+
+  # ------------------------------------------------------------- coverage ---
+  report:
+    if: always() && needs.test.result != 'skipped'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: tox.ini
+
+      - name: Download all coverage data
+        uses: actions/download-artifact@v6
+        with:
+          pattern: coverage-*
+          path: coverage-data
+          merge-multiple: true
+
+      - name: Install tox
+        run: python -m pip install --upgrade pip tox
+
+      - name: Combine and report
+        run: tox -e report -- coverage-data
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-html
+          path: htmlcov
+          if-no-files-found: warn
+
+  # ----------------------------------------------------------------- lint ---
+  lint:
+    if: >-
+      github.event_name != 'workflow_dispatch'
+      || contains(fromJSON('["all", "lint"]'), inputs.job)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # ruff/isort/black pin basepython to 3.13; mypy pins 3.10. Install both.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: |
+            3.10
+            3.13
+          cache: pip
+          cache-dependency-path: tox.ini
+
+      - name: Install tox
+        run: python -m pip install --upgrade pip tox
+
+      - name: Run linters
+        run: tox -e ruff,isort,black,mypy
+
+  # ----------------------------------------------------------------- docs ---
+  docs:
+    if: >-
+      github.event_name != 'workflow_dispatch'
+      || contains(fromJSON('["all", "docs"]'), inputs.job)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: tox.ini
+
+      # nbsphinx is the only thing in the project that needs pandoc.
+      - name: Install pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
+      - name: Install tox
+        run: python -m pip install --upgrade pip tox
+
+      - name: Build docs
+        run: tox -e docs
+
+      - name: Upload built docs
+        uses: actions/upload-artifact@v5
+        with:
+          name: docs-html
+          path: docs/build
+          if-no-files-found: error

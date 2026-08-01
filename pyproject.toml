@@ -8,6 +8,7 @@ dynamic = ["version"]
 description = "A Python package for solving optimal control problems using pseudospectral methods."
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
 keywords = ["optimal control", "optimization", "pseudospectral methods"]
 authors = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
 maintainers = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
@@ -16,7 +17,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
     "Topic :: Scientific/Engineering",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -26,7 +26,11 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
-    "casadi>=3.6.0",
+    # Ceiling is a stopgap, not an API-compatibility bet: mseipopt hard-wires a
+    # path to CasADi's bundled IPOPT library, which is not a public interface
+    # and could move in any release. Pinned to the highest version actually
+    # tested. Revisit once mseipopt is no longer the default solver backend.
+    "casadi>=3.6.0,<=3.7.2",
     "scipy",
     # TODO: Remove temporary NumPy upper bound after NumPy 2.5 compatibility work.
     "numpy<2.5",
@@ -45,30 +49,22 @@ doc = [
     "nbsphinx",
     "numpydoc",
     "jupyterlab",
-    "furo",
+    # Needed to execute example notebooks via `jupyter nbconvert` in
+    # docs/user_guide/notebooks/Makefile -- previously relied on jupyterlab's
+    # transitive deps for these.
+    "ipykernel",
+    "nbconvert",
 ]
 notebook = [
     "jupyterlab",
-    "jupyterlab_code_formatter",
     "jupyterlab-spellchecker",
     "ipython",
-#    "black[jupyter]",
-#    "isort",
 ]
 dev = [
-    # everything from doc
-    "sphinx",
-    "sphinxcontrib-bibtex",
-    "sphinx-copybutton",
-    "sphinx_rtd_theme",
-    "myst-parser",
-    "nbsphinx",
-    "numpydoc",
-    "jupyterlab",
-    "furo",
-    # plus everything from notebook
+    "yapss[doc,notebook]",
+    # jupyter-notebook formatting tools -- dev-only, not forced on end users
+    # who just install the `notebook` extra (see notebook extra above)
     "jupyterlab_code_formatter",
-    "jupyterlab-spellchecker",
     "black[jupyter]==24.10.0",
     "isort==5.13.2",
     # plus development tools
