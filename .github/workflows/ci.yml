@@ -75,20 +75,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # TEMPORARY: matrix cut down from the full 3.10-3.14 Linux sweep +
-        # newest-two Windows/macOS while chasing the report job's
-        # coverage-combine failure (unmapped src/yapss path from one macOS
-        # leg). Both macOS versions are kept because isolating *which* one
-        # produces the anomaly is the point; Linux and Windows are cut to a
-        # single version each just to keep iteration cheap. Restore the full
-        # sweep once the combine issue is understood.
+        # Full sweep on Linux ...
         os:
           - ubuntu-latest
         python-version:
+          - '3.10'
+          - '3.11'
+          - '3.12'
           - '3.13'
+          - '3.14'
+        # ... newest two on Windows and macOS.
         include:
           - os: windows-latest
             python-version: '3.13'
+          - os: windows-latest
+            python-version: '3.14'
           - os: macos-latest
             python-version: '3.13'
           - os: macos-latest
@@ -171,7 +172,7 @@ jobs:
           cache-dependency-path: tox.ini
 
       - name: Download all coverage data
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: coverage-*
           path: coverage-data

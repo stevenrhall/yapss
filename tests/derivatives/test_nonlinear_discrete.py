@@ -95,8 +95,8 @@ parameters = [
 @pytest.mark.xfail(
     sys.platform == "win32",
     reason="GitHub Actions Windows runners inconsistently capture stdout from the "
-    "native IPOPT DLL; verified working on local Windows installs. See "
-    "TOOLING_PLAN.md.",
+    "native IPOPT DLL; verified working on local Windows installs. Not a real "
+    "solver failure.",
     strict=False,
 )
 @pytest.mark.parametrize(("derivative_method", "spectral_method"), parameters)

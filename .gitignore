@@ -1,6 +1,14 @@
 /.idea/
 .DS_Store
 .tox/
+.coverage
+
+# Local-only working notes, not meant to ship with the repo.
+/TOOLING_PLAN.md
+
+# Backup files created per the project's describe-and-back-up convention
+# (e.g. foo_bak.py) -- local safety copies, not meant to be committed.
+*_bak.*
 
 /env*/
 /dist/

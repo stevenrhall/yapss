@@ -49,6 +49,13 @@ Initial release of the software package. Features include:
 
 ## 0.1.1 - 2026-08-01
 
+### Removed
+
+- Stopped publishing documentation to GitHub Pages. The Pages copy was unreferenced by the
+  README, package metadata, and PyPI listing (all of which already pointed at
+  [readthedocs.io](https://yapss.readthedocs.io/)), so it had gone stale without anyone noticing.
+  The `gh-pages` branch now redirects to Read the Docs instead of serving old content.
+
 ### Changed
 
 - Updated the supported Python versions to 3.10 and newer in `pyproject.toml` and `tox.ini` to match
