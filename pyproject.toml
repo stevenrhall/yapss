@@ -250,6 +250,10 @@ filterwarnings = [
 [tool.coverage.run]
 parallel = true
 branch = true
+# Store relative paths so data from different OSes/subdirectories combines
+# correctly -- see [tool.coverage.paths] below, which still handles the
+# site-packages vs src/ install-location difference on top of this.
+relative_files = true
 source = [
     "src/yapss",
     "tests"
