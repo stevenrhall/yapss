@@ -19,7 +19,7 @@ pseudospectral methods. Features include:
 
 ## Quickstart
 
-To get started, install YAPSS  and verify the installation using pip:
+To get started, install YAPSS and verify the installation using pip:
 
 ```console
 $ python -m venv yapss-env
@@ -35,35 +35,17 @@ For more detailed installation instructions, see the next section.
 
 ## Installation
 
-YAPSS supports installation via Conda or pip. It requires Python 3.9 or later..
+YAPSS supports installation via Conda or pip. It requires Python 3.10 or later.
 
 ### Option 1: Using Conda
 
 Create and activate a virtual environment, and install YAPSS:
 
 ```console
-$ conda create -n yapss-env python=3.9
+$ conda create -n yapss-env python=3.10
 $ conda activate yapss-env
 (yapss-env) $ conda install -c conda-forge yapss
 ```
-
-If you encounter the following error during installation
-
-```text
-PackagesNotFoundError: The following packages are not available from current channels:
-  - yapss
-```
-
-then YAPSS is not yet available on conda-forge. In this case, install from source as follows:
-
-```console
-(yapss-env) $ conda install -c conda-forge numpy casadi scipy mpmath matplotlib cyipopt -y
-(yapss-env) $ pip install git+https://github.com/stevenrhall/yapss.git@v0.1.0 --no-deps
-```
-
-The ``--no-deps`` flag is important — it prevents pip from reinstalling dependencies that
-Conda has already installed, avoiding conflicts. You can delete the tag ``@v0.1.0`` to
-install the latest version, or specify a different version tag.
 
 ### Option 2: Using Pip
 
@@ -78,8 +60,11 @@ $ source yapss-env/bin/activate
 To install from source:
 
 ```console
-(yapss-env) $ pip install git+https://github.com/stevenrhall/yapss.git@v0.1.0
+(yapss-env) $ pip install git+https://github.com/stevenrhall/yapss.git
 ```
+
+As above, this installs from the tip of the default branch; append ``@vX.Y.Z`` to pin a
+specific released version.
 
 ### Verify the Installation
 
@@ -121,5 +106,5 @@ The [documentation](https://yapss.readthedocs.io/) is available on Read the Docs
 ## Contributing
 
 YAPSS is open source — contributions are not only welcome but encouraged. See
-[CONTRIBUTING.md](https://github.com/stevenrhall/yapss/blob/main/CONTRIBUTING.md) for details.
+[Contributing to YAPSS](CONTRIBUTING.md).
 

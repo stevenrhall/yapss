@@ -46,3 +46,38 @@ Initial release of the software package. Features include:
 - Documentation covering installation, setup, and example usage.
 - Examples available as both Python scripts and Jupyter notebooks.
 - Nearly complete test coverage for all modules.
+
+## 0.1.1 - 2026-08-02
+
+### Removed
+
+- Stopped publishing documentation to GitHub Pages. The Pages copy was unreferenced by the
+  README, package metadata, and PyPI listing (all of which already pointed at
+  [readthedocs.io](https://yapss.readthedocs.io/)), so it had gone stale without anyone noticing.
+  The `gh-pages` branch now redirects to Read the Docs instead of serving old content.
+
+### Changed
+
+- Updated the supported Python versions to 3.10 and newer in `pyproject.toml` and `tox.ini` to match
+  the supported test matrix. This change is consistent with Python 3.9 having reached its end-of-life
+  phase in October 2025.
+- The `notebook` extra no longer installs `black`, `isort`, or `jupyterlab_code_formatter` by
+  default. These remain available via the `dev` extra for contributors; installing `yapss[notebook]`
+  no longer forces an opinionated formatting setup on end users.
+
+### Fixed
+
+- Restricted NumPy to versions earlier than 2.5. NumPy 2.5 causes YAPSS 0.1.0 to fail on import due
+  to changes in NumPy's typing implementation.
+- Restricted CasADi to versions 3.6.0 through 3.7.2. `mseipopt` hard-wires a path into CasADi's
+  bundled IPOPT library, which is not part of CasADi's public interface and could change in any
+  release; pinning avoids a known crash risk until `mseipopt` is no longer the default solver
+  backend for pip installations.
+- Corrected outdated installation instructions in the README and documentation. A conda-forge
+  workaround for a `PackagesNotFoundError`, needed only before YAPSS was published on
+  conda-forge, no longer applies and has been removed; the example `conda create` command now
+  specifies Python 3.10 instead of the no-longer-supported 3.9.
+- Fixed a spurious matplotlib warning ("Ignoring fixed x/y limits to fulfill fixed data aspect
+  with adjustable data limits") produced when running the `brachistochrone`,
+  `brachistochrone_minimal`, and `newton` example scripts. `axis("equal")` can silently override
+  explicitly set axis limits; switched to `axis("scaled")`, which respects them.

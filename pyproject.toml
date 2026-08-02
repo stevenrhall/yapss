@@ -7,7 +7,8 @@ name = "yapss"
 dynamic = ["version"]
 description = "A Python package for solving optimal control problems using pseudospectral methods."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
+license = "MIT"
 keywords = ["optimal control", "optimization", "pseudospectral methods"]
 authors = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
 maintainers = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
@@ -16,19 +17,23 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
     "Topic :: Scientific/Engineering",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
-    "casadi>=3.6.0",
+    # Ceiling is a stopgap, not an API-compatibility bet: mseipopt hard-wires a
+    # path to CasADi's bundled IPOPT library, which is not a public interface
+    # and could move in any release. Pinned to the highest version actually
+    # tested. Revisit once mseipopt is no longer the default solver backend.
+    "casadi>=3.6.0,<=3.7.2",
     "scipy",
-    "numpy",
+    # TODO: Remove temporary NumPy upper bound after NumPy 2.5 compatibility work.
+    "numpy<2.5",
     "mpmath",
     "matplotlib",
     "mseipopt",
@@ -44,39 +49,32 @@ doc = [
     "nbsphinx",
     "numpydoc",
     "jupyterlab",
-    "furo",
+    # Needed to execute example notebooks via `jupyter nbconvert` in
+    # docs/user_guide/notebooks/Makefile -- previously relied on jupyterlab's
+    # transitive deps for these.
+    "ipykernel",
+    "nbconvert",
 ]
 notebook = [
     "jupyterlab",
-    "jupyterlab_code_formatter",
     "jupyterlab-spellchecker",
     "ipython",
-    "black[jupyter]>=24.0.0,<25.0.0",
-    "isort",
 ]
 dev = [
-    # everything from doc
-    "sphinx",
-    "sphinxcontrib-bibtex",
-    "sphinx-copybutton",
-    "sphinx_rtd_theme",
-    "myst-parser",
-    "nbsphinx",
-    "numpydoc",
-    "jupyterlab",
-    "furo",
-    # plus everything from notebook
+    "yapss[doc,notebook]",
+    # jupyter-notebook formatting tools -- dev-only, not forced on end users
+    # who just install the `notebook` extra (see notebook extra above)
     "jupyterlab_code_formatter",
-    "jupyterlab-spellchecker",
-    "black[jupyter]>=24.0.0,<25.0.0",
-    "isort",
+    "black[jupyter]==24.10.0",
+    "isort==5.13.2",
     # plus development tools
-    "tox",
+    "tox==4.58.0",
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff",
-    "mypy",
+    "ruff==0.8.5",
+    "mypy==1.13.0",
+    "toml",
     "lxml",
     "nbwipers",
     "pyyaml",
@@ -158,7 +156,7 @@ ignore_missing_imports = true
 [tool.ruff]
 exclude = ["tests", "docs"]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -178,8 +176,16 @@ ignore = [
     "I001", # Import block is un-sorted or un-formatted
     "ISC001", # causes conflicts with formatter
     "COM812", # causes conflicts with formatter
+    # TODO: Below are temporary, needed to get v0.1.1 working. Review and remove
+    "B905",
+    "UP007",
+    "UP035",
+    "UP038",
 ]
-fixable = ["A", "B", "C", "D", "E", "F", "I", "COM", "PT", "UP", "TRY", "RET"]
+fixable = [
+    "A", "B", "C", "D", "E", "F", "I",
+    "COM", "PT", "UP", "TRY", "RET"
+]
 exclude = [
     ".eggs",
     ".git",
@@ -210,7 +216,8 @@ known-third-party = ["numpy", "scipy", "matplotlib", "casadi", "pytest"]
 
 [tool.black]
 line-length = 100
-target-version = ["py39", "py310", "py311", "py312"]
+# TODO: Include py313 in target. This will require pinning to a later version of black
+target-version = ["py310", "py311", "py312", "py313"]
 
 # ======================================== isort =========================================
 
@@ -243,13 +250,26 @@ filterwarnings = [
 [tool.coverage.run]
 parallel = true
 branch = true
+# Store relative paths so data from different OSes/subdirectories combines
+# correctly -- see [tool.coverage.paths] below, which still handles the
+# site-packages vs src/ install-location difference on top of this.
+relative_files = true
 source = [
     "src/yapss",
     "tests"
 ]
 
 [tool.coverage.paths]
-source = ["src/yapss"]
+# A single entry does no remapping. The second pattern aliases the installed
+# copy that pytest-cov measures against (tox runs with PYTHONPATH unset, so
+# tests exercise site-packages, not src/) back to src/yapss, regardless of OS
+# or Python version -- "*/" is treated as "**/", so it matches any nesting
+# depth on Linux, macOS, or Windows in one pattern. Needed for the `report`
+# job to combine coverage data collected across the 9 test-matrix runners.
+source = [
+    "src/yapss",
+    "*/site-packages/yapss",
+]
 
 [tool.coverage.report]
 exclude_lines = [

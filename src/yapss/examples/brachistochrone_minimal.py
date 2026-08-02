@@ -79,11 +79,11 @@ def plot_solution(solution: Solution) -> None:
     plt.plot(x, y, linewidth=2)
     plt.xlabel("Horizontal position, $x(t)$")
     plt.ylabel("Vertical position, $y(t)$")
-    plt.axis("equal")
+    plt.grid()
     plt.xlim([0.0, 1.0])
     plt.ylim([0.8, -0.1])
+    plt.axis("scaled")
     plt.tight_layout()
-    plt.grid()
 
 
 def main() -> None:

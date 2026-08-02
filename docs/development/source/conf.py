@@ -4,13 +4,14 @@ Sphinx configuration for development documentation.
 
 """
 
+import datetime
 import sys
 from importlib.metadata import version
 from pathlib import Path
 
 # Project information
 project = "YAPSS"
-copyright = "2024, MIT"
+copyright = f"2024-{datetime.datetime.now().year}, MIT"
 release = version("yapss")
 version = ".".join(release.split(".")[:4])
 

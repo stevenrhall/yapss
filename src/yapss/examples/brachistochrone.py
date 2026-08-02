@@ -159,7 +159,7 @@ def plot_solution(solution: Solution, *, wall: bool = False) -> None:
     plt.ylabel("$y(t)$")
     plt.xlim([-0.05, 1.05])
     plt.ylim([0.7, -0.05])
-    plt.axis("equal")
+    plt.axis("scaled")
     if wall:
         plt.legend(("Wall", "Trajectory"), framealpha=1.0)
     plt.draw()
