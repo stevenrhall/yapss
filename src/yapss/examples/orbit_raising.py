@@ -199,7 +199,6 @@ def plot_solution(solution: Solution) -> None:
         )
 
     plt.axis("square")
-    plt.axis("equal")
     plt.axis("off")
 
     # figure 5: Hamiltonian

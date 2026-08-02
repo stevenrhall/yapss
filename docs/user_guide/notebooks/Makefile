@@ -28,8 +28,20 @@ NOTEBOOKS = \
 all: $(NOTEBOOKS) ## Generate all Jupyter notebooks
 
 # Generate each notebook with additional YAPSS_FILES as prerequisites
+
+# ipykernel prints "Kernel is running over TCP without encryption" on every run;
+# it's a false positive for a local, single-user build (loopback only). Setting
+# --KernelManager.transport=ipc removes it but makes nbconvert hang (known
+# jupyter/nbconvert issue), so we filter just that one line from stderr below.
+# Everything else on stderr -- including real errors/tracebacks -- still prints,
+# and the command's actual exit status is preserved so failures still break the build.
 $(NOTEBOOKS): $(DEST_DIR)/%.ipynb: $(SRC_DIR)/%.ipynb $(YAPSS_FILES)
-	jupyter nbconvert --to notebook --execute --ExecutePreprocessor.kernel_name=python3 --output-dir $(DEST_DIR) --output $(basename $@).ipynb $< > /dev/null
+	@tmp=$$(mktemp); \
+	jupyter nbconvert --to notebook --execute --ExecutePreprocessor.kernel_name=python3 --output-dir $(DEST_DIR) --output $(basename $@).ipynb $< > /dev/null 2>"$$tmp"; \
+	status=$$?; \
+	grep -v "Kernel is running over TCP without encryption" "$$tmp" >&2; \
+	rm -f "$$tmp"; \
+	exit $$status
 
 .PHONY: clean
 clean: ## Remove Jupyter notebooks

@@ -32,7 +32,33 @@ it belongs here.
       backend, supported Python range, etc.), say so explicitly — it's the
       difference that generates confusing bug reports.
 
-## 3. CI
+## 3. Documentation review
+
+Do this *before* tagging — it's much cheaper to fix docs pre-release than to
+carry a stale RTD-published version forward (RTD builds each version from its
+git tag; the published content can't be edited after the fact without moving
+the tag, which isn't done — see `TOOLING_PLAN.md` if that's still the
+policy).
+
+- [ ] Review `docs/user_guide/index.md` (the RTD landing page — `README.md`
+      is generated from it via `make readme`, don't edit `README.md`
+      directly). Check supported Python versions, install commands, and any
+      hardcoded version/tag references are current.
+- [ ] Check `LICENSE`'s copyright year range is current (it's a static legal
+      file, not auto-generated — bump it manually, e.g. "2021-2026"). The
+      Sphinx config copyright notices (`docs/*/conf.py`) compute the end
+      year dynamically, so those don't need manual attention.
+- [ ] `make docs` (or `make view-docs` to build and open it in a browser) and
+      review the rendered output — reference pages, examples, tutorial — for
+      anything this release's changes made stale or incorrect. Source review
+      alone misses rendering problems.
+- [ ] For every user-visible change in this release's `CHANGELOG.md` entry,
+      confirm the docs actually reflect it — a change that's changelogged but
+      not documented is easy to miss until a user hits it.
+- [ ] Run `make readme` after any `docs/user_guide/index.md` edits, and
+      commit the regenerated `README.md` alongside.
+
+## 4. CI
 
 - [ ] Green CI on the release branch: full test matrix, lint, docs, and (if
       dependencies touching the conda stack changed) a manual
@@ -46,18 +72,18 @@ it belongs here.
 - [ ] Merge to `main`. Confirm CI is green on `main` itself (a fresh `push`
       event on the real trigger config, not just the branch's).
 
-## 4. Build verification
+## 5. Build verification
 
 - [ ] Verify the built wheel in a clean venv:
       `pip install dist/*.whl && python -m yapss.examples.isoperimetric`
 
-## 5. Tag & publish
+## 6. Tag & publish
 
 - [ ] Tag `vX.Y.Z` and push. `hatch-vcs` derives the version from the tag.
 - [ ] Publish to PyPI — prefer trusted publishing (OIDC) over a stored API
       token.
 
-## 6. Conda
+## 7. Conda
 
 - [ ] Wait for the conda-forge autotick bot PR (hours, not immediate). It
       updates version and sha256 and resets the build number to 0, but does
@@ -68,10 +94,12 @@ it belongs here.
 - [ ] Verify: `conda create -n check -c conda-forge yapss`, then run the
       isoperimetric example.
 
-## 7. Docs
+## 8. Post-publish docs checks
 
 - [ ] Confirm `stable` on Read the Docs resolves to the new version (RTD
       picks the highest semver tag by default, but check it wasn't manually
       pinned at some point).
+- [ ] Spot-check the published RTD page itself, not just the source — a
+      clean build doesn't guarantee the rendered output looks right.
 - [ ] If the previous release had a known-broken install and a docs banner
       or notice was added for it, remove or update that notice now.

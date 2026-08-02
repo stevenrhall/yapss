@@ -5,6 +5,7 @@ Sphinx configuration.
 """
 
 # standard library imports
+import datetime
 import os
 import subprocess
 import sys
@@ -15,7 +16,7 @@ from yapss import __version__ as version
 
 # project information
 project = "YAPSS"
-copyright = "2021-2024 MIT"  # noqa: A001
+copyright = f"2021-{datetime.datetime.now().year} MIT"  # noqa: A001
 release = version = version.split("+")[0]
 
 # general configuration

@@ -47,7 +47,7 @@ Initial release of the software package. Features include:
 - Examples available as both Python scripts and Jupyter notebooks.
 - Nearly complete test coverage for all modules.
 
-## 0.1.1 - 2026-08-01
+## 0.1.1 - 2026-08-02
 
 ### Removed
 
