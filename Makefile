@@ -58,7 +58,7 @@ clean-notebooks: ## Clear output cells of notebooks in the examples/notebooks di
 	cd examples/notebooks && $(MAKE) clean
 
 .PHONY: docs
-docs: ## Generate user guide documentation.
+docs: readme ## Generate user guide documentation.
 	cd $(USER_GUIDE_DIR) && $(MAKE) html SPHINXOPTS="-W"
 
 .PHONY: dev-docs

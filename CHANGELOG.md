@@ -73,3 +73,11 @@ Initial release of the software package. Features include:
   bundled IPOPT library, which is not part of CasADi's public interface and could change in any
   release; pinning avoids a known crash risk until `mseipopt` is no longer the default solver
   backend for pip installations.
+- Corrected outdated installation instructions in the README and documentation. A conda-forge
+  workaround for a `PackagesNotFoundError`, needed only before YAPSS was published on
+  conda-forge, no longer applies and has been removed; the example `conda create` command now
+  specifies Python 3.10 instead of the no-longer-supported 3.9.
+- Fixed a spurious matplotlib warning ("Ignoring fixed x/y limits to fulfill fixed data aspect
+  with adjustable data limits") produced when running the `brachistochrone`,
+  `brachistochrone_minimal`, and `newton` example scripts. `axis("equal")` can silently override
+  explicitly set axis limits; switched to `axis("scaled")`, which respects them.

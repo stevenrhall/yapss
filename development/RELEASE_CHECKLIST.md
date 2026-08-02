@@ -22,8 +22,9 @@ it belongs here.
 - [ ] Confirm `pyproject.toml` is the source of truth for pip dependencies —
       this is what the conda-forge feedstock will eventually mirror by hand.
 - [ ] Manually sync `conda/environment-test.yml` and `conda/recipe/meta.yaml`
-      with `pyproject.toml` if dependencies changed. No automated drift check
-      exists yet (see `TOOLING_PLAN.md` if that's still true).
+      with `pyproject.toml` if dependencies changed. Whether/how to automate
+      this check is still an open decision (see `TOOLING_PLAN.md` §2) — for
+      now, sync by hand.
 
 ## 2. Changelog
 
@@ -48,7 +49,7 @@ policy).
       file, not auto-generated — bump it manually, e.g. "2021-2026"). The
       Sphinx config copyright notices (`docs/*/conf.py`) compute the end
       year dynamically, so those don't need manual attention.
-- [ ] `make docs` (or `make view-docs` to build and open it in a browser) and
+- [ ] Run `make clean` and `make docs` (or `make view-docs` to build and open it in a browser) and
       review the rendered output — reference pages, examples, tutorial — for
       anything this release's changes made stale or incorrect. Source review
       alone misses rendering problems.
@@ -57,6 +58,13 @@ policy).
       not documented is easy to miss until a user hits it.
 - [ ] Run `make readme` after any `docs/user_guide/index.md` edits, and
       commit the regenerated `README.md` alongside.
+- [ ] Once pushed, trigger a trial build on Read the Docs itself for the
+      release branch (not just local `make docs`/tox) and confirm it's
+      clean. RTD's real environment differs from local in ways that matter
+      (real internet access for intersphinx, its own pinned toolchain) —
+      requires Steve's own RTD admin access, can't be done from this
+      environment. This is a pre-merge sanity check, distinct from the
+      post-publish `stable`-resolves-correctly check in §8.
 
 ## 4. CI
 

@@ -106,5 +106,5 @@ The [documentation](https://yapss.readthedocs.io/) is available on Read the Docs
 ## Contributing
 
 YAPSS is open source — contributions are not only welcome but encouraged. See
-[CONTRIBUTING.md](https://github.com/stevenrhall/yapss/blob/main/CONTRIBUTING.md) for details.
+[Contributing to YAPSS](CONTRIBUTING.md).
 
