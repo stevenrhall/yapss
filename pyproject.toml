@@ -256,7 +256,16 @@ source = [
 ]
 
 [tool.coverage.paths]
-source = ["src/yapss"]
+# A single entry does no remapping. The second pattern aliases the installed
+# copy that pytest-cov measures against (tox runs with PYTHONPATH unset, so
+# tests exercise site-packages, not src/) back to src/yapss, regardless of OS
+# or Python version -- "*/" is treated as "**/", so it matches any nesting
+# depth on Linux, macOS, or Windows in one pattern. Needed for the `report`
+# job to combine coverage data collected across the 9 test-matrix runners.
+source = [
+    "src/yapss",
+    "*/site-packages/yapss",
+]
 
 [tool.coverage.report]
 exclude_lines = [
