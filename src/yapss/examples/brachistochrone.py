@@ -157,8 +157,8 @@ def plot_solution(solution: Solution, *, wall: bool = False) -> None:
     plt.plot(x, y, linewidth=lw)
     plt.xlabel("$x(t)$")
     plt.ylabel("$y(t)$")
-    plt.xlim([-0.05, 1.05])
-    plt.ylim([0.7, -0.05])
+    plt.xlim((-0.05, 1.05))
+    plt.ylim((0.7, -0.05))
     plt.axis("scaled")
     if wall:
         plt.legend(("Wall", "Trajectory"), framealpha=1.0)
@@ -171,7 +171,7 @@ def plot_solution(solution: Solution, *, wall: bool = False) -> None:
     plt.xlabel("Time, $t$")
     plt.ylabel("States")
     plt.legend(("$x(t)$", "$y(t)$", "$v(t)$"), framealpha=1.0)
-    plt.xlim([t0, tf])
+    plt.xlim((t0, tf))
 
     # control
     plt.figure(3)
@@ -179,14 +179,14 @@ def plot_solution(solution: Solution, *, wall: bool = False) -> None:
     plt.plot(time_c, control[0], linewidth=lw)
     plt.xlabel("Time, $t$ [s]")
     plt.ylabel("Control, $u(t)$ [rad]")
-    plt.ylim([-0.05, 1.6])
-    plt.xlim([t0, tf])
+    plt.ylim((-0.05, 1.6))
+    plt.xlim((t0, tf))
 
     # costates
     plt.figure(4)
     plt.clf()
     plt.plot(time_c, costate[0], time_c, costate[1], time_c, costate[2])
-    plt.xlim([t0, tf])
+    plt.xlim((t0, tf))
     plt.xlabel("Time, $t$")
     plt.ylabel(r"Costates, $p_{i}$")
     plt.legend(["costate 0", "costate 1", "costate 2"], framealpha=1.0)
@@ -195,8 +195,8 @@ def plot_solution(solution: Solution, *, wall: bool = False) -> None:
     plt.figure(5)
     plt.clf()
     plt.plot(time_c, hamiltonian)
-    plt.xlim([t0, tf])
-    plt.ylim([-1.01, -0.99])
+    plt.xlim((t0, tf))
+    plt.ylim((-1.01, -0.99))
     plt.xlabel("Time, $t$")
     plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
 

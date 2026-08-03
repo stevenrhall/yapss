@@ -33,7 +33,7 @@ it belongs here.
       backend, supported Python range, etc.), say so explicitly — it's the
       difference that generates confusing bug reports.
 
-## 3. Documentation review
+## 3. Documentation review (local build)
 
 Do this *before* tagging — it's much cheaper to fix docs pre-release than to
 carry a stale RTD-published version forward (RTD builds each version from its
@@ -58,13 +58,6 @@ policy).
       not documented is easy to miss until a user hits it.
 - [ ] Run `make readme` after any `docs/user_guide/index.md` edits, and
       commit the regenerated `README.md` alongside.
-- [ ] Once pushed, trigger a trial build on Read the Docs itself for the
-      release branch (not just local `make docs`/tox) and confirm it's
-      clean. RTD's real environment differs from local in ways that matter
-      (real internet access for intersphinx, its own pinned toolchain) —
-      requires Steve's own RTD admin access, can't be done from this
-      environment. This is a pre-merge sanity check, distinct from the
-      post-publish `stable`-resolves-correctly check in §8.
 
 ## 4. CI
 
@@ -73,25 +66,70 @@ policy).
       `workflow_dispatch` run of the conda test job.
 - [ ] Before merging a branch that changes workflow trigger config (`on:`
       blocks), validate with a manual `workflow_dispatch` run *from that
-      branch* rather than trusting the PR's own check run. GitHub only runs a
-      `pull_request`-triggered workflow reliably once that trigger already
-      exists on the default branch — a brand-new trigger on a feature branch
-      is not reliable on the PR's own checks.
-- [ ] Merge to `main`. Confirm CI is green on `main` itself (a fresh `push`
-      event on the real trigger config, not just the branch's).
+      branch* as a belt-and-suspenders check. Confirmed on the v0.1.1 PR:
+      GitHub reliably picks up trigger changes on the PR's own checks as long
+      as the workflow *file* already exists on the default branch — the risk
+      case is a workflow file that's entirely new to the repo, which won't
+      fire on `pull_request` until it's merged.
 
-## 5. Build verification
+## 5. RTD build (hosted)
 
-- [ ] Verify the built wheel in a clean venv:
-      `pip install dist/*.whl && python -m yapss.examples.isoperimetric`
+- [ ] Once CI is green, trigger a trial build on Read the Docs itself for the
+      release branch/PR (not just local `make docs`/tox) and confirm it's
+      clean. RTD's real environment differs from local in ways that matter
+      (real internet access for intersphinx, its own pinned toolchain) —
+      requires Steve's own RTD admin access, can't be done from this
+      environment. This is a pre-merge sanity check, distinct from the
+      post-publish `stable`-resolves-correctly check in §10.
 
-## 6. Tag & publish
+## 6. Build verification
+
+Build from a fresh `git clone` of the release branch into a temp dir, not the
+local working tree — a local build can hide files that aren't actually
+tracked in git (missing from packaging config) or stale artifacts left over
+from previous builds/editable installs.
+
+- [ ] Clean build in a clean environment:
+      ```
+      git clone https://github.com/stevenrhall/yapss /tmp/yapss-build-check
+      cd /tmp/yapss-build-check && git checkout <release-branch>
+      python -m venv .venv && source .venv/bin/activate
+      pip install build
+      python -m build
+      pip install dist/*.whl
+      python -m yapss.examples.isoperimetric
+      ```
+- [ ] Spot-check the sdist and wheel file listings (`tar tzf dist/*.tar.gz` /
+      `unzip -l dist/*.whl`) for missing package data or accidentally-included
+      dev/test cruft.
+
+## 7. Merge to main
+
+YAPSS uses a PR-into-`main`-then-tag model — no dedicated release branch.
+`hatch-vcs` derives the published version from the tag, and a single `main` +
+tags is simpler than maintaining release branches, which would only earn
+their keep if YAPSS needed to maintain multiple release lines in parallel
+(e.g. hotfixing an old minor after a newer one shipped) — not a current need.
+
+- [ ] Open a PR from the release branch into `main` (don't push directly) —
+      this exercises CI and the RTD PR-preview build (§4, §5) against the
+      actual merge target.
+- [ ] Squash merge, with a commit message drawn from the PR description or
+      `CHANGELOG.md` entry rather than GitHub's default (which concatenates
+      every commit subject from the branch).
+- [ ] Delete the head branch after merge — safe to do; the squashed commit is
+      already permanent in `main`'s history, and the PR page retains the full
+      pre-squash commit history regardless.
+- [ ] Confirm CI is green on `main` itself (a fresh `push` event on the real
+      trigger config, not just the branch's).
+
+## 8. Tag & publish
 
 - [ ] Tag `vX.Y.Z` and push. `hatch-vcs` derives the version from the tag.
 - [ ] Publish to PyPI — prefer trusted publishing (OIDC) over a stored API
       token.
 
-## 7. Conda
+## 9. Conda
 
 - [ ] Wait for the conda-forge autotick bot PR (hours, not immediate). It
       updates version and sha256 and resets the build number to 0, but does
@@ -102,7 +140,7 @@ policy).
 - [ ] Verify: `conda create -n check -c conda-forge yapss`, then run the
       isoperimetric example.
 
-## 8. Post-publish docs checks
+## 10. Post-publish docs checks
 
 - [ ] Confirm `stable` on Read the Docs resolves to the new version (RTD
       picks the highest semver tag by default, but check it wasn't manually

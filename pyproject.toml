@@ -32,7 +32,12 @@ dependencies = [
     # tested. Revisit once mseipopt is no longer the default solver backend.
     "casadi>=3.6.0,<=3.7.2",
     "scipy",
-    # TODO: Remove temporary NumPy upper bound after NumPy 2.5 compatibility work.
+    # NumPy 2.5 rewrote numpy.typing.NDArray using PEP 695 `type` statements, which
+    # broke subclassing it directly -- fixed in _private/input_args.py (now
+    # version-agnostic, subclasses np.ndarray directly). Ceiling stays for now:
+    # numpy>=2.5 requires Python>=3.12, which conflicts with requires-python
+    # ">=3.10" -- raising this floor needs its own follow-up (env markers or
+    # dropping 3.10/3.11 support), not bundled into this typing fix.
     "numpy<2.5",
     "mpmath",
     "matplotlib",
@@ -80,6 +85,10 @@ dev = [
     "pyyaml",
     "hatch",
     "pre-commit",
+    # release tooling -- used by `make test-pypi-upload`/`pypi-upload` and
+    # RELEASE_CHECKLIST.md's build-verification step
+    "build",
+    "twine",
 ]
 
 [project.urls]
@@ -111,7 +120,8 @@ packages = ["src/yapss"]
 python_version = "3.10"
 files = ["src/**/*.py"]
 follow_imports = "silent"
-plugins = "numpy.typing.mypy_plugin"
+# numpy.typing.mypy_plugin removed -- deprecated as of NumPy 2.3, will be
+# removed entirely in a future NumPy release.
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
 namespace_packages = true
 warn_redundant_casts = true

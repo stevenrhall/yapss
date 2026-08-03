@@ -193,7 +193,7 @@ def plot_solution(solution: Solution) -> None:
     limit = 5 * (auxdata.m * auxdata.g0) / (0.5 * auxdata.rho0 * auxdata.s * v**2)
     plt.plot(t, limit, "r--")
     plt.plot(tc, cl)
-    plt.ylim([0, 1])
+    plt.ylim((0, 1))
     legend = plt.legend(["Load factor limit", "Lift coefficient, $C_{L}$"])
     legend.get_frame().set_facecolor("white")
     legend.get_frame().set_alpha(1)
@@ -224,7 +224,7 @@ def plot_solution(solution: Solution) -> None:
     plt.figure(7)
     plt.plot(tc, hamiltonian)
     plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
-    plt.ylim([-0.01, 0.01])
+    plt.ylim((-0.01, 0.01))
 
     for i in range(2, 8):
         plt.figure(i)

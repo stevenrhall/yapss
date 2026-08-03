@@ -16,20 +16,26 @@ from __future__ import annotations
 __all__ = ["lgl", "lgr"]
 
 # standard imports
-from collections.abc import Callable
 from functools import wraps
+from typing import TYPE_CHECKING
 
 # third party imports
 import mpmath
 import numpy as np
 from mpmath import mp
-from numpy.typing import NDArray
 
-# typing
-Array = NDArray[np.float64]
-MPArray = NDArray[np.object_]
+if TYPE_CHECKING:
+    # standard imports
+    from collections.abc import Callable
 
-LG_func = Callable[[int], tuple[Array, ...]]
+    # third party imports
+    from numpy.typing import NDArray
+
+    # typing
+    Array = NDArray[np.float64]
+    MPArray = NDArray[np.object_]
+
+    LG_func = Callable[[int], tuple[Array, ...]]
 
 mp.dps = 30
 

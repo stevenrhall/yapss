@@ -156,7 +156,7 @@ def plot_solution(solution: Solution) -> None:
     plt.plot(t, theta, label=r"polar angle, $\theta$")
     plt.plot(t, v_r, label=r"radial velocity, $v_r$")
     plt.plot(t, v_theta, label=r"tangential velocity, $v_\theta$")
-    plt.ylim([0, 2.5])
+    plt.ylim((0, 2.5))
     plt.ylabel("States")
     plt.legend()
 
@@ -166,7 +166,7 @@ def plot_solution(solution: Solution) -> None:
     plt.plot(tc, control[1], label=r"tangential thrust, $u_2$")
     plt.ylabel("Controls")
     plt.legend()
-    plt.ylim([-1, 1])
+    plt.ylim((-1, 1))
 
     # figure 3: Thrust direction
     plt.figure(3)
@@ -206,7 +206,7 @@ def plot_solution(solution: Solution) -> None:
     hamiltonian = solution.phase[0].hamiltonian
     plt.plot(tc, hamiltonian)
     plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
-    plt.ylim([-0.36, -0.31])
+    plt.ylim((-0.36, -0.31))
 
     for i in range(5, 0, -1):
         plt.figure(i)

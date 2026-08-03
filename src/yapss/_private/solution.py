@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
     import yapss
 
+    from .mesh import Mesh
     from .nlp import NLP
 
 __all__ = ["NLPInfo", "Solution", "SolutionPhase", "SolutionPhases", "make_solution_object"]
@@ -60,7 +61,7 @@ _dataclass_msg = "All attributes must be provided, and cannot be None"
 
 def make_solution_object(
     problem: yapss.Problem,
-    mesh: yapss._private.mesh.Mesh,
+    mesh: Mesh,
     nlp_temp: NLP,
     nlp_info: dict[str, NDArray[np.float64] | float | int | bytes],
 ) -> Solution:

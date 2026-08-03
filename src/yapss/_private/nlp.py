@@ -86,7 +86,7 @@ class NLP:
         self,
         problem: yapss.Problem,
         functions: ProblemFunctions,
-        mesh: yapss._private.mesh.Mesh,
+        mesh: Mesh,
     ) -> None:
         # store arguments
         self.problem: yapss.Problem = problem
@@ -446,7 +446,8 @@ def make_nlp_constraints(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
             discrete_function(di)
             cf.discrete[:] = di.discrete
 
-        return cf.c.copy()
+        result: FloatArray = cf.c.copy()
+        return result
 
     # end callback function
 

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     # package imports
     import yapss
 
+    from .mesh import Mesh
     from .problem import Problem
     from .solution import Solution
 
@@ -295,7 +296,7 @@ class PhaseGuess(Protected):
             raise ValueError(msg)
 
 
-def make_initial_guess_nlp(problem: Problem, computational_mesh: yapss._private.mesh.Mesh) -> Array:
+def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
     """Make initial guess for the NLP solution from the user-provided initial guess.
 
     This method takes the initial guess provided by the user and interpolates to produce an
