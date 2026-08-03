@@ -10,10 +10,7 @@ from __future__ import annotations
 # standard imports
 import contextlib
 import signal
-import textwrap
 import warnings
-from os import getenv
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 # third party imports
@@ -23,7 +20,7 @@ import numpy as np
 from .auto import make_auto_functions
 from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variable_bounds
 from .central_difference import make_cd_functions
-from .config import get_casadi_ipopt_library_path
+from .config import get_casadi_ipopt_library_path, get_conda_prefix
 from .guess import make_initial_guess_nlp
 from .mesh import Mesh
 from .nlp import NLP
@@ -31,20 +28,22 @@ from .solution import Solution, make_solution_object
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 from .user import make_user_functions
 
-try:
+# Backend is fully determined by environment: a conda environment gets cyipopt
+# (safe to coexist with CasADi's own bundled IPOPT there, since conda-forge
+# builds share one OpenMP runtime); anything else gets the vendored mseipopt,
+# which loads CasADi's own bundled IPOPT directly rather than a second binary.
+# Running a second, independently-built IPOPT alongside CasADi's outside of
+# conda risks an OpenMP runtime collision. No user override.
+if get_conda_prefix():
     import cyipopt
 
     CYIPOPT = True
-except ModuleNotFoundError:
+else:
+    from .mseipopt import ez
+    from .mseipopt import bare
+    from .mseipopt.bare import load_library
+
     CYIPOPT = False
-
-try:
-    from mseipopt import bare, ez
-    from mseipopt.bare import load_library
-
-    MSEIPOPT = True
-except ModuleNotFoundError:
-    MSEIPOPT = False
 
 if TYPE_CHECKING:
     # third party imports
@@ -54,10 +53,6 @@ if TYPE_CHECKING:
     import yapss
 
     from .input_args import ProblemFunctions
-
-if not CYIPOPT and not MSEIPOPT:
-    msg = "No module named 'cyipopt' or 'mseipopt'. At least one must be installed."
-    raise ModuleNotFoundError(msg)
 
 
 # Define a custom warning class
@@ -102,20 +97,7 @@ def solve(problem: yapss.Problem) -> Solution:
     ub, lb = get_nlp_decision_variable_bounds(problem)
     gu, gl = get_nlp_constraint_function_bounds(problem)
 
-    ipopt_source: str = configure_ipopt_source(problem)
-
-    if ipopt_source == "cyipopt":
-        if not CYIPOPT:
-            msg = (
-                "The package 'cyipopt'  is not installed. To resolve:\n"
-                "   1. Set 'ipopt_source' attribute to 'casadi' or an Ipopt library path as a "
-                "string, or\n"
-                "   2. Set 'ipopt_source' attribute to 'default', with the environment variable "
-                "'YAPSS_IPOPT_SOURCE'\n"
-                "      not set, or set to 'default', 'casadi' or an Ipopt library path, or\n"
-                "   3. Install the 'cyipopt' package."
-            )
-            raise ModuleNotFoundError(msg)
+    if CYIPOPT:
         ipopt_problem = cyipopt.Problem(
             n=len(lb),
             m=len(gl),
@@ -126,17 +108,7 @@ def solve(problem: yapss.Problem) -> Solution:
             problem_obj=nlp_temp,
         )
     else:
-        if not MSEIPOPT:
-            msg = (
-                "The package 'mseipopt'  is not installed. To resolve:\n"
-                "   1. Set 'ipopt_source' attribute to 'cyipopt', or\n"
-                "   2. Set 'ipopt_source' attribute to 'default', with the environment variable "
-                "'YAPSS_IPOPT_SOURCE'\n"
-                "      not set, or set to 'cyipopt' or 'default', or\n"
-                "   3. Install the 'mseipopt' package."
-            )
-            raise ModuleNotFoundError(msg)
-        ipopt_path = get_casadi_ipopt_library_path() if ipopt_source == "casadi" else ipopt_source
+        ipopt_path = get_casadi_ipopt_library_path()
 
         # don't reload library if already loaded
         if bare._ipopt_lib is None or ipopt_path != bare._ipopt_lib._name:
@@ -289,45 +261,7 @@ def get_nlp_scaling(
     return obj_scale, z_scaling, c_scaling
 
 
-def configure_ipopt_source(problem: yapss.Problem) -> str:
-    """Determine the source of the IPOPT library.
-
-    Parameters
-    ----------
-    problem : yapss.Problem
-    """
-    ipopt_source = problem.ipopt_source
-    if ipopt_source == "default":
-        env_ipopt_source: str = getenv("YAPSS_IPOPT_SOURCE", "")
-        if env_ipopt_source:
-            ipopt_source = env_ipopt_source
-        elif CYIPOPT:
-            ipopt_source = "cyipopt"
-        else:
-            ipopt_source = "casadi"
-    else:
-        ipopt_source = problem.ipopt_source
-
-    # if "cyipopt" is selected, check if the package is installed
-    if ipopt_source == "cyipopt" and not CYIPOPT:
-        msg = textwrap.dedent(
-            """
-            The 'cyipopt' option requires the 'cyipopt' package, which is not installed
-                by default in the yapss distribution. To use this option, install the package
-                using: 'pip install cyipopt' or 'conda install -c conda-forge cyipopt'.
-            """,
-        ).strip()
-        raise ModuleNotFoundError(msg)
-
-    # if a path is provided, check if it exists
-    if ipopt_source not in ("cyipopt", "casadi") and not Path(ipopt_source).exists():
-        msg = f"The provided path to the IPOPT library does not exist: {ipopt_source}"
-        raise FileNotFoundError(msg)
-
-    return ipopt_source
-
-
-if MSEIPOPT:
+if not CYIPOPT:
 
     class EZProblem(ez.Problem):  # type: ignore[misc]
 

@@ -41,7 +41,6 @@ dependencies = [
     "numpy<2.5",
     "mpmath",
     "matplotlib",
-    "mseipopt",
 ]
 
 [project.optional-dependencies]
