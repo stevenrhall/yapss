@@ -27,8 +27,7 @@ problem, the program will likely crash.
 from __future__ import annotations
 
 import ctypes
-import os
-from ctypes import CFUNCTYPE, POINTER, c_char_p, c_double, c_int, c_void_p
+from ctypes import CFUNCTYPE, POINTER, c_bool, c_char_p, c_double, c_int, c_void_p
 from typing import Any
 
 _ipopt_lib: ctypes.CDLL | None = None
@@ -43,67 +42,102 @@ c_int_p = POINTER(c_int)
 """Pointer to int."""
 
 
-Eval_F_CB = CFUNCTYPE(c_int, c_int, c_double_p, c_int, c_double_p, c_void_p)
+Bool: Any = c_bool
+"""The C type of IPOPT's ``Bool``, which is version dependent.
+
+IPOPT 3.14 changed ``typedef int Bool`` to ``typedef bool Bool``, narrowing it
+from 4 bytes to 1. The default here matches 3.14 and later, which is what every
+CasADi wheel currently bundles; `set_bool_type` overrides it when the shipped
+``IpStdCInterface.h`` says otherwise.
+"""
+
+
+# Declared here so the names exist at import time; `set_bool_type` rebuilds
+# them, and every consumer looks them up as attributes of this module rather
+# than importing them, so rebinding takes effect everywhere.
+Eval_F_CB: Any = None
 """Type of the callback for evaluating the objective function."""
 
-
-Eval_Grad_F_CB = CFUNCTYPE(c_int, c_int, c_double_p, c_int, c_double_p, c_void_p)
+Eval_Grad_F_CB: Any = None
 """Type of the callback for evaluating the gradient of the objective."""
 
-
-Eval_G_CB = CFUNCTYPE(c_int, c_int, c_double_p, c_int, c_int, c_double_p, c_void_p)
+Eval_G_CB: Any = None
 """Type of the callback for evaluating the constraint function."""
 
-
-Eval_Jac_G_CB = CFUNCTYPE(
-    c_int,
-    c_int,
-    c_double_p,
-    c_int,
-    c_int,
-    c_int,
-    c_int_p,
-    c_int_p,
-    c_double_p,
-    c_void_p,
-)
+Eval_Jac_G_CB: Any = None
 """Type of the callback for evaluating the Jacobian of the constraint."""
 
-
-Eval_H_CB = CFUNCTYPE(
-    c_int,
-    c_int,
-    c_double_p,
-    c_int,
-    c_double,
-    c_int,
-    c_double_p,
-    c_int,
-    c_int,
-    c_int_p,
-    c_int_p,
-    c_double_p,
-    c_void_p,
-)
+Eval_H_CB: Any = None
 """Type of the callback for evaluating the Hessian of the Lagrangian."""
 
-
-Intermediate_CB = CFUNCTYPE(
-    c_int,
-    c_int,
-    c_int,
-    c_double,
-    c_double,
-    c_double,
-    c_double,
-    c_double,
-    c_double,
-    c_double,
-    c_double,
-    c_int,
-    c_void_p,
-)
+Intermediate_CB: Any = None
 """Type of the callback to give intermediate execution control to the user."""
+
+
+def set_bool_type(bool_type: Any = c_bool) -> None:
+    """Rebuild the callback types for an IPOPT whose ``Bool`` is *bool_type*.
+
+    Must be called before any callback instance is created; a callback built
+    from the old type would then be passed to a library expecting the new one.
+    In practice this is called once, during library initialization, before any
+    problem exists.
+
+    The argument positions that take `Bool` are the ``new_x`` and
+    ``new_lambda`` flags, and every callback returns it.
+    """
+    global Bool, Eval_F_CB, Eval_Grad_F_CB, Eval_G_CB  # noqa: PLW0603
+    global Eval_Jac_G_CB, Eval_H_CB, Intermediate_CB  # noqa: PLW0603
+
+    Bool = bool_type
+    #                     ret        n      x           new_x      obj_value   user_data
+    Eval_F_CB = CFUNCTYPE(bool_type, c_int, c_double_p, bool_type, c_double_p, c_void_p)
+    Eval_Grad_F_CB = CFUNCTYPE(bool_type, c_int, c_double_p, bool_type, c_double_p, c_void_p)
+    Eval_G_CB = CFUNCTYPE(bool_type, c_int, c_double_p, bool_type, c_int, c_double_p, c_void_p)
+    Eval_Jac_G_CB = CFUNCTYPE(
+        bool_type,  # ret
+        c_int,  # n
+        c_double_p,  # x
+        bool_type,  # new_x
+        c_int,  # m
+        c_int,  # nele_jac
+        c_int_p,  # iRow
+        c_int_p,  # jCol
+        c_double_p,  # values
+        c_void_p,  # user_data
+    )
+    Eval_H_CB = CFUNCTYPE(
+        bool_type,  # ret
+        c_int,  # n
+        c_double_p,  # x
+        bool_type,  # new_x
+        c_double,  # obj_factor
+        c_int,  # m
+        c_double_p,  # lambda
+        bool_type,  # new_lambda
+        c_int,  # nele_hess
+        c_int_p,  # iRow
+        c_int_p,  # jCol
+        c_double_p,  # values
+        c_void_p,  # user_data
+    )
+    Intermediate_CB = CFUNCTYPE(
+        bool_type,  # ret
+        c_int,  # alg_mod
+        c_int,  # iter_count
+        c_double,  # obj_value
+        c_double,  # inf_pr
+        c_double,  # inf_du
+        c_double,  # mu
+        c_double,  # d_norm
+        c_double,  # regularization_size
+        c_double,  # alpha_du
+        c_double,  # alpha_pr
+        c_int,  # ls_trials
+        c_void_p,  # user_data
+    )
+
+
+set_bool_type()
 
 
 class IpoptProblemInfo(ctypes.Structure):
@@ -164,13 +198,19 @@ def _setup_library() -> None:
     _ipopt_lib.FreeIpoptProblem.restype = None
     _ipopt_lib.FreeIpoptProblem.argtypes = [IpoptProblem]
 
-    _ipopt_lib.AddIpoptStrOption.restype = c_int
+    # These six return IPOPT's `Bool`. Declaring them c_int when the library
+    # returns a 1-byte _Bool is the one place the width mismatch could bite:
+    # only `al` is architecturally meaningful for such a return, the rest of
+    # `eax` is unspecified, and callers test the result for truth. Compilers
+    # in practice zero-extend, so this never misfired -- but if one did not, a
+    # *failed* option would read as success and be silently swallowed.
+    _ipopt_lib.AddIpoptStrOption.restype = Bool
     _ipopt_lib.AddIpoptStrOption.argtypes = [IpoptProblem, c_char_p, c_char_p]
 
-    _ipopt_lib.AddIpoptIntOption.restype = c_int
+    _ipopt_lib.AddIpoptIntOption.restype = Bool
     _ipopt_lib.AddIpoptIntOption.argtypes = [IpoptProblem, c_char_p, c_int]
 
-    _ipopt_lib.AddIpoptNumOption.restype = c_int
+    _ipopt_lib.AddIpoptNumOption.restype = Bool
     _ipopt_lib.AddIpoptNumOption.argtypes = [IpoptProblem, c_char_p, c_double]
 
     # NOTE: these four were `.restypes` (typo, plural) in the older
@@ -178,15 +218,16 @@ def _setup_library() -> None:
     # rather than erroring, so this was harmless in practice only because
     # ctypes' own default restype (unset) is also `c_int`, which happens to
     # match what was intended here.
-    _ipopt_lib.OpenIpoptOutputFile.restype = c_int
+    _ipopt_lib.OpenIpoptOutputFile.restype = Bool
     _ipopt_lib.OpenIpoptOutputFile.argtypes = [IpoptProblem, c_char_p, c_int]
 
-    _ipopt_lib.SetIpoptProblemScaling.restype = c_int
+    _ipopt_lib.SetIpoptProblemScaling.restype = Bool
     _ipopt_lib.SetIpoptProblemScaling.argtypes = [IpoptProblem, c_double, c_double_p, c_double_p]
 
-    _ipopt_lib.SetIntermediateCallback.restype = c_int
+    _ipopt_lib.SetIntermediateCallback.restype = Bool
     _ipopt_lib.SetIntermediateCallback.argtypes = [IpoptProblem, Intermediate_CB]
 
+    # IpoptSolve returns `enum ApplicationReturnStatus`, which is int-sized.
     _ipopt_lib.IpoptSolve.restype = c_int
     _ipopt_lib.IpoptSolve.argtypes = [
         IpoptProblem,

@@ -39,9 +39,8 @@ if get_conda_prefix():
 
     CYIPOPT = True
 else:
-    from .ipopt_library import load_ipopt
-    from .mseipopt import bare, ez
-    from .mseipopt.bare import use_library
+    from .ipopt_library import initialize_ipopt
+    from .mseipopt import ez
 
     CYIPOPT = False
 
@@ -108,11 +107,9 @@ def solve(problem: yapss.Problem) -> Solution:
             problem_obj=nlp_temp,
         )
     else:
-        # Resolve, load, and verify once per process. The resolver caches its
-        # answer and the answer cannot change within a process, so unlike the
-        # path-comparison this replaces, there is nothing to re-check.
-        if bare._ipopt_lib is None:
-            use_library(load_ipopt()[0])
+        # Resolve, load, verify and configure once per process. Idempotent, so
+        # unlike the path comparison this replaces, there is nothing to re-check.
+        initialize_ipopt()
 
         jacobian_structure = nlp_temp.jacobianstructure()
         hessian_structure = nlp_temp.hessianstructure()

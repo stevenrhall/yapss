@@ -38,21 +38,29 @@ from __future__ import annotations
 import ctypes
 import logging
 import os
+import re
 import sys
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "DuplicateIpoptLibraryError",
+    "IpoptAbiError",
+    "IpoptHeaderInfo",
     "IpoptLibraryNotFoundError",
     "IpoptVerificationWarning",
     "casadi_ipopt_path",
     "duplicate_ipopt_copies",
     "glob_ipopt_in_casadi",
+    "initialize_ipopt",
     "load_ipopt",
+    "read_ipopt_header",
     "resolve_ipopt_library",
+    "smoke_test",
     "strategy1_failure_reason",
 ]
 
@@ -76,6 +84,15 @@ class DuplicateIpoptLibraryError(RuntimeError):
     Two IPOPT binaries mean two OpenMP runtimes, which is the configuration
     that crashes once both are actually used. Raising here converts a
     hard-to-diagnose segfault during a solve into an error at load time.
+    """
+
+
+class IpoptAbiError(RuntimeError):
+    """Raised when the shipped IPOPT does not match the ctypes declarations.
+
+    Specifically, when IPOPT was built with 64-bit indices or single-precision
+    reals. Both change the meaning of every array crossing the boundary, so
+    continuing would corrupt results rather than fail cleanly.
     """
 
 
@@ -565,3 +582,289 @@ def load_ipopt() -> tuple[ctypes.CDLL, str]:
 
     _check_single_copy(before, duplicate_ipopt_copies())
     return library, path
+
+
+# --------------------------------------------------------------------------
+# ABI verification from the headers CasADi ships
+# --------------------------------------------------------------------------
+
+_SMOKE_TOLERANCE = 1e-6
+"""Agreement required between the smoke solve and its analytic solution."""
+
+_BOOL_NARROWED_IN = (3, 14)
+"""IPOPT release that changed ``typedef int Bool`` to ``typedef bool Bool``."""
+
+_DEFINE_RE = re.compile(r"^[ \t]*#[ \t]*define[ \t]+(\w+)(?:[ \t]+(.*?))?[ \t]*$", re.MULTILINE)
+_UNDEF_RE = re.compile(r"^[ \t]*/\*[ \t]*#[ \t]*undef[ \t]+(\w+)[ \t]*\*/[ \t]*$", re.MULTILINE)
+
+
+@dataclass(frozen=True)
+class IpoptHeaderInfo:
+    """What ``IpoptConfig.h`` says about how this IPOPT was built."""
+
+    path: Path
+    version: tuple[int, int, int] | None
+    int64: bool
+    """True if built with 64-bit indices, making our c_int declarations wrong."""
+    single: bool
+    """True if built with single-precision reals, making c_double wrong."""
+
+    @property
+    def bool_ctype(self) -> Any:
+        """Return the ctypes type matching this IPOPT's ``Bool`` typedef."""
+        if self.version is not None and self.version[:2] < _BOOL_NARROWED_IN:
+            return ctypes.c_int
+        return ctypes.c_bool
+
+
+def read_ipopt_header() -> IpoptHeaderInfo | None:
+    """Read ``IpoptConfig.h`` from the CasADi package, or None if unavailable.
+
+    Autoconf writes an inactive macro as ``/* #undef NAME */`` rather than
+    omitting it, so "defined", "explicitly undefined", and "absent" are three
+    different states and only the first is a problem.
+
+    Returns None rather than raising: CasADi trimming headers out of a wheel is
+    far more plausible than CasADi switching to 64-bit indices, and the smoke
+    test still provides independent (weaker) evidence.
+    """
+    package = casadi_package_dir()
+    if package is None:
+        return None
+    header = package / "include" / "coin-or" / "IpoptConfig.h"
+    try:
+        text = header.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        logger.debug("could not read %s: %s", header, exc)
+        return None
+
+    defined = {m.group(1): (m.group(2) or "").strip() for m in _DEFINE_RE.finditer(text)}
+
+    version: tuple[int, int, int] | None = None
+    try:
+        version = (
+            int(defined["IPOPT_VERSION_MAJOR"]),
+            int(defined["IPOPT_VERSION_MINOR"]),
+            int(defined["IPOPT_VERSION_RELEASE"]),
+        )
+    except (KeyError, ValueError):
+        logger.debug("no usable IPOPT version macros in %s", header)
+
+    return IpoptHeaderInfo(
+        path=header,
+        version=version,
+        int64="IPOPT_INT64" in defined,
+        single="IPOPT_SINGLE" in defined,
+    )
+
+
+def _verify_header_abi(info: IpoptHeaderInfo) -> None:
+    """Raise if this IPOPT was built in a way our declarations cannot match."""
+    problems = []
+    if info.int64:
+        problems.append(
+            "IPOPT_INT64 is defined, so IPOPT uses 64-bit indices, but YAPSS "
+            "declares them as c_int (32-bit)"
+        )
+    if info.single:
+        problems.append(
+            "IPOPT_SINGLE is defined, so IPOPT uses single-precision reals, "
+            "but YAPSS declares them as c_double"
+        )
+    if not problems:
+        return
+    detail = "\n".join(f"  - {p}" for p in problems)
+    msg = (
+        f"The IPOPT bundled with CasADi was built with options YAPSS does not "
+        f"support:\n\n{detail}\n\n"
+        f"Read from {info.path}. Every array crossing the boundary would be "
+        f"misinterpreted, so YAPSS stops rather than returning wrong answers. "
+        f"Please report this to the YAPSS maintainers."
+    )
+    raise IpoptAbiError(msg)
+
+
+# --------------------------------------------------------------------------
+# Smoke test
+# --------------------------------------------------------------------------
+
+
+def smoke_test() -> None:
+    """Solve a small constrained problem, or raise.
+
+    Deliberately uses the declarations in ``mseipopt.bare`` rather than private
+    copies: the point is to exercise what production actually uses, and a test
+    with its own signatures could pass while the real ones were wrong.
+
+    The problem has three variables, two constraints, an off-diagonal Hessian
+    entry and a Jacobian with five structurally distinct nonzeros, so both the
+    structure and values passes carry real index traffic. A one-variable,
+    zero-constraint problem -- the obvious thing to write -- would barely
+    exercise ``eval_jac_g`` and is weak evidence for exactly the index-width
+    mismatch this is meant to catch.
+    """
+    from .mseipopt import bare  # avoids a package-level import cycle
+
+    failures: list[BaseException] = []
+
+    def guard(fn: Any) -> Any:
+        """Stop a Python exception from unwinding into C; re-raise it after."""
+
+        def wrapper(*args: Any) -> bool:
+            try:
+                fn(*args)
+            except BaseException as exc:  # noqa: BLE001
+                failures.append(exc)
+                return False  # tells IPOPT to abort cleanly
+            return True
+
+        return wrapper
+
+    # Unused parameters keep an underscore prefix but their IPOPT names, so the
+    # signatures still line up with IpStdCInterface.h.
+    # minimize (x0-1)^2 + (x1-2)^2 + (x2-3)^2  s.t.  x0+x1+x2 <= 4, x0*x1 free
+    @guard
+    def eval_f(_n: int, x: Any, _new_x: Any, obj: Any, _data: Any) -> None:
+        obj[0] = (x[0] - 1.0) ** 2 + (x[1] - 2.0) ** 2 + (x[2] - 3.0) ** 2
+
+    @guard
+    def eval_grad_f(_n: int, x: Any, _new_x: Any, grad: Any, _data: Any) -> None:
+        for i, target in enumerate((1.0, 2.0, 3.0)):
+            grad[i] = 2.0 * (x[i] - target)
+
+    @guard
+    def eval_g(_n: int, x: Any, _new_x: Any, _m: int, g: Any, _data: Any) -> None:
+        g[0] = x[0] + x[1] + x[2]
+        g[1] = x[0] * x[1]
+
+    jac_rows, jac_cols = (0, 0, 0, 1, 1), (0, 1, 2, 0, 1)
+
+    @guard
+    def eval_jac_g(
+        _n: int,
+        x: Any,
+        _new_x: Any,
+        _m: int,
+        _nnz: int,
+        i_row: Any,
+        j_col: Any,
+        values: Any,
+        _data: Any,
+    ) -> None:
+        if not values:
+            for k, (r, c) in enumerate(zip(jac_rows, jac_cols)):
+                i_row[k], j_col[k] = r, c
+        else:
+            values[0] = values[1] = values[2] = 1.0
+            values[3], values[4] = x[1], x[0]
+
+    hess_rows, hess_cols = (0, 1, 1, 2), (0, 0, 1, 2)
+
+    @guard
+    def eval_h(
+        _n: int,
+        _x: Any,
+        _new_x: Any,
+        obj_factor: float,
+        _m: int,
+        lam: Any,
+        _new_lam: Any,
+        _nnz: int,
+        i_row: Any,
+        j_col: Any,
+        values: Any,
+        _data: Any,
+    ) -> None:
+        if not values:
+            for k, (r, c) in enumerate(zip(hess_rows, hess_cols)):
+                i_row[k], j_col[k] = r, c
+        else:
+            values[0] = 2.0 * obj_factor
+            values[1] = lam[1]  # d2/dx0dx1 of the bilinear constraint
+            values[2] = 2.0 * obj_factor
+            values[3] = 2.0 * obj_factor
+
+    # These must outlive the solve; IPOPT holds raw pointers to them and would
+    # jump into freed memory otherwise.
+    callbacks = (
+        bare.Eval_F_CB(eval_f),
+        bare.Eval_G_CB(eval_g),
+        bare.Eval_Grad_F_CB(eval_grad_f),
+        bare.Eval_Jac_G_CB(eval_jac_g),
+        bare.Eval_H_CB(eval_h),
+    )
+
+    inf = 2.0e19  # beyond IPOPT's default nlp_(lower|upper)_bound_inf
+    x_l = (ctypes.c_double * 3)(-inf, -inf, -inf)
+    x_u = (ctypes.c_double * 3)(inf, inf, inf)
+    g_l = (ctypes.c_double * 2)(-inf, -inf)
+    g_u = (ctypes.c_double * 2)(4.0, inf)
+
+    problem = bare.CreateIpoptProblem(3, x_l, x_u, 2, g_l, g_u, 5, 4, 0, *callbacks)
+    if not problem:
+        msg = "CreateIpoptProblem returned NULL during the IPOPT smoke test"
+        raise IpoptAbiError(msg)
+
+    try:
+        bare.AddIpoptIntOption(problem, b"print_level", 0)
+        bare.AddIpoptStrOption(problem, b"sb", b"yes")
+        x = (ctypes.c_double * 3)(0.0, 0.0, 0.0)
+        objective = (ctypes.c_double * 1)(0.0)
+        status = bare.IpoptSolve(problem, x, None, objective, None, None, None, None)
+    finally:
+        bare.FreeIpoptProblem(problem)
+
+    if failures:
+        raise failures[0]
+    if status != 0:
+        msg = f"the IPOPT smoke test returned status {status}, expected 0 (solved)"
+        raise IpoptAbiError(msg)
+
+    expected = (1.0 / 3.0, 4.0 / 3.0, 7.0 / 3.0)
+    if any(abs(x[i] - expected[i]) > _SMOKE_TOLERANCE for i in range(3)):
+        got = ", ".join(f"{x[i]:.6f}" for i in range(3))
+        want = ", ".join(f"{v:.6f}" for v in expected)
+        msg = (
+            f"the IPOPT smoke test converged to ({got}) but the analytic "
+            f"solution is ({want}); the ctypes configuration is wrong in a way "
+            f"that corrupts values rather than crashing"
+        )
+        raise IpoptAbiError(msg)
+
+
+# --------------------------------------------------------------------------
+# One-call initialization
+# --------------------------------------------------------------------------
+
+_initialized = False
+
+
+def initialize_ipopt() -> str:
+    """Resolve, load, verify, and configure IPOPT. Return the path loaded.
+
+    Deliberately a single call rather than a sequence the caller assembles:
+    every step here exists to make a later step safe, and one that is easy to
+    omit is one that will eventually be omitted.
+
+    Idempotent, and cheap after the first call.
+    """
+    global _initialized  # noqa: PLW0603
+    from .mseipopt import bare
+
+    if _initialized:
+        return resolve_ipopt_library()
+
+    library, path = load_ipopt()
+
+    header = read_ipopt_header()
+    if header is None:
+        logger.debug("IpoptConfig.h unavailable; relying on the smoke test alone")
+    else:
+        _verify_header_abi(header)
+        logger.debug("IPOPT %s verified from %s", header.version, header.path)
+        bare.set_bool_type(header.bool_ctype)
+
+    bare.use_library(library)
+    smoke_test()
+    _initialized = True
+    return path
