@@ -8,16 +8,20 @@ directly to the IPOPT c interface.
 
 """
 
+from __future__ import annotations
+
 import functools
-from typing import Any
+from types import TracebackType
+from typing import Any, Callable
 
 import numpy as np
 from numpy.ctypeslib import as_array
+from numpy.typing import NDArray
 
 from . import bare
 
 
-def default_handler(e):
+def default_handler(e: BaseException) -> None:
     """Exception handler for IPOPT ctypes callbacks, prints the traceback."""
     import traceback
 
@@ -38,8 +42,8 @@ class Problem:
         jac_g: Any,
         h: Any = None,
         *,
-        handler: Any = default_handler,
-    ):
+        handler: Callable[[BaseException], Any] = default_handler,
+    ) -> None:
         # Unpack and validate decision variable bounds
         x_L, x_U = x_bounds
         x_L = np.require(x_L, np.double, ["A", "C"])
@@ -104,30 +108,30 @@ class Problem:
         if h is None:
             self.add_str_option("hessian_approximation", "limited-memory")
 
-    def free(self):
+    def free(self) -> None:
         if not self._problem:
             raise RuntimeError("Problem invalid or already freed")
         bare.FreeIpoptProblem(self._problem)
         del self._callbacks
         self._problem = None
 
-    def add_str_option(self, keyword: str, val: Any):
+    def add_str_option(self, keyword: str, val: Any) -> None:
         if not bare.AddIpoptStrOption(self._problem, keyword, val):
-            raise ValueError(f"invalid option or value")
+            raise ValueError("invalid option or value")
 
-    def add_int_option(self, keyword: str, val: Any):
+    def add_int_option(self, keyword: str, val: Any) -> None:
         if not bare.AddIpoptIntOption(self._problem, keyword, val):
-            raise ValueError(f"invalid option or value")
+            raise ValueError("invalid option or value")
 
-    def add_num_option(self, keyword: str, val: Any):
+    def add_num_option(self, keyword: str, val: Any) -> None:
         if not bare.AddIpoptNumOption(self._problem, keyword, val):
-            raise ValueError(f"invalid option or value")
+            raise ValueError("invalid option or value")
 
-    def open_output_file(self, file_name, print_level):
+    def open_output_file(self, file_name: str, print_level: int) -> None:
         if not bare.OpenIpoptOutputFile(self._problem, file_name, print_level):
             raise RuntimeError("error opening output file")
 
-    def set_scaling(self, obj_scaling: Any, x_scaling: Any, g_scaling: Any):
+    def set_scaling(self, obj_scaling: Any, x_scaling: Any, g_scaling: Any) -> None:
         x_scaling = np.require(x_scaling, np.double, "A")
         g_scaling = np.require(g_scaling, np.double, "A")
 
@@ -143,7 +147,7 @@ class Problem:
             raise RuntimeError("error setting problem scaling")
         self.add_str_option("nlp_scaling_method", "user-scaling")
 
-    def set_intermediate_callback(self, cb: Any):
+    def set_intermediate_callback(self, cb: Any) -> None:
         intermediate_cb = wrap_intermediate_cb(cb)
         if not bare.SetIntermediateCallback(self._problem, intermediate_cb):
             raise RuntimeError("error setting problem intermediate callback")
@@ -157,7 +161,7 @@ class Problem:
         mult_g: Any = None,
         mult_x_L: Any = None,
         mult_x_U: Any = None,
-    ):
+    ) -> int:
         exc = (
             validate_io_array(x, (self.n,), "x", none_ok=False)
             or validate_io_array(g, (self.m,), "g")
@@ -179,19 +183,30 @@ class Problem:
             None,
         )
 
-    def __enter__(self):
+    def __enter__(self) -> Problem:
         if not self._problem:
             raise RuntimeError("Invalid context or reentering context.")
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         self.free()
 
 
-def wrap_f(f, handler=default_handler):
+def wrap_f(f: Any, handler: Callable[[BaseException], Any] = default_handler) -> Any:
+    # Wrapped in a plain call rather than `@bare.Eval_F_CB` as a decorator --
+    # CFUNCTYPE's dynamically-generated type isn't precisely known to mypy,
+    # so using it as a decorator makes the decorated function untyped
+    # ([misc] "Untyped decorator makes function untyped"). Calling it
+    # explicitly on an already-fully-typed `wrapper` avoids that, and is
+    # behaviorally identical -- ctypes doesn't care whether the conversion
+    # happens via decorator syntax or a plain call.
     @functools.wraps(f)
-    @bare.Eval_F_CB
-    def wrapper(n, x, new_x, obj_value, user_data):
+    def wrapper(n: Any, x: Any, new_x: Any, obj_value: Any, user_data: Any) -> Any:
         try:
             x_array = as_array(x, (n,))
             obj_value_array = as_array(obj_value, ())
@@ -201,13 +216,12 @@ def wrap_f(f, handler=default_handler):
                 handler(e)
             return 0
 
-    return wrapper
+    return bare.Eval_F_CB(wrapper)
 
 
-def wrap_grad_f(grad_f, handler=default_handler):
+def wrap_grad_f(grad_f: Any, handler: Callable[[BaseException], Any] = default_handler) -> Any:
     @functools.wraps(grad_f)
-    @bare.Eval_Grad_F_CB
-    def wrapper(n, x, new_x, grad_ptr, user_data):
+    def wrapper(n: Any, x: Any, new_x: Any, grad_ptr: Any, user_data: Any) -> Any:
         try:
             x_array = as_array(x, (n,))
             grad_f_array = as_array(grad_ptr, (n,))
@@ -217,13 +231,12 @@ def wrap_grad_f(grad_f, handler=default_handler):
                 handler(e)
             return 0
 
-    return wrapper
+    return bare.Eval_Grad_F_CB(wrapper)
 
 
-def wrap_g(g, handler=default_handler):
+def wrap_g(g: Any, handler: Callable[[BaseException], Any] = default_handler) -> Any:
     @functools.wraps(g)
-    @bare.Eval_G_CB
-    def wrapper(n, x, new_x, m, g_ptr, user_data):
+    def wrapper(n: Any, x: Any, new_x: Any, m: Any, g_ptr: Any, user_data: Any) -> Any:
         try:
             x_array = as_array(x, (n,))
             g_array = as_array(g_ptr, (m,))
@@ -233,13 +246,22 @@ def wrap_g(g, handler=default_handler):
                 handler(e)
             return 0
 
-    return wrapper
+    return bare.Eval_G_CB(wrapper)
 
 
-def wrap_jac_g(jac_g, handler=default_handler):
+def wrap_jac_g(jac_g: Any, handler: Callable[[BaseException], Any] = default_handler) -> Any:
     @functools.wraps(jac_g)
-    @bare.Eval_Jac_G_CB
-    def wrapper(n, x, new_x, m, nele_jac, iRow, jCol, values, user_data):
+    def wrapper(
+        n: Any,
+        x: Any,
+        new_x: Any,
+        m: Any,
+        nele_jac: Any,
+        iRow: Any,
+        jCol: Any,
+        values: Any,
+        user_data: Any,
+    ) -> Any:
         try:
             x_array = as_array(x, (n,)) if x else None
             i_array = as_array(iRow, (nele_jac,)) if iRow else None
@@ -251,15 +273,25 @@ def wrap_jac_g(jac_g, handler=default_handler):
                 handler(e)
             return 0
 
-    return wrapper
+    return bare.Eval_Jac_G_CB(wrapper)
 
 
-def wrap_h(h, handler=default_handler):
+def wrap_h(h: Any, handler: Callable[[BaseException], Any] = default_handler) -> Any:
     @functools.wraps(h)
-    @bare.Eval_H_CB
     def wrapper(
-        n, x, new_x, obj_factor, m, mult, new_mult, nele_hess, iRow, jCol, values, user_data
-    ):
+        n: Any,
+        x: Any,
+        new_x: Any,
+        obj_factor: Any,
+        m: Any,
+        mult: Any,
+        new_mult: Any,
+        nele_hess: Any,
+        iRow: Any,
+        jCol: Any,
+        values: Any,
+        user_data: Any,
+    ) -> Any:
         try:
             x_array = as_array(x, (n,)) if x else None
             mult_array = as_array(mult, (m,)) if mult else None
@@ -274,26 +306,25 @@ def wrap_h(h, handler=default_handler):
                 handler(e)
             return 0
 
-    return wrapper
+    return bare.Eval_H_CB(wrapper)
 
 
-def wrap_intermediate_cb(cb, handler=default_handler):
+def wrap_intermediate_cb(cb: Any, handler: Callable[[BaseException], Any] = default_handler) -> Any:
     @functools.wraps(cb)
-    @bare.Intermediate_CB
     def wrapper(
-        alg_mod,
-        iter_count,
-        obj_value,
-        inf_pr,
-        inf_du,
-        mu,
-        d_norm,
-        regularization_size,
-        alpha_du,
-        alpha_pr,
-        ls_trials,
-        user_data,
-    ):
+        alg_mod: Any,
+        iter_count: Any,
+        obj_value: Any,
+        inf_pr: Any,
+        inf_du: Any,
+        mu: Any,
+        d_norm: Any,
+        regularization_size: Any,
+        alpha_du: Any,
+        alpha_pr: Any,
+        ls_trials: Any,
+        user_data: Any,
+    ) -> Any:
         try:
             return cb(
                 alg_mod,
@@ -313,12 +344,14 @@ def wrap_intermediate_cb(cb, handler=default_handler):
                 handler(e)
             return 0
 
-    return wrapper
+    return bare.Intermediate_CB(wrapper)
 
 
-def validate_io_array(a, shape, name, none_ok=True):
+def validate_io_array(
+    a: Any, shape: tuple[int, ...], name: str, none_ok: bool = True
+) -> TypeError | ValueError | None:
     if none_ok and a is None:
-        return
+        return None
     if none_ok and not isinstance(a, np.ndarray):
         return TypeError(f"{name} must be a numpy ndarray instance or None")
     if not none_ok and not isinstance(a, np.ndarray):
@@ -329,9 +362,10 @@ def validate_io_array(a, shape, name, none_ok=True):
         return ValueError(f"{name} must be an aligned writeable array")
     if a.shape != shape:
         return ValueError(f"invalid shape for {name}")
+    return None
 
 
-def data_ptr(arr):
+def data_ptr(arr: NDArray[np.float64] | None) -> Any:
     if arr is None:
         return arr
     assert isinstance(arr, np.ndarray)

@@ -1,5 +1,7 @@
 """High-Level, pythonic, safe and easy IPOPT interface."""
 
+from __future__ import annotations
+
 import functools
 import inspect
 from typing import Any
@@ -21,7 +23,7 @@ class Problem(bare_np.Problem):
         nele_jac: Any,
         hess: Any = None,
         nele_hess: Any = None,
-    ):
+    ) -> None:
         if hess is not None and nele_hess is None:
             raise TypeError("'nele_hess' must be given if 'hess' is supplied")
         if hess is None:
@@ -50,10 +52,10 @@ class Problem(bare_np.Problem):
         )
         self.set_intermediate_callback(self._intermediate_callback)
 
-    def _intermediate_callback(self, *args):
+    def _intermediate_callback(self, *args: Any) -> int:
         return 0 if getattr(self, "_abort", False) else 1
 
-    def _callback_exception_handler(self, e):
+    def _callback_exception_handler(self, e: BaseException) -> None:
         if isinstance(e, InvalidPoint):
             return
         if isinstance(e, KeyboardInterrupt):
@@ -61,14 +63,18 @@ class Problem(bare_np.Problem):
             return
         bare_np.default_handler(e)
 
-    def solve(
+    # noinspection PyMethodOverriding
+    def solve(  # type: ignore[override]
         self,
         x: Any,
         mult_g: Any = None,
         mult_x_L: Any = None,
         mult_x_U: Any = None,
         copy: bool = True,
-    ):
+    ) -> tuple[Any, dict[str, Any]]:
+        # Deliberately different signature/return type than
+        # bare_np.Problem.solve() -- this is the friendly, high-level API
+        # that wraps the raw one, not a Liskov-substitutable override.
         if any(m is not None for m in (mult_g, mult_x_L, mult_x_U)):
             self.add_str_option("warm_start_init_point", "yes")
         else:
@@ -94,26 +100,26 @@ class InvalidPoint(RuntimeError):
     """Exception raised in callback to signal an invalid decision by IPOPT."""
 
 
-def f_callback(f):
+def f_callback(f: Any) -> Any:
     @functools.wraps(f)
-    def wrapper(x, new_x, obj_value):
+    def wrapper(x: Any, new_x: Any, obj_value: Any) -> int:
         obj_value[()] = f(x)
         return 1
 
     return wrapper
 
 
-def grad_callback(grad):
+def grad_callback(grad: Any) -> Any:
     @functools.wraps(grad)
-    def wrapper(x, new_x, grad_array):
+    def wrapper(x: Any, new_x: Any, grad_array: Any) -> int:
         grad_array[()] = grad(x)
         return 1
 
     return wrapper
 
 
-def g_callback(g):
-    def wrapper(x, new_x, g_array):
+def g_callback(g: Any) -> Any:
+    def wrapper(x: Any, new_x: Any, g_array: Any) -> int:
         if g_array.size:
             g_array[()] = g(x)
         return 1
@@ -121,10 +127,10 @@ def g_callback(g):
     return wrapper
 
 
-def jac_callback(jac, problem):
+def jac_callback(jac: Any, problem: Any) -> Any:
     jac_ind, jac_val = jac
 
-    def wrapper(x, new_x, iRow, jCol, values):
+    def wrapper(x: Any, new_x: Any, iRow: Any, jCol: Any, values: Any) -> int:
         # Fill out Jacobian values
         if values is not None:
             if values.size == 0:
@@ -149,13 +155,22 @@ def jac_callback(jac, problem):
     return wrapper
 
 
-def hess_callback(hess, problem):
+def hess_callback(hess: Any, problem: Any) -> Any:
     if hess is None:
-        return
+        return None
 
     hess_ind, hess_val = hess
 
-    def wrapper(x, new_x, obj_factor, mult, new_mult, iRow, jCol, values):
+    def wrapper(
+        x: Any,
+        new_x: Any,
+        obj_factor: Any,
+        mult: Any,
+        new_mult: Any,
+        iRow: Any,
+        jCol: Any,
+        values: Any,
+    ) -> int:
         # Fill out Hessian values
         if values is not None:
             if values.size == 0:
@@ -181,7 +196,7 @@ def hess_callback(hess, problem):
 
 
 @functools.lru_cache()
-def accepts_output(f):
+def accepts_output(f: Any) -> bool:
     params = inspect.signature(f).parameters
     out = params.get("out", None)
     if out is None:
@@ -192,4 +207,4 @@ def accepts_output(f):
         return False
 
     kinds = inspect.Parameter
-    return out.kind == kinds.POSITIONAL_OR_KEYWORD or kinds.KEYWORD_ONLY
+    return out.kind in (kinds.POSITIONAL_OR_KEYWORD, kinds.KEYWORD_ONLY)

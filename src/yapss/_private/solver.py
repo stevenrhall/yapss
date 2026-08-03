@@ -39,8 +39,7 @@ if get_conda_prefix():
 
     CYIPOPT = True
 else:
-    from .mseipopt import ez
-    from .mseipopt import bare
+    from .mseipopt import bare, ez
     from .mseipopt.bare import load_library
 
     CYIPOPT = False
@@ -263,7 +262,7 @@ def get_nlp_scaling(
 
 if not CYIPOPT:
 
-    class EZProblem(ez.Problem):  # type: ignore[misc]
+    class EZProblem(ez.Problem):
 
         def add_option(self, keyword: str, value: float | str) -> None:
             if isinstance(value, int):

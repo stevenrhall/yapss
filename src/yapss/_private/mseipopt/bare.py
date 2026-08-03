@@ -15,12 +15,14 @@ memory will leak. If `FreeIpoptProblem` is called more than once on the same
 problem, the program will likely crash.
 """
 
+from __future__ import annotations
 
 import ctypes
 import os
 from ctypes import CFUNCTYPE, POINTER, c_char_p, c_double, c_int, c_void_p
+from typing import Any
 
-_ipopt_lib = None
+_ipopt_lib: ctypes.CDLL | None = None
 """library ctypes.CDLL object or None (if not loaded)."""
 
 
@@ -103,21 +105,23 @@ IpoptProblem = POINTER(IpoptProblemInfo)
 """Pointer to a IPOPT problem."""
 
 
-def default_ipopt_library_name():
+def default_ipopt_library_name() -> str:
+    """Return the platform-default IPOPT shared library name."""
     if os.name == "nt":
         return "ipopt"
     else:
         return "libipopt.so"
 
 
-def load_library(name: str = None):
+def load_library(name: str | None = None) -> None:
+    """Load the IPOPT shared library and configure its ctypes signatures."""
     global _ipopt_lib
     name = name or default_ipopt_library_name()
     _ipopt_lib = ctypes.cdll.LoadLibrary(name)
     _setup_library()
 
 
-def _setup_library():
+def _setup_library() -> None:
     assert _ipopt_lib is not None, "cannot setup before loading"
 
     _ipopt_lib.CreateIpoptProblem.restype = IpoptProblem
@@ -150,16 +154,21 @@ def _setup_library():
     _ipopt_lib.AddIpoptNumOption.restype = c_int
     _ipopt_lib.AddIpoptNumOption.argtypes = [IpoptProblem, c_char_p, c_double]
 
-    _ipopt_lib.OpenIpoptOutputFile.restypes = c_int
+    # NOTE: these four were `.restypes` (typo, plural) in the older
+    # yapss source -- ctypes silently ignores unknown attribute names
+    # rather than erroring, so this was harmless in practice only because
+    # ctypes' own default restype (unset) is also `c_int`, which happens to
+    # match what was intended here.
+    _ipopt_lib.OpenIpoptOutputFile.restype = c_int
     _ipopt_lib.OpenIpoptOutputFile.argtypes = [IpoptProblem, c_char_p, c_int]
 
-    _ipopt_lib.SetIpoptProblemScaling.restypes = c_int
+    _ipopt_lib.SetIpoptProblemScaling.restype = c_int
     _ipopt_lib.SetIpoptProblemScaling.argtypes = [IpoptProblem, c_double, c_double_p, c_double_p]
 
-    _ipopt_lib.SetIntermediateCallback.restypes = c_int
+    _ipopt_lib.SetIntermediateCallback.restype = c_int
     _ipopt_lib.SetIntermediateCallback.argtypes = [IpoptProblem, Intermediate_CB]
 
-    _ipopt_lib.IpoptSolve.restypes = c_int
+    _ipopt_lib.IpoptSolve.restype = c_int
     _ipopt_lib.IpoptSolve.argtypes = [
         IpoptProblem,
         c_double_p,
@@ -172,29 +181,31 @@ def _setup_library():
     ]
 
 
-def default_setup():
+def default_setup() -> None:
+    """Load the default IPOPT library if none has been loaded yet."""
     if _ipopt_lib is None:
         load_library()
 
 
 def CreateIpoptProblem(
-    n,
-    x_L,
-    x_U,
-    m,
-    g_L,
-    g_U,
-    nele_jac,
-    nele_hess,
-    index_style,
-    eval_f,
-    eval_g,
-    eval_grad_f,
-    eval_jac_g,
-    eval_h,
-):
+    n: int,
+    x_L: Any,
+    x_U: Any,
+    m: int,
+    g_L: Any,
+    g_U: Any,
+    nele_jac: int,
+    nele_hess: int,
+    index_style: int,
+    eval_f: Any,
+    eval_g: Any,
+    eval_grad_f: Any,
+    eval_jac_g: Any,
+    eval_h: Any,
+) -> Any:
     """Create a new IPOPT Problem object."""
     default_setup()
+    assert _ipopt_lib is not None, "library must be loaded to create problem"
     return _ipopt_lib.CreateIpoptProblem(
         n,
         x_L,
@@ -213,53 +224,67 @@ def CreateIpoptProblem(
     )
 
 
-def FreeIpoptProblem(ipopt_problem):
+def FreeIpoptProblem(ipopt_problem: Any) -> None:
     assert _ipopt_lib is not None, "library must be loaded to create problem"
     _ipopt_lib.FreeIpoptProblem(ipopt_problem)
 
 
-def AddIpoptStrOption(problem, keyword, val):
+def AddIpoptStrOption(problem: Any, keyword: str | bytes, val: str | bytes) -> int:
     assert _ipopt_lib is not None, "library must be loaded to create problem"
     if isinstance(keyword, str):
         keyword = keyword.encode("ascii")
     if isinstance(val, str):
         val = val.encode("ascii")
-    return _ipopt_lib.AddIpoptStrOption(problem, keyword, val)
+    return int(_ipopt_lib.AddIpoptStrOption(problem, keyword, val))
 
 
-def AddIpoptNumOption(problem, keyword, val):
+def AddIpoptNumOption(problem: Any, keyword: str | bytes, val: float) -> int:
     assert _ipopt_lib is not None, "library must be loaded to create problem"
     if isinstance(keyword, str):
         keyword = keyword.encode("ascii")
-    return _ipopt_lib.AddIpoptNumOption(problem, keyword, val)
+    return int(_ipopt_lib.AddIpoptNumOption(problem, keyword, val))
 
 
-def AddIpoptIntOption(problem, keyword, val):
+def AddIpoptIntOption(problem: Any, keyword: str | bytes, val: int) -> int:
     assert _ipopt_lib is not None, "library must be loaded to create problem"
     if isinstance(keyword, str):
         keyword = keyword.encode("ascii")
-    return _ipopt_lib.AddIpoptIntOption(problem, keyword, val)
+    return int(_ipopt_lib.AddIpoptIntOption(problem, keyword, val))
 
 
-def OpenIpoptOutputFile(ipopt_problem, file_name, print_level):
+def OpenIpoptOutputFile(ipopt_problem: Any, file_name: str | bytes, print_level: int) -> int:
     assert _ipopt_lib is not None, "library must be loaded to create problem"
     if isinstance(file_name, str):
         file_name = file_name.encode("ascii")
-    return _ipopt_lib.OpenIpoptOutputFile(ipopt_problem, file_name, print_level)
+    return int(_ipopt_lib.OpenIpoptOutputFile(ipopt_problem, file_name, print_level))
 
 
-def SetIpoptProblemScaling(ipopt_problem, obj_scaling, x_scaling, g_scaling):
+def SetIpoptProblemScaling(
+    ipopt_problem: Any,
+    obj_scaling: float,
+    x_scaling: Any,
+    g_scaling: Any,
+) -> int:
     assert _ipopt_lib is not None, "library must be loaded to create problem"
-    return _ipopt_lib.SetIpoptProblemScaling(ipopt_problem, obj_scaling, x_scaling, g_scaling)
+    return int(_ipopt_lib.SetIpoptProblemScaling(ipopt_problem, obj_scaling, x_scaling, g_scaling))
 
 
-def SetIntermediateCallback(ipopt_problem, intermediate_cb):
+def SetIntermediateCallback(ipopt_problem: Any, intermediate_cb: Any) -> int:
     assert _ipopt_lib is not None, "library must be loaded to create problem"
-    return _ipopt_lib.SetIntermediateCallback(ipopt_problem, intermediate_cb)
+    return int(_ipopt_lib.SetIntermediateCallback(ipopt_problem, intermediate_cb))
 
 
-def IpoptSolve(ipopt_problem, x, g, obj_val, mult_g, mult_x_L, mult_x_U, user_data):
+def IpoptSolve(
+    ipopt_problem: Any,
+    x: Any,
+    g: Any,
+    obj_val: Any,
+    mult_g: Any,
+    mult_x_L: Any,
+    mult_x_U: Any,
+    user_data: Any,
+) -> int:
     assert _ipopt_lib is not None, "library must be loaded to create problem"
-    return _ipopt_lib.IpoptSolve(
-        ipopt_problem, x, g, obj_val, mult_g, mult_x_L, mult_x_U, user_data
+    return int(
+        _ipopt_lib.IpoptSolve(ipopt_problem, x, g, obj_val, mult_g, mult_x_L, mult_x_U, user_data)
     )
