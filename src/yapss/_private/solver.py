@@ -39,8 +39,7 @@ if get_conda_prefix():
 
     CYIPOPT = True
 else:
-    from .ipopt_library import initialize_ipopt
-    from .mseipopt import ez
+    from .mseipopt import ez, initialize_ipopt
 
     CYIPOPT = False
 

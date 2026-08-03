@@ -16,7 +16,7 @@ using `ctypes`.
 
 `load_library` (given an explicit path) or `use_library` (given an already
 loaded library) must be called before creating a problem. This module does not
-locate IPOPT itself; see `yapss._private.ipopt_library` for why the choice of
+locate IPOPT itself; see `yapss._private.mseipopt.library` for why the choice of
 file matters and must not be guessed.
 
 After a problem is no longer needed, `FreeIpoptProblem` should be called, or
@@ -154,7 +154,7 @@ def load_library(name: str) -> None:
     *name* is required. This function used to accept None and fall back to a
     platform-default name such as "libipopt.so", letting the dynamic loader
     supply whichever IPOPT it found first. That is unsafe when CasADi is also
-    loaded -- see yapss._private.ipopt_library -- so callers must now say
+    loaded -- see yapss._private.mseipopt.library -- so callers must now say
     exactly which file they mean.
     """
     global _ipopt_lib

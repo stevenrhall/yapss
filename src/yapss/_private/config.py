@@ -2,7 +2,7 @@
 
 The module provides helper functions to configure the Ipopt source.
 
-Locating the Ipopt library itself lives in `ipopt_library`, not here.
+Locating the Ipopt library itself lives in `mseipopt.library`, not here.
 
 """
 

@@ -1,5 +1,9 @@
 # Copyright (c) 2021-2026 Massachusetts Institute of Technology
 # SPDX-License-Identifier: MIT
+#
+# Unlike the rest of this package, this module is original YAPSS code and is
+# not derived from mseipopt. It lives here because locating the library is part
+# of the backend's job, but the mseipopt copyright does not extend to it.
 
 """Locate the IPOPT shared library, preferring the copy CasADi has already loaded.
 
@@ -703,7 +707,7 @@ def smoke_test() -> None:
     exercise ``eval_jac_g`` and is weak evidence for exactly the index-width
     mismatch this is meant to catch.
     """
-    from .mseipopt import bare  # avoids a package-level import cycle
+    from . import bare  # deferred: keeps this module loadable standalone
 
     failures: list[BaseException] = []
 
@@ -849,7 +853,7 @@ def initialize_ipopt() -> str:
     Idempotent, and cheap after the first call.
     """
     global _initialized  # noqa: PLW0603
-    from .mseipopt import bare
+    from . import bare
 
     if _initialized:
         return resolve_ipopt_library()
