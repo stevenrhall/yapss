@@ -318,14 +318,14 @@ def plot_solution(solution: Solution) -> None:
         hamiltonian = sum(dynamics[p][i] * costate[p][i] for i in range(3))
         line1 = ax.plot(time_c[p], hamiltonian)
         line.append(line1)
-    plt.ylim([-0.01, 0.01])
+    plt.ylim((-0.01, 0.01))
     plt.ylabel(r"Hamiltonian, $\mathcal{H}")
 
     for i in range(1, 6):
         plt.figure(i)
         plt.legend(("Phase 1", "Phase 2", "Phase 3"), framealpha=1.0)
         plt.xlabel("Time, $t$ (sec)")
-        plt.xlim([t0, tf])
+        plt.xlim((t0, tf))
         plt.tight_layout()
         plt.grid()
 

@@ -212,7 +212,7 @@ def plot_solution(solution: Solution) -> None:
     for i in range(1, 6):
         plt.figure(i)
         plt.xlabel("Time, $t$ (sec)")
-        plt.xlim([t0, tf])
+        plt.xlim((t0, tf))
         plt.tight_layout()
         plt.grid()
 

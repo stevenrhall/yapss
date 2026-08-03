@@ -209,8 +209,8 @@ def plot_solution(solution: Solution) -> None:
     # plot
     plt.plot(r, y, "r", linewidth=linewidth)
     plt.axis("equal")
-    plt.xlim([-1, 1])
-    plt.ylim([-0.1, 2.1])
+    plt.xlim((-1, 1))
+    plt.ylim((-0.1, 2.1))
     plt.xlabel("Radius, $r/R$")
     plt.ylabel("Height, $y/R$")
     plt.tight_layout()

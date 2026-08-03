@@ -374,8 +374,8 @@ def plot_density() -> None:
     plt.plot(get_rho(h), h)
     plt.xlabel(r"Density, $\rho$ (slug/ft$^3$)")
     plt.ylabel(r"Altitude, $h$ (ft)")
-    plt.xlim([0.0, 0.0025])
-    plt.ylim([0.0, 70000.0])
+    plt.xlim((0.0, 0.0025))
+    plt.ylim((0.0, 70000.0))
     plt.grid()
 
 
@@ -385,8 +385,8 @@ def plot_speed_of_sound() -> None:
     plt.plot(get_c(h), h)
     plt.xlabel(r"Speed of sound, $c$ (m/s)")
     plt.ylabel(r"Altitude, $h$ (ft)")
-    plt.xlim([960.0, 1120.0])
-    plt.ylim([0.0, 70000.0])
+    plt.xlim((960.0, 1120.0))
+    plt.ylim((0.0, 70000.0))
     plt.grid()
 
 
@@ -397,8 +397,8 @@ def plot_lift_curve_slope() -> None:
     plt.plot(mach_cla, cla, ".", markersize=10)
     plt.ylabel(r"Lift curve slope, $C_{L_{\alpha}}$")
     plt.xlabel(r"Mach number, $M$")
-    plt.xlim([0.0, 1.8])
-    plt.ylim([2, 5])
+    plt.xlim((0.0, 1.8))
+    plt.ylim((2, 5))
     plt.grid()
 
 
@@ -409,8 +409,8 @@ def plot_cd0() -> None:
     plt.plot(mach_cd0, cd0, ".", markersize=10)
     plt.ylabel(r"Baseline drag coefficient, $C_{D_{0}}$")
     plt.xlabel(r"Mach number, $M$")
-    plt.xlim([0.0, 1.8])
-    plt.ylim([0.01, 0.045])
+    plt.xlim((0.0, 1.8))
+    plt.ylim((0.01, 0.045))
     plt.grid()
 
 
@@ -421,8 +421,8 @@ def plot_eta() -> None:
     plt.plot(mach_eta, eta_data, ".", markersize=10)
     plt.ylabel(r"Induced drag coefficient, $\eta$")
     plt.xlabel(r"Mach number, $M$")
-    plt.xlim([0.0, 1.8])
-    plt.ylim([0.5, 0.95])
+    plt.xlim((0.0, 1.8))
+    plt.ylim((0.5, 0.95))
     plt.grid()
 
 

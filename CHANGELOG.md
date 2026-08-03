@@ -15,15 +15,28 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - Users can pin to a specific minor version (e.g., yapss>=0.3.0,<0.4.0) to avoid unexpected 
   changes, but should expect significant updates when upgrading to a new minor version.
 
-<!-- 
 ## [Unreleased]
 
-### Added
+### Fixed
+
+- Fixed the root cause of the NumPy 2.5 import failure (previously only worked around via
+  a `numpy<2.5` ceiling in 0.1.1). NumPy 2.5 rewrote `numpy.typing.NDArray` using PEP 695
+  `type` statements, which cannot be subclassed directly; `ContinuousArray` now subclasses
+  `np.ndarray` directly instead. The `numpy<2.5` ceiling remains for now because NumPy 2.5
+  requires Python 3.12+, which conflicts with YAPSS's `>=3.10` support — raising the floor
+  is deferred to a future release.
 
 ### Changed
 
-### Fixed
--->
+- Advanced the `mypy` dev/CI tooling from 1.13.0 to 1.20.2, and its `numpy` constraint from
+  `<2.0.0` to an exact `2.4.6` pin. Also moved the `mypy` tox environment's `basepython` from
+  Python 3.10 to 3.13 to match the pre-commit hook, since NumPy dropped Python 3.10 wheels
+  entirely as of 2.4.6 was unreachable from a 3.10-hosted environment (it caps at 2.2.6). No
+  user-facing effect; `[tool.mypy] python_version = "3.10"` still governs the actual
+  type-checking target regardless of which Python hosts the checker.
+- Switched `plt.xlim(...)`/`plt.ylim(...)` calls in the example scripts from list to tuple
+  arguments (e.g. `plt.xlim([0, 1])` → `plt.xlim((0, 1))`), matching matplotlib's type stubs.
+  No behavior change.
 
 ---
 

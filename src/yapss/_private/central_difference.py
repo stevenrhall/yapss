@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     # package imports
     import yapss
 
-    from .problem import Scale
+    from .problem import Problem, Scale
     from .types_ import CHFDS, CJFDS, DHFDS, DJFDS, OGS, DVKey
 
     Array = NDArray[np.float64]
@@ -119,14 +119,14 @@ def make_cd_functions(problem: yapss.Problem, z0: Array) -> ProblemFunctions:
 
 
 def make_objective_gradient(
-    problem: yapss._private.problem.Problem,
+    problem: Problem,
     ogs: OGS,
 ) -> ObjectiveGradientFunction:
     """Generate objective gradient callback function using finite differences.
 
     Parameters
     ----------
-    problem : yapss._private.problem.Problem
+    problem : Problem
         The user-defined problem object
     ogs : OGS
         Finite difference structure for the objective gradient.

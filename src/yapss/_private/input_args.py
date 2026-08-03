@@ -153,17 +153,17 @@ class DiscretePhase(Generic[T]):
     @property
     def initial_state(self) -> NDArray[T]:
         """Initial state of the phase as an immutable copy."""
-        return self._initial_state.copy()
+        return cast(NDArray[T], self._initial_state.copy())
 
     @property
     def final_state(self) -> NDArray[T]:
         """Final state of the phase as an immutable copy."""
-        return self._final_state.copy()
+        return cast(NDArray[T], self._final_state.copy())
 
     @property
     def integral(self) -> NDArray[T]:
         """Array of integral values for the phase as an immutable copy."""
-        return self._integral.copy()
+        return cast(NDArray[T], self._integral.copy())
 
 
 class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
@@ -285,7 +285,7 @@ class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
         return self._discrete
 
     @discrete.setter
-    def discrete(self, value: Sequence[Any]) -> None:
+    def discrete(self, value: NDArray[T] | Sequence[Any]) -> None:
         """Set the discrete array."""
         self._discrete[:] = value
 
@@ -514,16 +514,22 @@ class ContinuousPhase(Protected, Generic[T]):
         return self._hessian
 
 
-class ContinuousArray(NDArray[T], Generic[T]):
+class ContinuousArray(np.ndarray[Any, np.dtype[T]], Generic[T]):
     """Custom continuous array that initializes with zeros and handles assignment."""
 
     def __new__(cls, shape: list[int], dtype: type[T], **kwargs: Any) -> ContinuousArray[T]:
         # Create an instance of ContinuousArray with the specified dtype
         obj = super().__new__(cls, shape, dtype=dtype, **kwargs)
         obj.fill(0)  # Initialize with zeros or appropriate type
-        return obj
+        return cast(ContinuousArray[T], obj)
 
-    def __setitem__(self, item: slice | int, value: Any) -> None:
+    # Deliberately narrower than ndarray's real overloaded __setitem__ (this
+    # subclass only ever needs slice/int indexing with scalar-expansion below).
+    def __setitem__(  # type: ignore[override]
+        self,
+        item: slice | int,
+        value: Any,
+    ) -> None:
         """Set item in array, expanding scalar values to match the shape if needed."""
         # If the value is an iterable, expand each element to match the shape
         if isinstance(value, (list, tuple)):

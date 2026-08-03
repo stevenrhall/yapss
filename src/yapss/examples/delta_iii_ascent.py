@@ -497,7 +497,7 @@ def plot_solution(solution: Solution) -> None:
     for p in range(4):
         plt.plot(t[p], x[p][6])
     plt.ylabel("Vehicle mass, $m$ (kg)")
-    plt.ylim([0, 300000])
+    plt.ylim((0, 300000))
 
     # control vector
     plt.figure(2)
@@ -505,7 +505,7 @@ def plot_solution(solution: Solution) -> None:
         for i in range(3):
             plt.plot(tu[p], u[p][i], color[i])
     plt.ylabel("Components of thrust direction vector, $u(t)$")
-    plt.ylim([-0.8, 1.0])
+    plt.ylim((-0.8, 1.0))
 
     # velocity vector
     plt.figure(3)
@@ -519,7 +519,7 @@ def plot_solution(solution: Solution) -> None:
     for phase in range(4):
         plt.plot(t[phase], v[phase], color[0])
     plt.ylabel("Magnitude of inertial velocity, $v(t)$ (m/s)")
-    plt.ylim([0, 12000])
+    plt.ylim((0, 12000))
 
     # position vector
     plt.figure(5)
@@ -547,7 +547,7 @@ def plot_solution(solution: Solution) -> None:
     # common figure elements
     for i in range(1, 8):
         plt.figure(i)
-        plt.xlim([0, 1000])
+        plt.xlim((0, 1000))
         plt.xlabel("Time, $t$ (s)")
         plt.grid(visible=True)
         plt.tight_layout()
