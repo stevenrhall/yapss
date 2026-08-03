@@ -1,3 +1,11 @@
+# Copyright (c) 2018 Centro de Estudos Aeronáuticos da UFMG
+# Copyright (c) 2021-2026 Massachusetts Institute of Technology
+# SPDX-License-Identifier: MIT
+#
+# Derived from mseipopt (https://github.com/cea-ufmg/mseipopt), modified by
+# the YAPSS authors. Original and modified portions are both under the MIT
+# license; see the LICENSE file at the repository root.
+
 """Bare wrapper around the IPOPT c interface using ctypes.
 
 The type names are the same as in `IpStdCInterface.h`, the argument names are
