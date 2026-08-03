@@ -346,13 +346,6 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
     "win32": ("ipopt-[0-9]*.dll", "libipopt-[0-9]*.dll", "ipopt.dll", "libipopt.dll"),
 }
 
-_DEFAULT_NAMES: dict[str, str] = {
-    "linux": "libipopt.so.3",
-    "darwin": "libipopt.3.dylib",
-    "win32": "ipopt-3.dll",
-}
-
-
 _PLATFORM_KEYS = {"win32": "win32", "cygwin": "win32", "darwin": "darwin"}
 """sys.platform values that need their own tables; everything else uses Linux
 conventions, which is the right guess for other Unixes and for unknown
@@ -402,12 +395,49 @@ mapped.
 """
 
 
+def _not_found_message() -> str:
+    """Explain what was searched, for the case where nothing was found."""
+    package = casadi_package_dir()
+    try:
+        import casadi  # deliberately deferred
+
+        version = casadi.__version__
+    except Exception:  # noqa: BLE001 -- diagnostics must not raise
+        version = "unknown (casadi could not be imported)"
+
+    contents = "casadi package directory not found"
+    if package is not None:
+        try:
+            matches = sorted(p.name for p in package.glob("*ipopt*"))
+            contents = ", ".join(matches) if matches else "no files matching *ipopt*"
+        except OSError as exc:
+            contents = f"could not be listed: {exc}"
+
+    reason = strategy1_failure_reason() or "no reason recorded"
+    patterns = ", ".join(_PATTERNS[_platform_key()])
+    return (
+        "YAPSS could not find the IPOPT library that CasADi bundles.\n\n"
+        f"  casadi version : {version}\n"
+        f"  casadi package : {package}\n"
+        f"  looked for     : {patterns}\n"
+        f"  found there    : {contents}\n"
+        f"  loader probe   : {reason}\n\n"
+        "YAPSS deliberately does not fall back to searching the system for some "
+        "other IPOPT: loading one that CasADi did not bundle is what causes the "
+        "OpenMP runtime collision this design exists to avoid, and it fails as a "
+        "crash rather than an error. Every CasADi wheel ships IPOPT, so reaching "
+        "this point means something unexpected -- please report it to the YAPSS "
+        "maintainers with the details above."
+    )
+
+
 def resolve_ipopt_library() -> str:
     """Return the path of the IPOPT library to load, resolving once per process.
 
-    Tries the copy CasADi has loaded, then a glob of the CasADi package
-    directory, then the platform's bare default name -- which leaves the search
-    to the dynamic loader and is a last resort, not an expected outcome.
+    Tries the copy CasADi has already loaded, then a glob of the CasADi package
+    directory. There is no third strategy on purpose: falling back to a bare
+    library name would let the dynamic loader supply an IPOPT from anywhere on
+    the system, which is precisely the hazard this module prevents.
     """
     global _resolved_path  # noqa: PLW0603
     if _resolved_path is not None:
@@ -418,11 +448,9 @@ def resolve_ipopt_library() -> str:
         logger.debug("IPOPT resolved by loader introspection: %s", path)
     else:
         path = glob_ipopt_in_casadi()
-        if path is not None:
-            logger.debug("IPOPT resolved by globbing the casadi package: %s", path)
-        else:
-            path = _DEFAULT_NAMES[_platform_key()]
-            logger.debug("IPOPT not found; falling back to the bare name %s", path)
+        if path is None:
+            raise IpoptLibraryNotFoundError(_not_found_message())
+        logger.debug("IPOPT resolved by globbing the casadi package: %s", path)
 
     _resolved_path = path
     return path

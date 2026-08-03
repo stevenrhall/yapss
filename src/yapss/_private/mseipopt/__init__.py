@@ -8,6 +8,6 @@
 
 """The most simple ever IPOPT interface."""
 
-from .bare import load_library
+from .bare import load_library, use_library
 
-__all__ = ["load_library"]
+__all__ = ["load_library", "use_library"]

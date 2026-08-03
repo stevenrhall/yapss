@@ -2,21 +2,19 @@
 
 The module provides helper functions to configure the Ipopt source.
 
+Locating the Ipopt library itself lives in `ipopt_library`, not here.
+
 """
 
 from __future__ import annotations
 
 # standard library imports
-import inspect
 import logging
 import os
 import platform
 import sys
 from pathlib import Path
 from warnings import warn
-
-# third party imports
-import casadi
 
 # ANSI escape codes for colors
 RED = "\033[31m"
@@ -48,40 +46,6 @@ console_handler.setFormatter(formatter)
 
 # Add the handler to the logger
 logger.addHandler(console_handler)
-
-
-def get_casadi_ipopt_library_path() -> str:
-    """Find an Ipopt library for mseipopt to use."""
-    # Set the library name depending on the platform
-    platform_str = platform.system()
-    if platform_str == "Windows":
-        library_names = ["ipopt-3.dll", "ipopt.dll", "libipopt-3.dll", "libipopt.dll"]
-    elif platform_str == "Darwin":
-        library_names = ["libipopt.3.dylib", "libipopt.dylib"]
-    else:  # Linux, or hope that systems uses the same naming convention as Linux
-        library_names = ["libipopt.so.3", "libipopt.so"]
-
-    # Check whether we are in a conda environment
-    conda_default_env = get_conda_prefix()
-
-    # determine the library directory
-    if conda_default_env:
-        conda_suffix = "Library/bin" if platform_str == "Windows" else "lib"
-        library_directory = Path(conda_default_env) / conda_suffix
-    else:
-        library_directory = Path(inspect.getfile(casadi)).parent
-
-    # Look for the library in the library directory
-    logger.debug(f"Looking for Ipopt library in {library_directory}")
-    for library_name in library_names:
-        ipopt_path = library_directory / library_name
-        logger.debug(f"Checking library_name: {library_name}")
-        if ipopt_path.exists():
-            logger.debug(f"Found casadi Ipopt library: {ipopt_path}")
-            return ipopt_path.as_posix()
-
-    msg = "Ipopt library not found."
-    raise ValueError(msg)
 
 
 def get_conda_prefix() -> Path | None:

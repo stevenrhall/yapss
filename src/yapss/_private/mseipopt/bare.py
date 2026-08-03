@@ -14,9 +14,10 @@ the definitions in the module is the same. Very little checking or validation
 is done. This module provides direct access to the ipopt c interface functions
 using `ctypes`.
 
-If the library shared object or DLL has a nonstandard name, the `load_library`
-function must be called before creating a problem. When `CreateIpoptProblem`
-is called, an attempt is made to find load the library.
+`load_library` (given an explicit path) or `use_library` (given an already
+loaded library) must be called before creating a problem. This module does not
+locate IPOPT itself; see `yapss._private.ipopt_library` for why the choice of
+file matters and must not be guessed.
 
 After a problem is no longer needed, `FreeIpoptProblem` should be called, or
 memory will leak. If `FreeIpoptProblem` is called more than once on the same
@@ -113,19 +114,29 @@ IpoptProblem = POINTER(IpoptProblemInfo)
 """Pointer to a IPOPT problem."""
 
 
-def default_ipopt_library_name() -> str:
-    """Return the platform-default IPOPT shared library name."""
-    if os.name == "nt":
-        return "ipopt"
-    else:
-        return "libipopt.so"
+def load_library(name: str) -> None:
+    """Load the IPOPT shared library at *name* and configure its signatures.
 
-
-def load_library(name: str | None = None) -> None:
-    """Load the IPOPT shared library and configure its ctypes signatures."""
+    *name* is required. This function used to accept None and fall back to a
+    platform-default name such as "libipopt.so", letting the dynamic loader
+    supply whichever IPOPT it found first. That is unsafe when CasADi is also
+    loaded -- see yapss._private.ipopt_library -- so callers must now say
+    exactly which file they mean.
+    """
     global _ipopt_lib
-    name = name or default_ipopt_library_name()
     _ipopt_lib = ctypes.cdll.LoadLibrary(name)
+    _setup_library()
+
+
+def use_library(lib: ctypes.CDLL) -> None:
+    """Adopt an already-loaded IPOPT library and configure its signatures.
+
+    Lets the caller do the locating and loading -- and any verification it
+    wants to perform on the result -- while this module remains responsible
+    only for the ctypes declarations.
+    """
+    global _ipopt_lib
+    _ipopt_lib = lib
     _setup_library()
 
 
@@ -190,9 +201,20 @@ def _setup_library() -> None:
 
 
 def default_setup() -> None:
-    """Load the default IPOPT library if none has been loaded yet."""
+    """Confirm a library has been loaded, rather than guessing one.
+
+    This used to load a platform-default library name when none had been set
+    up. Guessing is exactly what causes a second IPOPT to be mapped alongside
+    CasADi's, so an unconfigured module is now an error the caller must fix.
+    """
     if _ipopt_lib is None:
-        load_library()
+        msg = (
+            "No IPOPT library has been loaded. Call load_library() or "
+            "use_library() first; this module will not choose one for you, "
+            "because loading an IPOPT other than the one CasADi already has "
+            "open causes an OpenMP runtime collision."
+        )
+        raise RuntimeError(msg)
 
 
 def CreateIpoptProblem(

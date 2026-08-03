@@ -20,7 +20,7 @@ import numpy as np
 from .auto import make_auto_functions
 from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variable_bounds
 from .central_difference import make_cd_functions
-from .config import get_casadi_ipopt_library_path, get_conda_prefix
+from .config import get_conda_prefix
 from .guess import make_initial_guess_nlp
 from .mesh import Mesh
 from .nlp import NLP
@@ -39,8 +39,9 @@ if get_conda_prefix():
 
     CYIPOPT = True
 else:
+    from .ipopt_library import load_ipopt
     from .mseipopt import bare, ez
-    from .mseipopt.bare import load_library
+    from .mseipopt.bare import use_library
 
     CYIPOPT = False
 
@@ -107,11 +108,11 @@ def solve(problem: yapss.Problem) -> Solution:
             problem_obj=nlp_temp,
         )
     else:
-        ipopt_path = get_casadi_ipopt_library_path()
-
-        # don't reload library if already loaded
-        if bare._ipopt_lib is None or ipopt_path != bare._ipopt_lib._name:
-            load_library(ipopt_path)
+        # Resolve, load, and verify once per process. The resolver caches its
+        # answer and the answer cannot change within a process, so unlike the
+        # path-comparison this replaces, there is nothing to re-check.
+        if bare._ipopt_lib is None:
+            use_library(load_ipopt()[0])
 
         jacobian_structure = nlp_temp.jacobianstructure()
         hessian_structure = nlp_temp.hessianstructure()
