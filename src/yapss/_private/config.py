@@ -79,3 +79,100 @@ def get_conda_prefix() -> Path | None:
 
     logger.debug("Not a Conda environment.")
     return None
+
+
+# --- `ipopt_source` deprecation -------------------------------------------------
+#
+# Removed in 0.2.0. Two distinct deprecations are in play and the messages differ
+# accordingly: the attribute and environment variable are going away (which
+# affects anyone who touches them at all, including someone setting "default"),
+# and the *capability* of choosing a non-default backend is going away (which
+# affects only the non-default values, and those users face a behavior change
+# rather than merely an API change).
+#
+# Message text lives here, in one place, because it is emitted from two sites --
+# the `Problem.ipopt_source` setter and the environment-variable branch of
+# `solver.configure_ipopt_source()` -- and the two must not drift. Policy and
+# rationale: IPOPT_BACKEND_POLICY.md §3.
+
+_REMOVAL_VERSION = "0.2.0"
+
+_SEE_ALSO = (
+    'See "Sharp Edges" in the user guide for why YAPSS must control which Ipopt ' "it loads."
+)
+
+
+def ipopt_source_deprecation(value: str) -> tuple[type[Warning], str]:
+    """Return the warning category and message for an `ipopt_source` value.
+
+    `FutureWarning` for a custom library path, `DeprecationWarning` otherwise.
+    The distinction is not cosmetic: `DeprecationWarning` is hidden by default
+    unless triggered in ``__main__``, and the custom-path case can end in a
+    SIGSEGV rather than an exception, so its warning must be visible from a
+    notebook or an imported module as well.
+
+    Parameters
+    ----------
+    value : str
+        The requested `ipopt_source` value.
+
+    Returns
+    -------
+    tuple[type[Warning], str]
+        Warning category, and the message to emit.
+    """
+    tail = f"It is deprecated and will be removed in YAPSS {_REMOVAL_VERSION}."
+
+    if value == "default":
+        return DeprecationWarning, (
+            f"'ipopt_source' is no longer used; the Ipopt backend is determined by "
+            f"whether YAPSS is running in a Conda environment. {tail} Setting it to "
+            f"'default' selects the behavior that is already in effect, so this line "
+            f"can simply be deleted."
+        )
+
+    if value == "cyipopt":
+        if get_conda_prefix():
+            return DeprecationWarning, (
+                f"'ipopt_source' is deprecated. In a Conda environment YAPSS already "
+                f"uses cyipopt, so this line can simply be deleted. {tail}"
+            )
+        return DeprecationWarning, (
+            f"'ipopt_source=\"cyipopt\"' outside a Conda environment loads a second, "
+            f"independently built Ipopt alongside the one CasADi bundles. The two can "
+            f"collide over their vendored OpenMP runtimes and crash. {tail} After that, "
+            f"YAPSS will use its own bundled interface here. {_SEE_ALSO}"
+        )
+
+    if value == "casadi":
+        return DeprecationWarning, (
+            f"'ipopt_source' is deprecated. Outside a Conda environment 'casadi' is "
+            f"already what YAPSS does, so this line can simply be deleted. {tail}"
+        )
+
+    return FutureWarning, (
+        f"'ipopt_source' is set to an explicit Ipopt library path "
+        f"({value!r}). YAPSS cannot verify a library it did not bundle: there is no "
+        f"matching 'IpoptConfig.h' to check the ABI against, and a mismatched build "
+        f"crashes the process rather than raising. {tail} {_SEE_ALSO}"
+    )
+
+
+def warn_ipopt_source_deprecated(value: str, stacklevel: int = 3) -> None:
+    """Emit the deprecation warning for an `ipopt_source` value.
+
+    Flushes `sys.stderr` after a `FutureWarning`, because that path may be
+    followed by a hard crash and `stderr` is block-buffered when redirected to a
+    file -- an unflushed warning would be lost precisely when it matters most.
+
+    Parameters
+    ----------
+    value : str
+        The requested `ipopt_source` value.
+    stacklevel : int, default=3
+        Passed through to `warnings.warn`, so the report points at user code.
+    """
+    category, message = ipopt_source_deprecation(value)
+    warn(message, category=category, stacklevel=stacklevel)
+    if category is FutureWarning:
+        sys.stderr.flush()

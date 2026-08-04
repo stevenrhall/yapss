@@ -22,6 +22,7 @@ from numpy import float64
 
 # package imports
 from .bounds import Bounds
+from .config import warn_ipopt_source_deprecated
 from .guess import Guess
 from .ipopt_options import IpoptOptions
 from .solver import solve
@@ -226,6 +227,10 @@ class Problem(Protected):
         if not isinstance(value, str):
             msg = f"'ipopt_source' must have type 'str', not {type(value)}"  # type: ignore[unreachable]
             raise TypeError(msg)
+        # Warn here rather than at solve time so the report points at the line the
+        # user actually wrote. `__init__` assigns `_ipopt_source` directly and
+        # bypasses this setter, so nobody who never opted in is warned.
+        warn_ipopt_source_deprecated(value, stacklevel=2)
         self.__dict__["_ipopt_source"] = value
 
     def solve(self) -> Solution:
