@@ -241,11 +241,15 @@ atomic = true
 # ======================================== pytest ========================================
 
 [tool.pytest.ini_options]
+# No --cov-fail-under here on purpose. Coverage is gated on the *combined*
+# data in tox's `report` env, not per test run: each runner in the CI matrix
+# can only execute its own platform's code, so a per-runner threshold
+# penalizes correct cross-platform code (mseipopt/library.py alone has ~80
+# lines that are live on exactly one OS each). See [testenv:report] in tox.ini.
 addopts = [
     "--cov-report=term",
     "--strict-markers",
     "--cov-report=term-missing",
-    "--cov-fail-under=93"
 ]
 testpaths = ["tests"]
 filterwarnings = [
@@ -282,6 +286,11 @@ source = [
 ]
 
 [tool.coverage.report]
+# Two decimals so `--fail-under` compares the real number. At the default
+# precision of 0, coverage rounds *before* comparing, so 92.52% is reported as
+# "93%" and passes a 93% threshold -- which is precisely the trap that hid a
+# genuine shortfall here once already.
+precision = 2
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

@@ -117,6 +117,12 @@ jobs:
         run: tox
 
       - name: Upload coverage data
+        # always(): a job that fails its tests has still measured everything it
+        # ran, and that data is needed for an accurate combined total. Without
+        # this, a single failing platform silently drops its lines from the
+        # combined report -- which then looks like a coverage regression rather
+        # than the test failure it actually is.
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
