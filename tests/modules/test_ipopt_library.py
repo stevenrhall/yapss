@@ -199,8 +199,8 @@ def test_incompatible_build_raises(monkeypatch, tmp_path, macro, expected):
         "IPOPT_VERSION_RELEASE": 11,
         "IPOPT_INT64": None,
         "IPOPT_SINGLE": None,
+        macro: 1,
     }
-    macros[macro] = 1
     root = write_header(tmp_path, **macros)
     monkeypatch.setattr(library, "casadi_package_dir", lambda: root)
 
