@@ -252,6 +252,12 @@ addopts = [
     "--cov-report=term-missing",
 ]
 testpaths = ["tests"]
+markers = [
+    # Load-order tests that spawn a fresh interpreter per case, because a
+    # shared library cannot be unmapped once loaded. Each pays a CasADi
+    # import; deselect with -m "not isolation" if CI time gets tight.
+    "isolation: runs in a subprocess for a clean library-loading state",
+]
 filterwarnings = [
     "ignore:.*pkg_resources\\.declare_namespace.*:DeprecationWarning",
     "ignore:pkg_resources is deprecated as an API",
