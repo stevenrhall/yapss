@@ -107,6 +107,19 @@ style = "pep440"
 version_scheme = "guess-next-dev"
 local_scheme = "no-local-version"
 
+# Restrict version derivation to release tags. `vcs-versioning` defaults to
+# matching `*[0-9]*`, which accepts any tag containing a digit -- so an ordinary
+# non-version tag reachable from HEAD (a backup marker, a dated annotation)
+# becomes the nearest tag and *every* build fails with "Can't parse version from
+# tag". Observed, not hypothetical: a `backup/ipopt-resolver-2026-08-04` tag broke
+# the build until it was deleted.
+#
+# `strict = true` also settles a pending default change: vcs-versioning warns that
+# permissive matching is deprecated and strict will become the default.
+[tool.hatch.version.raw-options.tag]
+prefix = "v"
+strict = true
+
 [tool.hatch.build.targets.sdist]
 include = ["src/", "tests/", "examples/", "README.md", "CHANGELOG.md"]
 exclude = [".gitignore"]
