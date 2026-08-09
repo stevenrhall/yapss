@@ -188,6 +188,13 @@ jobs:
         run: python -m pip install --upgrade pip tox
 
       - name: Combine and report
+        # The coverage gate is applied here and only here. `tox.ini` leaves the
+        # threshold at 0 so a local `tox -p` -- which can only ever combine one
+        # machine's runs, and so cannot reach another platform's branches -- reports
+        # without failing. This job has the full matrix's data, which is the only
+        # thing the 93% figure was calibrated against.
+        env:
+          COVERAGE_FAIL_UNDER: 93
         run: tox -e report -- coverage-data
 
       - name: Upload HTML coverage report

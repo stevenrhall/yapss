@@ -65,12 +65,27 @@ docs: readme ## Generate user guide documentation.
 dev-docs: ## Generate development documentation.
 	cd docs/development && $(MAKE) html SPHINXOPTS="-W"
 
+.PHONY: linkcheck
+linkcheck: ## Check links in the user guide documentation, including external URLs.
+	@# Not run in CI or as part of `docs`/`view-docs`: unlike `nitpicky` (which is
+	@# free, deterministic, and part of the regular -W build), this hits every
+	@# external URL in the docs -- citation DOIs, GitHub links, intersphinx targets
+	@# -- over the network. That makes it useful but flaky, so it is a separate,
+	@# manually-run target rather than something that can fail a build for reasons
+	@# unrelated to the change under review.
+	cd $(USER_GUIDE_DIR) && $(MAKE) linkcheck
+
 .PHONY: view-docs
-view-docs: ## Generate user guide documentation and open it in a browser.
+view-docs: readme ## Generate user guide documentation and open it in a browser.
+	@# Same mechanism and same output location as `docs`, deliberately, so there is one
+	@# build tree rather than two that cannot be told apart. The difference is that
+	@# SPHINXOPTS is left empty: warnings do not abort the build, so a page can still be
+	@# viewed while something on it is being debugged. Nothing is lost by that -- `docs`
+	@# and CI both build with -W, and RTD sets fail_on_warning, so a warning still has to
+	@# be fixed before it can ship.
 	rm -rf docs/build
-	#cd $(USER_GUIDE_DIR) && $(MAKE) html
-	python -m sphinx -b html $(USER_GUIDE_DIR) docs/build
-	$(OPEN) docs/build/index.html
+	cd $(USER_GUIDE_DIR) && $(MAKE) html
+	$(OPEN) docs/build/html/index.html
 
 .PHONY: doctest
 doctest: ## Run doctests on user guide documentation.
@@ -202,4 +217,14 @@ push-tag: ## push tags to remote repository
 
 .PHONY: readme
 readme: ## Generate README.md from docs/user_guide/index.md
-	awk '/<!-- End README.md -->/ {exit} {print}' docs/user_guide/index.md > README.md
+	@# Relative .md links are rewritten to absolute GitHub URLs. The same link has to
+	@# work in three places and only two of them resolve relative paths usefully:
+	@# GitHub resolves against the repo root and RTD against the copied page, but PyPI
+	@# resolves against https://pypi.org/project/yapss/ and 404s. Rewriting here keeps
+	@# index.md correct for the docs while README.md is correct for PyPI. The pattern
+	@# matches any relative .md link, so a link added later is handled without anyone
+	@# having to remember this; absolute URLs cannot match, since the character class
+	@# excludes the colon.
+	awk '/<!-- End README.md -->/ {exit} {print}' docs/user_guide/index.md \
+	  | sed -E 's#\]\(([A-Za-z0-9_./-]+\.md)\)#](https://github.com/stevenrhall/yapss/blob/main/\1)#g' \
+	  > README.md

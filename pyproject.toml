@@ -33,13 +33,14 @@ dependencies = [
     # tested. Revisit once mseipopt is no longer the default solver backend.
     "casadi>=3.6.0,<=3.7.2",
     "scipy",
-    # NumPy 2.5 rewrote numpy.typing.NDArray using PEP 695 `type` statements, which
-    # broke subclassing it directly -- fixed in _private/input_args.py (now
-    # version-agnostic, subclasses np.ndarray directly). Ceiling stays for now:
-    # numpy>=2.5 requires Python>=3.12, which conflicts with requires-python
-    # ">=3.10" -- raising this floor needs its own follow-up (env markers or
-    # dropping 3.10/3.11 support), not bundled into this typing fix.
-    "numpy<2.5",
+    # Unconstrained deliberately. The NumPy 2.5 breakage (it rewrote
+    # numpy.typing.NDArray using PEP 695 `type` statements, which cannot be
+    # subclassed directly) is fixed at the source: _private/input_args.py now
+    # subclasses np.ndarray directly and is version-agnostic. No ceiling is needed
+    # to keep 2.5 away from Python 3.10/3.11 either -- NumPy 2.5 declares
+    # requires-python >= 3.12, so pip will not select it there. Both ends of the
+    # range are type-checked in CI: see tox's mypy and mypy-floor environments.
+    "numpy",
     "mpmath",
     "matplotlib",
 ]
@@ -50,6 +51,7 @@ doc = [
     "sphinxcontrib-bibtex",
     "sphinx-copybutton",
     "sphinx_rtd_theme",
+    "sphinx-llm",
     "myst-parser",
     "nbsphinx",
     "numpydoc",
@@ -96,6 +98,7 @@ Documentation = "https://yapss.readthedocs.io/"
 Repository = "https://github.com/stevenrhall/yapss.git"
 Issues = "https://github.com/stevenrhall/yapss/issues"
 Changelog = "https://github.com/stevenrhall/yapss/blob/main/CHANGELOG.md"
+Contributing = "https://github.com/stevenrhall/yapss/blob/main/CONTRIBUTING.md"
 
 # ======================================== hatch =========================================
 
@@ -107,19 +110,6 @@ style = "pep440"
 version_scheme = "guess-next-dev"
 local_scheme = "no-local-version"
 
-# Restrict version derivation to release tags. `vcs-versioning` defaults to
-# matching `*[0-9]*`, which accepts any tag containing a digit -- so an ordinary
-# non-version tag reachable from HEAD (a backup marker, a dated annotation)
-# becomes the nearest tag and *every* build fails with "Can't parse version from
-# tag". Observed, not hypothetical: a `backup/ipopt-resolver-2026-08-04` tag broke
-# the build until it was deleted.
-#
-# `strict = true` also settles a pending default change: vcs-versioning warns that
-# permissive matching is deprecated and strict will become the default.
-[tool.hatch.version.raw-options.tag]
-prefix = "v"
-strict = true
-
 [tool.hatch.build.targets.sdist]
 include = ["src/", "tests/", "examples/", "README.md", "CHANGELOG.md"]
 exclude = [".gitignore"]
@@ -130,6 +120,11 @@ packages = ["src/yapss"]
 # ========================================= mypy =========================================
 
 [tool.mypy]
+# The minimum supported Python, and the default for a bare `mypy` invocation. Both
+# tox mypy environments pass --python-version explicitly and so override it, since
+# the target has to be paired with a numpy the target can actually install: numpy
+# 2.5's stubs use PEP 695 syntax that a 3.10 target cannot parse, and numpy 2.5
+# requires Python 3.12+ at runtime in any case.
 python_version = "3.10"
 files = ["src/**/*.py"]
 follow_imports = "silent"

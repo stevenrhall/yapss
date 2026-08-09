@@ -6,7 +6,7 @@ repos:
         args: [ "--check", "--target-version", "py311" ]
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.8.5
     hooks:
       - id: ruff
         args: [ "src/yapss" ]
@@ -18,15 +18,19 @@ repos:
       - id: isort
         args: [ "--check-only" ]
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.20.2
+  - repo: local
     hooks:
       - id: mypy
-        language_version: python3.13
-        additional_dependencies:
-          - numpy==2.4.6
-          - types-toml
-        entry: bash -c "cd src && mypy yapss --config-file ../pyproject.toml"
+        name: mypy (via tox -e mypy)
+        # Calls the CI environment rather than reproducing it. A mirrors-mypy hook
+        # installs only what additional_dependencies lists, so casadi and scipy are
+        # missing and `follow_imports = silent` turns them into Any -- which changes
+        # inference and makes the hook disagree with CI. One source of truth avoids
+        # having to keep two pinnings in agreement forever.
+        entry: tox -e mypy
+        language: system
+        types: [python]
+        pass_filenames: false
 
   - repo: local
     hooks:
