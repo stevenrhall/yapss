@@ -17,14 +17,14 @@ derivatives.
 The following example illustrates how to set up a problem with user-defined derivatives.
 We use the classic brachistochrone problem, where the objective is to minimize the time
 for a particle to slide down a curve between two points. This example shows how to specify
-derivatives for objectives and constraints manually. (See the Jupyter Lab notebook for
+derivatives for objectives and constraints manually. (See the JupyterLab notebook for
 additional problem details.) As usual, we start by defining the problem:
 
 .. testcode:: group1
 
    from yapss import Problem
-   from yapss import numpy as np
-   from yapss.numpy import cos, pi, sin
+   from yapss import math as np
+   from yapss.math import cos, pi, sin
 
    ocp = Problem(name="Brachistochrone", nx=[3], nu=[1], nq=[0])
    ocp.derivatives.method = "user"
@@ -40,6 +40,9 @@ additional problem details.) As usual, we start by defining the problem:
        (u,) = arg.phase[0].control
        arg.phase[0].dynamics[:] = v * cos(u), v * sin(u), g0 * sin(u)
 
+   ocp.functions.objective = objective
+   ocp.functions.continuous = continuous
+
 Because we've specified that we're using user-defined, second-order derivatives, we need to
 define the gradient and Hessian functions for the objective, and the Jacobian and Hessian
 functions for the continuous functions.
@@ -47,8 +50,8 @@ functions for the continuous functions.
 The Continuous Jacobian and Hessian
 -----------------------------------
 
-We’ll start with the continuous function, which generically computes the dynamics function,
-the integrand array, and the path constraint functions. For our example, the continuous
+We’ll start with the continuous callback, which computes the dynamics, integrands, and path
+constraints. For our example, the continuous
 Jacobian function is defined as follows:
 
 .. testcode:: group1
@@ -139,11 +142,11 @@ Had the Hessian been nonzero, each key would have been a tuple of two decision v
 example a key of the dictionary ``arg.hessian`` in a multiphase problem might be something like
 ``((3, "xf", 1), (0, "s", 2))``. More generally, the keys are of the form
 
-   ``(p, var1, i1), (p, var2, i2)``
+   ``(p1, var1, i1), (p2, var2, i2)``
 
-where ``p`` is the index of the phase (or 0 for an element of the parameter vector), ``var1`` and
-``var2`` are one of the variables ``x0``, ``xf``, ``t0``, ``tf``, or ``s``, and ``i1`` and ``i2``
-are the index of the variable (or 0 for ``t0`` for ``tf``).
+where ``p1`` and ``p2`` are phase indices (or 0 for an element of the parameter vector), each of
+``var1`` and ``var2`` is one of the variables ``x0``, ``xf``, ``t0``, ``tf``, or ``s``, and ``i1``
+and ``i2`` are the indices of the variables (or 0 for ``t0`` or ``tf``).
 
 The Discrete Jacobian and Hessian
 ---------------------------------

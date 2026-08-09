@@ -4,7 +4,7 @@ Python Scripts
 This section contains a collection of examples that demonstrate how to use YAPSS to solve optimal
 control problems using a Python script. All the examples are part of the YAPSS package examples
 module, and can be run from the command line or a Python console. For example, to run the dynamic
-soaring example, run the following command in the terminal:
+soaring example, run the following command in a terminal:
 
 .. code-block:: bash
 
@@ -17,7 +17,7 @@ To run the example from a Python console, use the following commands::
 
 Most of the examples here are presented without much commentary. More detail for each example
 can be found in the corresponding JupyterLab notebook example in the
-`JupyterLab Notebooks <../notebooks/index.rst>`_. section.
+:doc:`JupyterLab Notebooks <../notebooks/index>`.
 
 .. toctree::
    :maxdepth: 1

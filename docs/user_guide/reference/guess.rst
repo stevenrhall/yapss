@@ -23,7 +23,7 @@ Initial Guess for Parameters
 ----------------------------
 
 To initialize the guess for the parameter array, assign a one-dimensional array-like object to the
-``guess.parameters`` attribute, with length equal to the number of parameters in the optimization.
+``guess.parameter`` attribute, with length equal to the number of parameters in the optimization.
 For example, in the Rosenbrock problem, we might have:
 
 .. code-block:: python
@@ -33,10 +33,10 @@ For example, in the Rosenbrock problem, we might have:
     problem = Problem(name="Rosenbrock", nx=[], ns=2)
     problem.guess.parameter = [-2.0, 2.0]
 
-An exception will be raised if the object assigned to ``guess.parameters`` cannot be converted to a
-numpy array with ``dtype=float`` and shape ``(ns,)``.
+An exception will be raised if the object assigned to ``guess.parameter`` cannot be converted to a
+NumPy array with ``dtype=float`` and shape ``(ns,)``.
 
-The initial guess array is stored as a numpy array in the ``guess.parameters`` attribute, so
+The initial guess array is stored as a NumPy array in the ``guess.parameter`` attribute, so
 individual elements can be modified using indexing or slicing. The example above could also be
 written as:
 
@@ -63,7 +63,7 @@ isoperimetric problem, we might have:
     problem.guess.phase[0].integral = [0.0, 0.0, 0.0]
 
 An exception is raised if the object assigned to ``guess.phase[p].integral`` cannot be converted to
-a numpy array with ``dtype=float`` and shape ``(nq[p],)``.
+a NumPy array with ``dtype=float`` and shape ``(nq[p],)``.
 
 As with parameters, the default initial guess for each phase's integrals is an array of zeros. Thus,
 in this example, we could omit the ``integral`` assignment and obtain the same result.
@@ -78,8 +78,8 @@ detail. The first and last elements of the time vector must be the initial and f
 phase, and the time vector must be strictly increasing.
 
 If the time array for phase ``p`` contains ``k`` elements, the initial guesses for the state and
-control histories should be two-dimensional array-like objects, with shapes ``(k, nx[p])`` and ``(k,
-nu[p])``, respectively.
+control histories should be two-dimensional array-like objects, with shapes ``(nx[p], k)`` and ``(nu[p],
+k)``, respectively.
 
 The ``guess.phase[p].state`` and ``guess.phase[p].control`` attributes default to ``None`` until an
 array is assigned. Therefore, indexing or slicing cannot be used for assignment until an array is
@@ -123,8 +123,11 @@ Below is an example from the Dynamic Soaring problem:
 Initial Guess from Previous Solution
 ------------------------------------
 
-The initial guess can also be set from a previous solution of the same (or similar) problem.
-This approach is particularly useful in two scenarios:
+The initial guess can also be set from a previous solution of the same problem—for example,
+after modifying its bounds—or from a related problem with different path or discrete constraints.
+In either case, the previous solution must have the same number of phases, the same numbers of
+states, controls, and integrals in each phase, and the same number of parameters. This approach
+is particularly useful in two scenarios:
 
 -  Mesh Refinement – Start with a coarse mesh to find an initial solution, then use that
    solution as a guess for a finer mesh.

@@ -4,7 +4,7 @@ Rosenbrock Function
 For a description of the Rosenbrock function minimization problem, see the
 `JupyterLab notebook documentation <../notebooks/rosenbrock.ipynb>`_ for this problem.
 
-The python script in this example can be executed from the command line with:
+The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
@@ -32,7 +32,7 @@ Plots
 -----
 
 Plotted below is a contour plot of the Rosenbrock function, with the minimum indicated by a red dot.
-Note that the minimum lies is a long, narrow valley, which makes optimization difficult.
+Note that the minimum lies in a long, narrow valley, which makes optimization difficult.
 
 .. figure:: plots/rosenbrock_plot_1.png
    :width: 400pt

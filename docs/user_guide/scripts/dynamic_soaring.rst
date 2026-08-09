@@ -1,10 +1,10 @@
 Dynamic Soaring
 ===============
 
-For a description of the dynamic soaring problem, see the dynamic soaring
+For a description of the dynamic soaring problem, see the
 `JupyterLab notebook documentation <../notebooks/dynamic_soaring.ipynb>`_ for this problem.
 
-The python script in this example can be executed from the command line with:
+The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 

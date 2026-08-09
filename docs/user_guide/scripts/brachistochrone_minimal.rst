@@ -7,9 +7,9 @@ For a description of the brachistochrone problem with constraints as in this scr
 This script provides a minimal implementation of the brachistochrone problem, that is, without
 providing user-defined derivatives.  (User-defined derivatives are almost never necessary.)
 For a script that implements the brachistochrone problem with user-defined derivatives, see the
-`example implementation of the brachistochrone problem with user defined derivatives. <brachistochrone.rst>`_.
+:doc:`example implementation of the brachistochrone problem with user-defined derivatives <brachistochrone>`.
 
-The python script in this example can be executed from the command line with:
+The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 

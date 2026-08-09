@@ -79,7 +79,7 @@ All these attributes are immutable.
 The value of the objective function is assigned to the ``arg.objective`` attribute.
 
 In addition, the ``arg`` object has the attribute ``arg.auxdata``, which is a
-:class:`SimpleNamespace` object that can be used to store any auxiliary data for the
+:class:`~types.SimpleNamespace` object that can be used to store any auxiliary data for the
 problem.
 
 Continuous Callback Function
@@ -112,9 +112,11 @@ where :math:`g` is a vector-valued function. The bounds on the integrals are giv
 
     q_{\min}^{(p)}\leq q^{(p)}\leq q_{\max}^{(p)},\quad(p=0,\ldots,P-1)
 
-The continuous callback function is used to evaluate the dynamics, path constraints, and integrand for each phase. The continuous callback function is called once for each phase in the problem. For example, for the three-phase Goddard rocket problem, the continuous callback function is:
+The continuous callback function is used to evaluate the dynamics, path constraints, and integrand for each phase. Each invocation receives the phase indices in ``arg.phase_list``; normally this includes all phases, but derivative calculations may select a subset. For example, for the three-phase Goddard rocket problem, the continuous callback function is:
 
 .. code-block:: python
+
+   import yapss.math as np
 
    def continuous(arg):
        """Goddard Rocket Problem dynamics and path functions."""
@@ -138,8 +140,8 @@ The continuous callback function is used to evaluate the dynamics, path constrai
                arg.phase[p].path[:] = (mass * g0 - (1 + v / c) * D,)
 
 The continuous callback function is called with a single argument, ``arg``, which is an
-instance of the :class:`ContinuousArgument` class. The values that can be extracted
-from the ``arg`` object are:
+instance of the :class:`ContinuousArg <yapss._private.input_args.ContinuousArg>` class.
+The values that can be extracted from the ``arg`` object are:
 
 - ``arg.phase_list``: the phase indices listed as a *tuple*
 - ``arg.phase[p].state``: the state vector for phase ``p``
@@ -154,10 +156,10 @@ the attributes:
 - ``arg.phase[p].path``
 - ``arg.phase[p].integrand``
 
-When setting the values of one of these attributes, each value must be a sequence of
-length equal to the number of states, controls, or integrand variables, respectively. Each
+When setting the values of one of these attributes, each value must be a sequence whose
+length equals the number of states, path constraints, or integrals, respectively. Each
 element of the sequence must be a scalar, or an array-like object with the same shape as
-the ``time`` attribute of the phase.`` The values of the dynamics, path constraints, and
+the ``time`` attribute of the phase. The values of the dynamics, path constraints, and
 integrand can also be set as slices of the corresponding attributes.
 
 .. note::
@@ -210,7 +212,7 @@ The corresponding discrete callback function for this problem is:
             *(phase[1].final_state - phase[2].initial_state),
         ]
 
-The discrete variables that can be extracted from the ``arg`` object are the same as those available in the objective callback function. The value of the discrete function must be assigned to the ``arg.discrete`` attribute, and it should be a one-dimensional array-like object with length equal to the number of discrete variables, as specified by the ``nd`` argument in the :class:`Problem` constructor.
+The discrete variables that can be extracted from the ``arg`` object are the same as those available in the objective callback function. The value of the discrete function must be assigned to the ``arg.discrete`` attribute, and it should be a one-dimensional array-like object with length equal to the number of discrete variables, as specified by the ``nd`` argument in the :class:`~yapss.Problem` constructor.
 
 Values in the ``arg.discrete`` attribute can also be set as slices. For instance, the example above can be rewritten as:
 
@@ -232,35 +234,33 @@ mathematical functions like ``sin``, ``arctan2``, and ``log``. The data type for
 functions depends on the chosen differentiation method:
 
 -  For **user-defined** and **central-difference** differentiation methods, data is
-   passed as real NumPy arrays with elements of type ``np.float``.
+   passed as real NumPy arrays with elements of type ``np.float64``.
 
 -  For **automatic differentiation**, data is passed as NumPy object arrays, where each
    element is an encapsulated ``casadi.SX`` instance.
 
-In most cases, Numpy `ufuncs` can be used to evaluate mathematical functions, without regard to the
+In most cases, NumPy `ufuncs` can be used to evaluate mathematical functions, without regard to the
 data type. However, this fails for a few functions, either because there's no CasADi equivalent, or
 because the function requires two arguments.
 
-To handle this, the math functions used in the callback functions should be imported from ``yapps.math``
-instead of directly from ``numpy``. Essentially, ``yapps.math``  is a drop-in replacement for
-``numpy`` that works for all numpy objects, and correctly no matter the differentiation method.
+To handle this, the math functions used in the callback functions should be imported from ``yapss.math``
+instead of directly from ``numpy``. Essentially, ``yapss.math`` is a drop-in replacement for
+``numpy`` that works for all NumPy objects, regardless of the differentiation method.
 
 Here’s a usage example for the ``arctan2`` function within a continuous callback function:
 
-.. code-block:: python
-
-    >>> from yapss.numpy import arctan2
-    >>>
-    >>> def continuous(arg):
-    ...    x1, x2, x3 = arg.phase[0].state
-    ...    x1_dot = arctan2(x2, x3)
-    ...    # more code here
+>>> from yapss.math import arctan2
+>>>
+>>> def continuous(arg):
+...     x1, x2, x3 = arg.phase[0].state
+...     x1_dot = arctan2(x2, x3)
+...     # more code here
 
 Available Functions
 ...................
 
-Essentially all Numpy `ufuncs` that are likely to be used in callback functions are available in
-``yapps.math``. Here are some of the most commonly used functions:
+Essentially all NumPy `ufuncs` that are likely to be used in callback functions are available in
+``yapss.math``. Here are some of the most commonly used functions:
 
 **Trigonometric functions**
     - ``cos``, ``sin``, ``tan``
@@ -285,3 +285,11 @@ Essentially all Numpy `ufuncs` that are likely to be used in callback functions 
 
 **Miscellaneous functions**
     - ``abs``, ``cbrt``, ``hypot``, ``power``, ``sign``, ``reciprocal``, ``square``, ``sqrt``
+
+``ContinuousArg`` Class Reference
+----------------------------------
+
+.. autoclass:: yapss._private.input_args.ContinuousArg
+   :members:
+   :no-special-members:
+   :no-undoc-members:

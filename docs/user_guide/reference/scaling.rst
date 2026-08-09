@@ -5,7 +5,7 @@ Theory
 ------
 
 YAPSS, like other pseudospectral optimal control solvers, converts the optimal control
-problem into a nonlinear programming problem (NLP) by discretizing the the continuous
+problem into a nonlinear programming problem (NLP) by discretizing the continuous
 decision variables (the state and control variables) and continuous constraint functions
 (the state dynamics and path constraints). In addition, there are inherently additional
 discrete decision variables (the static parameters) and constraint functions (discrete
@@ -17,10 +17,10 @@ An inherent difficulty in solving NLPs is that the problem as described in natur
 may be very badly scaled. For example, the `orbit raising problem
 <../notebooks/orbit_raising.ipynb>`_ has different variables with very different
 magnitudes. The distance of the spacecraft from the Sun as it transits from the Earth to
-Mars (one of the decision variables) varies from :math:`1.5 \times 10^{11}\text{ m}`
-meters :math:`1.5 \times 10^{11}\text{ m}`. On the other hand, the angular position of the
-spacecraft measured in radians varies from 0 to less that :math:`\pi`. Large variation in
-magnitudes of the variables and constraints make the problem ill-conditioned, and can
+Mars (one of the decision variables) varies from approximately :math:`1.5 \times 10^{11}\text{ m}`
+to :math:`2.3 \times 10^{11}\text{ m}`. On the other hand, the angular position of the
+spacecraft measured in radians varies from 0 to less than :math:`\pi`. A large variation in
+magnitudes of the variables and constraints makes the problem ill-conditioned, and can
 result in very slow convergence of the NLP solver, or even failure to converge.
 
 There are two ways to improve the conditioning of the NLP problem:
@@ -29,13 +29,13 @@ There are two ways to improve the conditioning of the NLP problem:
     problem. That is in fact what is done in the orbit raising problem, where the distance
     is measured in astronomical units, and the angle in radians.
 
-2.  The problem can be scaled within the NLP solver. Ipopt has has the option to provide
+2.  The problem can be scaled within the NLP solver. Ipopt has the option to provide
     scaling factors for the variables and constraints, which it then uses to scale the
     problem internally. YAPSS uses this feature to provide scaling through its API.
 
 If scaling a problem by hand, one natural approach to finding the natural scale for a
 decision variable (say, the state :math:`x`) is to use the range (or perhaps half the
-range) that the variable is expected to have, and define that to be that variable scale,
+range) that the variable is expected to have, and define that to be the variable's scale,
 :math:`S_x`. Then the nondimensional variable is
 
 .. math::
@@ -106,7 +106,7 @@ YAPSS Scaling
 YAPSS provides scaling through the ``scale`` attribute of ``Problem`` instances. The
 attributes that can be set are:
 
--    ``scale.objective`` (`float`): Object function scale.
+-    ``scale.objective`` (`float`): Objective function scale.
 -    ``scale.parameter`` (`Sequence[float]`): Parameter scale.
 -    ``scale.discrete`` (`Sequence[float]`): Discrete constraint function scale.
 
@@ -138,16 +138,15 @@ Example
 -------
 
 Consider for example the `dynamic soaring problem <../notebooks/dynamic_soaring.ipynb>`_,
-which is the problem to find a trajectory allows a bird or glider to fly continuously
+which is the problem to find a trajectory that allows a bird or glider to fly continuously
 using dynamic soaring, with the minimum possible wind speed gradient. The optimization for
-this problems performs quite poorly without proper scaling — it fails to converge at all.
+this problem performs quite poorly without proper scaling — it can fail to converge.
 
 The state variables are the three spatial positions of the glider, its velocity, its
 flight path angle, and its heading angle. The control variables are the lift coefficient
 and the bank angle. The one parameter is the wind speed gradient. There is one path
-constraint, that the load factor be in the range :math:`[-2,5]`. There are three discrete
-constraints, that the three components of the initial velocity be equal to the components
-of the final velocity.
+constraint: the load factor is in the range :math:`[-2,5]`. There are three discrete
+constraints that impose periodicity of velocity, flight-path angle, and heading angle.
 
 The scales for each variable were set to be roughly the expected range of the variable,
 and the scales for the discrete constraints were set as discussed in the Theory section:
@@ -167,5 +166,5 @@ and the scales for the discrete constraints were set as discussed in the Theory 
     phase.time = 30.0
     phase.path = [7.0]
 
-With these scales, the problem converges in a quite reasonable number of iterations (about
+With these scales, the problem converges in a reasonable number of iterations (about
 32).

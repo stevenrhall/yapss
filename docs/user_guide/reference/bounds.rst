@@ -23,9 +23,8 @@ constraints.
     >>> bounds.discrete.upper[1] = 40.0
 
 In this example, there are four decision variables (the four parameters), and two discrete
-constraints. Each parameter is bounded between 1 and 5, and the first discrete constraint is bounded
-between 25 and 40, while the second discrete constraint is bounded below by 40, without an upper
-limit.
+constraints. Each parameter is bounded between 1 and 5. The first discrete constraint is bounded
+below by 25, without an upper limit, while the second discrete constraint is fixed at 40.
 
 Additional bounds can be set for each phase in the problem, covering variables like initial and
 final time, duration, states, controls, integral values, and path constraints.
@@ -105,13 +104,8 @@ The initial time is set to zero, with an expected duration between 10 and 30 sec
     >>> bounds.final_time.lower = 10
     >>> bounds.final_time.upper = 30
     >>>
-    >>> # The initial time is fixed to be 0. The final time will be between 10 and 30.
-    >>> bounds.initial_time.lower = 0
-    >>> bounds.initial_time.upper = 0
-    >>> bounds.final_time.lower = 10
-    >>> bounds.final_time.upper = 30
 
-The initial and final states are set to zero, and there are bounds on the control
+The initial and final positions are set to zero, and there are bounds on the control
 variables (lift coefficient and bank angle) from the problem statement:
 
 .. doctest:: group2
@@ -120,7 +114,7 @@ variables (lift coefficient and bank angle) from the problem statement:
     >>> bounds.initial_state.lower[:3] = bounds.initial_state.upper[:3] = 0, 0, 0
     >>> bounds.final_state.lower[:3] = bounds.final_state.upper[:3] = 0, 0, 0
     >>>
-    >>> # CL_max <= 1.5. Set loose box bound on bank angle.
+    >>> # C_L <= 1.5. Set loose box bounds on bank angle.
     >>> bounds.control.lower = 0, np.radians(-75)
     >>> bounds.control.upper = 1.5, np.radians(75)
     >>>
@@ -146,8 +140,8 @@ can sometimes improve the performance of the Ipopt solver:
     >>> bounds.state.lower = -1500, -1000, 0, 10, np.radians(-75), np.radians(-225)
     >>> bounds.state.upper = +1500, +1000, 1000, 350, np.radians(75), np.radians(225)
 
-Bounds on initial and final states, position, and control variables are then set based on the
-problem requirements, as shown in this detailed example.
+The remaining state bounds are set based on the problem requirements, as shown in this detailed
+example.
 
 Special Considerations for State Bounds
 ---------------------------------------
@@ -175,10 +169,10 @@ use path constraints in the user-defined continuous function, as below:
 .. doctest:: group2
 
     >>> def continuous(arg):
-    >>>     # Apply state[1] as a path constraint
-    >>>     arg.phase[0].path[0] = arg.phase[0].state[1]
-    >>>
-    >>> problem.continuous = continuous
+    ...     # Apply state[1] as a path constraint
+    ...     arg.phase[0].path[0] = arg.phase[0].state[1]
+    ...
+    >>> problem.functions.continuous = continuous
     >>> problem.bounds.phase[0].path.lower[0] = -1000.0
     >>> problem.bounds.phase[0].path.upper[0] = +1000.0
 

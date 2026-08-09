@@ -22,7 +22,7 @@ user would set the ``ipopt_options`` attribute as follows:
 
 .. code-block:: python
 
-    >>> problem.ipopt_options.print_level = 5
+    problem.ipopt_options.print_level = 5
 
 An attribute is used instead of a dictionary to allow for tab completion in an interactive
 environment such as the PyCharm IDE. For example, in the PyCharm IDE, typing
@@ -83,11 +83,25 @@ be sufficient. The most common options that users may want to change are:
 ``print_level``
     Output verbosity level. (``print_level``:math:`\ge` 0, default: 5)
 
-.. Note::
+Users should not set the following options. YAPSS determines them from the problem
+configuration, and values set through ``ipopt_options`` are overridden during the
+solve.
 
-    Changing some Ipopt options may not have the expected affect. In particular, YAPSS sets the
-    ``hessian_approximation``, ``nlp_scaling_method``, and ``obj_scaling_factor`` options based on
-    the problem definition, and setting these options manually will have no effect.
+``hessian_approximation``
+    Controlled by ``problem.derivatives.order``. When the derivative order is
+    ``"first"``, YAPSS uses ``"limited-memory"``; otherwise, it provides the
+    Hessian needed by Ipopt. Set the derivative order through
+    ``problem.derivatives`` instead.
+
+``warm_start_init_point``
+    YAPSS does not yet support warm starts, because it does not provide the multiplier
+    data that Ipopt needs for one. It therefore sets this option to ``"no"`` for every
+    solve.
+
+``nlp_scaling_method``
+    YAPSS supplies NLP scaling data through Ipopt's scaling interface and sets this
+    option to ``"user-scaling"``. Set scaling through ``problem.scale`` instead. This
+    restriction may be relaxed in a future YAPSS release.
 
 ``IpoptOptions`` Class Reference
 --------------------------------

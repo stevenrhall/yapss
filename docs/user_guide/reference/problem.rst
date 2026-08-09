@@ -4,8 +4,8 @@ Problem Definition
 
 This section outlines the general structure of an optimal control problem and its
 implementation in YAPSS. See the following sections for details of how to define callback
-function, set variable constraint bounds, define the initial guess, select options for
-evaluating derivatives, select solver options, configure the Ipopt NLP solver source, and
+functions, set variable constraint bounds, define the initial guess, select options for
+evaluating derivatives, select solver options, understand how YAPSS connects to Ipopt, and
 access the solution.
 
 General Formulation
@@ -14,7 +14,7 @@ General Formulation
 YAPSS implements in Python a pseudospectral method for solving optimal control problems,
 similar to the MATLAB algorithm GPOPS-II :footcite:`Patterson:2014` described by Patterson
 and Rao. YAPSS generalizes the GPOPS-II algorithm by allowing Legendre-Gauss (LG) and
-Legendre-Gauss-Loabatto (LGL) collocation points in addition to the Legendre-Gauss-Radau
+Legendre-Gauss-Lobatto (LGL) collocation points in addition to the Legendre-Gauss-Radau
 (LGR) points used by GPOPS-II. In this formulation, the optimal control problem is defined
 over multiple phases, each with its own dynamics, path constraints, and integrals. In
 addition, the problem may depend on a vector of static parameters that are to be optimized
@@ -79,12 +79,12 @@ subject to additional constraints on the discrete variables,
          \le d_\text{max}
    \end{aligned}
 
-where the function :math:`d` is a vector-valued with dimension :math:`n_{d}`.
+where :math:`d` is a vector-valued function with dimension :math:`n_{d}`.
 
 In addition, upper and lower bounds may be specified on all the decision variables:
 
 - The state :math:`x^{(p)}` and the control :math:`u^{(p)}` vectors
-- The initial and final state vectors :math:`x^{(p)}(t_{0}^{(p)})` and  :math:`x^{(p)}(t_{f}^{(p)})`
+- The initial and final state vectors :math:`x^{(p)}(t_{0}^{(p)})` and :math:`x^{(p)}(t_{f}^{(p)})`
 - The initial and final times :math:`t_{0}^{(p)}` and :math:`t_{f}^{(p)}`
 - The parameter vector :math:`s`
 - The integrals :math:`q^{(p)}`
@@ -115,7 +115,7 @@ parameters and discrete constraints. In this case, the problem is instantiated a
 
 .. doctest:: example
 
-    >>> import yapss.numpy as np
+    >>> import yapss.math as np
     >>> from yapss import Problem, Solution
     >>>
     >>> problem = Problem(
@@ -146,19 +146,19 @@ The string representation of the problem object provides a summary of the proble
         ns=0
     )
 
-Other sections of this reference describe the remaining steps required to so solve an optimal control
+Other sections of this reference describe the remaining steps required to solve an optimal control
 problem using YAPSS:
 
-- Defining the `callback functions <callbacks.rst>`_ the define the objective, dynamics,
+- Defining the :doc:`callback functions <callbacks>` that define the objective, dynamics,
   path constraints, integrals, and discrete constraints.
-- Setting `bounds <bounds.rst>`_  on decisions variables and constraints.
-- Setting the `initial guess <guess.rst>`_ for the decision variables.
-- Setting options for evaluating `derivatives <derivatives.rst>`_.
-- Specifying `user-defined derivatives <user_derivatives.rst>`_. (rarely needed)
+- Setting :doc:`bounds <bounds>` on decision variables and constraints.
+- Setting the :doc:`initial guess <guess>` for the decision variables.
+- Setting options for evaluating :doc:`derivatives <derivatives>`.
+- Specifying :doc:`user-defined derivatives <user_derivatives>`. (rarely needed)
 - Scaling the problem for improved numerical conditioning
-- Defining the `mesh structure <mesh.rst>`_ for the problem.
-- Setting `Ipopt options <ipopt_options.rst>`_.
-- `Configuring the Ipopt binary source <configuration.rst>`_. (usually not needed)
+- Defining the :doc:`mesh structure <mesh_structure>` for the problem.
+- Setting :doc:`Ipopt options <ipopt_options>`.
+- :doc:`How YAPSS connects to Ipopt <ipopt_backend>`. (background; nothing to configure)
 
 ``Problem`` Class Reference
 ---------------------------
