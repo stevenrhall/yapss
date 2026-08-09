@@ -25,6 +25,7 @@ from .bounds import Bounds
 from .config import warn_ipopt_source_deprecated
 from .guess import Guess
 from .ipopt_options import IpoptOptions
+from .solution import warn_if_not_converged
 from .solver import solve
 from .types_ import LimitOptions, Protected
 
@@ -56,6 +57,7 @@ DEFAULT_NUMBER_OF_COLLOCATION_POINTS = 10
 DEFAULT_SPECTRAL_METHOD = "lgl"
 DEFAULT_DERIVATIVE_METHOD = "auto"
 DEFAULT_DERIVATIVE_ORDER = "second"
+DEFAULT_SENSE = "minimize"
 
 
 class Problem(Protected):
@@ -120,6 +122,11 @@ class Problem(Protected):
         The mesh data structure for the problem.
     spectral_method : {"lg", "lgr", "lgl"}
         The type of interpolation used for the problem.
+    sense : {"minimize", "maximize"}
+        Whether the objective should be minimized or maximized. Defaults to
+        ``"minimize"``. This is the only supported way to flip the sign of the
+        objective -- ``scale.objective`` must be positive and controls magnitude
+        conditioning only.
     """
 
     auxdata: Auxdata
@@ -142,6 +149,7 @@ class Problem(Protected):
     scale: Scale
     mesh: Mesh
     spectral_method: LimitOptions[str] = LimitOptions(("lgl", "lgr", "lg"))
+    sense: LimitOptions[str] = LimitOptions(("minimize", "maximize"))
 
     # TODO: mesh should be ReadOnlyProperty
 
@@ -210,8 +218,11 @@ class Problem(Protected):
             "ipopt_source",
             "_abort",
             "_catch_keyboard_interrupt",
+            "sense",
+            "_sense",
         )
         self.spectral_method = DEFAULT_SPECTRAL_METHOD
+        self.sense = DEFAULT_SENSE
 
     # ipopt_source getter
     @property
@@ -236,12 +247,25 @@ class Problem(Protected):
     def solve(self) -> Solution:
         """Solve the optimal control problem.
 
+        A `Solution` is returned whatever Ipopt reports. If Ipopt did not converge,
+        an `IpoptConvergenceWarning` is emitted -- the returned trajectory looks
+        perfectly ordinary otherwise.
+
         Returns
         -------
         solution : Solution
             The solution to the optimal control problem.
+
+        Warns
+        -----
+        IpoptConvergenceWarning
+            If Ipopt reported a status other than 0 (optimal), 1 (acceptable level)
+            or 6 (feasible point for a square problem).
         """
-        return solve(self)
+        solution = solve(self)
+        # stacklevel=3: warn -> warn_if_not_converged -> this method -> user code.
+        warn_if_not_converged(solution, stacklevel=3)
+        return solution
 
     def validate(self) -> None:
         """Validate the optimal control problem input.
@@ -524,6 +548,7 @@ class Scale(Protected):
         "_discrete",
         "_parameter",
         "objective",
+        "_objective",
         "phase",
         "discrete",
         "parameter",
@@ -538,6 +563,26 @@ class Scale(Protected):
         self._discrete: Array = np.ones([ocp.nd], dtype=float)
         self._parameter: Array = np.ones([ocp.ns], dtype=float)
         self.objective = 1.0
+
+    @property
+    def objective(self) -> float:
+        """Objective scale factor. Magnitude conditioning only -- must be positive.
+
+        Use `Problem.sense` to select minimization or maximization; this factor no
+        longer carries sign.
+        """
+        return self._objective
+
+    @objective.setter
+    def objective(self, value: float) -> None:
+        if value <= 0:
+            msg = (
+                f"'scale.objective' must be positive, got {value!r}. "
+                "Use 'problem.sense = \"maximize\"' to maximize the objective instead "
+                "of a negative scale factor."
+            )
+            raise ValueError(msg)
+        self._objective = float(value)
 
     def __getitem__(self, item: tuple[int, str, int]) -> float:  # TODO: not correct
         """Get the scale value for a given item."""

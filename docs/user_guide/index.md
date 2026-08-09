@@ -131,7 +131,7 @@ reference/scaling.rst
 reference/mesh_structure.rst
 reference/ipopt_options.rst
 reference/solution.rst
-reference/configuration.rst
+reference/ipopt_backend.rst
 ```
 
 ```{toctree}

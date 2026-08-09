@@ -2,7 +2,7 @@
 
 Test the deprecated `ipopt_source` override and its warnings.
 
-`ipopt_source` selects the Ipopt backend and is removed in 0.2.0; these tests
+`ipopt_source` selects the Ipopt backend and is removed in 0.3.0; these tests
 pin the 0.1.x behavior so the deprecation cannot quietly become a removal. The
 warning categories are asserted explicitly rather than incidentally: the custom
 path case must be a `FutureWarning`, because `DeprecationWarning` is hidden
@@ -70,7 +70,7 @@ def make_problem(monkeypatch, source):
 
 @pytest.mark.parametrize("value", ["default", "cyipopt", "casadi"])
 def test_setter_warns_deprecation(problem, value):
-    with pytest.warns(DeprecationWarning, match="0.2.0"):
+    with pytest.warns(DeprecationWarning, match="0.3.0"):
         problem.ipopt_source = value
 
 
@@ -112,7 +112,7 @@ def test_cyipopt_message_depends_on_environment(monkeypatch, value, in_conda, ex
 def test_messages_name_the_removal_version():
     for value in ("default", "cyipopt", "casadi", "/tmp/libipopt.so"):
         _, message = config.ipopt_source_deprecation(value)
-        assert "0.2.0" in message
+        assert "0.3.0" in message
 
 
 # --- silence for users who never opted in ---------------------------------------
@@ -195,7 +195,7 @@ def test_missing_cyipopt_raises_with_actionable_message(monkeypatch):
 
     message = str(excinfo.value)
     assert "conda install" in message
-    assert "0.2.0" in message
+    assert "0.3.0" in message
 
 
 def test_cyipopt_availability_is_probed_without_importing(monkeypatch):

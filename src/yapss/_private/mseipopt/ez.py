@@ -12,11 +12,14 @@ from __future__ import annotations
 
 import functools
 import inspect
+import logging
 from typing import Any
 
 import numpy as np
 
 from . import bare_np
+
+logger = logging.getLogger(__name__)
 
 
 class Problem(bare_np.Problem):
@@ -155,9 +158,27 @@ def jac_callback(jac: Any, problem: Any) -> Any:
         i, j = jac_ind() if callable(jac_ind) else jac_ind
         iRow[...] = i
         jCol[...] = j
-        # Check indices for overflow, can lead to segfault
-        assert np.all(iRow < problem.m), "row index overflow"
-        assert np.all(jCol < problem.n), "column index overflow"
+
+        # Check indices at BOTH ends. Ipopt hands these straight to the linear solver,
+        # which indexes off them without validation, so an out-of-range entry is a
+        # SIGSEGV in native code rather than an exception -- and a negative index is
+        # just as fatal as one that is too large.
+        i_arr = np.asarray(iRow)
+        j_arr = np.asarray(jCol)
+        logger.debug(
+            "jac structure: %d entries, rows [%d, %d] of m=%d, cols [%d, %d] of n=%d",
+            i_arr.size,
+            i_arr.min(),
+            i_arr.max(),
+            problem.m,
+            j_arr.min(),
+            j_arr.max(),
+            problem.n,
+        )
+        assert i_arr.min() >= 0, "negative row index"
+        assert i_arr.max() < problem.m, "row index overflow"
+        assert j_arr.min() >= 0, "negative column index"
+        assert j_arr.max() < problem.n, "column index overflow"
         return 1
 
     return wrapper
@@ -195,9 +216,28 @@ def hess_callback(hess: Any, problem: Any) -> Any:
         i, j = hess_ind() if callable(hess_ind) else hess_ind
         iRow[...] = i
         jCol[...] = j
-        # Check indices for overflow, can lead to segfault
-        assert np.all(iRow < problem.n), "row index overflow"
-        assert np.all(jCol < problem.n), "column index overflow"
+
+        # As in `jac_callback`: check both ends, because the linear solver indexes off
+        # these without validation. Additionally the Hessian must be lower triangular
+        # (row >= col) -- Ipopt documents that requirement and does not enforce it.
+        i_arr = np.asarray(iRow)
+        j_arr = np.asarray(jCol)
+        logger.debug(
+            "hess structure: %d entries, rows [%d, %d], cols [%d, %d], n=%d, "
+            "upper-triangular entries: %d",
+            i_arr.size,
+            i_arr.min(),
+            i_arr.max(),
+            j_arr.min(),
+            j_arr.max(),
+            problem.n,
+            int(np.count_nonzero(i_arr < j_arr)),
+        )
+        assert i_arr.min() >= 0, "negative row index"
+        assert i_arr.max() < problem.n, "row index overflow"
+        assert j_arr.min() >= 0, "negative column index"
+        assert j_arr.max() < problem.n, "column index overflow"
+        assert np.all(i_arr >= j_arr), "Hessian structure is not lower triangular"
         return 1
 
     return wrapper

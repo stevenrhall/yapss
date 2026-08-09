@@ -14,7 +14,7 @@ from ._private.input_args import DiscreteHessianArg, DiscreteJacobianArg
 from ._private.input_args import ObjectiveArg as ObjectiveArg_
 from ._private.input_args import ObjectiveGradientArg, ObjectiveHessianArg
 from ._private.problem import Problem
-from ._private.solution import Solution
+from ._private.solution import IpoptConvergenceWarning, Solution
 
 __all__ = [
     "ContinuousArg",
@@ -23,6 +23,7 @@ __all__ = [
     "DiscreteArg",
     "DiscreteHessianArg",
     "DiscreteJacobianArg",
+    "IpoptConvergenceWarning",
     "ObjectiveArg",
     "ObjectiveGradientArg",
     "ObjectiveHessianArg",

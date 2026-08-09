@@ -13,6 +13,7 @@ import ctypes
 import importlib.util
 import os
 import signal
+import sys
 import textwrap
 import warnings
 from pathlib import Path
@@ -37,7 +38,7 @@ from .mesh import Mesh
 # of conda risks an OpenMP runtime collision.
 #
 # `ipopt_source` can still override the default, but is deprecated and is removed
-# in 0.2.0, after which the environment decides and nothing overrides it. See
+# in 0.3.0, after which the environment decides and nothing overrides it. See
 # IPOPT_BACKEND_POLICY.md.
 #
 # Importing the vendored mseipopt is free -- it is ctypes declarations, and no
@@ -98,7 +99,7 @@ noise rather than information.
 def configure_ipopt_source(problem: yapss.Problem) -> str:
     """Resolve which Ipopt backend to use, honoring the deprecated override.
 
-    Deprecated in favor of letting the environment decide; removed in 0.2.0,
+    Deprecated in favor of letting the environment decide; removed in 0.3.0,
     along with this function. See IPOPT_BACKEND_POLICY.md.
 
     Parameters
@@ -136,7 +137,7 @@ def configure_ipopt_source(problem: yapss.Problem) -> str:
 
                 Alternatively, delete the 'ipopt_source' setting: YAPSS then uses its
                 own bundled Ipopt interface, which needs no additional packages. Note
-                that 'ipopt_source' is deprecated and is removed in 0.2.0.
+                that 'ipopt_source' is deprecated and is removed in 0.3.0.
             """,
         ).strip()
         raise ModuleNotFoundError(msg)
@@ -157,7 +158,7 @@ def _load_explicit_ipopt(path: str) -> None:
     that it only ever opens the Ipopt that CasADi bundles. That property is
     currently absolute and directly testable, and an exception living inside it
     would weaken it for every caller. This function is the exception, it is
-    deprecated, and it is deleted in 0.2.0 along with the option it serves.
+    deprecated, and it is deleted in 0.3.0 along with the option it serves.
 
     None of the checks that protect the default path can apply here:
 
@@ -208,6 +209,20 @@ def _load_explicit_ipopt(path: str) -> None:
 
 def solve(problem: yapss.Problem) -> Solution:
     """Create the nonlinear program (NLP) from the user input and solve.
+
+    This function does **not** warn when Ipopt fails to converge. The caller is
+    responsible for that, via `solution.warn_if_not_converged()`; `Problem.solve` is
+    currently the only caller and does so.
+
+    The check belongs at the public boundary rather than here for two reasons. Only
+    there can `stacklevel` point at user code -- and `stacklevel` also determines the
+    location Python's default warning filter dedupes on, so warning from in here would
+    collapse every unconverged solve in a program to a single registry entry and
+    silence all but the first. Second, an internal caller (adaptive mesh refinement,
+    say, which solves repeatedly) may need to solve without warning each time.
+
+    Any new public entry point that returns a `Solution` should call
+    `warn_if_not_converged` itself.
 
     Parameters
     ----------
@@ -303,6 +318,44 @@ def solve(problem: yapss.Problem) -> Solution:
         with contextlib.suppress(ValueError, TypeError):
             ipopt_problem.add_option("timing_statistics", "yes")
 
+    # CasADi's bundled Ipopt is built with SPRAL and selects it by default on
+    # Windows and Linux. macOS has no SPRAL in that build, and Conda's Ipopt
+    # defaults to MUMPS on every platform -- so the vendored path is the only
+    # configuration YAPSS supports that does not use MUMPS, and it is that way
+    # because CasADi's build enables a solver it also builds without OpenMP, not
+    # because SPRAL suits these problems. Setting MUMPS makes every YAPSS
+    # installation behave alike.
+    #
+    # Only when the user has not chosen a solver, and only for CasADi's own library
+    # -- an explicit `ipopt_source` path is the user's own build. This must precede
+    # the `mumps_pivot_order` block below, which is meaningful only once MUMPS is
+    # the solver in use.
+    if ipopt_source == "casadi" and "linear_solver" not in problem.ipopt_options.get_options():
+        with contextlib.suppress(ValueError, TypeError):
+            ipopt_problem.add_option("linear_solver", "mumps")
+
+    # macOS crash workaround, not performance tuning. CasADi's bundled Ipopt
+    # segfaults inside libcoinmetis (METIS 4.0, called by MUMPS for the
+    # fill-reducing ordering) on macOS only -- at every problem size when METIS is
+    # requested, and above roughly 5000 variables by default, where MUMPS selects
+    # METIS on its own. Fixed upstream in CasADi 3.8.0, but the workaround stays
+    # until the *floor* of the CasADi requirement can be raised past it; a user who
+    # resolves to 3.7.2 crashes no matter what the upper bound allows. QAMD is
+    # chosen because it is not a METIS alias -- PORD is one, and crashes at the
+    # identical fault address.
+    #
+    # Scoped narrowly on purpose: macOS only, CasADi's own bundled library only
+    # (an explicit `ipopt_source` path is the user's own build, not the one with
+    # the defect), and only when the user has not chosen an ordering. Conda is
+    # excluded because its Ipopt belongs to the user and may be built against HSL.
+    if (
+        sys.platform == "darwin"
+        and ipopt_source == "casadi"
+        and "mumps_pivot_order" not in problem.ipopt_options.get_options()
+    ):
+        with contextlib.suppress(ValueError, TypeError):
+            ipopt_problem.add_option("mumps_pivot_order", 6)
+
     if problem.derivatives.order == "first":
         ipopt_problem.add_option("hessian_approximation", "limited-memory")
 
@@ -366,7 +419,8 @@ def get_nlp_scaling(
         The NLP constraint function scale factor array
     """
     # objective
-    obj_scale = 1.0 / problem.scale.objective
+    sense_sign = -1.0 if problem.sense == "maximize" else 1.0
+    obj_scale = sense_sign / problem.scale.objective
 
     # decision variables
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, float)

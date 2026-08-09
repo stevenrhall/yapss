@@ -1019,9 +1019,10 @@ def get_nlp_jacobian_structure(
     col: list[int] = []
     linear_jacobian: list[np.float64 | float] = []
 
-    dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, int)
+    # dv holds integer indices into the NLP vectors, not values.
+    dv: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
     dv.z[:] = list(range(len(dv.z)))
-    cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, int)
+    cf: CFStructure[np.int_] = get_nlp_cf_structure(problem, int)
     cf.c[:] = list(range(len(cf.c)))
 
     # for each phase
@@ -1217,9 +1218,9 @@ def get_nlp_hessian_structure(nlp: NLP) -> tuple[tuple[int, ...], tuple[int, ...
         raise RuntimeError
 
     # index structure of nlp problem
-    dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, int)
+    dv: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
     dv.z[:] = list(range(len(dv.z)))
-    cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, int)
+    cf: CFStructure[np.int_] = get_nlp_cf_structure(problem, int)
     cf.c[:] = list(range(len(cf.c)))
 
     # continuous jacobian and hessian structures
@@ -1267,10 +1268,14 @@ def get_nlp_hessian_structure(nlp: NLP) -> tuple[tuple[int, ...], tuple[int, ...
                     cv_name2, k = cv_name1, j
 
                 # x, u, and s cases
+                # `.tolist()` rather than `list(...)`: the latter yields numpy
+                # scalars, and `np.int_` is not a subclass of `int`, so it cannot
+                # go into these `list[int]` index lists. `.tolist()` converts to
+                # native ints, which is what was meant all along.
                 if cv_name2 == "x":
-                    row2 += 2 * list(dv_phase.x[k][index])
+                    row2 += 2 * dv_phase.x[k][index].tolist()
                 elif cv_name2 == "u":
-                    row2 += 2 * list(dv_phase.u[k][index])
+                    row2 += 2 * dv_phase.u[k][index].tolist()
                 elif cv_name1 == "s":
                     row2 += 2 * n * [dv.s[j]]
                 else:  # pragma: no cover
@@ -1330,9 +1335,9 @@ def get_nlp_hessian_structure(nlp: NLP) -> tuple[tuple[int, ...], tuple[int, ...
 
             elif cf_name in ("f", "g"):
                 if cv_name == "x":
-                    col2 += 2 * list(dv_phase.x[j][index])
+                    col2 += 2 * dv_phase.x[j][index].tolist()
                 elif cv_name == "u":
-                    col2 += 2 * list(dv_phase.u[j][index])
+                    col2 += 2 * dv_phase.u[j][index].tolist()
                 elif cv_name == "s":
                     col2 += 2 * n * [dv.s[j]]
                 else:  # pragma: no cover

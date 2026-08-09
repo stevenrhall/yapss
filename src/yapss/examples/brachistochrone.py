@@ -118,7 +118,6 @@ def setup(*, wall: bool = False) -> Problem:
     ocp.mesh.phase[0].fraction = m * [1 / m]
 
     # solver options
-    ocp.ipopt_options.tol = 1e-20
     ocp.spectral_method = "lgl"
     ocp.derivatives.method = "user"
     ocp.ipopt_options.print_level = 3

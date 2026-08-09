@@ -102,7 +102,6 @@ def setup() -> Problem:
     bounds.control.lower[:] = u1_min, u2_min
     bounds.control.upper[:] = u1_max, u2_max
 
-    bounds.path.lower[:] = 1
     bounds.path.upper[:] = 1
 
     problem.bounds.discrete.lower[:] = problem.bounds.discrete.upper[:] = [0]
@@ -129,7 +128,6 @@ def setup() -> Problem:
 
     # ipopt options
     problem.ipopt_options.print_level = 3
-    problem.ipopt_options.tol = 1e-20
 
     return problem
 

@@ -462,10 +462,6 @@ def setup() -> Problem:
         ocp.mesh.phase[p_].fraction = m * (1.0 / m,)
 
     ocp.spectral_method = "lgl"
-    ocp.ipopt_options.tol = 1e-20
-    ocp.ipopt_options.constr_viol_tol = 1e-20
-    ocp.ipopt_options.dual_inf_tol = 1e-20
-    ocp.ipopt_options.compl_inf_tol = 1e-20
 
     return ocp
 
@@ -561,7 +557,6 @@ def main() -> None:
     ocp.derivatives.method = "auto"
     ocp.derivatives.order = "second"
     ocp.spectral_method = "lgl"
-    ocp.ipopt_options.linear_solver = "mumps"
     ocp.ipopt_options.max_iter = 300
 
     solution = problem.solve()

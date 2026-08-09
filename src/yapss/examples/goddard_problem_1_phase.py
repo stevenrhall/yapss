@@ -127,6 +127,7 @@ def setup() -> Problem:
     functions.objective = objective
     functions.objective_gradient = objective_gradient
     functions.objective_hessian = objective_hessian
+    ocp.sense = "maximize"
     functions.continuous = continuous
     functions.continuous_jacobian = continuous_jacobian
     functions.continuous_hessian = continuous_hessian
@@ -155,10 +156,7 @@ def setup() -> Problem:
     ocp.derivatives.method = "auto"
 
     # ipopt options
-    ocp.ipopt_options.tol = 1e-20
     ocp.ipopt_options.print_level = 3
-
-    ocp.scale.objective = -1
     # TODO: Fails if all scales are integers
     ocp.scale.phase[0].state = ocp.scale.phase[0].dynamics = 18_000, 800, 3
     ocp.scale.phase[0].time = 30

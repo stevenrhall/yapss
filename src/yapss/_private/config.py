@@ -21,20 +21,26 @@ RED = "\033[31m"
 RESET = "\033[0m"
 
 logger = logging.getLogger(__name__)
+
+# Configure the package root rather than this module, so every `yapss` submodule
+# inherits the level and the handler -- notably `mseipopt.library`, where the Ipopt
+# resolver logs which library it picked. Configuring `__name__` here left those
+# messages invisible under YAPSS_LOGGING=DEBUG.
+_package_logger = logging.getLogger("yapss")
 level = os.environ.get("YAPSS_LOGGING", None)
 if level:
     try:
-        logger.setLevel(level.upper())
+        _package_logger.setLevel(level.upper())
     except ValueError:
         msg = (
             f"Invalid logging level: '{level}'. \n"
             f"    Valid levels are: DEBUG, INFO, WARNING, ERROR, CRITICAL."
         )
         warn(msg, stacklevel=2)
-        logger.setLevel(logging.WARNING)
+        _package_logger.setLevel(logging.WARNING)
 
 else:
-    logger.setLevel(logging.WARNING)
+    _package_logger.setLevel(logging.WARNING)
 
 # Create a console handler and set the level to DEBUG
 console_handler = logging.StreamHandler()
@@ -44,8 +50,8 @@ console_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter(f"{RED}%(levelname)s %(name)s:%(lineno)d  %(message)s{RESET}")
 console_handler.setFormatter(formatter)
 
-# Add the handler to the logger
-logger.addHandler(console_handler)
+# Add the handler to the package logger
+_package_logger.addHandler(console_handler)
 
 
 def get_conda_prefix() -> Path | None:
@@ -83,7 +89,7 @@ def get_conda_prefix() -> Path | None:
 
 # --- `ipopt_source` deprecation -------------------------------------------------
 #
-# Removed in 0.2.0. Two distinct deprecations are in play and the messages differ
+# Removed in 0.3.0. Two distinct deprecations are in play and the messages differ
 # accordingly: the attribute and environment variable are going away (which
 # affects anyone who touches them at all, including someone setting "default"),
 # and the *capability* of choosing a non-default backend is going away (which
@@ -95,7 +101,7 @@ def get_conda_prefix() -> Path | None:
 # `solver.configure_ipopt_source()` -- and the two must not drift. Policy and
 # rationale: IPOPT_BACKEND_POLICY.md §3.
 
-_REMOVAL_VERSION = "0.2.0"
+_REMOVAL_VERSION = "0.3.0"
 
 _SEE_ALSO = (
     'See "Sharp Edges" in the user guide for why YAPSS must control which Ipopt ' "it loads."

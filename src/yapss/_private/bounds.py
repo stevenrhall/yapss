@@ -201,8 +201,6 @@ class PhaseBounds:
         Upper and lower bounds on the integrals.
     path : ArrayBounds
         Upper and lower bounds on the path variables.
-    zero_mode : ArrayBounds
-        Upper and lower bounds on the zero modes.
     """
 
     initial_time: ScalarBounds
@@ -214,7 +212,11 @@ class PhaseBounds:
     control: ArrayBounds
     integral: ArrayBounds
     path: ArrayBounds
-    zero_mode: ArrayBounds
+    # Bounds on the state "zero modes" -- the extra degree of freedom needed so the LGL
+    # discretization is not overconstrained. Not user-facing: there is no legitimate
+    # reason for a user to set these, so the attribute is private. Kept (rather than
+    # removed) for research use.
+    _zero_mode: ArrayBounds
 
     def reset(self) -> None:
         """Reset the bounds to their default values."""
@@ -227,7 +229,7 @@ class PhaseBounds:
         self.control.reset()
         self.integral.reset()
         self.path.reset()
-        self.zero_mode.reset()
+        self._zero_mode.reset()
 
     def validate(self) -> None:
         """Validate the bounds."""
@@ -240,7 +242,7 @@ class PhaseBounds:
         self.control.validate()
         self.integral.validate()
         self.path.validate()
-        self.zero_mode.validate()
+        self._zero_mode.validate()
 
         # check that time bounds are feasible
         msg = None
@@ -310,8 +312,6 @@ class Bounds(Protected):
             Bounds for any integral values defined over the phase.
         path : ArrayBounds
             Bounds for path constraints applied to the phase.
-        zero_mode : ArrayBounds
-            Bounds for the state "zero modes"
     """
 
     discrete: ArrayBounds
@@ -333,7 +333,7 @@ class Bounds(Protected):
                 control=ArrayBounds(p, "control", problem.nu[p]),
                 integral=ArrayBounds(p, "integral", problem.nq[p]),
                 path=ArrayBounds(p, "path", problem.nh[p]),
-                zero_mode=ArrayBounds(p, "zero_mode", problem.nx[p]),
+                _zero_mode=ArrayBounds(p, "zero_mode", problem.nx[p]),
             )
             phase.duration.lower = 0
             phase_bounds.append(phase)
@@ -405,8 +405,8 @@ def get_nlp_decision_variable_bounds(problem: yapss.Problem) -> tuple[FloatArray
                 ub.phase[p].x[i][:] = self_phase.state.upper[i]
 
             if problem.spectral_method == "lgl":
-                lb.phase[p].xs[i][:] = self_phase.zero_mode.lower[i]
-                ub.phase[p].xs[i][:] = self_phase.zero_mode.upper[i]
+                lb.phase[p].xs[i][:] = self_phase._zero_mode.lower[i]
+                ub.phase[p].xs[i][:] = self_phase._zero_mode.upper[i]
 
         # overwrite boundary value bounds
         lb.phase[p].x0[:] = np.maximum(self_phase.initial_state.lower, self_phase.state.lower)
@@ -477,8 +477,8 @@ def get_nlp_constraint_function_bounds(
         # zero mode
         if problem.spectral_method in ("lg", "lgr"):
             for i in range(problem.nx[p]):
-                lb.phase[p].zero_mode[i][:] = problem.bounds.phase[p].zero_mode.lower[i]
-                ub.phase[p].zero_mode[i][:] = problem.bounds.phase[p].zero_mode.upper[i]
+                lb.phase[p].zero_mode[i][:] = problem.bounds.phase[p]._zero_mode.lower[i]
+                ub.phase[p].zero_mode[i][:] = problem.bounds.phase[p]._zero_mode.upper[i]
 
     # discrete constraints
     lb.discrete[:] = problem.bounds.discrete.lower

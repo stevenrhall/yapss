@@ -190,6 +190,7 @@ def setup() -> Problem:
     ocp.functions.objective = objective
     ocp.functions.objective_gradient = objective_gradient
     ocp.functions.objective_hessian = objective_hessian
+    ocp.sense = "maximize"
     ocp.functions.discrete = discrete
     ocp.functions.discrete_jacobian = discrete_jacobian
     ocp.functions.discrete_hessian = discrete_hessian
@@ -230,8 +231,6 @@ def setup() -> Problem:
         ]
         ocp.guess.phase[p].control = [(Tm * (2 - p) / 2, Tm * (2 - p) / 2)]
 
-    ocp.scale.objective = -1
-
     # solver options
     ocp.derivatives.order = "second"
     ocp.derivatives.method = "auto"
@@ -239,7 +238,6 @@ def setup() -> Problem:
 
     # ipopt options
     ocp.ipopt_options.max_iter = 500
-    ocp.ipopt_options.tol = 1e-20
     ocp.ipopt_options.print_level = 3
 
     return ocp

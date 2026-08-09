@@ -193,7 +193,7 @@ def plot_solution(solution: Solution) -> None:
     Parameters
     ----------
     solution : Solution
-        The solution to the Newton's minimal resistance problem.
+        The solution to Newton's minimal resistance problem.
     """
     # plot style information
     linewidth = 2

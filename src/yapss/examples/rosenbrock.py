@@ -41,7 +41,6 @@ def setup() -> Problem:
     problem.derivatives.method = "auto"
 
     # ipopt options
-    problem.ipopt_options.tol = 1e-20
     problem.ipopt_options.print_level = 5
 
     return problem

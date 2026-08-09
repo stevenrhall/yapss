@@ -28,10 +28,10 @@ def setup() -> Problem:
         The isoperimetric optimization problem.
     """
     # problem has 1 phase, with 2 states, 2 controls, 1 path constraint, and 3
-    # integrals. There are four constraints: 2 to constrain the curved to be closed,
-    # and 2 to constrain the centroid of the curve to be at the origin.
+    # integrals. There are 2 discrete constraints, to constrain the curve to be closed;
+    # the centroid is placed at the origin by bounds on the second and third integrals.
 
-    ocp = Problem(name="Isoperimetric Problem", nx=[2], nu=[2], nq=[3], nh=[1], nd=4)
+    ocp = Problem(name="Isoperimetric Problem", nx=[2], nu=[2], nq=[3], nh=[1], nd=2)
 
     def objective(arg: ObjectiveArg) -> None:
         """Objective callback function."""
@@ -50,9 +50,9 @@ def setup() -> Problem:
     def discrete(arg: DiscreteArg) -> None:
         """Discrete callback function."""
         arg.discrete[:2] = arg.phase[0].final_state - arg.phase[0].initial_state
-        arg.discrete[2:4] = arg.phase[0].integral[1:]
 
     ocp.functions.objective = objective
+    ocp.sense = "maximize"
     ocp.functions.continuous = continuous
     ocp.functions.discrete = discrete
 
@@ -61,34 +61,33 @@ def setup() -> Problem:
     bounds.path.lower[0] = bounds.path.upper[0] = 1
     bounds.initial_time.lower = bounds.initial_time.upper = 0.0
     bounds.final_time.lower = bounds.final_time.upper = 1.0
-    bounds.state.lower[:] = -10
-    bounds.state.upper[:] = +10
-    bounds.control.lower[:] = -2
-    bounds.control.upper[:] = +2
-    ocp.bounds.discrete.lower = ocp.bounds.discrete.upper = [0, 0, 0, 0]
-    ocp.bounds.discrete.lower[2:] = -1e-4
-    ocp.bounds.discrete.upper[2:] = +1e-4
+    ocp.bounds.discrete.lower = ocp.bounds.discrete.upper = [0, 0]
+
+    # centroid of the curve at the origin
+    bounds.integral.lower[1:] = 0
+    bounds.integral.upper[1:] = 0
 
     # guess
     guess = ocp.guess.phase[0]
+    # A square of perimeter 1, matching the path constraint. (The diamond used
+    # previously had perimeter 4*sqrt(2), so the guess violated the constraint it was
+    # meant to start from.)
     guess.time = [0.0, 0.25, 0.5, 0.75, 1.0]
-    guess.state = [
-        [1.0, 0.0, -1.0, 0.0, 1.0],
-        [0.0, -1.0, 0.0, 1.0, 0.0],
-    ]
+    guess.state = np.array([[1.0, 1.0, -1.0, -1.0, 1.0], [1.0, -1.0, -1.0, 1.0, 1.0]]) / 8
 
     # mesh
-    m, n = 3, 15
+    m, n = 3, 12
     ocp.mesh.phase[0].collocation_points = m * (n,)
     ocp.mesh.phase[0].fraction = m * (1.0 / m,)
-
-    # set objective scale to maximize objective
-    ocp.scale.objective = -1
 
     # yapss and ipopt options
     ocp.derivatives.method = "auto"
     ocp.derivatives.order = "second"
-    ocp.ipopt_options.tol = 1e-20
+    # A tighter tolerance than one would normally use, to show how accurate the
+    # pseudospectral method is here with a modest number of collocation points. The
+    # relative error against the closed-form answer, printed by `main()`, is the real
+    # check -- it holds whichever way Ipopt happens to terminate.
+    ocp.ipopt_options.tol = 1e-14
     ocp.ipopt_options.print_level = 3
 
     return ocp
@@ -108,6 +107,7 @@ def plot_solution(solution: Solution) -> None:
     plt.figure(1)
     plt.clf()
     x, y = solution.phase[0].state
+    t = solution.phase[0].time
     s = solution.phase[0].time
     sp = np.linspace(0, 1, 500)
     xp = interp1d(s, x, kind="cubic")(sp)
@@ -118,6 +118,12 @@ def plot_solution(solution: Solution) -> None:
     plt.ylabel("$y$")
     plt.axis("square")
     plt.tight_layout()
+
+    # plot the Hamiltonian
+    plt.figure(2)
+    plt.clf()
+    hamiltonian = solution.phase[0].hamiltonian
+    plt.plot(t, hamiltonian)
 
 
 def main() -> None:
@@ -130,6 +136,8 @@ def main() -> None:
     area_ideal = 1 / (4 * math.pi)
     print(f"\n\nMaximum area = {area} (Should be 1 / (4 pi) = {area_ideal})")
     print(f"Relative error in solution = {abs(area - area_ideal) / area_ideal}")
+
+    print(solution.discrete_multiplier)
 
     # plot the solution
     plot_solution(solution)

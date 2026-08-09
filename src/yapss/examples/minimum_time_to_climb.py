@@ -460,9 +460,9 @@ def plot_solution(solution: Solution, *, plot_energy_contours: bool = False) -> 
             plt.plot(v_, h_ / 1000, "grey", linewidth=1)
 
         # excess power contours
-        h_grid = np.linspace(-1000, 70000, num=100, dtype=np.float64)
-        v_grid = np.linspace(0.1, 1800, num=100, dtype=np.float64)
-        v_grid, h_grid = np.meshgrid(v_grid, h_grid)
+        h_axis = np.linspace(-1000, 70000, num=100, dtype=np.float64)
+        v_axis = np.linspace(0.1, 1800, num=100, dtype=np.float64)
+        v_grid, h_grid = np.meshgrid(v_axis, h_axis)
         power = get_excess_power(h_grid, v_grid)
         cp = plt.contour(
             v_grid,

@@ -86,6 +86,15 @@ def main() -> None:
     solution = problem.solve()
     print_solution(solution)
 
+    if solution.nlp_info.ipopt_status not in (0, 1):
+        msg = "YAPSS did not converge to an optimal solution."
+        raise RuntimeError(msg)
+    if not np.isclose(solution.objective, 17.01401714, rtol=1e-6):
+        msg = "YAPSS returned an unexpected objective value."
+        raise RuntimeError(msg)
+
+    print("\nYAPSS solution is correct.")
+
 
 if __name__ == "__main__":
     main()
