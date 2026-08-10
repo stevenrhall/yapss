@@ -178,7 +178,18 @@ class Guess:
         for p, phase in enumerate(solution.phase):
             self.phase[p].time = phase.time
             self.phase[p].state = phase.state
-            self.phase[p].control = phase.control
+
+            # control is defined on phase.time_c, which only coincides with phase.time
+            # for the lgl spectral method. Interpolate/extrapolate onto phase.time so
+            # the guess has state and control on a common time grid.
+            control_interp = interp1d(
+                phase.time_c,
+                phase.control,
+                axis=1,
+                fill_value="extrapolate",
+            )(phase.time)
+            self.phase[p].control = control_interp
+
             self.phase[p].integral = phase.integral
 
         # set the guess for the problem parameters
