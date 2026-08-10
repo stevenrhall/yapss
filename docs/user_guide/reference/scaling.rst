@@ -14,7 +14,7 @@ all these discrete decision variables and constraint functions, along with the o
 function, are passed to the NLP solver (Ipopt) to find the optimal solution.
 
 An inherent difficulty in solving NLPs is that the problem as described in natural units
-may be very badly scaled. For example, the `orbit raising problem
+may be badly scaled. For example, the `orbit raising problem
 <../notebooks/orbit_raising.ipynb>`_ has different variables with very different
 magnitudes. The distance of the spacecraft from the Sun as it transits from the Earth to
 Mars (one of the decision variables) varies from approximately :math:`1.5 \times 10^{11}\text{ m}`
@@ -106,7 +106,9 @@ YAPSS Scaling
 YAPSS provides scaling through the ``scale`` attribute of ``Problem`` instances. The
 attributes that can be set are:
 
--    ``scale.objective`` (`float`): Objective function scale.
+-    ``scale.objective`` (`float`): Objective function scale. Must be strictly positive --
+     it conditions the objective's magnitude only. To maximize instead of minimize, set
+     ``problem.sense`` (see :doc:`callbacks`) rather than a negative scale.
 -    ``scale.parameter`` (`Sequence[float]`): Parameter scale.
 -    ``scale.discrete`` (`Sequence[float]`): Discrete constraint function scale.
 
@@ -131,7 +133,6 @@ scale.
 All the scales described are initialized to 1.0 (or an array of ones), so for problems
 that are nicely scaled, no scaling is necessary.
 
-
 Note also that each of the array scales can be set elementwise, or using a slice.
 
 Example
@@ -151,20 +152,26 @@ constraints that impose periodicity of velocity, flight-path angle, and heading 
 The scales for each variable were set to be roughly the expected range of the variable,
 and the scales for the discrete constraints were set as discussed in the Theory section:
 
-.. code-block:: python
+.. testsetup:: group2
 
-    # scales for the problem
-    scale = problem.scale
-    scale.objective = 0.1
-    scale.parameter = [0.1]
-    scale.discrete = [200.0, 200.0, 200.0]
+   from yapss.examples.dynamic_soaring import setup
 
-    # scales for the first (and only) phase
-    phase = scale.phase[0]
-    phase.dynamics = phase.state = 1000.0, 1000.0, 1000.0, 200.0, 1.0, 6.0
-    phase.control = 1.0, 1.0
-    phase.time = 30.0
-    phase.path = [7.0]
+   problem = setup()
+
+.. testcode:: group2
+
+   # scales for the problem
+   scale = problem.scale
+   scale.objective = 0.1
+   scale.parameter = [0.1]
+   scale.discrete = [200.0, 200.0, 200.0]
+
+   # scales for the first (and only) phase
+   phase = scale.phase[0]
+   phase.dynamics = phase.state = 1000.0, 1000.0, 1000.0, 200.0, 1.0, 6.0
+   phase.control = 1.0, 1.0
+   phase.time = 30.0
+   phase.path = [7.0]
 
 With these scales, the problem converges in a reasonable number of iterations (about
 32).

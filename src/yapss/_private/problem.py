@@ -606,7 +606,9 @@ class Derivatives(Protected):
     Attributes
     ----------
     method : {"auto", "central-difference", "central-difference-full", "user"}
+        Method used to compute derivatives.
     order : {"first", "second"}
+        Order of derivatives used in search for optimum.
     """
 
     _allowed_attrs = ("_method", "_order", "method", "order")
@@ -755,9 +757,15 @@ class MeshPhase(Protected):
         if not isinstance(value, Sequence):
             msg = f"collocation_points must be a sequence of positive integers, not {value}"  # type: ignore[unreachable]
             raise TypeError(msg)
-        # TODO: Change to minimum number of collocation points. 3?
-        if not all(isinstance(i, int) and i > 0 for i in value):
-            msg = "collocation_points must be a sequence of positive integers"
+        # The true minimum depends on the spectral method: LG and LGR quadrature will
+        # accept 1 point, but LGL requires at least 2. Since the spectral method can be
+        # set independently of (and after) the mesh, we enforce the higher, universal
+        # floor of 2 here so a mesh is never silently invalid for whichever method ends
+        # up being selected. Values of 2 or 3 work but are rarely a good choice in
+        # practice -- 4 or more collocation points per segment is recommended.
+        min_collocation_points = 2
+        if not all(isinstance(i, int) and i >= min_collocation_points for i in value):
+            msg = "collocation_points must be a sequence of integers, each at least 2"
             raise ValueError(msg)
         self._collocation_points = tuple(value)
 
@@ -773,8 +781,8 @@ class Mesh(Protected):
         segments = DEFAULT_NUMBER_OF_SEGMENTS
         points = DEFAULT_NUMBER_OF_COLLOCATION_POINTS
         for p in range(problem.np):
-            self.phase[p].collocation_points = segments * (segments,)
-            self.phase[p].fraction = segments * (1 / points,)
+            self.phase[p].collocation_points = segments * (points,)
+            self.phase[p].fraction = segments * (1 / segments,)
 
     # TODO: should just init mesh inside class?
 

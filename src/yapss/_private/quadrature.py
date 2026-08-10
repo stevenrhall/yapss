@@ -76,7 +76,7 @@ def lgl(
     Parameters
     ----------
     n : int
-        The number of collocation points. Should have :math:`n \ge 3`
+        The number of collocation points. Must have :math:`n \ge 2`
 
     Returns
     -------
@@ -91,9 +91,9 @@ def lgl(
     d0 : NDArray
         The derivative of the polynomial
     """
-    min_collocation_points = 3
+    min_collocation_points = 2
     if n < min_collocation_points:
-        msg = "The number of collocation points (n) must be at least 3."
+        msg = "The number of collocation points (n) must be at least 2."
         raise ValueError(msg)
 
     t: MPArray = -np.array(
@@ -156,7 +156,7 @@ def lgr(
     Parameters
     ----------
     n : int
-        The number of collocation points. Should have :math:`n \ge 3`
+        The number of collocation points. Must have :math:`n \ge 1`
 
     Returns
     -------
@@ -170,9 +170,9 @@ def lgr(
         those points
     b : NDArray
     """
-    min_collocation_points = 3
+    min_collocation_points = 1
     if n < min_collocation_points:
-        msg = "The number of collocation points (n) must be at least 3."
+        msg = "The number of collocation points (n) must be at least 1."
         raise ValueError(msg)
 
     # TODO: Describe the array b
@@ -240,12 +240,12 @@ def lgr(
 def lg(
     n: int,
 ) -> tuple[Array, Array, Array, Array]:
-    r"""Compute the LGL collocation points, quadrature weights, and derivative matrix.
+    r"""Compute the LG collocation points, quadrature weights, and derivative matrix.
 
     Parameters
     ----------
     n : int
-        The number of collocation points. Should have :math:`n \ge 3`
+        The number of collocation points. Must have :math:`n \ge 1`
 
     Returns
     -------
@@ -260,9 +260,9 @@ def lg(
     d0 : NDArray
         The derivative of the polynomial
     """
-    min_collocation_points = 3
+    min_collocation_points = 1
     if n < min_collocation_points:
-        msg = "The number of collocation points (n) must be at least 3."
+        msg = "The number of collocation points (n) must be at least 1."
         raise ValueError(msg)
 
     t: MPArray = -np.array(

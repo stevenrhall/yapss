@@ -492,8 +492,6 @@ class Solution:
             Lagrange multipliers associated with the constraints.
     """
 
-    # TODO: Add integral to SolutionPhase
-
     name: str
     problem: yapss.Problem
     objective: float

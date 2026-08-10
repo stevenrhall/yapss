@@ -6,6 +6,7 @@ Sphinx configuration.
 
 # standard library imports
 import datetime
+import doctest
 import os
 import subprocess
 import sys
@@ -41,6 +42,16 @@ extensions = [
     "myst_parser",
     "link_modifier",  # custom extension to fix GitHub links
 ]
+
+# Sphinx's own default is DONT_ACCEPT_TRUE_FOR_1 | ELLIPSIS | IGNORE_EXCEPTION_DETAIL.
+# IGNORE_EXCEPTION_DETAIL means a `.. doctest::` block that ends in a Traceback only
+# checks that the right exception *type* was raised -- the message text after it is
+# never compared, so it can drift from what the code actually raises without the
+# doctest build ever catching it. (Confirmed the hard way: reference/bounds.rst had a
+# `ValueError` message that didn't match any string in the codebase, and the doctest
+# suite passed regardless -- even swapping in an obviously wrong message still passed.)
+# Dropping IGNORE_EXCEPTION_DETAIL here makes the message text part of the check too.
+doctest_default_flags = doctest.DONT_ACCEPT_TRUE_FOR_1 | doctest.ELLIPSIS
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),

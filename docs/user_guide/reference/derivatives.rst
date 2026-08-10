@@ -65,3 +65,5 @@ Below is a complete reference of the ``Derivatives`` class attributes.
 
 .. autoclass:: yapss._private.problem.Derivatives
     :members:
+    :no-special-members:
+    :no-undoc-members:

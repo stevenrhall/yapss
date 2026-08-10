@@ -29,16 +29,23 @@ produces a full set of trajectories --- they simply do not satisfy any convergen
 the returned object looks different.
 
 Since version 0.2.0, YAPSS emits an :class:`~yapss.IpoptConvergenceWarning` when that
-happens, so the outcome is at least not silent:
+happens, so the outcome is at least not silent. For example, forcing Ipopt to stop
+immediately by setting ``max_iter = 0`` reliably produces an unconverged solve, and the
+warning appears as soon as ``solve()`` returns:
 
-.. code-block:: python
+.. code-block:: pycon
 
-    solution = problem.solve()
-    # IpoptConvergenceWarning: Ipopt did not converge. Status -1: "Maximum Number of
-    # Iterations Exceeded."
-    # The returned solution does not satisfy Ipopt's convergence criteria and should
-    # not be treated as an optimal trajectory. Check solution.nlp_info.ipopt_status
-    # and the Ipopt output before using these results.
+   >>> problem.ipopt_options.max_iter = 0
+   >>> solution = problem.solve()
+   IpoptConvergenceWarning: Ipopt did not converge. Status -1: "Maximum Number of Iterations
+   Exceeded." The returned solution does not satisfy Ipopt's convergence criteria and should
+   not be treated as an optimal trajectory. Check solution.nlp_info.ipopt_status and the
+   Ipopt output before using these results.
+
+This illustration is not itself doctested, since the warning text goes to ``stderr``
+rather than ``stdout`` and capturing it would need the same ``warnings`` bookkeeping this
+example is trying to avoid. The behavior it depicts is covered by
+``tests/modules/test_convergence_warning.py``.
 
 Three Ipopt statuses are treated as success and do not warn: ``0`` (optimal solution
 found), ``1`` (solved to acceptable level), and ``6`` (feasible point found for a square
@@ -60,17 +67,17 @@ The warning class is public, so it can be silenced or escalated in the usual way
 Projects that run their test suites with ``-W error`` will newly see failures on
 unconverged solves.
 
-What the warning does not tell you
-..................................
-
 .. warning::
 
-    **In a loop, you will see it once.** Python's default warning filter suppresses
-    repeats of the same warning from the same line, so a sweep that solves fifty cases
-    from one ``solve()`` call reports the first failure and stays silent for the other
-    forty-nine. If you are solving repeatedly, ask for every occurrence::
+    **In a loop, you will see** ``IpoptConvergenceWarning`` **only once**, or more precisely
+    only once for each line of code where the warning occurs. Python's default warning filter
+    suppresses repeats of the same warning from the same line. If you are solving repeatedly
+    and want a warning for every occurrence, you can use::
 
         warnings.simplefilter("always", yapss.IpoptConvergenceWarning)
+
+What the warning does not tell you
+..................................
 
 **A cancelled solve carries no guarantee at all.** Interrupting with Ctrl-C stops Ipopt
 at whatever iterate it had reached, reported as status ``5``. The warning tells you it did
@@ -109,6 +116,18 @@ Incomplete and Unverified Multipliers
     than from Ipopt's multiplier — and was only caught by inspection, not by a test.
     Treat multiplier values as provisional until you have checked them against a known
     solution for your problem.
+
+Multiplier and Costate Sign
+----------------------------
+
+The Lagrange multipliers and costates in a `Solution` -- ``parameter_multiplier``,
+``discrete_multiplier``, ``control_multiplier``, ``costate``, ``path_multiplier``,
+``duration_multiplier``, ``integral_multiplier``, and the time-bound multipliers --
+are all reported with correct sign relative to the objective :math:`J` as written in
+the objective callback, :math:`\mu = dJ/dc`, regardless of whether
+``problem.sense`` is ``"minimize"`` or ``"maximize"``. See :doc:`callbacks` for why
+this is only true when ``problem.sense`` is used to select maximization, rather than
+negating the objective directly.
 
 Representation of Solution Objects
 ----------------------------------

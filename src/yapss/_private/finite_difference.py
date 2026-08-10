@@ -216,12 +216,12 @@ def get_objective_gradient_structure_nan(
     discrete_arg: DiscreteArg[numpy.float64] = DiscreteArg(problem, dv, numpy.float64)
     dv.z[:] = z0
 
-    np = problem.np
+    n_phases = problem.np
 
     ogs: list[DVKey] = []
     djs: list[tuple[DFIndex, DVKey]] = []
 
-    for p in range(np):
+    for p in range(n_phases):
         nx = problem.nx[p]
         nq = problem.nq[p]
 
@@ -646,11 +646,11 @@ def get_objective_gradient_structure_full(problem: yapss.Problem) -> tuple[OGS, 
     ogs: list[DVKey] = []
     djs: list[tuple[DFIndex, DVKey]] = []
 
-    np = problem.np
+    n_phases = problem.np
     ns = problem.ns
 
     # Iterate over phases and add to ogs and djs based on structure only
-    for p in range(np):
+    for p in range(n_phases):
         nx = problem.nx[p]
         nq = problem.nq[p]
 

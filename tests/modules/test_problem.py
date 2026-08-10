@@ -114,11 +114,14 @@ def test_collocation_points():
     msg = "collocation_points must be a sequence of positive integers, not 0.5"
     with pytest.raises(TypeError, match=msg):
         ocp.mesh.phase[0].collocation_points = 0.5
-    msg = "collocation_points must be a sequence of positive integers"
+    msg = "collocation_points must be a sequence of integers, each at least 2"
     with pytest.raises(ValueError, match=msg):
         ocp.mesh.phase[0].collocation_points = (0.5, 0.5, 0.5)
     with pytest.raises(ValueError, match=msg):
         ocp.mesh.phase[0].collocation_points = (10, 10, 0)
+    with pytest.raises(ValueError, match=msg):
+        ocp.mesh.phase[0].collocation_points = (10, 10, 1)
+    ocp.mesh.phase[0].collocation_points = (10, 10, 2)
 
 
 def test_mesh_validates():

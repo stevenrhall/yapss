@@ -48,9 +48,9 @@ The available bounds include:
 
 **Time Bounds**:
 
-- ``bounds.phase[k].initial_time.upper``, ``bounds.phase[k].initial_time.lower``
-- ``bounds.phase[k].final_time.upper``, ``bounds.phase[k].final_time.lower``
-- ``bounds.phase[k].duration.upper``, ``bounds.phase[k].duration.lower``
+- ``bounds.phase[p].initial_time.upper``, ``bounds.phase[p].initial_time.lower``
+- ``bounds.phase[p].final_time.upper``, ``bounds.phase[p].final_time.lower``
+- ``bounds.phase[p].duration.upper``, ``bounds.phase[p].duration.lower``
 
 To ensure feasibility, set these bounds with care. For example, each phase must satisfy:
 
@@ -62,9 +62,9 @@ and
 
 **State Bounds**:
 
-- ``bounds.phase[k].initial_state.upper``, ``bounds.phase[k].initial_state.lower``
-- ``bounds.phase[k].final_state.upper``, ``bounds.phase[k].final_state.lower``
-- ``bounds.phase[k].state.upper``, ``bounds.phase[k].state.lower``
+- ``bounds.phase[p].initial_state.upper``, ``bounds.phase[p].initial_state.lower``
+- ``bounds.phase[p].final_state.upper``, ``bounds.phase[p].final_state.lower``
+- ``bounds.phase[p].state.upper``, ``bounds.phase[p].state.lower``
 
 These bounds should be consistent across phases. For example:
 
@@ -72,9 +72,9 @@ These bounds should be consistent across phases. For example:
 
 **Control, Path, and Integral Bounds**:
 
-- ``bounds.phase[k].control.upper``, ``bounds.phase[k].control.lower``
-- ``bounds.phase[k].path.upper``, ``bounds.phase[k].path.lower``
-- ``bounds.phase[k].integral.upper``, ``bounds.phase[k].integral.lower``
+- ``bounds.phase[p].control.upper``, ``bounds.phase[p].control.lower``
+- ``bounds.phase[p].path.upper``, ``bounds.phase[p].path.lower``
+- ``bounds.phase[p].integral.upper``, ``bounds.phase[p].integral.lower``
 
 **Parameter and Discrete Constraint Bounds**:
 
@@ -103,7 +103,6 @@ The initial time is set to zero, with an expected duration between 10 and 30 sec
     >>> bounds.initial_time.lower = bounds.initial_time.upper = 0
     >>> bounds.final_time.lower = 10
     >>> bounds.final_time.upper = 30
-    >>>
 
 The initial and final positions are set to zero, and there are bounds on the control
 variables (lift coefficient and bank angle) from the problem statement:
@@ -229,9 +228,7 @@ Similarly, trying to set conflicting control bounds results in an error:
     >>> bounds.validate()
     Traceback (most recent call last):
         ...
-    ValueError: Failed to set bound.phase[0].control.lower.
-    Must have bound.phase[0].control.upper[i] >= bound.phase[0].control.lower[i] for all i.
-    Condition failed for i in [1].
+    ValueError: bounds.phase[0].control.lower[i] is greater than bounds.phase[0].control.upper[i] for indices i in [1]
 
 ``Bounds`` Class Reference
 --------------------------

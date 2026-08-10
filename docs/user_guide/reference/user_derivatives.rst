@@ -17,8 +17,9 @@ derivatives.
 The following example illustrates how to set up a problem with user-defined derivatives.
 We use the classic brachistochrone problem, where the objective is to minimize the time
 for a particle to slide down a curve between two points. This example shows how to specify
-derivatives for objectives and constraints manually. (See the JupyterLab notebook for
-additional problem details.) As usual, we start by defining the problem:
+derivatives for objectives and constraints manually. (See the `JupyterLab notebook
+<../notebooks/brachistochrone.ipynb>`_ for additional problem details.) As usual, we start
+by defining the problem:
 
 .. testcode:: group1
 
@@ -69,7 +70,7 @@ Jacobian function is defined as follows:
 
    ocp.functions.continuous_jacobian = continuous_jacobian
 
-For each phase ``p``, the `jacobian` dictionary (``arg.phase[p].jacobian``) contains entries
+For each phase ``p``, the ``jacobian`` dictionary (``arg.phase[p].jacobian``) contains entries
 representing partial derivatives. The keys follow the pattern:
 
 - ``("f", i)``: Element ``i`` of the dynamics function.
@@ -103,7 +104,8 @@ The Hessian of the continuous functions is defined similarly:
 The main difference with the Hessian is that each entry represents a second partial derivative,
 so two keys corresponding to decision variables are required for each partial derivative. Note that
 for mixed partial derivatives, the order of the keys is unimportant. For example, if you set
-``hessian[("f", 0), ("x", 2), ("u", 0)]``, ``hessian[("f", 0), ("u", 0), ("x", 2)]`` should not be set.
+``hessian[("f", 0), ("x", 2), ("u", 0)]``, ``hessian[("f", 0), ("u", 0), ("x", 2)]`` should not be set,
+since both keys refer to the same second derivative and setting both would be redundant.
 
 The Objective Gradient and Hessian
 ----------------------------------
@@ -118,7 +120,7 @@ is defined as follows:
 
    ocp.functions.objective_gradient = objective_gradient
 
-The gradient values are stored in the dictionary `arg.gradient`. In this example, the key is
+The gradient values are stored in the dictionary ``arg.gradient``. In this example, the key is
 ``(0, "tf", 0)``, which means the gradient is with respect to the final time of phase 0.
 The gradient keys are of the form
 
@@ -126,6 +128,7 @@ The gradient keys are of the form
 - ``(p, "xf", i)``: Element ``i`` of the final state vector in phase ``p``.
 - ``(p, "t0", 0)``: The initial time of phase ``p``.
 - ``(p, "tf", 0)``: The final time of phase ``p``.
+- ``(p, "q", i)``: Element ``i`` of the integral vector in phase ``p``.
 - ``(0, "s", i)``: Element ``i`` of the parameter vector.
 
 Because the gradient is constant with respect to the decision variables, the Hessian function
@@ -145,8 +148,8 @@ example a key of the dictionary ``arg.hessian`` in a multiphase problem might be
    ``(p1, var1, i1), (p2, var2, i2)``
 
 where ``p1`` and ``p2`` are phase indices (or 0 for an element of the parameter vector), each of
-``var1`` and ``var2`` is one of the variables ``x0``, ``xf``, ``t0``, ``tf``, or ``s``, and ``i1``
-and ``i2`` are the indices of the variables (or 0 for ``t0`` or ``tf``).
+``var1`` and ``var2`` is one of the variables ``x0``, ``xf``, ``t0``, ``tf``, ``q``, or ``s``, and
+``i1`` and ``i2`` are the indices of the variables (or 0 for ``t0`` or ``tf``).
 
 The Discrete Jacobian and Hessian
 ---------------------------------

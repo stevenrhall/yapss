@@ -51,9 +51,9 @@ the mesh structure. (For calculus fans, this is just an application of the chain
 differentiation.) That calculation is performed by YAPSS internally, to produce the final
 callback functions to be passed to Ipopt.
 
-The ``"central-difference"`` and ``"user"`` differentiation methods differentiate the user
-functions differently, but the additional chain-rule step is shared by all of the
-differentiation methods, and so is everything downstream of it.
+The ``"central-difference"``, ``"central-difference-full"``, and ``"user"`` differentiation
+methods differentiate the user functions differently, but the additional chain-rule step is
+shared by all of the differentiation methods, and so is everything downstream of it.
 
 The difficulty is then that CasADi doesn't have a direct interface to Ipopt itself, and the
 ``nlpsol`` function is an abstraction that can be used to call Ipopt, but also many other

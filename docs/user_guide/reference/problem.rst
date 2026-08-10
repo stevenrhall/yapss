@@ -49,8 +49,8 @@ In addition, each phase may have integrals associated with it of the form
       \quad p=0, \ldots, n_{p}-1
 
 where :math:`g^{(p)}` is a vector-valued function with dimension :math:`n_{q}^{(p)}`. The
-integrals may appear as a term in the cost function (a `Lagrangian` term) or as a
-perimetric constraint.
+integrals may appear as a term in the cost function (a `Lagrangian` term) or as an
+isoperimetric constraint.
 
 The cost to be minimized is given by a function of all the discrete variables in problem:
 
@@ -98,7 +98,7 @@ Problem Instantiation
 Given a formulation of the problem as described above, the problem can be implemented in
 YAPSS and solved. In this section, we describe the instantiation of a YAPSS problem object.
 
-Consider for example, the Goddard problem, a classic optimal control problem to maximize the
+Consider, for example, the Goddard problem, a classic optimal control problem to maximize the
 altitude of a sounding rocket launched vertically from the surface of the Earth, taking into
 account the forces of gravity, drag, and thrust. (See the JupyterLab notebooks for the
 `one phase Goddard problem <../notebooks/goddard_problem_1_phase.ipynb>`_ and the
@@ -115,8 +115,7 @@ parameters and discrete constraints. In this case, the problem is instantiated a
 
 .. doctest:: example
 
-    >>> import yapss.math as np
-    >>> from yapss import Problem, Solution
+    >>> from yapss import Problem
     >>>
     >>> problem = Problem(
     ...     name="Goddard Rocket Problem with Singular Arc",
@@ -155,7 +154,7 @@ problem using YAPSS:
 - Setting the :doc:`initial guess <guess>` for the decision variables.
 - Setting options for evaluating :doc:`derivatives <derivatives>`.
 - Specifying :doc:`user-defined derivatives <user_derivatives>`. (rarely needed)
-- Scaling the problem for improved numerical conditioning
+- :doc:`Scaling <scaling>` the problem for improved numerical conditioning.
 - Defining the :doc:`mesh structure <mesh_structure>` for the problem.
 - Setting :doc:`Ipopt options <ipopt_options>`.
 - :doc:`How YAPSS connects to Ipopt <ipopt_backend>`. (background; nothing to configure)
