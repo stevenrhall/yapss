@@ -9,7 +9,7 @@ description = "A Python package for solving optimal control problems using pseud
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-license-files = ["LICENSE", "licenses/*"]
+license-files = ["LICENSE", "LICENSES/*"]
 keywords = ["optimal control", "optimization", "pseudospectral methods"]
 authors = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
 maintainers = [{ name = "Steven R. Hall", email = "steve@steven-hall.net" }]
