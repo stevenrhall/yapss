@@ -244,9 +244,9 @@ def solve(problem: yapss.Problem) -> Solution:
     method = problem.derivatives.method
     functions: ProblemFunctions
     if method == "user":
-        functions = make_user_functions(problem, z0)
+        functions = make_user_functions(problem, z0, mesh.tau_u)
     elif method in ("central-difference", "central-difference-full"):
-        functions = make_cd_functions(problem, z0)
+        functions = make_cd_functions(problem, z0, mesh.tau_u)
     elif method == "auto":
         functions = make_auto_functions(problem)
     else:

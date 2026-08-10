@@ -49,6 +49,9 @@ from .input_args import (
 from .structure import DVStructure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
+    # standard imports
+    from collections.abc import Sequence
+
     # third party imports
     from numpy.typing import ArrayLike, NDArray
 
@@ -87,6 +90,7 @@ if TYPE_CHECKING:
 def get_continuous_jacobian_structure_nan(
     problem: yapss.Problem,
     z0: NDArray[numpy.float64],
+    tau_u: Sequence[NDArray[np.float64]],
 ) -> CJS:
     """Deduce the Jacobian structure of the continuous constraint function.
 
@@ -120,8 +124,13 @@ def get_continuous_jacobian_structure_nan(
     from .structure import get_nlp_dv_structure
 
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, float)
-    arg: ContinuousArg[np.float64] = ContinuousArg(problem, dv, dtype=numpy.float64)
-    arg._dv.z[:] = z0
+    arg: ContinuousArg[np.float64] = ContinuousArg(
+        problem,
+        dv,
+        dtype=numpy.float64,
+        tau_u=tau_u,
+    )
+    arg._sync(z0)
 
     cjs = []
 
@@ -445,7 +454,11 @@ def get_discrete_jacobian_fd_structure(djs: DJS) -> DJFDS:
     return tuple(discrete_jacobian_fd_structure)
 
 
-def make_fd_structure(problem: yapss.Problem, z0: NDArray[numpy.float64]) -> ProblemFunctions:
+def make_fd_structure(
+    problem: yapss.Problem,
+    z0: NDArray[numpy.float64],
+    tau_u: Sequence[NDArray[np.float64]],
+) -> ProblemFunctions:
     """Make finite difference structures for the optimal control problem functions.
 
     Parameters
@@ -483,7 +496,7 @@ def make_fd_structure(problem: yapss.Problem, z0: NDArray[numpy.float64]) -> Pro
         cjs = get_continuous_jacobian_structure_full(problem)
         ogs, djs = get_objective_gradient_structure_full(problem)
     elif method == "central-difference":
-        cjs = get_continuous_jacobian_structure_nan(problem, z0)
+        cjs = get_continuous_jacobian_structure_nan(problem, z0, tau_u)
         ogs, djs = get_objective_gradient_structure_nan(problem, z0)
     else:
         msg = f"Unexpected derivatives.method = '{method}'"

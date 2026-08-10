@@ -382,8 +382,19 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         The data type for the continuous array elements, such as float or object.
     """
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
+    def __init__(
+        self,
+        problem: yapss.Problem,
+        dv: DVStructure[T],
+        dtype: type[T],
+        *,
+        tau_u: Sequence[NDArray[np.float64]] | None = None,
+    ) -> None:
         super().__init__(problem, dv, dtype)
+        if dtype == np.float64 and tau_u is None:
+            msg = "Numeric ContinuousArg instances require tau_u."
+            raise ValueError(msg)
+        self._tau_u = tau_u
         # Initialize _phase with a tuple of ContinuousPhase instances
         self._phase: tuple[ContinuousPhase[T], ...] = tuple(
             ContinuousPhase(problem, dv, q, dtype) for q in range(problem.np)
@@ -392,7 +403,19 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         self._phase_list: tuple[int, ...] = tuple(range(problem.np))
         self._allowed_del_attrs = ()
         # Update allowed attributes to reflect the correct structure
-        self._allowed_attrs = ("_phase_list", "_phase")
+        self._allowed_attrs = ("_phase_list", "_phase", "_tau_u")
+
+    def _sync(self, z: NDArray[np.float64]) -> None:
+        """Synchronize numeric continuous inputs with an NLP decision vector."""
+        if self._dtype != np.float64 or self._tau_u is None:
+            msg = "ContinuousArg._sync() is available for numeric arguments only."
+            raise TypeError(msg)
+
+        self._dv.z[:] = z
+        for p, tau in enumerate(self._tau_u):
+            t0 = self._dv.phase[p].t0[0]
+            tf = self._dv.phase[p].tf[0]
+            self.phase[p].time[:] = tau * (tf - t0) / 2 + (t0 + tf) / 2
 
     def __getitem__(
         self,

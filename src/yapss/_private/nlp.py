@@ -350,12 +350,16 @@ def make_nlp_constraints(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
         NLP constraint function
     """
     problem = nlp.problem
+    mesh: Mesh = nlp.mesh
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
-    ci: ContinuousArg[np.float64] = ContinuousArg(problem, dv, dtype=np.float64)
+    ci: ContinuousArg[np.float64] = ContinuousArg(
+        problem,
+        dv,
+        dtype=np.float64,
+        tau_u=mesh.tau_u,
+    )
     di: DiscreteArg[np.float64] = DiscreteArg(problem, dv, np.float64)
     cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, np.float64)
-    mesh: Mesh
-    mesh = nlp.mesh
 
     if problem.np > 0:
         continuous_function = cast(ContinuousFunctionFloat, nlp.functions.continuous)
@@ -379,16 +383,7 @@ def make_nlp_constraints(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
         FloatArray
             NLP constraint functions values
         """
-        # mesh
-        dv.z[:] = z
-
-        for p in range(problem.np):
-            dv_phase = dv.phase[p]
-
-            # form time vector
-            t0 = dv_phase.t0[0]
-            tf = dv_phase.tf[0]
-            ci.phase[p].time[:] = mesh.tau_u[p] * (tf - t0) / 2 + (t0 + tf) / 2
+        ci._sync(z)
 
         # call the user-defined continuous function
         if problem.np > 0:
@@ -833,7 +828,7 @@ def make_nlp_hessian(nlp: NLP) -> Callable[[FloatArray, FloatArray, np.float64],
 
         if problem.nd > 0:
             dv.z[:] = z
-            objective_input.hessian.clear()
+            discrete_input.hessian.clear()
             nlp.functions.discrete_hessian(discrete_input)
 
             dhs = nlp.functions.discrete_hessian_structure
@@ -875,10 +870,12 @@ def make_eval_continuous(nlp: NLP) -> Callable[[FloatArray, int], ContinuousArg[
     mesh = nlp.mesh
 
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
-    ci: ContinuousArg[np.float64] = ContinuousArg(problem, dv, dtype=np.float64)
-    nlp_dv: DVStructure[np.float64]
-    nlp_dv = ci._dv
-
+    ci: ContinuousArg[np.float64] = ContinuousArg(
+        problem,
+        dv,
+        dtype=np.float64,
+        tau_u=mesh.tau_u,
+    )
     if problem.np > 0:
         continuous_function = cast(ContinuousFunctionFloat, nlp.functions.continuous)
 
@@ -887,16 +884,7 @@ def make_eval_continuous(nlp: NLP) -> Callable[[FloatArray, int], ContinuousArg[
     def eval_continuous(z: FloatArray, order: int = 0) -> ContinuousArg[np.float64]:
         # distribute nlp decision variables passed from pyipopt to x0, xf, q, t0, tf
         # (for each phase) and s
-        nlp_dv.z[:] = z
-
-        for p in range(problem.np):
-            nlp_dv_phase = nlp_dv.phase[p]
-
-            # form time vector
-            t0 = nlp_dv_phase.t0[0]
-            tf = nlp_dv_phase.tf[0]
-            time = mesh.tau_u[p] * (tf - t0) / 2 + (t0 + tf) / 2
-            ci.phase[p].time[:] = time
+        ci._sync(z)
 
         # call the user-defined continuous constraint function
         ci._phase_list = tuple(range(problem.np))
