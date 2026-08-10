@@ -23,9 +23,11 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. macOS 11.2.3]
- - Version: [e.g. 22]
+**Environment (please complete the following information):**
+ - OS: [e.g. macOS 14.5]
+ - Python version: [e.g. 3.12.3]
+ - YAPSS version: [e.g. 0.1.2]
+ - Relevant dependency versions: [e.g. casadi 3.6.7, numpy 2.1.0]
 
 **Additional context**
 Add any other context about the problem here (e.g., logs, error messages).

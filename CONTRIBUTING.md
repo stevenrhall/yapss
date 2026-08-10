@@ -86,6 +86,6 @@ as the project (MIT License).
 
 ### Communication
 
-If you need help or have any questions, feel free to reach out by [opening an issue](https://github.com/stevenrhall/YAPSS/issues).
+If you need help or have any questions, feel free to reach out by [opening an issue](https://github.com/stevenrhall/yapss/issues).
 
 Thank you for contributing to YAPSS!
