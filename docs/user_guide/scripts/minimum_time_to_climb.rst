@@ -29,7 +29,6 @@ Text Output
 .. literalinclude:: plots/minimum_time_to_climb.txt
    :language: none
 
------
 Plots
 -----
 

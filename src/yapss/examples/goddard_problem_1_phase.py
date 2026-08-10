@@ -148,8 +148,8 @@ def setup() -> Problem:
     # guess
     phase = ocp.guess.phase[0]
     phase.time = (t0, tfMax)
-    phase.state = ((h0, h0), (v0, v0), (m0, mf))
-    phase.control = ((0, Tm),)
+    phase.state = ((hmin, hmax), (v0, v0), (m0, mf))
+    phase.control = ((Tm, 0),)
 
     # solver settings
     ocp.derivatives.order = "second"
@@ -205,7 +205,7 @@ def plot_solution(solution: Solution) -> None:
     # hamiltonian
     plt.figure(5)
     plt.plot(time_c, hamiltonian)
-    plt.ylabel(r"Hamiltonian, $\mathcal{H}")
+    plt.ylabel(r"Hamiltonian, $\mathcal{H}$ (ft/s)")
 
     for i in range(1, 6):
         plt.figure(i)

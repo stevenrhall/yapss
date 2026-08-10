@@ -18,7 +18,6 @@ __all__ = [
     "plot_eta",
     "plot_lift_curve_slope",
     "plot_solution",
-    "plot_solution",
     "plot_speed_of_sound",
     "setup",
 ]
@@ -52,7 +51,7 @@ def objective(arg: ObjectiveArg) -> None:
     None
     """
     if arg.auxdata.min_fuel:
-        arg.objective = -arg.phase[0].final_state[3]
+        arg.objective = arg.phase[0].final_state[3]
     else:
         arg.objective = arg.phase[0].final_time
 
@@ -112,6 +111,7 @@ def setup(*, min_fuel: bool = False) -> Problem:
 
     # user functions
     ocp.functions.objective = objective
+    ocp.sense = "maximize" if min_fuel else "minimize"
     ocp.functions.continuous = continuous
 
     # auxdata
@@ -523,7 +523,6 @@ def plot_solution(solution: Solution, *, plot_energy_contours: bool = False) -> 
     plt.tight_layout()
 
     # figure 7: Hamiltonian
-    plt.figure(7)
     plt.figure(7)
     plt.plot(tc, hamiltonian)
     plt.ylim(-1.001, -0.999)

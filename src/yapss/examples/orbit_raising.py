@@ -39,7 +39,7 @@ theta_0, v_theta_0 = 0.0, 1.0
 r_min, r_max = 1, 10
 theta_min, theta_max = -pi, pi
 v_r_min, v_r_max = -10, 10
-v_theta_min, v_theta_max = -pi, pi
+v_theta_min, v_theta_max = -10, 10
 u1_min, u1_max = u2_min, u2_max = -1.1, 1.1
 
 
@@ -62,7 +62,7 @@ def setup() -> Problem:
 
     def objective(arg: ObjectiveArg) -> None:
         """Evaluate objective function."""
-        arg.objective = -arg.phase[0].final_state[0]
+        arg.objective = arg.phase[0].final_state[0]
 
     def continuous(arg: ContinuousArg) -> None:
         """Evaluate continuous dynamics and path constraint."""
@@ -118,11 +118,11 @@ def setup() -> Problem:
 
     # functions
     problem.functions.objective = objective
+    problem.sense = "maximize"
     problem.functions.continuous = continuous
     problem.functions.discrete = discrete
 
     # solver options
-    problem.derivatives.method = "central-difference"
     problem.derivatives.order = "second"
     problem.spectral_method = "lgl"
 

@@ -16,7 +16,7 @@ from yapss import ObjectiveArg, Problem
 
 
 def setup() -> Problem:
-    """Set up the problem to minimize the Rosenbrock problem.
+    """Set up the problem to minimize the Rosenbrock function.
 
     Returns
     -------
@@ -42,6 +42,7 @@ def setup() -> Problem:
 
     # ipopt options
     problem.ipopt_options.print_level = 5
+    problem.ipopt_options.tol = 1e-10
 
     return problem
 
@@ -69,9 +70,6 @@ def plot_rosenbrock() -> None:
 def main() -> None:
     """Demonstrate the solution to the Rosenbrock function minimization problem."""
     ocp = setup()
-    ocp.derivatives.method = "auto"
-    ocp.derivatives.order = "first"
-    ocp.ipopt_options.print_level = 5
     solution = ocp.solve()
     x_opt = solution.parameter
     plt.figure()

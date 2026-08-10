@@ -69,7 +69,6 @@ def setup() -> Problem:
         psi_dot = (lift * sin_phi - auxdata.m * wx_dot * cos_psi) / (auxdata.m * v * cos_gamma)
 
         arg.phase[0].dynamics[:] = x_dot, y_dot, h_dot, v_dot, gamma_dot, psi_dot
-        arg.phase[0].dynamics[:] = x_dot, y_dot, h_dot, v_dot, gamma_dot, psi_dot
         arg.phase[0].path[:] = ((0.5 * auxdata.rho0 * auxdata.s / w) * cl * v**2,)
 
     def discrete(arg: DiscreteArg) -> None:

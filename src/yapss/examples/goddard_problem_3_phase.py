@@ -317,7 +317,7 @@ def plot_solution(solution: Solution) -> None:
         line1 = ax.plot(time_c[p], hamiltonian)
         line.append(line1)
     plt.ylim((-0.01, 0.01))
-    plt.ylabel(r"Hamiltonian, $\mathcal{H}")
+    plt.ylabel(r"Hamiltonian, $\mathcal{H}$ (ft/s)")
 
     for i in range(1, 6):
         plt.figure(i)

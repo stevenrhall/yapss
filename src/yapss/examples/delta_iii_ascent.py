@@ -48,7 +48,6 @@ omega_e = 7.29211585e-5  # earth rotation rate
 CD = 0.5  # coefficient of drag
 S = 4 * pi  # aerodynamic reference area
 psi_l = 28.5 * pi / 180.0  # latitude of launch site
-q_max = 100000.0  # dynamic pressure bound
 
 # Vehicle parameters
 # srb, first stage, second stage, payload masses (kg)
@@ -91,11 +90,6 @@ mu_scale = mu
 mass_scale = m_total
 velocity_scale = sqrt(mu_scale / length_scale)
 time_scale = length_scale / velocity_scale
-
-state_scale = np.ones([7])
-state_scale[:3] *= length_scale
-state_scale[3:6] *= velocity_scale
-state_scale[6] *= mass_scale
 
 # initial position
 r0_vec = R_e * cos(psi_l), 0.0, R_e * sin(psi_l)
@@ -202,7 +196,7 @@ def setup() -> Problem:
         The Delta III ascent trajectory optimization problem objective is to maximize the
         total mass at the end of the trajectory.
         """
-        arg.objective = -arg.phase[3].final_state[6]
+        arg.objective = arg.phase[3].final_state[6]
 
     def continuous(arg: ContinuousArg) -> None:
         """Calculate Delta III ascent trajectory optimization problem dynamics and path constraints.
@@ -282,6 +276,7 @@ def setup() -> Problem:
         arg.discrete[18:23] = oe
 
     ocp.functions.objective = objective
+    ocp.sense = "maximize"
     ocp.functions.continuous = continuous
     ocp.functions.discrete = discrete
 
@@ -446,14 +441,12 @@ def setup() -> Problem:
         ocp.scale.phase[p].time = time_scale
         ocp.scale.phase[p].path[:] = 1, length_scale
 
-        ocp.scale.phase[p].path[1] = length_scale / 2
-
     for p in range(3):
         ocp.scale.discrete[0 + 6 * p : 3 + 6 * p] = length_scale
         ocp.scale.discrete[3 + 6 * p : 6 + 6 * p] = velocity_scale
     ocp.scale.discrete[18] = length_scale
 
-    ocp.scale.objective = 8_000
+    ocp.scale.objective = mass_scale
 
     # default mesh configuration is a bit slow for this problem
     m, n = 5, 5
@@ -552,13 +545,6 @@ def plot_solution(solution: Solution) -> None:
 def main() -> None:
     """Demonstrate the solution to the Delta III ascent trajectory optimization problem."""
     problem = setup()
-    ocp = problem
-    ocp.ipopt_options.print_level = 3
-    ocp.derivatives.method = "auto"
-    ocp.derivatives.order = "second"
-    ocp.spectral_method = "lgl"
-    ocp.ipopt_options.max_iter = 300
-
     solution = problem.solve()
     plot_solution(solution)
     plt.show()

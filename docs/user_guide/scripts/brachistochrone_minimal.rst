@@ -5,7 +5,7 @@ For a description of the brachistochrone problem with constraints as in this scr
 `JupyterLab notebook Tutorial Example <../notebooks/tutorial.ipynb>`_.
 
 This script provides a minimal implementation of the brachistochrone problem, that is, without
-providing user-defined derivatives.  (User-defined derivatives are almost never necessary.)
+providing user-defined derivatives. (User-defined derivatives are almost never necessary.)
 For a script that implements the brachistochrone problem with user-defined derivatives, see the
 :doc:`example implementation of the brachistochrone problem with user-defined derivatives <brachistochrone>`.
 

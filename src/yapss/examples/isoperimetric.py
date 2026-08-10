@@ -107,7 +107,7 @@ def plot_solution(solution: Solution) -> None:
     plt.figure(1)
     plt.clf()
     x, y = solution.phase[0].state
-    t = solution.phase[0].time
+    # arc length s is the independent variable for this problem, not time
     s = solution.phase[0].time
     sp = np.linspace(0, 1, 500)
     xp = interp1d(s, x, kind="cubic")(sp)
@@ -123,7 +123,7 @@ def plot_solution(solution: Solution) -> None:
     plt.figure(2)
     plt.clf()
     hamiltonian = solution.phase[0].hamiltonian
-    plt.plot(t, hamiltonian)
+    plt.plot(s, hamiltonian)
 
 
 def main() -> None:
