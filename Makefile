@@ -217,14 +217,26 @@ push-tag: ## push tags to remote repository
 
 .PHONY: readme
 readme: ## Generate README.md from docs/user_guide/index.md
-	@# Relative .md links are rewritten to absolute GitHub URLs. The same link has to
+	@# Relative links are rewritten to absolute GitHub URLs. The same link has to
 	@# work in three places and only two of them resolve relative paths usefully:
 	@# GitHub resolves against the repo root and RTD against the copied page, but PyPI
 	@# resolves against https://pypi.org/project/yapss/ and 404s. Rewriting here keeps
-	@# index.md correct for the docs while README.md is correct for PyPI. The pattern
-	@# matches any relative .md link, so a link added later is handled without anyone
-	@# having to remember this; absolute URLs cannot match, since the character class
-	@# excludes the colon.
+	@# index.md correct for the docs while README.md is correct for PyPI. Absolute
+	@# URLs cannot match any of the three patterns below, since their character
+	@# classes exclude the colon.
+	@#
+	@# .md links are assumed root-relative, since CONTRIBUTING.md (the only .md
+	@# target index.md links to) exists both at the repo root and, as an untracked
+	@# build artifact, under docs/user_guide/ -- the root copy is the canonical one.
+	@#
+	@# .rst links are resolved relative to docs/user_guide/, since .rst pages are
+	@# real, tracked files that live exactly where their relative path says.
+	@#
+	@# .ipynb links under notebooks/ are special-cased to examples/notebooks/: the
+	@# copies under docs/user_guide/notebooks/ that Sphinx actually links against
+	@# are gitignored build output, not the tracked source.
 	awk '/<!-- End README.md -->/ {exit} {print}' docs/user_guide/index.md \
 	  | sed -E 's#\]\(([A-Za-z0-9_./-]+\.md)\)#](https://github.com/stevenrhall/yapss/blob/main/\1)#g' \
+	  | sed -E 's#\]\(notebooks/([A-Za-z0-9_.-]+\.ipynb)\)#](https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/\1)#g' \
+	  | sed -E 's#\]\(([A-Za-z0-9_./-]+\.rst)\)#](https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/\1)#g' \
 	  > README.md

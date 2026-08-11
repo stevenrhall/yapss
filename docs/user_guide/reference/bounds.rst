@@ -54,11 +54,14 @@ The available bounds include:
 
 To ensure feasibility, set these bounds with care. For example, each phase must satisfy:
 
-    ``initial_time.lower`` ≤ ``final_time.upper``
+    ``final_time.upper`` - ``initial_time.lower`` ≥ ``duration.lower``
 
 and
 
     ``final_time.lower`` - ``initial_time.upper`` ≤ ``duration.upper``
+
+``duration.lower`` defaults to ``0``, in which case the first condition reduces to
+``initial_time.lower`` ≤ ``final_time.upper``.
 
 **State Bounds**:
 

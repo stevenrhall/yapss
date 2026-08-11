@@ -31,6 +31,16 @@ Text Output
 Plots
 -----
 
+Optimal Solution
+................
+
 .. figure:: plots/isoperimetric_plot_1.png
+   :width: 400pt
+   :align: center
+
+Hamiltonian
+...........
+
+.. figure:: plots/isoperimetric_plot_2.png
    :width: 400pt
    :align: center

@@ -204,7 +204,7 @@ def plot_solution(solution: Solution) -> None:
     hamiltonian = solution.phase[0].hamiltonian
     plt.plot(tc, hamiltonian)
     plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
-    plt.ylim((-0.36, -0.31))
+    plt.ylim((0.31, 0.36))
 
     for i in range(5, 0, -1):
         plt.figure(i)

@@ -86,6 +86,26 @@ additional installation steps at all. This interface is derived from
 `mseipopt <https://github.com/cea-ufmg/mseipopt>`_ and, as of version 0.2.0, is bundled
 with YAPSS rather than installed separately.
 
+Exception handling
+------------------
+
+.. versionchanged:: 0.2.0
+
+    Exceptions raised while Ipopt is calling into YAPSS are now preserved and re-raised
+    once ``solve()`` returns, instead of being lost. This applies whether the exception
+    comes from a user-supplied callback or from a function YAPSS constructs internally,
+    and to both interfaces described above, though the two previously failed
+    differently. On the Conda/cyipopt path, an exception raised during a Hessian
+    evaluation was discarded silently: Ipopt kept iterating on stale Hessian values and
+    reported the run as unconverged, or even as successful, with nothing printed to
+    indicate that anything had gone wrong. On the pip path, every callback exception was
+    caught, its traceback printed to the console, and status ``-13`` ("Invalid number in
+    NLP function or derivative detected") returned to Ipopt -- a real but misleading
+    status, since nothing was actually numerically invalid. Either way, no exception
+    ever reached ``solve()``'s caller, and an apparently normal ``Solution`` came back
+    regardless. Exceptions now surface with their original traceback as a normal,
+    catchable Python error on both paths.
+
 Why doesn't YAPSS use the cyipopt I installed?
 ----------------------------------------------
 

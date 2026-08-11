@@ -98,24 +98,20 @@ Incomplete and Unverified Multipliers
 .. warning::
 
     **State bound multipliers are not returned.** Ipopt computes a Lagrange multiplier
-    for every bound on every NLP decision variable, including the ones corresponding to
-    ``bounds.phase[p].state``, ``initial_state``, and ``final_state``. None of these are
-    currently exposed on `SolutionPhase`. The correct value, and even
-    where it belongs, depends on which of those bounds are actually set on a given
-    state: a multiplier on an endpoint bound in isolation is directly usable, but if a
-    continuous state bound is active at the same point, the meaning changes and the raw
-    Ipopt value needs to be divided by the quadrature weight and folded in with the
-    costate instead. That decision is not made anywhere in YAPSS today, so nothing is
-    returned rather than something potentially wrong. See :doc:`bounds` for the related
-    discussion of state bounds used as path constraints.
+    for every bound on ``bounds.phase[p].state``, ``initial_state``, and
+    ``final_state``, but none of these are currently exposed on `SolutionPhase`.
+    Reporting them correctly is subtler than it looks: at a point where a continuous
+    state bound is also active --- always possible for LGL at either endpoint, and for
+    LGR at the initial endpoint --- the raw Ipopt multiplier isn't a usable value on its
+    own; it needs to be divided by the quadrature weight and folded into the costate
+    instead. Working out that logic is planned for a future release. See :doc:`bounds`
+    for the related discussion of state bounds used as path constraints.
 
-    **The multipliers YAPSS does return have no test coverage verifying their
-    correctness.** This is a research code in active development, and Lagrange
-    multipliers are the least exercised part of it. ``control_multiplier`` was wrong in
-    every release through 0.1.1 — it was computed from the primal control value rather
-    than from Ipopt's multiplier — and was only caught by inspection, not by a test.
-    Treat multiplier values as provisional until you have checked them against a known
-    solution for your problem.
+    **The multipliers YAPSS does return have no test coverage verifying their correctness.** This is
+    a research code in active development, and Lagrange multipliers are the least exercised part of
+    it. Due to a bug, ``control_multiplier`` was wrong in every release through 0.1.1 and was only
+    caught by inspection, not by a test. Treat multiplier values as provisional until you have
+    checked them against a known solution for your problem.
 
 Multiplier and Costate Sign
 ----------------------------

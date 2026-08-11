@@ -15,7 +15,9 @@ copy of that stack into the same address space, and the two vendored OpenMP
 runtimes then collide. That is the crash the pip/conda backend split exists to
 avoid, so YAPSS binds to CasADi's copy rather than loading another.
 
-That only works if we load *the same file*, which is stricter than it sounds::
+That only works if we load *the same file*, which is stricter than it sounds:
+
+.. code-block:: console
 
     $ ls -li casadi/libipopt.so*
     14328004 libipopt.so           SONAME libipopt.so.3

@@ -77,7 +77,7 @@ be sufficient. The most common options that users may want to change are:
     the options set by the user to verify that the options are as intended.
 
 ``sb``
-    Suppress banner. ("yes" or "no", default: "yes") (Not documented in the Ipopt documentation.)
+    Suppress banner. ("yes" or "no", default: "no") (Not documented in the Ipopt documentation.)
     Suppresses the Ipopt banner at the beginning of the output.
 
 ``print_level``

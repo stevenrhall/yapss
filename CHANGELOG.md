@@ -42,8 +42,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
-- `bounds.phase[p].zero_mode` is now private (`_zero_mode`). It was never meant for
-  users to set — it exists for internal testing and research use only.
 - For pip installs, YAPSS now selects the MUMPS linear solver unless the user has set
   `ipopt_options.linear_solver`. This makes every YAPSS installation behave the same
   way: Conda's Ipopt already defaults to MUMPS on every platform, and CasADi's bundled
@@ -57,6 +55,8 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   but without OpenMP it cannot amortize the cost of producing it. This is a change in
   behavior for pip installs on Windows and Linux. Setting
   `ipopt_options.linear_solver` to `"spral"` restores the previous selection.
+- `bounds.phase[p].zero_mode` is now private (`_zero_mode`). It was never meant for
+  users to set — it exists for internal testing and research use only.
 - For pip installs, the `mseipopt` Ipopt interface is now bundled with YAPSS rather
   than installed as a dependency. The now-unused `mseipopt` package can be uninstalled.
 - Outside a Conda environment, `cyipopt` is no longer imported even when installed.
@@ -95,6 +95,36 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- Fixed cyipopt's Hessian callback silently swallowing Python exceptions raised by a
+  user's Hessian function. Previously an exception raised inside a Hessian evaluation —
+  whether from a bug, a domain error, or an intentional `SystemExit` — was discarded by
+  cyipopt's C extension before reaching Python; Ipopt continued iterating on stale
+  Hessian values and either failed to converge or returned a result with no indication
+  anything had gone wrong. YAPSS now intercepts cyipopt's Hessian callback, latches the
+  first exception and its traceback, asks Ipopt to stop through the intermediate
+  callback, and re-raises the original exception once `solve()` returns. Scoped to the
+  Conda/cyipopt backend's Hessian callback specifically: cyipopt's objective, gradient,
+  constraint, Jacobian, and intermediate callbacks already propagated exceptions
+  correctly and needed no change.
+- Fixed the vendored (pip) Ipopt interface's handling of exceptions raised by any user
+  callback — objective, gradient, constraints, Jacobian, Hessian, or the intermediate
+  callback. Through 0.1.1, YAPSS called the upstream `mseipopt.ez.Problem` interface
+  directly. Every callback exception, including a `SystemExit` raised inside a Hessian
+  evaluation, was caught, its traceback printed to the console, and status `-13`
+  ("Invalid number in NLP function or derivative detected") returned to Ipopt — a real
+  but misleading status, since nothing was actually numerically invalid. No exception
+  ever reached `solve()`'s caller; an apparently normal `Solution` was returned
+  regardless, and 0.1.1 predates `IpoptConvergenceWarning`, so nothing else signaled a
+  problem either — a user not watching the console for the printed traceback, or who
+  didn't think to check `nlp_info.ipopt_status`, would see nothing wrong. Some
+  structural bugs in the same upstream code were worse: a malformed Jacobian could
+  crash the process outright, and index validation relied on Python `assert` statements
+  that silently disappear under `python -O`. Every callback now retains the original
+  exception and traceback across the native call and re-raises it once `solve()`
+  returns, and sparse structures are validated before they reach the native layer, so a
+  bug in a user-supplied function — or a malformed Jacobian/Hessian structure — now
+  raises a catchable Python exception instead of crashing, printing an unreachable
+  traceback, or surfacing as an unconverged solution.
 - Fixed synchronization of the physical time vector passed to numeric continuous
   callbacks. Some internal derivative evaluations copied a new NLP decision vector
   without rebuilding time from the phase endpoints and mesh nodes, leaving callbacks
@@ -102,15 +132,8 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   incorrect derivative sparsity or central-difference derivatives and, in turn, incorrect
   solutions. Numeric continuous arguments now update decision variables and time together
   for the LG, LGR, and LGL spectral methods.
-- Fixed `solution.phase[p].control_multiplier`, which was not a Lagrange multiplier at
-  all: it was computed from the primal control value rather than from Ipopt's bound
-  multiplier, and was missing the `1 / mesh.w[p]` quadrature-weight factor applied to
-  the other continuous multipliers. This was wrong in every previous release.
-- Fixed a race in the documentation build. The new `llms.txt`/`llms-full.txt`
-  generation runs a second Sphinx build in a subprocess, in parallel with the primary
-  one by default; both load `conf.py`, and without a guard, the notebook- and
-  plot-regenerating build steps would run a second time concurrently with the primary
-  build reading their output.
+- Fixed `solution.phase[p].control_multiplier`, which always returned an incorrect,
+  unrelated value. This was wrong in every previous release.
 - Fixed a crash risk on pip installs. On Linux and macOS, YAPSS could load a second copy
   of Ipopt alongside the one CasADi bundles, and two independently built copies can fail
   mid-solve. See the resolution change under Added.
@@ -133,10 +156,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   were therefore discarded, and `YAPSS_LOGGING=DEBUG` silently reported nothing from the
   Ipopt library resolver.
 - Fixed the `Bool` type width in the bundled Ipopt interface for pip installs. Ipopt
-  changed `Bool` from `int` to `bool` in 3.14, and the interface still declared it four bytes
-  wide. The width is now derived from the Ipopt version in the shipped header rather
-  than assumed. In practice this had not misfired, but a failed option-setting call
-  in principle could have been read as success and silently ignored.
+  changed `Bool` from a four-byte `int` to a one-byte `bool` in 3.14, and the interface
+  still declared it four bytes wide. Rather than detect the width at runtime, YAPSS now
+  fixes it to the post-3.14 `bool` layout and enforces an Ipopt >= 3.14 floor via the ABI
+  check described above, refusing to load an older, incompatible build. In practice the
+  old four-byte assumption had not misfired, but a failed option-setting call in
+  principle could have been read as success and silently ignored.
 - Fixed `Guess.from_solution`, which assigned a solution's `control` array directly onto
   the guess's `time` grid. `control` is defined on `time_c`, which only has the same
   length as `time` for the lgl spectral method; for lgr and lg, `from_solution` either

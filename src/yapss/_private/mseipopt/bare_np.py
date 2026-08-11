@@ -4,7 +4,8 @@
 #
 # Derived from mseipopt (https://github.com/cea-ufmg/mseipopt), modified by
 # the YAPSS authors. Original and modified portions are both under the MIT
-# license; see the LICENSE file at the repository root.
+# license; see the LICENSE file and the LICENSES directory at the repository
+# root.
 
 """NumPy-facing Ipopt wrapper with memory, lifetime, and exception safety.
 

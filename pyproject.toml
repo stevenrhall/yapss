@@ -69,6 +69,8 @@ notebook = [
 ]
 dev = [
     "yapss[doc,notebook]",
+    # Theme used only by the internal API documentation (`make dev-docs`).
+    "furo",
     # jupyter-notebook formatting tools -- dev-only, not forced on end users
     # who just install the `notebook` extra (see notebook extra above)
     "jupyterlab_code_formatter",

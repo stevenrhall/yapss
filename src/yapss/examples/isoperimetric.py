@@ -124,6 +124,11 @@ def plot_solution(solution: Solution) -> None:
     plt.clf()
     hamiltonian = solution.phase[0].hamiltonian
     plt.plot(s, hamiltonian)
+    plt.ylim((0.158, 0.160))
+    plt.xlabel("Arc length, $s$")
+    plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
+    plt.grid()
+    plt.tight_layout()
 
 
 def main() -> None:

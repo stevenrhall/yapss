@@ -16,6 +16,7 @@ generated/
 __pycache__/
 
 /docs/build/
+/docs/development/build/
 /docs/user_guide/build/
 /docs/user_guide/notebooks/*.ipynb
 /docs/user_guide/scripts/plots/*.png
