@@ -76,6 +76,8 @@ if _IN_CONDA and importlib.util.find_spec("cyipopt") is None:
 
 if TYPE_CHECKING:
     # package imports
+    from types import TracebackType
+
     import yapss
 
     from .input_args import ProblemFunctions
@@ -259,12 +261,14 @@ def solve(problem: yapss.Problem) -> Solution:
 
     ipopt_source = configure_ipopt_source(problem)
 
+    cyipopt_adapter: _CyipoptProblemAdapter | None = None
     if ipopt_source == "cyipopt":
         # Imported here, not at module scope: importing cyipopt opens its own IPOPT
         # binary, so an eager import would map a second copy for anyone who merely
         # has cyipopt installed. Availability was already checked with `find_spec`.
         import cyipopt
 
+        cyipopt_adapter = _CyipoptProblemAdapter(nlp_temp)
         ipopt_problem = cyipopt.Problem(
             n=len(lb),
             m=len(gl),
@@ -272,7 +276,7 @@ def solve(problem: yapss.Problem) -> Solution:
             ub=ub,
             cl=gl,
             cu=gu,
-            problem_obj=nlp_temp,
+            problem_obj=cyipopt_adapter,
         )
     else:
         if ipopt_source == "casadi":
@@ -386,12 +390,22 @@ def solve(problem: yapss.Problem) -> Solution:
             if problem.catch_keyboard_interrupt:
                 original_handler = signal.signal(signal.SIGINT, problem._signal_handler)
                 try:
-                    z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0, ipopt_source)
+                    z, nlp_info = _solve_ipopt_problem(
+                        ipopt_problem,
+                        z0,
+                        ipopt_source,
+                        cyipopt_adapter,
+                    )
                 finally:
                     signal.signal(signal.SIGINT, original_handler)
                     problem._abort = False
             else:
-                z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0, ipopt_source)
+                z, nlp_info = _solve_ipopt_problem(
+                    ipopt_problem,
+                    z0,
+                    ipopt_source,
+                    cyipopt_adapter,
+                )
     finally:
         # Callback exceptions are re-raised only after Ipopt returns. Cleanup
         # must still release the native problem on that propagation path.
@@ -476,10 +490,18 @@ def _solve_ipopt_problem(
     ipopt_problem: Any,
     z0: NDArray[np.float64],
     ipopt_source: str,
+    cyipopt_adapter: _CyipoptProblemAdapter | None = None,
 ) -> tuple[NDArray[np.float64], dict[str, Any]]:
     """Solve through either backend and normalize its result for solution construction."""
     if ipopt_source == "cyipopt":
-        result = ipopt_problem.solve(z0)
+        try:
+            result = ipopt_problem.solve(z0)
+        except BaseException:
+            if cyipopt_adapter is not None:
+                cyipopt_adapter.raise_hessian_exception()
+            raise
+        if cyipopt_adapter is not None:
+            cyipopt_adapter.raise_hessian_exception()
         return cast(tuple[NDArray[np.float64], dict[str, Any]], result)
 
     mseipopt_problem = ipopt_problem
@@ -495,6 +517,50 @@ def _solve_ipopt_problem(
         "status": result.status,
     }
     return result.x, info
+
+
+class _CyipoptProblemAdapter:
+    """Keep Hessian exceptions from being discarded by cyipopt's C callback."""
+
+    def __init__(self, nlp: NLP) -> None:
+        self._nlp = nlp
+        self._hessian_size = len(nlp.hessianstructure()[0])
+        self._hessian_exception: tuple[BaseException, TracebackType | None] | None = None
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate ordinary cyipopt callbacks to the NLP object."""
+        return getattr(self._nlp, name)
+
+    def hessian(
+        self,
+        z: NDArray[np.float64],
+        lambda_: NDArray[np.float64],
+        objective_factor: np.float64,
+    ) -> NDArray[np.float64]:
+        """Latch a Hessian failure until control has returned from native code."""
+        try:
+            return self._nlp.hessian(z, lambda_, objective_factor)
+        # cyipopt also swallows non-Exception failures such as SystemExit here.
+        except BaseException as exc:  # noqa: BLE001
+            if self._hessian_exception is None:
+                self._hessian_exception = exc, exc.__traceback__
+            return np.zeros(self._hessian_size, dtype=np.float64)
+
+    def intermediate(self, *args: Any) -> bool:
+        """Ask Ipopt to stop once a Hessian exception has been latched."""
+        if self._hessian_exception is not None:
+            return False
+        if self._nlp.intermediate is None:
+            return True
+        return self._nlp.intermediate(*args)
+
+    def raise_hessian_exception(self) -> None:
+        """Re-raise a latched Hessian exception with its original traceback."""
+        if self._hessian_exception is None:
+            return
+        exception, traceback = self._hessian_exception
+        self._hessian_exception = None
+        raise exception.with_traceback(traceback)
 
 
 def _objective_callback(function: Callable[..., Any]) -> Callable[..., bool]:
