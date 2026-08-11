@@ -168,6 +168,11 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   raised on `guess.validate()` or produced a misaligned guess. `control` is now
   interpolated (with extrapolation at the endpoints) from `time_c` onto `time` before
   being assigned, so `from_solution` works for all three spectral methods.
+- Fixed the error message for an invalid `nx` keyword, which claimed `nx` must be
+  positive when the actual, and intended, requirement is nonnegative — a phase with
+  zero states is valid and already exercised elsewhere (a controls-only phase driven
+  purely by an integral cost). Validation behavior is unchanged; only the message text
+  was wrong.
 
 ---
 

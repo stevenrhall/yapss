@@ -35,7 +35,7 @@ def setup() -> Problem:
     # continuous function
     def continuous(arg: ContinuousArg) -> None:
         """Continuous callback function."""
-        x, y, v = arg.phase[0].state
+        _, _, v = arg.phase[0].state
         (u,) = arg.phase[0].control
         arg.phase[0].dynamics[:] = v * cos(u), v * sin(u), g0 * sin(u)
 

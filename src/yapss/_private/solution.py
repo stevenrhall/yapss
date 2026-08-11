@@ -17,7 +17,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 # package imports
-from .structure import CFStructure, get_nlp_cf_structure, get_nlp_dv_structure
+from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -201,8 +201,6 @@ def make_solution_object(
     status_message: str = ipopt_status_messages.get(status, "Unknown status code")
 
     # initialize data views
-    from .structure import DVStructure
-
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     dv.z[:] = x
     dv_multiplier: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)

@@ -263,7 +263,7 @@ def main() -> None:
     print("\nObjective values for different values of y_max:\n")
     print("y_max | Objective (C_D)")
     print("------+----------------")
-    for y_max, objective_value in zip(y_max_list, objective_list):
+    for y_max, objective_value in zip(y_max_list, objective_list, strict=True):
         print(f"{y_max:5.2f} |  {_truncate_float(objective_value):8.5f}...")
 
     plt.show()

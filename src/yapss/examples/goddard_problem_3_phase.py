@@ -68,7 +68,7 @@ def setup() -> Problem:
         c = auxdata.c
         g0 = auxdata.g
         for p in arg.phase_list:
-            (h, v, mass) = arg.phase[p].state
+            h, v, mass = arg.phase[p].state
             (T,) = arg.phase[p].control
             D = sigma * v**2.0 * exp(-h / h0)
             h_dot = v

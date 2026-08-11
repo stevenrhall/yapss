@@ -12,9 +12,11 @@ either central differences.
 from __future__ import annotations
 
 __all__ = ["make_cd_functions"]
+from collections.abc import Callable
+
 # standard imports
 from itertools import product
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 
 # third party imports
 import numpy as np
@@ -108,7 +110,7 @@ def make_cd_functions(
         dhfds: DHFDS | None = cd_functions.discrete_hessian_structure_cd
 
         # mypy hinting
-        assert dhfds is not None  # noqa: S101
+        assert dhfds is not None
         cd_functions.discrete_hessian = make_discrete_hessian(problem, dhfds)
 
         # objective hessian
@@ -116,7 +118,7 @@ def make_cd_functions(
 
         # continuous hessian
         chfds: CHFDS | None = cd_functions.continuous_hessian_structure_cd
-        assert chfds is not None  # noqa: S101
+        assert chfds is not None
         cd_functions.continuous_hessian = make_continuous_hessian(problem, chfds, tau_u)
 
     return cd_functions

@@ -121,8 +121,6 @@ def get_continuous_jacobian_structure_nan(
         (a, b), (c, d) = item
         return a, b, item_dict[c], d
 
-    from .structure import get_nlp_dv_structure
-
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, float)
     arg: ContinuousArg[np.float64] = ContinuousArg(
         problem,
@@ -530,7 +528,8 @@ def make_fd_structure(
 
 # fmt: off
 sort_dict = {"s": 0, "x": 1, "u": 2, "t": 3, "f": 11, "g": 12, "h": 13,
-             "x0": 21, "xf": 22, "q": 23, "t0": 24, "tf": 25}  # fmt:on
+             "x0": 21, "xf": 22, "q": 23, "t0": 24, "tf": 25}
+# fmt: on
 
 
 def discrete_sort_key(dvkey: DVKey) -> tuple[PhaseIndex, int, DVIndex]:

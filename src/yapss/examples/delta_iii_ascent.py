@@ -126,7 +126,7 @@ def dot(x1: Any, x2: Any) -> Any:
 
 
 # noinspection PyPep8Naming
-def oe_to_rv(  # noqa: PLR0913 (Too many arguments)
+def oe_to_rv(  # noqa: PLR0913, PLR0917 -- classical orbital elements, conventionally positional
     a: Any,
     e: Any,
     i: Any,

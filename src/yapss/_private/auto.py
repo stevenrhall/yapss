@@ -273,7 +273,7 @@ def make_discrete_derivatives(
             vertcat(*[item._value for item in sxqt]),
         )[0]
         casadi_objective_hessian = tril(casadi_objective_hessian, True)  # noqa: FBT003
-        rc = tuple(zip(*casadi_objective_hessian.sparsity().get_triplet()))
+        rc = tuple(zip(*casadi_objective_hessian.sparsity().get_triplet(), strict=True))
         objective_hessian_structure = tuple((dv_keys[i], dv_keys[j]) for i, j in rc)
         casadi_objective_hessian = vertcat(*[casadi_objective_hessian[i, j] for i, j in rc])
         objective_hessian_function = Function(
@@ -303,7 +303,7 @@ def make_discrete_derivatives(
         vertcat(*[item._value for item in discrete_out]),
         vertcat(*[item._value for item in sxqt]),
     )
-    rc = tuple(zip(*jac.sparsity().get_triplet()))
+    rc = tuple(zip(*jac.sparsity().get_triplet(), strict=True))
     discrete_jacobian_structure = tuple((i, dv_keys[j]) for i, j in rc)
     jac = vertcat(*[jac[i, j] for i, j in rc])
     jacobian_function = Function("jacobian", [vertcat(*[item._value for item in sxqt])], [jac])
@@ -315,7 +315,7 @@ def make_discrete_derivatives(
         for i, f in enumerate([item._value for item in discrete_out]):
             hessian_i = cd_hessian(f, vertcat(*[item._value for item in sxqt]))[0]
             hessian_i = tril(hessian_i, True)  # noqa: FBT003
-            rc = tuple(zip(*hessian_i.sparsity().get_triplet()))
+            rc = tuple(zip(*hessian_i.sparsity().get_triplet(), strict=True))
             hessian_i = [hessian_i[j, k] for j, k in rc]
             hessian += hessian_i
             dhs += [(i, dv_keys[k], dv_keys[j]) for j, k in rc]
@@ -392,7 +392,7 @@ def make_discrete_derivatives(
             """
             sxqt_ = make_sxqt(problem, arg)
             hessian_ = objective_hessian_function(sxqt_).full().reshape(-1)
-            assert objective_hessian_structure is not None  # noqa: S101
+            assert objective_hessian_structure is not None
             for i, key in enumerate(objective_hessian_structure):
                 arg.hessian[key] = hessian_[i]
 
@@ -407,7 +407,7 @@ def make_discrete_derivatives(
                 """
                 sxqt_ = make_sxqt(problem, arg)
                 hessian_ = discrete_hessian_functions(sxqt_).full().reshape(-1)
-                assert discrete_hessian_structure is not None  # noqa: S101
+                assert discrete_hessian_structure is not None
                 for i, key in enumerate(discrete_hessian_structure):
                     arg.hessian[key] = hessian_[i]
 
@@ -512,7 +512,7 @@ def make_continuous_derivatives(
         # create jacobian function that operates on numeric arguments
         casadi_jacobian = cd_jacobian(vertcat(*fgh), sxut)
 
-        rc = tuple(zip(*casadi_jacobian.sparsity().get_triplet()))
+        rc = tuple(zip(*casadi_jacobian.sparsity().get_triplet(), strict=True))
         cjs.append(tuple((cf_keys[i], cv_keys[j]) for i, j in rc))
         casadi_jacobian = vertcat(*[casadi_jacobian[i, j] for i, j in rc])
         jacobian_functions.append(Function("jacobian", [sxut], [casadi_jacobian]))
@@ -525,7 +525,7 @@ def make_continuous_derivatives(
             for i, f in enumerate(fgh):
                 hes = cd_hessian(f, sxut)[0]
                 hes = tril(hes, True)  # noqa: FBT003
-                rc = tuple(zip(*hes.sparsity().get_triplet()))
+                rc = tuple(zip(*hes.sparsity().get_triplet(), strict=True))
                 hes = [hes[j, k] for j, k in rc]
                 casadi_hessian += hes
                 chs_i += [(cf_keys[i], cv_keys[k], cv_keys[j]) for j, k in rc]

@@ -1,19 +1,19 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 24.10.0
+    rev: 26.5.1
     hooks:
       - id: black
         args: [ "--check", "--target-version", "py311" ]
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.8.5
+    rev: v0.16.1
     hooks:
       - id: ruff
         args: [ "src/yapss" ]
         exclude: "^(tests|docs|examples|utils)/"
 
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.13.2
+    rev: 8.0.1
     hooks:
       - id: isort
         args: [ "--check-only" ]

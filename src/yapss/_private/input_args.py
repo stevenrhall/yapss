@@ -8,9 +8,11 @@ This module defines arguments which are used to call the user-defined callback f
 # future imports
 from __future__ import annotations
 
+from collections.abc import Callable
+
 # standard inputs
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Callable, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 # third party imports
 import numpy  # noqa: ICN001
@@ -574,21 +576,21 @@ class ContinuousHessianArg(ContinuousArg[np.float64]):
 # Define function type aliases with generics
 ObjectiveFunctionFloat = Callable[["ObjectiveArg[np.float64]"], None]
 ObjectiveFunctionObject = Callable[["ObjectiveArg[np.object_]"], None]
-ObjectiveFunction = Union[ObjectiveFunctionFloat, ObjectiveFunctionObject]
+ObjectiveFunction = ObjectiveFunctionFloat | ObjectiveFunctionObject
 
 ObjectiveGradientFunction = Callable[["ObjectiveGradientArg"], None]
 ObjectiveHessianFunction = Callable[["ObjectiveHessianArg"], None]
 
 DiscreteFunctionFloat = Callable[["DiscreteArg[np.float64]"], None]
 DiscreteFunctionObject = Callable[["DiscreteArg[np.object_]"], None]
-DiscreteFunction = Union[DiscreteFunctionFloat, DiscreteFunctionObject]
+DiscreteFunction = DiscreteFunctionFloat | DiscreteFunctionObject
 
 DiscreteJacobianFunction = Callable[["DiscreteJacobianArg"], None]
 DiscreteHessianFunction = Callable[["DiscreteHessianArg"], None]
 
 ContinuousFunctionFloat = Callable[["ContinuousArg[np.float64]"], None]
 ContinuousFunctionObject = Callable[["ContinuousArg[np.object_]"], None]
-ContinuousFunction = Union[ContinuousFunctionFloat, ContinuousFunctionObject]
+ContinuousFunction = ContinuousFunctionFloat | ContinuousFunctionObject
 
 ContinuousJacobianFunction = Callable[["ContinuousJacobianArg"], None]
 ContinuousHessianFunction = Callable[["ContinuousHessianArg"], None]

@@ -12,9 +12,9 @@ __all__ = ["Problem"]
 import inspect
 
 # standard imports
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import FrameType, SimpleNamespace
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 # third party imports
 import numpy as np
@@ -340,7 +340,7 @@ class Problem(Protected):
         if array is None:
             return self.np * (0,)
         if arg_name == "nx":
-            msg = f"Keyword '{arg_name}' must be a tuple or list of positive integers."
+            msg = f"Keyword '{arg_name}' must be a tuple or list of nonnegative integers."
         else:
             msg = (
                 f"Keyword '{arg_name}' must be a tuple or list of nonnegative integers, "
@@ -350,7 +350,7 @@ class Problem(Protected):
             raise TypeError(msg)
         if not all(isinstance(item, int) for item in array):
             raise TypeError(msg)
-        if not all(item >= (0 if arg_name == "nx" else 0) for item in array):
+        if not all(item >= 0 for item in array):
             raise ValueError(msg)
         if arg_name != "nx" and len(array) != self.np:
             msg = f"Length of '{arg_name}' must be the same as length of 'nx'."

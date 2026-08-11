@@ -240,7 +240,7 @@ def simplify_hessian(nlp: NLP) -> None:
             [irow[i], jcol[i]] if irow[i] >= jcol[i] else [jcol[i], irow[i]]
             for i in range(len(irow))
         ]
-        irow, jcol = tuple(zip(*temp))
+        irow, jcol = tuple(zip(*temp, strict=True))
 
     # make dictionary that will have values that are the row index of sparse matrix
     rc_dict = {item: k for k, item in enumerate(rc)}

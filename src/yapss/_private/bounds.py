@@ -21,7 +21,7 @@ import numpy as np
 from numpy import float64
 
 # package imports
-from .structure import DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
+from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 from .types_ import Protected
 
 if TYPE_CHECKING:
@@ -50,7 +50,7 @@ class ArrayBound:
     def __get__(self, obj: ArrayBounds, obj_type: type | None = None) -> NDArray[np.float64]:
         """Get the value of the attribute."""
         value = getattr(obj, self.private_name)
-        assert isinstance(value, np.ndarray)  # noqa: S101
+        assert isinstance(value, np.ndarray)
         return value
 
     def __set__(self, obj: ArrayBounds, value: ArrayLike) -> None:
@@ -450,8 +450,6 @@ def get_nlp_constraint_function_bounds(
     -------
     tuple[NDArray, NDArray]
     """
-    from .structure import CFStructure
-
     lb: CFStructure[np.float64] = get_nlp_cf_structure(problem, np.float64)
     ub: CFStructure[np.float64] = get_nlp_cf_structure(problem, np.float64)
 

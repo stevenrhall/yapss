@@ -72,11 +72,12 @@ def test_name_keyword():
 
 # noinspection PyTypeChecker
 def test_keywords():
-    # valid nx
+    # valid nx, including a phase with zero states (see test_auto.test_no_dynamics
+    # for a fully solved example of this edge case)
     Problem(name="test", nx=[1, 2, 3])
+    Problem(name="test", nx=[1, 0, 3])
     # nx must be a sequence
-    # msg = "Keyword 'nx' must be a tuple or list of nonnegative integers, or None."
-    msg = "Keyword 'nx' must be a tuple or list of positive integers."
+    msg = "Keyword 'nx' must be a tuple or list of nonnegative integers."
     with pytest.raises(TypeError, match=msg):
         Problem(name="test", nx=1)
     with pytest.raises(ValueError, match=msg):

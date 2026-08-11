@@ -198,7 +198,8 @@ thrust_data = np.array(
      [   0, 36.6, 38.5, 36.1, 31.6, 28.1, 24.2, 16.2, 10.0,  2.2],
      [   0,    0,    0, 38.7, 35.7, 32.0, 28.1, 19.3, 11.9,  2.9],
      [   0,    0,    0,    0,    0, 34.6, 31.1, 21.7, 13.3,  3.1]],
-)  # fmt:on
+)
+# fmt: on
 
 # convert to lbf
 thrust_data *= 1000
@@ -250,8 +251,8 @@ def thrust_function(mach: NDArray[np.float64], h: NDArray[np.float64]) -> NDArra
 # make splines of atmospheric data, using the U.S. 1976 Standard Atmosphere in US
 # customary units. Data from: http://www.pdas.com/atmosTable1US.html
 
+# fmt: off
 atmosphere_data = np.array(
-    # fmt:off
     #  h     rho       c
     # --  --------  ------
     [[ 0, 2.377E-3, 1116.5],
@@ -273,7 +274,8 @@ atmosphere_data = np.array(
      [80, 8.571E-5,  977.6],
      [85, 6.743E-5,  981.0],
      [90, 5.315E-5,  984.3]],
-)  # fmt:on
+)
+# fmt: on
 
 atmosphere_data[:, 0] *= 1000
 

@@ -4,7 +4,8 @@ Provides a set of functions that are compatible with both NumPy and CasADi.
 
 """
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import casadi as ca
 import numpy as np

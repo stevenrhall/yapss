@@ -18,7 +18,7 @@ import sys
 import textwrap
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, cast
 
 # third party imports
 import numpy as np
@@ -75,7 +75,8 @@ if _IN_CONDA and importlib.util.find_spec("cyipopt") is None:
     raise ModuleNotFoundError(msg)
 
 if TYPE_CHECKING:
-    # package imports
+    # standard imports
+    from collections.abc import Callable
     from types import TracebackType
 
     import yapss
@@ -265,8 +266,11 @@ def solve(problem: yapss.Problem) -> Solution:
     if ipopt_source == "cyipopt":
         # Imported here, not at module scope: importing cyipopt opens its own IPOPT
         # binary, so an eager import would map a second copy for anyone who merely
-        # has cyipopt installed. Availability was already checked with `find_spec`.
-        import cyipopt
+        # has cyipopt installed -- on some configurations (the OpenMP collision
+        # between cyipopt's and mseipopt's bundled IPOPT builds) that second copy
+        # crashes the process, not just wastes memory. Availability was already
+        # checked with `find_spec`.
+        import cyipopt  # noqa: PLC0415
 
         cyipopt_adapter = _CyipoptProblemAdapter(nlp_temp)
         ipopt_problem = cyipopt.Problem(
@@ -626,7 +630,7 @@ def _hessian_callback(
     ],
 ) -> bare_np.HessianCallback:
     @functools.wraps(function)
-    def callback(  # noqa: PLR0913
+    def callback(  # noqa: PLR0913, PLR0917 -- signature dictated by mseipopt's C callback API
         x: NDArray[np.float64],
         new_x: bool,  # noqa: ARG001, FBT001
         obj_factor: float,

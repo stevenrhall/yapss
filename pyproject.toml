@@ -74,15 +74,15 @@ dev = [
     # jupyter-notebook formatting tools -- dev-only, not forced on end users
     # who just install the `notebook` extra (see notebook extra above)
     "jupyterlab_code_formatter",
-    "black[jupyter]==24.10.0",
-    "isort==5.13.2",
+    "black[jupyter]==26.5.1",
+    "isort==8.0.1",
     # plus development tools
     "tox==4.58.0",
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.8.5",
-    "mypy==1.13.0",
+    "ruff==0.16.1",
+    "mypy==1.20.2",
     "toml",
     "lxml",
     "nbwipers",
@@ -179,32 +179,54 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["ALL"]
+# Explicit category list rather than "ALL". "ALL" silently pulls in every new
+# rule category ruff adds on each release (e.g. CPY/flake8-copyright showed up
+# this way and fired 36 hits for a copyright-header convention this project
+# doesn't use) -- an upgrade should be a deliberate scope change, not a
+# surprise. Categories left out entirely, and why:
+#   AIR, FAST, DJ, PD, INT  -- frameworks/libraries not used in this project
+#                              (Airflow, FastAPI, Django, pandas, gettext)
+#   CPY                     -- no copyright-header convention
+#   PYI                     -- no .pyi stub files
+#   ANN                     -- redundant with mypy, which already enforces
+#                              annotations more precisely (see [tool.mypy])
+#   ERA                     -- single-rule category (ERA001); commented-out
+#                              code is allowed deliberately
+#   SLF                     -- single-rule category (SLF001); private-member
+#                              access from outside a class is allowed
+#   C90                     -- single-rule category (C901); no complexity cap,
+#                              same reasoning as the PLR0915/PLR0912 ignores
+#   I                       -- import sorting is isort's job (separate tox
+#                              job); keeping ruff's I001 selected risks the
+#                              two tools disagreeing
+#   ASYNC, S, DTZ, T10, EXE -- no async code, no security-sensitive surface,
+#                              no meaningful datetime/timezone handling, no
+#                              manual breakpoints, no shebang scripts
+select = [
+    "YTT", "BLE", "FBT", "B", "A", "COM", "C4", "EM", "FA", "ISC", "ICN",
+    "LOG", "G", "INP", "PIE", "T20", "PT", "Q", "RSE", "RET", "SIM", "SLOT",
+    "TID", "TD", "TC", "ARG", "PTH", "FLY", "NPY", "N", "PERF", "E", "W",
+    "DOC", "D", "F", "PGH", "PL", "UP", "FURB", "RUF", "TRY", "FIX",
+]
 ignore = [
-    "ANN",
-    "ERA001", # commented-out code
+    "TC006", # Add quotes to type expression in `typing.cast()` -- none of
+             # this project's cast() calls reference a TYPE_CHECKING-only
+             # import, so quoting is speculative future-proofing, not a
+             # correctness fix; revisit if that changes
     "T201", # `print` found
     "TD002", # Missing author in TODO
     "G004", # Logging statement uses f-string"
-    "SLF001", # Private member accessed:"
     "FIX002", # Line contains TODO, consider resolving the issue
     "TD003", # Missing issue link on the line following this TODO
-    "C901", # Function is too complex
     "D200", # One-line docstring should fit on one line with quotes
     "PLR0915", # Too many statements
     "PLR0912", # Too many branches
-    "I001", # Import block is un-sorted or un-formatted
     "ISC001", # causes conflicts with formatter
     "COM812", # causes conflicts with formatter
-    # TODO: Below are temporary, needed to get v0.1.1 working. Review and remove
-    "B905",
-    "UP007",
-    "UP035",
-    "UP038",
 ]
 fixable = [
-    "A", "B", "C", "D", "E", "F", "I",
-    "COM", "PT", "UP", "TRY", "RET"
+    "A", "B", "C", "D", "E", "F",
+    "COM", "PT", "UP", "TRY", "RET", "RUF",
 ]
 exclude = [
     ".eggs",
@@ -223,9 +245,6 @@ exclude = [
 ]
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-[tool.ruff.lint.mccabe]
-max-complexity = 15
-
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
@@ -236,8 +255,7 @@ known-third-party = ["numpy", "scipy", "matplotlib", "casadi", "pytest"]
 
 [tool.black]
 line-length = 100
-# TODO: Include py313 in target. This will require pinning to a later version of black
-target-version = ["py310", "py311", "py312", "py313"]
+target-version = ["py310", "py311", "py312", "py313", "py314"]
 
 # ======================================== isort =========================================
 
