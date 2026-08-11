@@ -44,6 +44,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -63,6 +64,7 @@ __all__ = [
     "initialize_ipopt",
     "load_ipopt",
     "read_ipopt_header",
+    "require_initialized",
     "resolve_ipopt_library",
     "smoke_test",
     "strategy1_failure_reason",
@@ -595,8 +597,8 @@ def load_ipopt() -> tuple[ctypes.CDLL, str]:
 _SMOKE_TOLERANCE = 1e-6
 """Agreement required between the smoke solve and its analytic solution."""
 
-_BOOL_NARROWED_IN = (3, 14)
-"""IPOPT release that changed ``typedef int Bool`` to ``typedef bool Bool``."""
+_MINIMUM_IPOPT_VERSION = (3, 14, 0)
+"""Oldest Ipopt ABI supported by the hardened NumPy interface."""
 
 _DEFINE_RE = re.compile(r"^[ \t]*#[ \t]*define[ \t]+(\w+)(?:[ \t]+(.*?))?[ \t]*$", re.MULTILINE)
 _UNDEF_RE = re.compile(r"^[ \t]*/\*[ \t]*#[ \t]*undef[ \t]+(\w+)[ \t]*\*/[ \t]*$", re.MULTILINE)
@@ -615,9 +617,7 @@ class IpoptHeaderInfo:
 
     @property
     def bool_ctype(self) -> Any:
-        """Return the ctypes type matching this IPOPT's ``Bool`` typedef."""
-        if self.version is not None and self.version[:2] < _BOOL_NARROWED_IN:
-            return ctypes.c_int
+        """Return the fixed Bool type for the supported Ipopt 3.14+ ABI."""
         return ctypes.c_bool
 
 
@@ -628,9 +628,9 @@ def read_ipopt_header() -> IpoptHeaderInfo | None:
     omitting it, so "defined", "explicitly undefined", and "absent" are three
     different states and only the first is a problem.
 
-    Returns None rather than raising: CasADi trimming headers out of a wheel is
-    far more plausible than CasADi switching to 64-bit indices, and the smoke
-    test still provides independent (weaker) evidence.
+    This parser reports an unavailable header as None. The verified initializer
+    treats that result as an ABI error because a smoke solve cannot establish
+    index, real, or Boolean widths.
     """
     package = casadi_package_dir()
     if package is None:
@@ -665,6 +665,13 @@ def read_ipopt_header() -> IpoptHeaderInfo | None:
 def _verify_header_abi(info: IpoptHeaderInfo) -> None:
     """Raise if this IPOPT was built in a way our declarations cannot match."""
     problems = []
+    if info.version is None:
+        problems.append("the required IPOPT version macros are missing or invalid")
+    elif info.version < _MINIMUM_IPOPT_VERSION:
+        problems.append(
+            f"IPOPT {'.'.join(map(str, info.version))} is older than the required "
+            f"{'.'.join(map(str, _MINIMUM_IPOPT_VERSION))} minimum"
+        )
     if info.int64:
         problems.append(
             "IPOPT_INT64 is defined, so IPOPT uses 64-bit indices, but YAPSS "
@@ -840,7 +847,25 @@ def smoke_test() -> None:
 # One-call initialization
 # --------------------------------------------------------------------------
 
-_initialized = False
+_INITIALIZING = "initializing"
+_READY = "ready"
+_FAILED = "failed"
+
+_initialization_state = "uninitialized"
+_initialization_path: str | None = None
+_initialization_error: BaseException | None = None
+_initialization_lock = threading.RLock()
+
+
+def require_initialized() -> None:
+    """Require successful verified initialization for the hardened Python layer."""
+    with _initialization_lock:
+        if _initialization_state == _READY:
+            return
+        msg = "IPOPT is not initialized; call initialize_ipopt() first"
+        if _initialization_state == _FAILED and _initialization_error is not None:
+            raise RuntimeError(msg) from _initialization_error
+        raise RuntimeError(msg)
 
 
 def initialize_ipopt() -> str:
@@ -850,25 +875,43 @@ def initialize_ipopt() -> str:
     every step here exists to make a later step safe, and one that is easy to
     omit is one that will eventually be omitted.
 
-    Idempotent, and cheap after the first call.
+    The selected library and any initialization failure are process-lifetime
+    state. A successful repeated call returns the original path without doing
+    work; a failed repeated call re-raises the retained failure.
     """
-    global _initialized  # noqa: PLW0603
+    global _initialization_error, _initialization_path, _initialization_state  # noqa: PLW0603
     from . import bare
 
-    if _initialized:
-        return resolve_ipopt_library()
+    with _initialization_lock:
+        if _initialization_state == _READY:
+            assert _initialization_path is not None
+            return _initialization_path
+        if _initialization_state == _INITIALIZING:
+            raise RuntimeError("recursive IPOPT initialization is not allowed")
+        if _initialization_state == _FAILED:
+            assert _initialization_error is not None
+            raise _initialization_error
 
-    library, path = load_ipopt()
+        _initialization_state = _INITIALIZING
+        try:
+            header = read_ipopt_header()
+            if header is None:
+                msg = (
+                    "CasADi's matching IpoptConfig.h is required to verify the "
+                    "IPOPT ABI before loading it"
+                )
+                raise IpoptAbiError(msg)
+            _verify_header_abi(header)
+            logger.debug("IPOPT %s verified from %s", header.version, header.path)
 
-    header = read_ipopt_header()
-    if header is None:
-        logger.debug("IpoptConfig.h unavailable; relying on the smoke test alone")
-    else:
-        _verify_header_abi(header)
-        logger.debug("IPOPT %s verified from %s", header.version, header.path)
-        bare.set_bool_type(header.bool_ctype)
+            native_library, path = load_ipopt()
+            bare.use_library(native_library)
+            smoke_test()
+        except BaseException as exc:
+            _initialization_error = exc
+            _initialization_state = _FAILED
+            raise
 
-    bare.use_library(library)
-    smoke_test()
-    _initialized = True
-    return path
+        _initialization_path = path
+        _initialization_state = _READY
+        return path

@@ -209,8 +209,8 @@ def test_incompatible_build_raises(monkeypatch, tmp_path, macro, expected):
         library._verify_header_abi(info)
 
 
-def test_pre_314_header_narrows_bool_to_int(monkeypatch, tmp_path):
-    """IPOPT changed `typedef int Bool` to `typedef bool Bool` at 3.14."""
+def test_pre_314_header_is_rejected(monkeypatch, tmp_path):
+    """The hardened interface has one fixed, modern Bool ABI."""
     root = write_header(
         tmp_path,
         IPOPT_VERSION_MAJOR=3,
@@ -221,29 +221,153 @@ def test_pre_314_header_narrows_bool_to_int(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(library, "casadi_package_dir", lambda: root)
     info = library.read_ipopt_header()
-    assert info.version == (3, 12, 13)
-    assert info.bool_ctype is ctypes.c_int
+    with pytest.raises(library.IpoptAbiError, match="older than the required"):
+        library._verify_header_abi(info)
 
 
-def test_header_without_version_macros_still_parses(monkeypatch, tmp_path):
-    """Version is optional; the flags are what matter for safety."""
+def test_header_without_version_macros_is_rejected(monkeypatch, tmp_path):
+    """A smoke solve cannot prove the callback Bool width."""
     root = write_header(tmp_path, IPOPT_INT64=None, IPOPT_SINGLE=None)
     monkeypatch.setattr(library, "casadi_package_dir", lambda: root)
     info = library.read_ipopt_header()
     assert info.version is None
-    assert info.bool_ctype is ctypes.c_bool  # the modern default
+    with pytest.raises(library.IpoptAbiError, match="version macros"):
+        library._verify_header_abi(info)
 
 
-def test_set_bool_type_rebuilds_callbacks():
-    """Callback types must follow the detected Bool width, then restore."""
-    try:
-        bare.set_bool_type(ctypes.c_int)
-        assert bare.Bool is ctypes.c_int
-        assert bare.Eval_F_CB._restype_ is ctypes.c_int
-    finally:
-        bare.set_bool_type()
+def test_callback_bool_type_is_fixed():
+    """All supported callbacks use C bool in arguments and returns."""
     assert bare.Bool is ctypes.c_bool
     assert bare.Eval_F_CB._restype_ is ctypes.c_bool
+
+
+class FakeFunction:
+    """ctypes function stand-in that accepts declaration attributes."""
+
+
+class FakeIpoptLibrary:
+    """Library stand-in exposing Ipopt 3.14.11's eleven C functions."""
+
+    def __init__(self, handle=1):
+        self._handle = handle
+        for name in (
+            "CreateIpoptProblem",
+            "FreeIpoptProblem",
+            "AddIpoptStrOption",
+            "AddIpoptNumOption",
+            "AddIpoptIntOption",
+            "OpenIpoptOutputFile",
+            "SetIpoptProblemScaling",
+            "SetIntermediateCallback",
+            "IpoptSolve",
+            "GetIpoptCurrentIterate",
+            "GetIpoptCurrentViolations",
+        ):
+            setattr(self, name, FakeFunction())
+
+
+def test_bare_declares_all_ipopt_314_functions(monkeypatch):
+    """The raw layer mirrors the full 3.14.11 function inventory."""
+    fake = FakeIpoptLibrary()
+    monkeypatch.setattr(bare, "_ipopt_lib", None)
+    bare.use_library(fake)
+
+    assert fake.GetIpoptCurrentIterate.restype is ctypes.c_bool
+    assert fake.GetIpoptCurrentIterate.argtypes == [
+        bare.IpoptProblem,
+        ctypes.c_bool,
+        ctypes.c_int,
+        bare.c_double_p,
+        bare.c_double_p,
+        bare.c_double_p,
+        ctypes.c_int,
+        bare.c_double_p,
+        bare.c_double_p,
+    ]
+    assert fake.GetIpoptCurrentViolations.restype is ctypes.c_bool
+    assert len(fake.GetIpoptCurrentViolations.argtypes) == 11
+
+
+def test_bare_library_binding_is_immutable(monkeypatch):
+    """A native problem can never be dispatched through a replacement library."""
+    first = FakeIpoptLibrary(handle=1)
+    same_native_handle = FakeIpoptLibrary(handle=1)
+    replacement = FakeIpoptLibrary(handle=2)
+    monkeypatch.setattr(bare, "_ipopt_lib", None)
+
+    bare.use_library(first)
+    bare.use_library(same_native_handle)
+    assert bare._ipopt_lib is first
+    with pytest.raises(RuntimeError, match="cannot be replaced"):
+        bare.use_library(replacement)
+
+
+def reset_initialization(monkeypatch):
+    """Reset initializer globals for isolated state-machine tests."""
+    monkeypatch.setattr(library, "_initialization_state", "uninitialized")
+    monkeypatch.setattr(library, "_initialization_path", None)
+    monkeypatch.setattr(library, "_initialization_error", None)
+
+
+def compatible_header(tmp_path):
+    """Return parsed metadata for the supported ABI."""
+    path = tmp_path / "IpoptConfig.h"
+    return library.IpoptHeaderInfo(path, (3, 14, 11), int64=False, single=False)
+
+
+def test_initialize_is_statefully_idempotent(monkeypatch, tmp_path):
+    """Ready initialization performs native setup and smoke testing only once."""
+    reset_initialization(monkeypatch)
+    calls = []
+    native = object()
+    monkeypatch.setattr(library, "read_ipopt_header", lambda: compatible_header(tmp_path))
+    monkeypatch.setattr(library, "load_ipopt", lambda: (native, "/casadi/libipopt"))
+    monkeypatch.setattr(bare, "use_library", lambda value: calls.append(("use", value)))
+    monkeypatch.setattr(library, "smoke_test", lambda: calls.append(("smoke", None)))
+
+    assert library.initialize_ipopt() == "/casadi/libipopt"
+    assert library.initialize_ipopt() == "/casadi/libipopt"
+    assert calls == [("use", native), ("smoke", None)]
+
+
+def test_initialize_latches_failure(monkeypatch):
+    """A failed native initialization is never retried in the same process."""
+    reset_initialization(monkeypatch)
+    failure = library.IpoptAbiError("bad ABI")
+    calls = 0
+
+    def fail():
+        nonlocal calls
+        calls += 1
+        raise failure
+
+    monkeypatch.setattr(library, "read_ipopt_header", fail)
+    for _ in range(2):
+        with pytest.raises(library.IpoptAbiError) as excinfo:
+            library.initialize_ipopt()
+        assert excinfo.value is failure
+    assert calls == 1
+
+
+def test_initialize_requires_matching_header(monkeypatch):
+    """Verified initialization must fail closed before loading without a header."""
+    reset_initialization(monkeypatch)
+    monkeypatch.setattr(library, "read_ipopt_header", lambda: None)
+
+    def unexpected_load():
+        pytest.fail("native library was loaded before its ABI could be verified")
+
+    monkeypatch.setattr(library, "load_ipopt", unexpected_load)
+    with pytest.raises(library.IpoptAbiError, match="IpoptConfig.h is required"):
+        library.initialize_ipopt()
+
+
+def test_initialize_rejects_recursion(monkeypatch):
+    """Recursive entry cannot start a second initialization sequence."""
+    reset_initialization(monkeypatch)
+    monkeypatch.setattr(library, "_initialization_state", "initializing")
+    with pytest.raises(RuntimeError, match="recursive"):
+        library.initialize_ipopt()
 
 
 # ------------------------------------------------------------ smoke test ---

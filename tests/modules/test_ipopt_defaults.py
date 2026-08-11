@@ -13,7 +13,7 @@ The suite is in two halves, because "YAPSS asked for it" and "Ipopt took it" are
 different claims and only the second one matters to a user:
 
 * The `record_options` tests assert the *decision* -- which options YAPSS requests,
-  for whom, and in what order -- by recording calls to `EZProblem.add_option`.
+  for whom, and in what order -- by recording calls to `MseipoptProblem.add_option`.
 * `test_ipopt_accepts_the_mumps_default` asserts that Ipopt echoed the option back,
   which is the only evidence that it took effect. A benchmark in this project once
   compared a solver against itself for want of exactly this check.
@@ -92,13 +92,13 @@ def record_options(monkeypatch):
     reject, and the test would assert that YAPSS asked for something impossible.
     """
     calls: list[tuple[str, object]] = []
-    original = solver.EZProblem.add_option
+    original = solver.MseipoptProblem.add_option
 
     def spy(self, keyword, value):
         calls.append((keyword, value))
         return original(self, keyword, value)
 
-    monkeypatch.setattr(solver.EZProblem, "add_option", spy)
+    monkeypatch.setattr(solver.MseipoptProblem, "add_option", spy)
     return calls
 
 

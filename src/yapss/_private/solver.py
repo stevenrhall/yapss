@@ -10,17 +10,20 @@ from __future__ import annotations
 # standard imports
 import contextlib
 import ctypes
+import functools
 import importlib.util
+import inspect
 import os
 import signal
 import sys
 import textwrap
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 # third party imports
 import numpy as np
+from numpy.typing import NDArray
 
 # package imports
 from .auto import make_auto_functions
@@ -43,7 +46,7 @@ from .mesh import Mesh
 #
 # Importing the vendored mseipopt is free -- it is ctypes declarations, and no
 # library is opened until `initialize_ipopt()` is called.
-from .mseipopt import bare, ez, initialize_ipopt
+from .mseipopt import bare, bare_np, initialize_ipopt
 from .mseipopt.library import smoke_test as library_smoke_test
 from .nlp import NLP
 from .solution import Solution, make_solution_object
@@ -73,9 +76,6 @@ if _IN_CONDA and importlib.util.find_spec("cyipopt") is None:
     raise ModuleNotFoundError(msg)
 
 if TYPE_CHECKING:
-    # third party imports
-    from numpy.typing import NDArray
-
     # package imports
     import yapss
 
@@ -165,8 +165,8 @@ def _load_explicit_ipopt(path: str) -> None:
     * The ABI header check cannot run. `read_ipopt_header()` reads
       ``IpoptConfig.h`` from the CasADi package, which describes a *different*
       library; verifying against it would report a match that means nothing.
-      `bare.set_bool_type()` therefore keeps its import-time default of
-      `c_bool`, so a pre-3.14 Ipopt silently gets the wrong `Bool` width.
+      `bare` therefore retains its fixed Ipopt 3.14+ `c_bool` declaration, so
+      a pre-3.14 Ipopt silently gets the wrong `Bool` width.
     * The duplicate-copy guard is skipped, because a second copy is precisely
       what the caller asked for.
     * The smoke test cannot substitute for either: negative controls showed an
@@ -285,22 +285,25 @@ def solve(problem: yapss.Problem) -> Solution:
 
         jacobian_structure = nlp_temp.jacobianstructure()
         hessian_structure = nlp_temp.hessianstructure()
-        hess = (
-            hessian_structure,
-            lambda x, obj_factor, _lambda: nlp_temp.hessian(x, _lambda, obj_factor),
+        ipopt_problem = MseipoptProblem(
+            lb,
+            ub,
+            gl,
+            gu,
+            eval_f=_objective_callback(nlp_temp.objective),
+            eval_g=_constraint_callback(nlp_temp.constraints),
+            eval_grad_f=_gradient_callback(nlp_temp.gradient),
+            jacobian_structure=jacobian_structure,
+            eval_jac_g=_jacobian_callback(nlp_temp.jacobian),
+            hessian_structure=hessian_structure,
+            eval_h=_hessian_callback(nlp_temp.hessian),
+            # A custom library path is a deprecated, explicitly unsafe escape
+            # hatch. Its visible FutureWarning explains that YAPSS cannot verify
+            # the ABI and that incompatibility may crash the process. Keep the
+            # bypass private so direct bare_np callers retain the hard guarantee.
+            _unsafe_allow_unverified_library=ipopt_source != "casadi",
         )
-
-        ipopt_problem = EZProblem(
-            x_bounds=(lb, ub),
-            g_bounds=(gl, gu),
-            f=nlp_temp.objective,
-            g=nlp_temp.constraints,
-            grad=nlp_temp.gradient,
-            jac=(jacobian_structure, nlp_temp.jacobian),
-            nele_jac=len(jacobian_structure[0]),
-            hess=hess,
-            nele_hess=len(hessian_structure[0]),
-        )
+        ipopt_problem.set_intermediate_callback(nlp_temp.intermediate)
 
     # apply user ipopt options
     for name, value in problem.ipopt_options.get_options().items():
@@ -377,22 +380,23 @@ def solve(problem: yapss.Problem) -> Solution:
     # solve NLP. If keyboard interrupt is raised, signal IPOPT to stop through the
     # intermediate callback
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", warning_message)
+    try:
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", warning_message)
 
-        if problem.catch_keyboard_interrupt:
-            original_handler = signal.signal(signal.SIGINT, problem._signal_handler)
-            try:
-                z, nlp_info = ipopt_problem.solve(z0)
-            finally:
-                signal.signal(signal.SIGINT, original_handler)
-                problem._abort = False
-        else:
-            z, nlp_info = ipopt_problem.solve(z0)
-
-    # close Ipopt problem to prevent memory leak
-    ipopt_problem.close()
-    del ipopt_problem
+            if problem.catch_keyboard_interrupt:
+                original_handler = signal.signal(signal.SIGINT, problem._signal_handler)
+                try:
+                    z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0, ipopt_source)
+                finally:
+                    signal.signal(signal.SIGINT, original_handler)
+                    problem._abort = False
+            else:
+                z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0, ipopt_source)
+    finally:
+        # Callback exceptions are re-raised only after Ipopt returns. Cleanup
+        # must still release the native problem on that propagation path.
+        ipopt_problem.close()
 
     nlp_info["x"] = z
     return make_solution_object(problem, mesh, nlp_temp, nlp_info)
@@ -469,13 +473,122 @@ def get_nlp_scaling(
     return obj_scale, z_scaling, c_scaling
 
 
-class EZProblem(ez.Problem):
-    """Adapt the vendored `ez.Problem` to the API `solve` uses for both backends.
+def _solve_ipopt_problem(
+    ipopt_problem: Any,
+    z0: NDArray[np.float64],
+    ipopt_source: str,
+) -> tuple[NDArray[np.float64], dict[str, Any]]:
+    """Solve through either backend and normalize its result for solution construction."""
+    if ipopt_source == "cyipopt":
+        result = ipopt_problem.solve(z0)
+        return cast(tuple[NDArray[np.float64], dict[str, Any]], result)
 
-    Defined unconditionally: with `ipopt_source` restored, the vendored path is
-    reachable inside a Conda environment too, via ``ipopt_source="casadi"`` or an
-    explicit library path.
-    """
+    mseipopt_problem = ipopt_problem
+    mseipopt_problem.add_option("warm_start_init_point", "no")
+    x = np.array(z0, dtype=np.float64, copy=True, order="C")
+    result = mseipopt_problem.solve(x)
+    info: dict[str, Any] = {
+        "g": result.g,
+        "obj_val": result.obj_val,
+        "mult_g": result.mult_g,
+        "mult_x_L": result.mult_x_L,
+        "mult_x_U": result.mult_x_U,
+        "status": result.status,
+    }
+    return result.x, info
+
+
+def _objective_callback(function: Callable[..., Any]) -> Callable[..., bool]:
+    @functools.wraps(function)
+    def callback(
+        x: NDArray[np.float64],
+        new_x: bool,  # noqa: ARG001, FBT001
+        output: NDArray[np.float64],
+    ) -> bool:
+        output[()] = function(x)
+        return True
+
+    return callback
+
+
+def _constraint_callback(function: Callable[..., Any]) -> Callable[..., bool]:
+    @functools.wraps(function)
+    def callback(
+        x: NDArray[np.float64],
+        new_x: bool,  # noqa: ARG001, FBT001
+        output: NDArray[np.float64],
+    ) -> bool:
+        if output.size:
+            output[()] = function(x)
+        return True
+
+    return callback
+
+
+def _gradient_callback(function: Callable[..., Any]) -> Callable[..., bool]:
+    @functools.wraps(function)
+    def callback(
+        x: NDArray[np.float64],
+        new_x: bool,  # noqa: ARG001, FBT001
+        output: NDArray[np.float64],
+    ) -> bool:
+        output[()] = function(x)
+        return True
+
+    return callback
+
+
+def _jacobian_callback(function: Callable[..., Any]) -> Callable[..., bool]:
+    @functools.wraps(function)
+    def callback(
+        x: NDArray[np.float64],
+        new_x: bool,  # noqa: ARG001, FBT001
+        output: NDArray[np.float64],
+    ) -> bool:
+        if output.size:
+            if _accepts_output(function):
+                function(x, out=output)
+            else:
+                output[...] = function(x)
+        return True
+
+    return callback
+
+
+def _hessian_callback(function: Callable[..., Any]) -> Callable[..., bool]:
+    @functools.wraps(function)
+    def callback(  # noqa: PLR0913
+        x: NDArray[np.float64],
+        new_x: bool,  # noqa: ARG001, FBT001
+        obj_factor: float,
+        multipliers: NDArray[np.float64],
+        new_multipliers: bool,  # noqa: ARG001, FBT001
+        output: NDArray[np.float64],
+    ) -> bool:
+        if output.size:
+            if _accepts_output(function):
+                function(x, multipliers, obj_factor, out=output)
+            else:
+                output[...] = function(x, multipliers, obj_factor)
+        return True
+
+    return callback
+
+
+@functools.lru_cache
+def _accepts_output(function: Callable[..., Any]) -> bool:
+    parameters = inspect.signature(function).parameters
+    output = parameters.get("out")
+    if output is None or list(parameters).index("out") == 0:
+        return False
+    return output.kind in (
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        inspect.Parameter.KEYWORD_ONLY,
+    )
+
+
+class MseipoptProblem(bare_np.Problem):
+    """Add YAPSS's option/scaling vocabulary to the standalone NumPy layer."""
 
     def add_option(self, keyword: str, value: float | str) -> None:
         if isinstance(value, int):
@@ -497,7 +610,3 @@ class EZProblem(ez.Problem):
         g_scaling: NDArray[np.float64] | None,
     ) -> None:
         self.set_scaling(obj_scaling, x_scaling, g_scaling)
-
-    def close(self) -> None:
-        """Close the Ipopt problem."""
-        self.free()
