@@ -194,7 +194,7 @@ jobs:
         # without failing. This job has the full matrix's data, which is the only
         # thing the 93% figure was calibrated against.
         env:
-          COVERAGE_FAIL_UNDER: 93
+          COVERAGE_FAIL_UNDER: 95
         run: tox -e report -- coverage-data
 
       - name: Upload HTML coverage report
