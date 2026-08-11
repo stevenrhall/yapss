@@ -3,6 +3,7 @@
 import ctypes
 import gc
 import weakref
+from typing import Any, get_type_hints
 
 import numpy as np
 import pytest
@@ -68,6 +69,26 @@ def make_problem(**overrides):
     return bare_np.Problem(**arguments)
 
 
+def test_public_constructor_parameters_have_specific_types():
+    """Every value accepted by the public constructor has a concrete annotation."""
+    hints = get_type_hints(bare_np.Problem.__init__)
+    public_parameters = {
+        "x_l",
+        "x_u",
+        "g_l",
+        "g_u",
+        "eval_f",
+        "eval_g",
+        "eval_grad_f",
+        "jacobian_structure",
+        "eval_jac_g",
+        "hessian_structure",
+        "eval_h",
+    }
+    assert public_parameters <= hints.keys()
+    assert all(hints[name] is not Any for name in public_parameters)
+
+
 def test_problem_requires_verified_initialization(monkeypatch):
     """Raw bare configuration alone must not authorize the NumPy layer."""
     failure = RuntimeError("not verified")
@@ -102,6 +123,52 @@ def test_private_unverified_opt_out_is_solver_only_escape_hatch(monkeypatch, nat
         _unsafe_allow_unverified_library=True,
     )
     assert problem.n == 1
+
+
+@pytest.mark.parametrize("name", ["eval_f", "eval_g", "eval_grad_f", "eval_jac_g"])
+def test_constructor_rejects_noncallable_required_callbacks(native, name):
+    """Every required callback is checked before native problem creation."""
+    calls, _ = native
+    with pytest.raises(TypeError, match=f"{name} must be callable"):
+        make_problem(**{name: None})
+    assert calls["create"] == []
+
+
+def test_constructor_rejects_noncallable_exact_hessian(native):
+    """Exact-Hessian structure cannot be paired with a non-callable value."""
+    calls, _ = native
+    with pytest.raises(TypeError, match="eval_h must be callable"):
+        make_problem(hessian_structure=([0], [0]), eval_h=3)
+    assert calls["create"] == []
+
+
+def test_dimension_overflow_is_rejected():
+    """Dimensions outside Ipopt's configured C-int ABI fail before narrowing."""
+    with pytest.raises(OverflowError, match="does not fit"):
+        bare_np._validate_dimension(np.iinfo(np.intc).max + 1, "n")
+
+
+def test_internal_null_pointer_and_limited_memory_helpers():
+    """Empty arrays map to null pointers and the dummy Hessian always rejects use."""
+    assert bare_np.data_ptr(None) is None
+    assert bare_np.data_ptr(np.empty(0)) is None
+    assert bare_np._limited_memory_hessian() is False
+
+
+def test_data_ptr_rejects_unsafe_native_buffers():
+    """The final pointer boundary enforces its invariants without assertions."""
+    with pytest.raises(TypeError, match="numpy ndarray"):
+        bare_np.data_ptr([1.0])
+    with pytest.raises(TypeError, match="float64"):
+        bare_np.data_ptr(np.ones(1, dtype=np.float32))
+
+    storage = bytearray(np.dtype(np.float64).itemsize + 1)
+    unaligned = np.ndarray((1,), dtype=np.float64, buffer=storage, offset=1)
+    with pytest.raises(ValueError, match="aligned"):
+        bare_np.data_ptr(unaligned)
+
+    with pytest.raises(ValueError, match="C-contiguous"):
+        bare_np.data_ptr(np.arange(4.0)[::2])
 
 
 def test_constructor_infers_counts_and_owns_structures(native):
@@ -144,6 +211,8 @@ def test_invalid_bounds_fail_before_native(native, overrides, match):
 @pytest.mark.parametrize(
     ("structure", "error", "match"),
     [
+        (None, TypeError, "pair of index arrays"),
+        (([0], [0], [0]), TypeError, "pair of index arrays"),
         (([0], [0, 1]), ValueError, "equal length"),
         (([[0]], [[0]]), ValueError, "one-dimensional"),
         (([False], [0]), TypeError, "must be integers"),
@@ -199,6 +268,96 @@ def test_close_is_idempotent_and_closed_operations_fail(native):
     assert calls["free"] == [problem_pointer]
     with pytest.raises(RuntimeError, match="closed"):
         problem.add_num_option("tol", 1e-8)
+
+
+def test_free_alias_releases_problem_once(native):
+    """The compatibility alias delegates to idempotent close semantics."""
+    calls, problem_pointer = native
+    problem = make_problem()
+    problem.free()
+    problem.free()
+    assert calls["free"] == [problem_pointer]
+
+
+def test_option_and_output_methods_translate_native_results(native, monkeypatch):
+    """Integer/numeric options and output files expose native rejection cleanly."""
+    problem = make_problem()
+    int_calls = []
+    num_calls = []
+    output_calls = []
+    monkeypatch.setattr(bare, "AddIpoptIntOption", lambda *args: int_calls.append(args) or 1)
+    monkeypatch.setattr(bare, "AddIpoptNumOption", lambda *args: num_calls.append(args) or 1)
+    monkeypatch.setattr(bare, "OpenIpoptOutputFile", lambda *args: output_calls.append(args) or 1)
+    problem.add_int_option("max_iter", 10)
+    problem.add_num_option("tol", 1e-8)
+    problem.open_output_file("ipopt.log", 4)
+    assert int_calls[-1][1:] == ("max_iter", 10)
+    assert num_calls[-1][1:] == ("tol", 1e-8)
+    assert output_calls[-1][1:] == ("ipopt.log", 4)
+
+    monkeypatch.setattr(bare, "AddIpoptIntOption", lambda *args: 0)
+    monkeypatch.setattr(bare, "AddIpoptNumOption", lambda *args: 0)
+    monkeypatch.setattr(bare, "OpenIpoptOutputFile", lambda *args: 0)
+    with pytest.raises(ValueError, match="invalid option"):
+        problem.add_int_option("bad", 1)
+    with pytest.raises(ValueError, match="invalid option"):
+        problem.add_num_option("bad", 1.0)
+    with pytest.raises(RuntimeError, match="opening output"):
+        problem.open_output_file("bad.log", 1)
+
+
+def test_scaling_validates_shapes_and_native_result(native, monkeypatch):
+    """Scaling checks dimensions, forwards float64 data, and enables the option."""
+    calls, problem_pointer = native
+    problem = make_problem()
+    with pytest.raises(ValueError, match="x scaling"):
+        problem.set_scaling(1.0, [1.0], [1.0])
+    with pytest.raises(ValueError, match="g scaling"):
+        problem.set_scaling(1.0, [1.0, 1.0], [])
+
+    scaling_calls = []
+    monkeypatch.setattr(
+        bare,
+        "SetIpoptProblemScaling",
+        lambda *args: scaling_calls.append(args) or 1,
+    )
+    problem.set_scaling(2, [3, 4], [5])
+    assert scaling_calls[0][0:2] == (problem_pointer, 2.0)
+    assert calls["options"][-1][1:] == ("nlp_scaling_method", "user-scaling")
+
+    monkeypatch.setattr(bare, "SetIpoptProblemScaling", lambda *args: 0)
+    with pytest.raises(RuntimeError, match="setting problem scaling"):
+        problem.set_scaling(1.0, [1.0, 1.0], [1.0])
+
+
+def test_scaling_copies_strided_inputs_to_contiguous_native_buffers(native, monkeypatch):
+    """Strided scaling views are copied before their pointers cross into C."""
+    problem = make_problem(
+        g_l=[0.0, 0.0],
+        g_u=[0.0, 0.0],
+        jacobian_structure=([0, 1], [1, 0]),
+    )
+    received = []
+
+    def set_scaling(problem_pointer, objective, x_pointer, g_pointer):
+        received.append(
+            (
+                np.ctypeslib.as_array(x_pointer, shape=(2,)).copy(),
+                np.ctypeslib.as_array(g_pointer, shape=(2,)).copy(),
+            )
+        )
+        return 1
+
+    monkeypatch.setattr(bare, "SetIpoptProblemScaling", set_scaling)
+    x_scaling = np.array([3.0, -1.0, 4.0, -1.0])[::2]
+    g_scaling = np.array([5.0, -1.0, 6.0, -1.0])[::2]
+    assert not x_scaling.flags.c_contiguous
+    assert not g_scaling.flags.c_contiguous
+
+    problem.set_scaling(2.0, x_scaling, g_scaling)
+
+    np.testing.assert_array_equal(received[0][0], [3.0, 4.0])
+    np.testing.assert_array_equal(received[0][1], [5.0, 6.0])
 
 
 def test_close_and_recursive_solve_are_rejected_while_solving(native):
@@ -264,6 +423,13 @@ def test_failed_intermediate_replacement_retains_previous_callback(native, monke
     assert problem._callbacks["intermediate_cb"] is installed
 
 
+def test_intermediate_callback_rejects_noncallable(native):
+    """Only a callable or None may cross the intermediate callback boundary."""
+    problem = make_problem()
+    with pytest.raises(TypeError, match="must be callable"):
+        problem.set_intermediate_callback(3)
+
+
 @pytest.mark.parametrize("x_present", [False, True])
 def test_structure_callback_copies_owned_data_without_calling_user(native, x_present):
     called = []
@@ -293,6 +459,55 @@ def test_structure_callback_copies_owned_data_without_calling_user(native, x_pre
     assert list(row_buffer) == [0, 0]
     assert list(column_buffer) == [1, 0]
     assert called == []
+
+
+def test_hessian_structure_callback_copies_owned_data_without_user_call(native):
+    """Exact Hessian structure comes solely from validated constructor metadata."""
+    called = []
+
+    def hessian(*args):
+        called.append(args)
+        return True
+
+    problem = make_problem(
+        hessian_structure=([0, 1], [0, 0]),
+        eval_h=hessian,
+    )
+    callback = problem._callbacks["eval_h"]
+    rows = (ctypes.c_int * 2)()
+    columns = (ctypes.c_int * 2)()
+    assert callback(
+        2,
+        bare.c_double_p(),
+        False,
+        1.0,
+        1,
+        bare.c_double_p(),
+        False,
+        2,
+        rows,
+        columns,
+        bare.c_double_p(),
+        None,
+    )
+    assert list(rows) == [0, 1]
+    assert list(columns) == [0, 0]
+    assert called == []
+
+
+def test_exception_metadata_failure_does_not_hide_original(native):
+    """An exception type that forbids attributes is still retained authoritatively."""
+
+    class LockedError(RuntimeError):
+        def __setattr__(self, name, value):
+            if name.startswith("mseipopt_"):
+                raise AttributeError(name)
+            super().__setattr__(name, value)
+
+    problem = make_problem()
+    error = LockedError("locked")
+    problem._latch_exception(error, "eval_f", "values")
+    assert problem._callback_exception == (error, error.__traceback__, "eval_f", "values")
 
 
 class CallbackError(RuntimeError):

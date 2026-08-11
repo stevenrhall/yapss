@@ -12,7 +12,6 @@ import contextlib
 import ctypes
 import functools
 import importlib.util
-import inspect
 import os
 import signal
 import sys
@@ -538,7 +537,9 @@ def _gradient_callback(function: Callable[..., Any]) -> Callable[..., bool]:
     return callback
 
 
-def _jacobian_callback(function: Callable[..., Any]) -> Callable[..., bool]:
+def _jacobian_callback(
+    function: Callable[[NDArray[np.float64]], NDArray[np.float64]],
+) -> bare_np.EvaluationCallback:
     @functools.wraps(function)
     def callback(
         x: NDArray[np.float64],
@@ -546,16 +547,18 @@ def _jacobian_callback(function: Callable[..., Any]) -> Callable[..., bool]:
         output: NDArray[np.float64],
     ) -> bool:
         if output.size:
-            if _accepts_output(function):
-                function(x, out=output)
-            else:
-                output[...] = function(x)
+            output[...] = function(x)
         return True
 
     return callback
 
 
-def _hessian_callback(function: Callable[..., Any]) -> Callable[..., bool]:
+def _hessian_callback(
+    function: Callable[
+        [NDArray[np.float64], NDArray[np.float64], np.float64],
+        NDArray[np.float64],
+    ],
+) -> bare_np.HessianCallback:
     @functools.wraps(function)
     def callback(  # noqa: PLR0913
         x: NDArray[np.float64],
@@ -566,25 +569,10 @@ def _hessian_callback(function: Callable[..., Any]) -> Callable[..., bool]:
         output: NDArray[np.float64],
     ) -> bool:
         if output.size:
-            if _accepts_output(function):
-                function(x, multipliers, obj_factor, out=output)
-            else:
-                output[...] = function(x, multipliers, obj_factor)
+            output[...] = function(x, multipliers, np.float64(obj_factor))
         return True
 
     return callback
-
-
-@functools.lru_cache
-def _accepts_output(function: Callable[..., Any]) -> bool:
-    parameters = inspect.signature(function).parameters
-    output = parameters.get("out")
-    if output is None or list(parameters).index("out") == 0:
-        return False
-    return output.kind in (
-        inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        inspect.Parameter.KEYWORD_ONLY,
-    )
 
 
 class MseipoptProblem(bare_np.Problem):

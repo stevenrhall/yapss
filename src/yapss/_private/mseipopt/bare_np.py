@@ -17,18 +17,28 @@ callback frame.
 from __future__ import annotations
 
 import functools
+from collections.abc import Sequence
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, Callable
+from typing import Any, Callable, TypeAlias
 
 import numpy as np
 from numpy.ctypeslib import as_array
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
 
 from . import bare, library
 
 _C_INT_INFO = np.iinfo(np.intc)
 _USER_REQUESTED_STOP = 5
+
+FloatArray: TypeAlias = NDArray[np.float64]
+IndexArrayLike: TypeAlias = Sequence[int] | NDArray[np.integer[Any]]
+SparsityStructure: TypeAlias = tuple[IndexArrayLike, IndexArrayLike]
+CallbackResult: TypeAlias = bool | np.bool_
+EvaluationCallback: TypeAlias = Callable[[FloatArray, bool, FloatArray], CallbackResult]
+HessianCallback: TypeAlias = Callable[
+    [FloatArray, bool, float, FloatArray, bool, FloatArray], CallbackResult
+]
 
 
 class InvalidPoint(RuntimeError):
@@ -151,18 +161,18 @@ class Problem:
 
     def __init__(
         self,
-        x_l: Any,
-        x_u: Any,
-        g_l: Any,
-        g_u: Any,
+        x_l: ArrayLike,
+        x_u: ArrayLike,
+        g_l: ArrayLike,
+        g_u: ArrayLike,
         *,
-        eval_f: Any,
-        eval_g: Any,
-        eval_grad_f: Any,
-        jacobian_structure: Any,
-        eval_jac_g: Any,
-        hessian_structure: Any = None,
-        eval_h: Any = None,
+        eval_f: EvaluationCallback,
+        eval_g: EvaluationCallback,
+        eval_grad_f: EvaluationCallback,
+        jacobian_structure: SparsityStructure,
+        eval_jac_g: EvaluationCallback,
+        hessian_structure: SparsityStructure | None = None,
+        eval_h: HessianCallback | None = None,
         _unsafe_allow_unverified_library: bool = False,
     ) -> None:
         if not _unsafe_allow_unverified_library:
@@ -362,8 +372,8 @@ class Problem:
         native call. The Ipopt scaling method is set to ``user-scaling``.
         """
         self._require_open()
-        x_scaling = np.require(x_scaling, np.double, "A")
-        g_scaling = np.require(g_scaling, np.double, "A")
+        x_scaling = np.require(x_scaling, np.double, ["A", "C"])
+        g_scaling = np.require(g_scaling, np.double, ["A", "C"])
 
         if x_scaling.shape != (self.n,):
             raise ValueError("invalid shape for the x scaling")
@@ -543,25 +553,42 @@ def wrap_jac_g(
         values: Any,
         user_data: Any,
     ) -> Any:
+        # A null ctypes pointer is a falsy pointer object, not necessarily None.
+        x_present = bool(x)
+        rows_present = bool(iRow)
+        columns_present = bool(jCol)
+        values_present = bool(values)
+        structure_request = not values_present and (
+            (rows_present and columns_present) or (nele_jac == 0 and not x_present)
+        )
+        values_request = (
+            x_present
+            and not rows_present
+            and not columns_present
+            and (values_present or nele_jac == 0)
+        )
+
         def operation() -> Any:
             if nele_jac != len(rows):
                 raise RuntimeError("native Jacobian nonzero count does not match the problem")
-            if not values and ((iRow and jCol) or (nele_jac == 0 and not x)):
+            if structure_request:
                 if nele_jac:
                     as_array(iRow, (nele_jac,))[...] = rows
                     as_array(jCol, (nele_jac,))[...] = columns
                 return True
-            if x and not iRow and not jCol and (values or nele_jac == 0):
+            if values_request:
                 values_array = (
                     as_array(values, (nele_jac,)) if nele_jac else np.empty(0, dtype=np.float64)
                 )
                 return jac_g(as_array(x, (n,)), bool(new_x), values_array)
             raise RuntimeError(
                 "invalid native Jacobian callback pointer combination: "
-                f"x={bool(x)}, iRow={bool(iRow)}, jCol={bool(jCol)}, values={bool(values)}"
+                f"x={x_present}, iRow={rows_present}, jCol={columns_present}, "
+                f"values={values_present}"
             )
 
-        phase = "structure" if not values and (iRow or jCol or not x) else "values"
+        structure_phase = not values_present and (rows_present or columns_present or not x_present)
+        phase = "structure" if structure_phase else "values"
         return invoke(
             "eval_jac_g",
             phase,
@@ -595,15 +622,32 @@ def wrap_h(
         values: Any,
         user_data: Any,
     ) -> Any:
+        # A null ctypes pointer is a falsy pointer object, not necessarily None.
+        x_present = bool(x)
+        multipliers_present = bool(mult)
+        rows_present = bool(iRow)
+        columns_present = bool(jCol)
+        values_present = bool(values)
+        structure_request = not values_present and (
+            (rows_present and columns_present) or (nele_hess == 0 and not x_present)
+        )
+        values_request = (
+            x_present
+            and (multipliers_present or m == 0)
+            and not rows_present
+            and not columns_present
+            and (values_present or nele_hess == 0)
+        )
+
         def operation() -> Any:
             if nele_hess != len(rows):
                 raise RuntimeError("native Hessian nonzero count does not match the problem")
-            if not values and ((iRow and jCol) or (nele_hess == 0 and not x)):
+            if structure_request:
                 if nele_hess:
                     as_array(iRow, (nele_hess,))[...] = rows
                     as_array(jCol, (nele_hess,))[...] = columns
                 return True
-            if x and (mult or m == 0) and not iRow and not jCol and (values or nele_hess == 0):
+            if values_request:
                 values_array = (
                     as_array(values, (nele_hess,)) if nele_hess else np.empty(0, dtype=np.float64)
                 )
@@ -618,11 +662,12 @@ def wrap_h(
                 )
             raise RuntimeError(
                 "invalid native Hessian callback pointer combination: "
-                f"x={bool(x)}, lambda={bool(mult)}, iRow={bool(iRow)}, "
-                f"jCol={bool(jCol)}, values={bool(values)}"
+                f"x={x_present}, lambda={multipliers_present}, iRow={rows_present}, "
+                f"jCol={columns_present}, values={values_present}"
             )
 
-        phase = "structure" if not values and (iRow or jCol or not x) else "values"
+        structure_phase = not values_present and (rows_present or columns_present or not x_present)
+        phase = "structure" if structure_phase else "values"
         return invoke("eval_h", phase, operation, allow_invalid_point=phase == "values")
 
     return bare.Eval_H_CB(wrapper)
@@ -687,9 +732,15 @@ def _validate_io_array(a: Any, shape: tuple[int, ...], name: str) -> None:
 
 
 def data_ptr(arr: NDArray[np.float64] | None) -> Any:
-    """Return a ``double *`` for an array, or null for ``None`` and empty arrays."""
+    """Return a safe ``double *``, or null for ``None`` and empty arrays."""
     if arr is None:
         return arr
-    assert isinstance(arr, np.ndarray)
-    assert arr.dtype == np.double
+    if not isinstance(arr, np.ndarray):
+        raise TypeError("native double buffer must be a numpy ndarray instance")
+    if arr.dtype != np.double:
+        raise TypeError("native double buffer must contain float64 values")
+    if not arr.flags.aligned:
+        raise ValueError("native double buffer must be aligned")
+    if not arr.flags.c_contiguous:
+        raise ValueError("native double buffer must be C-contiguous")
     return arr.ctypes.data_as(bare.c_double_p) if arr.size else None
