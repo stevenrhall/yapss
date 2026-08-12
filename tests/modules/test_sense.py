@@ -9,12 +9,10 @@ multiplier/costate sign to match, rather than the reported objective value.
 
 from __future__ import annotations
 
-from math import pi
-
 import pytest
 
 import yapss
-from yapss.examples import goddard_problem_1_phase, goddard_problem_3_phase, isoperimetric
+from yapss.examples import goddard_problem_1_phase, goddard_problem_3_phase, orbit_raising
 
 
 def _tiny_problem() -> yapss.Problem:
@@ -102,17 +100,17 @@ class TestReservedIpoptOptions:
 # --- numerical check: multiplier/costate sign tracks sense, not the objective -----
 
 
-def _isoperimetric_with_manual_negation() -> yapss.Problem:
+def _orbit_raising_with_manual_negation() -> yapss.Problem:
     """The pre-`sense` (wrong) way to maximize: negate, sense left at the default.
 
-    Mathematically the identical NLP to `isoperimetric.setup()` -- same feasible
+    Mathematically the identical NLP to `orbit_raising.setup()` -- same feasible
     region, same optimum -- so it exists only to compare multiplier signs against.
     """
-    problem = isoperimetric.setup()
+    problem = orbit_raising.setup()
     problem.sense = "minimize"
 
     def objective(arg: yapss.ObjectiveArg) -> None:
-        arg.objective = -arg.phase[0].integral[0]
+        arg.objective = -arg.phase[0].final_state[0]
 
     problem.functions.objective = objective
     return problem
@@ -127,28 +125,27 @@ def _quiet(problem: yapss.Problem) -> yapss.Problem:
 @pytest.fixture(scope="module")
 def solutions() -> tuple[yapss.Solution, yapss.Solution]:
     """Solve both formulations once and share the result across the comparisons below."""
-    # isoperimetric.setup() sets tol=1e-14 for its own demo purposes (showing off
-    # solver accuracy); this test only needs the two formulations to agree with
-    # each other, not that kind of precision, and pushing for it risks a
-    # restoration-phase failure on some platforms/backends for no benefit here.
-    sense_problem = isoperimetric.setup()
-    sense_problem.ipopt_options.tol = 1e-8
-    negated_problem = _isoperimetric_with_manual_negation()
-    negated_problem.ipopt_options.tol = 1e-8
-    sense_solution = _quiet(sense_problem).solve()
-    negated_solution = _quiet(negated_problem).solve()
+    sense_solution = _quiet(orbit_raising.setup()).solve()
+    negated_solution = _quiet(_orbit_raising_with_manual_negation()).solve()
     return sense_solution, negated_solution
 
 
 class TestMultiplierSignTracksSense:
-    """`isoperimetric.setup()` uses `sense = "maximize"`; compare it against the
+    """`orbit_raising.setup()` uses `sense = "maximize"`; compare it against the
     manual-negation convention it replaced.
 
     Both formulations describe the identical NLP, so the primal solution must
-    agree exactly. The KKT claim under test is mu = dJ/dc for whichever quantity
-    each formulation treats as "the objective": `sense="maximize"` reports the
-    true (positive) area, so its multipliers must be the negative of the
-    manual-negation formulation's, which reports the negative area.
+    agree exactly. (An earlier version of this test used the isoperimetric
+    problem for this comparison; dropped because its optimal curve is a circle
+    free to start at any point along its own circumference -- a continuous
+    symmetry with no reason for two independent solves to land on the same
+    point of, even though both are equally optimal. `orbit_raising` has no such
+    symmetry: its initial state is fully pinned and its dynamics are not
+    rotationally invariant.) The KKT claim under test is mu = dJ/dc for
+    whichever quantity each formulation treats as "the objective":
+    `sense="maximize"` reports the true (positive) final radius, so its
+    multipliers must be the negative of the manual-negation formulation's,
+    which reports the negative final radius.
     """
 
     def test_primal_solution_agrees(self, solutions: tuple[yapss.Solution, yapss.Solution]) -> None:
@@ -162,9 +159,7 @@ class TestMultiplierSignTracksSense:
         self, solutions: tuple[yapss.Solution, yapss.Solution]
     ) -> None:
         sense_solution, negated_solution = solutions
-        area = 1 / (4 * pi)
-        assert sense_solution.objective == pytest.approx(area, rel=1e-6)
-        assert negated_solution.objective == pytest.approx(-area, rel=1e-6)
+        assert sense_solution.objective == pytest.approx(-negated_solution.objective, rel=1e-6)
 
     def test_discrete_multiplier_sign_is_flipped(
         self, solutions: tuple[yapss.Solution, yapss.Solution]
