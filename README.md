@@ -17,9 +17,9 @@ YAPSS provides:
 
 ## Start here
 
-1. [Install YAPSS](#installation).
+1. [Install YAPSS](https://github.com/stevenrhall/yapss/blob/main#installation).
 2. Work through the [tutorial](https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/tutorial.ipynb) to define and solve a first problem.
-3. Browse the [examples](https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/notebooks/index.rst) for complete applications.
+3. Browse the [examples](https://github.com/stevenrhall/yapss/tree/main/examples/notebooks) for complete applications.
 
 ## Installation
 
@@ -62,16 +62,17 @@ The value of the final digits of the objective may vary between platforms and so
 ## Where to go next
 
 - **New to YAPSS?** Start with the [tutorial](https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/tutorial.ipynb).
-- **Looking for a pattern to adapt?** Browse the [notebook examples](https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/notebooks/index.rst) or
-  [script examples](https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/scripts/index.rst).
+- **Looking for a pattern to adapt?** Browse the [notebook examples](https://github.com/stevenrhall/yapss/tree/main/examples/notebooks) or
+  [script examples](https://github.com/stevenrhall/yapss/tree/main/src/yapss/examples).
 - **Need API details?** See the reference documentation in the navigation sidebar.
 - **Want to contribute?** Contributions are welcome! Read
   [Contributing to YAPSS](https://github.com/stevenrhall/yapss/blob/main/CONTRIBUTING.md).
 
 ## License
 
-YAPSS is licensed under the MIT License. See the [License](https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/license.rst) page for more
-information.
+YAPSS is licensed under the MIT License. See the 
+[License](https://github.com/stevenrhall/yapss/blob/main/LICENSE) page
+for more information.
 
 ## Documentation
 

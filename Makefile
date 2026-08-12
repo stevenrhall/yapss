@@ -235,7 +235,18 @@ readme: ## Generate README.md from docs/user_guide/index.md
 	@# .ipynb links under notebooks/ are special-cased to examples/notebooks/: the
 	@# copies under docs/user_guide/notebooks/ that Sphinx actually links against
 	@# are gitignored build output, not the tracked source.
+	@#
+	@# A link can override all three extension-based rules above by following it
+	@# with `<!-- readme: URL -->` in index.md -- e.g. when the right README
+	@# destination isn't the docs page's own source file, such as a page that
+	@# only exists as Sphinx content (an index.rst with no repo-root
+	@# equivalent) or one that does have a better repo-root equivalent (license.rst
+	@# vs. the real LICENSE file). The override is applied first and always
+	@# writes a full https:// URL, which the extension rules below cannot then
+	@# re-rewrite: they only match link targets built from
+	@# [A-Za-z0-9_./-] characters, a class that excludes ":".
 	awk '/<!-- End README.md -->/ {exit} {print}' docs/user_guide/index.md \
+	  | sed -E 's#\]\(([^)]+)\)<!-- readme: ([^>]+) -->#](\2)#g' \
 	  | sed -E 's#\]\(([A-Za-z0-9_./-]+\.md)\)#](https://github.com/stevenrhall/yapss/blob/main/\1)#g' \
 	  | sed -E 's#\]\(notebooks/([A-Za-z0-9_.-]+\.ipynb)\)#](https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/\1)#g' \
 	  | sed -E 's#\]\(([A-Za-z0-9_./-]+\.rst)\)#](https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/\1)#g' \

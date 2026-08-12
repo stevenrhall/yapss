@@ -17,9 +17,9 @@ YAPSS provides:
 
 ## Start here
 
-1. [Install YAPSS](#installation).
+1. [Install YAPSS](#installation)<!-- readme: https://github.com/stevenrhall/yapss/blob/main#installation -->.
 2. Work through the [tutorial](notebooks/tutorial.ipynb) to define and solve a first problem.
-3. Browse the [examples](notebooks/index.rst) for complete applications.
+3. Browse the [examples](notebooks/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/examples/notebooks --> for complete applications.
 
 ## Installation
 
@@ -62,16 +62,17 @@ The value of the final digits of the objective may vary between platforms and so
 ## Where to go next
 
 - **New to YAPSS?** Start with the [tutorial](notebooks/tutorial.ipynb).
-- **Looking for a pattern to adapt?** Browse the [notebook examples](notebooks/index.rst) or
-  [script examples](scripts/index.rst).
+- **Looking for a pattern to adapt?** Browse the [notebook examples](notebooks/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/examples/notebooks --> or
+  [script examples](scripts/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/src/yapss/examples -->.
 - **Need API details?** See the reference documentation in the navigation sidebar.
 - **Want to contribute?** Contributions are welcome! Read
   [Contributing to YAPSS](CONTRIBUTING.md).
 
 ## License
 
-YAPSS is licensed under the MIT License. See the [License](license.rst) page for more
-information.
+YAPSS is licensed under the MIT License. See the 
+[License](license.rst)<!-- readme: https://github.com/stevenrhall/yapss/blob/main/LICENSE --> page
+for more information.
 
 ## Documentation
 
