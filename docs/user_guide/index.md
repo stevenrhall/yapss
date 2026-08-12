@@ -17,7 +17,7 @@ YAPSS provides:
 
 ## Start here
 
-1. [Install YAPSS](#installation)<!-- readme: https://github.com/stevenrhall/yapss/blob/main#installation -->.
+1. [Install YAPSS](#installation).
 2. Work through the [tutorial](notebooks/tutorial.ipynb) to define and solve a first problem.
 3. Browse the [examples](notebooks/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/examples/notebooks --> for complete applications.
 
