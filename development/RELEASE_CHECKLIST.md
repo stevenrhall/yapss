@@ -159,14 +159,6 @@ UI -- publishes the identical dist to PyPI. No local `twine`/`build`
 commands are needed; nothing to fat-finger and no way to burn a version
 number by hand.
 
-One-time setup, not a per-release step: a trusted publisher must be
-registered on both test.pypi.org and pypi.org (Publishing settings on the
-project page) for owner `stevenrhall`, repo `yapss`, workflow filename
-`publish.yml`, environment `testpypi` and `pypi` respectively. The `pypi`
-environment also needs a required-reviewer protection rule configured under
-the repo's Settings -> Environments, so the final publish step waits for
-manual approval.
-
 - [ ] Dry run: tag and push a throwaway pre-release tag (e.g. `vX.Y.Zrc1`) to
       exercise the publish workflow end-to-end -- build, TestPyPI publish,
       install smoke test -- without approving the final `pypi` deployment.
