@@ -128,8 +128,10 @@ outputs:
         - pyyaml
         - hatch
         - pre-commit
-        # release tooling -- matches pyproject.toml's dev extra
-        - build
+        # release tooling -- matches pyproject.toml's dev extra. conda-forge's
+        # package for PyPA's `build` is named `python-build` (see
+        # conda/environment.yml for why).
+        - python-build
         - twine
     test:
       source_files:

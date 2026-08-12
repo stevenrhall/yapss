@@ -44,6 +44,9 @@ dependencies:
   - pyyaml
   - hatch
   - pre-commit
-  # release tooling -- matches pyproject.toml's dev extra
-  - build
+  # release tooling -- matches pyproject.toml's dev extra. conda-forge's
+  # package for PyPA's `build` is named `python-build`, not `build` (that
+  # name on conda-forge is a stale, unmaintained package last published in
+  # 2021 and no longer solvable).
+  - python-build
   - twine

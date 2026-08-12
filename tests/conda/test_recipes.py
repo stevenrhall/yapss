@@ -61,6 +61,11 @@ EXPECTED_ONLY_IN_CONDA = {
     # Only used on the conda/cyipopt backend; pip installs never import cyipopt
     # (see _private/solver.py's deferred import and its OpenMP-collision comment).
     "cyipopt",
+    # conda-forge's package for PyPA's `build` (pyproject.toml names it "build")
+    # is called "python-build" -- the conda-forge package literally named
+    # "build" is a different, stale/unmaintained project last published in
+    # 2021 and no longer solvable.
+    "python-build",
 }
 # Present in pyproject.toml's core dependencies but not pinned identically in
 # conda -- name-only comparison already tolerates different *version* syntax,
