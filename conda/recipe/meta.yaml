@@ -23,7 +23,7 @@ requirements:
     - pip
   run:
     - python>=3.10,<3.15
-    - numpy<2.5
+    - numpy
     - casadi>=3.6.0
     - scipy
     - mpmath
@@ -42,7 +42,7 @@ outputs:
         - pip
       run:
         - python>=3.10,<3.15
-        - numpy<2.5
+        - numpy
         - casadi>=3.6.0
         - scipy
         - mpmath
@@ -83,7 +83,7 @@ outputs:
       run:
         # yapss dependencies
         - python>=3.10,<3.15
-        - numpy<2.5
+        - numpy
         - casadi>=3.6.0
         - scipy
         - mpmath
@@ -94,6 +94,7 @@ outputs:
         - sphinxcontrib-bibtex
         - sphinx-copybutton
         - sphinx_rtd_theme
+        - sphinx-llm
         - myst-parser
         - nbsphinx
         - numpydoc
@@ -103,7 +104,16 @@ outputs:
         - jupyterlab_code_formatter
         - jupyterlab-spellchecker
         - ipython
-        - black[jupyter]>=24.0.0,<25.0.0
+        # needed to execute example notebooks via `jupyter nbconvert`, same as
+        # the `doc` extra in pyproject.toml
+        - ipykernel
+        - nbconvert
+        # Unpinned, not mirroring pyproject.toml's dev extra pins: this output is
+        # published to conda-forge and installed into arbitrary users'
+        # environments, where an exact pin risks unsatisfiable solves and forces
+        # a rebuild on every pin bump. See tests/conda/test_recipes.py's
+        # test_dev_tool_pinning_policy for the reasoning.
+        - black[jupyter]
         - isort
         - nbwipers
         # development
@@ -113,10 +123,14 @@ outputs:
         - pytest-xdist
         - ruff
         - mypy
+        - toml
         - lxml
         - pyyaml
         - hatch
         - pre-commit
+        # release tooling -- matches pyproject.toml's dev extra
+        - build
+        - twine
     test:
       source_files:
         - tests/examples/test_hs071.py
