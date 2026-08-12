@@ -127,6 +127,8 @@ outputs:
         - lxml
         - pyyaml
         - hatch
+        # See conda/environment.yml for why hatch-vcs is needed alongside hatch.
+        - hatch-vcs
         - pre-commit
         # release tooling -- matches pyproject.toml's dev extra. conda-forge's
         # package for PyPA's `build` is named `python-build` (see

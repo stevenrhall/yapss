@@ -53,7 +53,8 @@ def load_yaml(file: str) -> dict:
 # it's a real sync gap: either a package needs to be added to the conda side
 # (or pyproject.toml), or one of these exceptions needs updating.
 #
-# Present in conda files but not expressed as a pyproject.toml dependency:
+# Present in *every* conda target -- including the plain `yapss` package, not
+# just the dev ones -- but not expressed as a pyproject.toml dependency:
 EXPECTED_ONLY_IN_CONDA = {
     # pyproject.toml expresses the Python floor via `requires-python`, not as a
     # `dependencies` entry; conda has no equivalent mechanism and must list it.
@@ -61,17 +62,34 @@ EXPECTED_ONLY_IN_CONDA = {
     # Only used on the conda/cyipopt backend; pip installs never import cyipopt
     # (see _private/solver.py's deferred import and its OpenMP-collision comment).
     "cyipopt",
+}
+# Present only in conda's *dev* targets (conda/environment.yml and
+# recipe/meta.yaml's yapss-dev output) -- not expected in the plain `yapss`
+# conda package's run requirements, so kept separate from EXPECTED_ONLY_IN_CONDA
+# above (which test_recipes() also requires of the plain `yapss` output).
+EXPECTED_ONLY_IN_CONDA_DEV = {
     # conda-forge's package for PyPA's `build` (pyproject.toml names it "build")
     # is called "python-build" -- the conda-forge package literally named
     # "build" is a different, stale/unmaintained project last published in
     # 2021 and no longer solvable.
     "python-build",
+    # hatch-vcs is a build-time-only dependency for a normal (isolated) pip
+    # build -- pip fetches it transiently via build-system.requires and it
+    # never needs to live in the persistent dev environment. The conda dev
+    # environments do a --no-build-isolation install, which skips that fetch,
+    # so they list it explicitly. See conda/environment.yml for the full
+    # reasoning.
+    "hatch-vcs",
 }
 # Present in pyproject.toml's core dependencies but not pinned identically in
 # conda -- name-only comparison already tolerates different *version* syntax,
 # so nothing needs to be listed here for that reason alone. This set is for
-# packages conda's recipe is expected to omit outright, if that ever happens.
-EXPECTED_ONLY_IN_PYPROJECT: set[str] = set()
+# packages conda's recipe is expected to omit outright, or (as with "build"
+# below) express under a different name entirely -- see EXPECTED_ONLY_IN_CONDA_DEV's
+# "python-build" entry for the other half of that particular rename.
+EXPECTED_ONLY_IN_PYPROJECT: set[str] = {
+    "build",
+}
 
 
 def _pyproject_names() -> tuple[set[str], set[str]]:
@@ -95,7 +113,9 @@ def _pyproject_names() -> tuple[set[str], set[str]]:
 
 def test_recipes():
     core, optional = _pyproject_names()
-    all_ = core | optional | EXPECTED_ONLY_IN_CONDA
+    # environment.yml and yapss-dev are both "dev" targets, so both get the
+    # conda-dev-only exceptions too.
+    all_ = core | optional | EXPECTED_ONLY_IN_CONDA | EXPECTED_ONLY_IN_CONDA_DEV
 
     # check that pyproject core and optional dependencies are disjoint
     assert core.isdisjoint(optional)
