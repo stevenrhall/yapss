@@ -255,8 +255,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # ruff/isort pin basepython to 3.13; black pins 3.14 (see tox.ini); mypy
-      # pins 3.10. Install all three.
+      # ruff/isort pin basepython to 3.13; black pins 3.14; mypy pins 3.13 and
+      # mypy-floor pins 3.10 (see tox.ini). Install all three Python versions.
       - uses: actions/setup-python@v6
         with:
           python-version: |
@@ -270,7 +270,7 @@ jobs:
         run: python -m pip install --upgrade pip tox
 
       - name: Run linters
-        run: tox -e ruff,isort,black,mypy
+        run: tox -e ruff,isort,black,mypy,mypy-floor
 
   # ----------------------------------------------------------------- docs ---
   docs:

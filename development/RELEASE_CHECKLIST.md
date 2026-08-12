@@ -22,9 +22,7 @@ it belongs here.
 - [ ] Confirm `pyproject.toml` is the source of truth for pip dependencies —
       this is what the conda-forge feedstock will eventually mirror by hand.
 - [ ] Manually sync `conda/environment-test.yml` and `conda/recipe/meta.yaml`
-      with `pyproject.toml` if dependencies changed. Whether/how to automate
-      this check is still an open decision (see `TOOLING_PLAN.md` §2) — for
-      now, sync by hand.
+      with `pyproject.toml` if dependencies changed.
 
 ## 2. Changelog
 
@@ -56,11 +54,30 @@ policy).
 - [ ] For every user-visible change in this release's `CHANGELOG.md` entry,
       confirm the docs actually reflect it — a change that's changelogged but
       not documented is easy to miss until a user hits it.
-- [ ] Run `make readme` after any `docs/user_guide/index.md` edits, and
-      commit the regenerated `README.md` alongside.
+- [ ] `make docs` regenerates `README.md` as a side effect (`docs` depends on
+      `readme` in the Makefile) -- after any `docs/user_guide/index.md` edit,
+      confirm `README.md` came out changed as expected and commit it alongside.
+- [ ] Run `make linkcheck` and triage every non-`ok` result. `redirect` is
+      normally fine -- DOI resolvers redirecting to the publisher's canonical
+      URL, GitHub issue-template links redirecting to a login page for an
+      unauthenticated request, and the readthedocs.io -> /en/stable/ redirect
+      are all expected -- but check that the destination is actually the
+      right page, not a squatted domain or something unrelated. `-ignored-`
+      means Sphinx's own linkcheck config already excluded it; no action
+      unless that config looks wrong. `broken` needs a look, but a `403
+      Forbidden` from a major academic publisher (ACM, Wiley, Oxford
+      Academic, SIAM, AIAA, etc.) usually means the site is blocking
+      automated requests, not that the citation is actually dead --
+      spot-check a couple by hand in a real browser before spending time
+      trying to fix them.
 
 ## 4. CI
 
+- [ ] Review `.github/workflows/*.yml` for correctness and needed updates --
+      stale comments referencing things fixed elsewhere this release, Python
+      versions that no longer match the supported range, jobs that should be
+      added or retired, and so on. CI config drifts quietly the same way the
+      conda files do, and nothing else in this checklist catches it.
 - [ ] Green CI on the release branch: full test matrix, lint, docs, and (if
       dependencies touching the conda stack changed) a manual
       `workflow_dispatch` run of the conda test job.
