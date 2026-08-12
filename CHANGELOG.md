@@ -17,6 +17,8 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-12
+
 ### Added
 
 - `Problem.solve()` now emits an `IpoptConvergenceWarning` when Ipopt does not report a

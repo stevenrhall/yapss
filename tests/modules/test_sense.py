@@ -127,8 +127,16 @@ def _quiet(problem: yapss.Problem) -> yapss.Problem:
 @pytest.fixture(scope="module")
 def solutions() -> tuple[yapss.Solution, yapss.Solution]:
     """Solve both formulations once and share the result across the comparisons below."""
-    sense_solution = _quiet(isoperimetric.setup()).solve()
-    negated_solution = _quiet(_isoperimetric_with_manual_negation()).solve()
+    # isoperimetric.setup() sets tol=1e-14 for its own demo purposes (showing off
+    # solver accuracy); this test only needs the two formulations to agree with
+    # each other, not that kind of precision, and pushing for it risks a
+    # restoration-phase failure on some platforms/backends for no benefit here.
+    sense_problem = isoperimetric.setup()
+    sense_problem.ipopt_options.tol = 1e-8
+    negated_problem = _isoperimetric_with_manual_negation()
+    negated_problem.ipopt_options.tol = 1e-8
+    sense_solution = _quiet(sense_problem).solve()
+    negated_solution = _quiet(negated_problem).solve()
     return sense_solution, negated_solution
 
 
