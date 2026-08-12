@@ -6,7 +6,7 @@ help: ## Print this help message.
 # Directory paths
 SRC_DIR = ../../../examples/notebooks
 DEST_DIR = .
-YAPSS_DIRS = ../../../src/yapss ../../../src/yapss/_private ../../../src/yapss/numpy
+YAPSS_DIRS = ../../../src/yapss ../../../src/yapss/_private ../../../src/yapss/math
 YAPSS_FILES = $(wildcard $(YAPSS_DIRS)/*.py)
 
 # List of notebook files to generate

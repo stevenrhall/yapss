@@ -21,8 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    "numpydoc",
 ]
 
 # Enable autosummary to pre-generate documentation stubs
@@ -40,8 +40,9 @@ autodoc_default_options = {
     "ignore-module-all": True,
     "undoc-members": True,
 }
-numpydoc_show_class_members = False
-always_document_param_types = False
+napoleon_numpy_docstring = True
+napoleon_google_docstring = False
+napoleon_use_ivar = True
 source_suffix = {".rst": "restructuredtext"}
 source_encoding = "utf-8-sig"
 master_doc = "index"
@@ -49,6 +50,10 @@ exclude_patterns = ["build", "_build"]
 templates_path = []
 primary_domain = "py"
 keep_warnings = False
+# The public problem model and low-level mseipopt wrapper intentionally both expose
+# a class named ``Problem``. Sphinx cannot resolve unqualified references uniquely,
+# but either target is still available by its fully qualified name in these API docs.
+suppress_warnings = ["ref.python"]
 highlight_language = "python"
 pygments_style = "manni"
 

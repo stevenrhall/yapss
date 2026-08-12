@@ -1,11 +1,11 @@
 Delta III Launch Vehicle Ascent Problem
 =======================================
 
-For a description of the minimum time to climb problem, see the
+For a description of the Delta III launch vehicle ascent problem, see the
 `JupyterLab notebook documentation <../notebooks/delta_iii_ascent.ipynb>`_ for this
 problem.
 
-The python script in this example can be executed from the command line with:
+The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 

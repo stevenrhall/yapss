@@ -1,45 +1,38 @@
 # YAPSS: Yet Another Pseudo-Spectral Solver
 
-YAPSS is a Python package for numerically solving optimal control problems using
-pseudospectral methods. Features include:
+YAPSS is a Python library for formulating and solving optimal-control problems with
+pseudospectral methods.
 
-- Computational approach based on the GPOPS-II algorithm of
-  [Patterson and Rao (2014)](https://dl.acm.org/doi/pdf/10.1145/2558904)
-- Support for multiple differentiation methods: automatic differentiation via the CasADi
-  package, user-defined derivatives, and central difference numerical differentiation for
-  problems not amenable to automatic differentiation.
-- Choice of collocation method, including Legendre-Gauss (LG), Legendre-Gauss-Radau (LGR),
-  and Legendre-Gauss-Lobatto (LGL) options.
-- Segmented mesh support, enabling mesh refinement in specific regions. (Automatic mesh
-  refinement is not yet available.)
-- An API for defining optimal control problems designed to catch common errors
-  and provide helpful messages.
-- Documentation covering installation, setup, and example usage.
-- Examples available as both Python scripts and Jupyter notebooks.
+YAPSS provides:
 
-## Quickstart
+- Legendre-Gauss, Legendre-Gauss-Radau, and Legendre-Gauss-Lobatto collocation methods, using
+  a computational approach based on the GPOPS-II algorithm of [Patterson and
+  Rao (2014)](https://dl.acm.org/doi/pdf/10.1145/2558904)
+- Multiple differentiation approaches: automatic differentiation via CasADi, user-supplied
+  derivatives, and central-difference numerical differentiation for problems not amenable to
+  automatic differentiation
+- Multi-phase problems and segmented meshes
+- An interface designed to identify common formulation errors early
+- Worked examples as both Python scripts and Jupyter notebooks
 
-To get started, install YAPSS and verify the installation using pip:
+## Start here
+
+1. [Install YAPSS](#installation).
+2. Work through the [tutorial](notebooks/tutorial.ipynb) to define and solve a first problem.
+3. Browse the [examples](notebooks/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/examples/notebooks --> for complete applications.
+
+## Installation
+
+YAPSS requires Python 3.10 or later. Install it into a virtual environment with pip:
 
 ```console
 $ python -m venv yapss-env
 $ source yapss-env/bin/activate
-(yapss-env) $ pip install yapss
-(yapss-env) $ python -m yapss.examples.isoperimetric
+(yapss-env) $ python -m pip install --upgrade pip
+(yapss-env) $ python -m pip install yapss
 ```
 
-If the console output shows a small relative error and a Matplotlib window displays 
-a circle, the installation is successful!
-
-For more detailed installation instructions, see the next section.
-
-## Installation
-
-YAPSS supports installation via Conda or pip. It requires Python 3.10 or later.
-
-### Option 1: Using Conda
-
-Create and activate a virtual environment, and install YAPSS:
+Alternatively, install it with Conda:
 
 ```console
 $ conda create -n yapss-env python=3.10
@@ -47,66 +40,43 @@ $ conda activate yapss-env
 (yapss-env) $ conda install -c conda-forge yapss
 ```
 
-### Option 2: Using Pip
-
-Create and activate a virtual environment, then install YAPSS:
-
-```console
-$ python -m venv yapss-env
-$ source yapss-env/bin/activate
-(yapss-env) $ pip install yapss
-```
-
-To install from source:
-
-```console
-(yapss-env) $ pip install git+https://github.com/stevenrhall/yapss.git
-```
-
-As above, this installs from the tip of the default branch; append ``@vX.Y.Z`` to pin a
-specific released version.
-
 ### Verify the Installation
 
-To verify the installation, run the isoperimetric example:
+Run the HS071 example, a small constrained optimization problem:
 
 ```console
-(yapss-env) $ python -m yapss.examples.isoperimetric
+(yapss-env) $ python -m yapss.examples.hs071
 ```
 
-The result should be a matplotlib window with a plot of the optimal curve (a circle), and
-console output that concludes with something similar to
+YAPSS is installed correctly if the run finishes, and the output ends with
 
 ```text
-Maximum area = 0.07957747154594766 (Should be 1 / (4 pi) = 0.07957747154594767)
-Relative error in solution = 1.743934249004316e-16
+Objective value
+f(x*) = 1.701402e+01
+
+YAPSS solution is correct.
 ```
 
-If the plot does not display, add `%matplotlib inline` in a Jupyter notebook or set the 
-backend with `matplotlib.use('Agg')` for headless environments.
+The value of the final digits of the objective may vary between platforms and solver versions.
 
-The console output may differ slightly depending on machine precision. Minor deviations in
-the final digits are normal, and the relative error should be on the order of machine
-precision. If it is, the installation is correct.
+## Where to go next
 
-Additional examples are available in 
-
-- the examples/notebooks directory
-- the src/yapss/examples directory
-- the Examples section of the documentation.
+- **New to YAPSS?** Start with the [tutorial](notebooks/tutorial.ipynb).
+- **Looking for a pattern to adapt?** Browse the [notebook examples](notebooks/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/examples/notebooks --> or
+  [script examples](scripts/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/src/yapss/examples -->.
+- **Need API details?** See the reference documentation in the navigation sidebar.
+- **Want to contribute?** Contributions are welcome! Read
+  [Contributing to YAPSS](CONTRIBUTING.md).
 
 ## License
 
-YAPSS is licensed under the MIT License. See the LICENSE file for more information.
+YAPSS is licensed under the MIT License. See the 
+[License](license.rst)<!-- readme: https://github.com/stevenrhall/yapss/blob/main/LICENSE --> page
+for more information.
 
 ## Documentation
 
 The [documentation](https://yapss.readthedocs.io/) is available on Read the Docs.
-
-## Contributing
-
-YAPSS is open source — contributions are not only welcome but encouraged. See
-[Contributing to YAPSS](CONTRIBUTING.md).
 
 <!-- End README.md -->
 
@@ -131,7 +101,7 @@ reference/scaling.rst
 reference/mesh_structure.rst
 reference/ipopt_options.rst
 reference/solution.rst
-reference/configuration.rst
+reference/ipopt_backend.rst
 ```
 
 ```{toctree}

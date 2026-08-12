@@ -101,7 +101,7 @@ def setup(*, wall: bool = False) -> Problem:
     bounds.initial_state.lower[:] = bounds.initial_state.upper[:] = 0
     bounds.final_state.lower[0] = bounds.final_state.upper[0] = 1
     bounds.state.lower[:] = 0
-    bounds.control.lower[:] = 0
+    bounds.control.lower[:] = -pi / 2
     bounds.control.upper[:] = pi / 2
     if wall:
         bounds.path.upper[0] = 0
@@ -118,7 +118,6 @@ def setup(*, wall: bool = False) -> Problem:
     ocp.mesh.phase[0].fraction = m * [1 / m]
 
     # solver options
-    ocp.ipopt_options.tol = 1e-20
     ocp.spectral_method = "lgl"
     ocp.derivatives.method = "user"
     ocp.ipopt_options.print_level = 3

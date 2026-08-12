@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from yapss import ContinuousArg, ObjectiveArg, Problem, Solution
 
 # package imports
-from yapss.math import cos, sin
+from yapss.math import cos, pi, sin
 
 
 def setup() -> Problem:
@@ -35,9 +35,9 @@ def setup() -> Problem:
     # continuous function
     def continuous(arg: ContinuousArg) -> None:
         """Continuous callback function."""
-        x, y, v = arg.phase[0].state
+        _, _, v = arg.phase[0].state
         (u,) = arg.phase[0].control
-        arg.phase[0].dynamics = v * cos(u), v * sin(u), g0 * sin(u)
+        arg.phase[0].dynamics[:] = v * cos(u), v * sin(u), g0 * sin(u)
 
     problem.functions.objective = objective
     problem.functions.continuous = continuous
@@ -49,12 +49,16 @@ def setup() -> Problem:
     bounds.final_state.lower[0] = bounds.final_state.upper[0] = 1.0
     bounds.state.lower[:] = 0.0
     bounds.state.upper[:] = 10.0
+    bounds.control.lower[:] = -pi / 2
+    bounds.control.upper[:] = pi / 2
 
     # guess
     phase = problem.guess.phase[0]
     phase.time = [0.0, 1.0]
     phase.state = [[0.0, 1.0], [0.0, 1.0], [0.0, 10.0]]
     phase.control = [[0.0, 0.0]]
+
+    # yapss options
     problem.derivatives.method = "auto"
 
     # ipopt options

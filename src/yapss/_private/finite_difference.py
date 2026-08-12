@@ -49,6 +49,9 @@ from .input_args import (
 from .structure import DVStructure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
+    # standard imports
+    from collections.abc import Sequence
+
     # third party imports
     from numpy.typing import ArrayLike, NDArray
 
@@ -87,6 +90,7 @@ if TYPE_CHECKING:
 def get_continuous_jacobian_structure_nan(
     problem: yapss.Problem,
     z0: NDArray[numpy.float64],
+    tau_u: Sequence[NDArray[np.float64]],
 ) -> CJS:
     """Deduce the Jacobian structure of the continuous constraint function.
 
@@ -117,11 +121,14 @@ def get_continuous_jacobian_structure_nan(
         (a, b), (c, d) = item
         return a, b, item_dict[c], d
 
-    from .structure import get_nlp_dv_structure
-
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, float)
-    arg: ContinuousArg[np.float64] = ContinuousArg(problem, dv, dtype=numpy.float64)
-    arg._dv.z[:] = z0
+    arg: ContinuousArg[np.float64] = ContinuousArg(
+        problem,
+        dv,
+        dtype=numpy.float64,
+        tau_u=tau_u,
+    )
+    arg._sync(z0)
 
     cjs = []
 
@@ -207,12 +214,12 @@ def get_objective_gradient_structure_nan(
     discrete_arg: DiscreteArg[numpy.float64] = DiscreteArg(problem, dv, numpy.float64)
     dv.z[:] = z0
 
-    np = problem.np
+    n_phases = problem.np
 
     ogs: list[DVKey] = []
     djs: list[tuple[DFIndex, DVKey]] = []
 
-    for p in range(np):
+    for p in range(n_phases):
         nx = problem.nx[p]
         nq = problem.nq[p]
 
@@ -445,7 +452,11 @@ def get_discrete_jacobian_fd_structure(djs: DJS) -> DJFDS:
     return tuple(discrete_jacobian_fd_structure)
 
 
-def make_fd_structure(problem: yapss.Problem, z0: NDArray[numpy.float64]) -> ProblemFunctions:
+def make_fd_structure(
+    problem: yapss.Problem,
+    z0: NDArray[numpy.float64],
+    tau_u: Sequence[NDArray[np.float64]],
+) -> ProblemFunctions:
     """Make finite difference structures for the optimal control problem functions.
 
     Parameters
@@ -483,7 +494,7 @@ def make_fd_structure(problem: yapss.Problem, z0: NDArray[numpy.float64]) -> Pro
         cjs = get_continuous_jacobian_structure_full(problem)
         ogs, djs = get_objective_gradient_structure_full(problem)
     elif method == "central-difference":
-        cjs = get_continuous_jacobian_structure_nan(problem, z0)
+        cjs = get_continuous_jacobian_structure_nan(problem, z0, tau_u)
         ogs, djs = get_objective_gradient_structure_nan(problem, z0)
     else:
         msg = f"Unexpected derivatives.method = '{method}'"
@@ -517,7 +528,8 @@ def make_fd_structure(problem: yapss.Problem, z0: NDArray[numpy.float64]) -> Pro
 
 # fmt: off
 sort_dict = {"s": 0, "x": 1, "u": 2, "t": 3, "f": 11, "g": 12, "h": 13,
-             "x0": 21, "xf": 22, "q": 23, "t0": 24, "tf": 25}  # fmt:on
+             "x0": 21, "xf": 22, "q": 23, "t0": 24, "tf": 25}
+# fmt: on
 
 
 def discrete_sort_key(dvkey: DVKey) -> tuple[PhaseIndex, int, DVIndex]:
@@ -633,11 +645,11 @@ def get_objective_gradient_structure_full(problem: yapss.Problem) -> tuple[OGS, 
     ogs: list[DVKey] = []
     djs: list[tuple[DFIndex, DVKey]] = []
 
-    np = problem.np
+    n_phases = problem.np
     ns = problem.ns
 
     # Iterate over phases and add to ogs and djs based on structure only
-    for p in range(np):
+    for p in range(n_phases):
         nx = problem.nx[p]
         nq = problem.nq[p]
 

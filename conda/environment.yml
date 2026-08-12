@@ -4,7 +4,7 @@ channels:
 dependencies:
   # yapss dependencies
   - python>=3.10,<3.15
-  - numpy<2.5
+  - numpy
   - casadi>=3.6.0
   - scipy
   - mpmath
@@ -15,6 +15,7 @@ dependencies:
   - sphinxcontrib-bibtex
   - sphinx-copybutton
   - sphinx_rtd_theme
+  - sphinx-llm
   - myst-parser
   - nbsphinx
   - numpydoc
@@ -24,17 +25,35 @@ dependencies:
   - jupyterlab_code_formatter
   - jupyterlab-spellchecker
   - ipython
-  - black[jupyter]>=24.0.0,<25.0.0
-  - isort
+  # needed to execute example notebooks via `jupyter nbconvert`, same as the
+  # `doc` extra in pyproject.toml
+  - ipykernel
+  - nbconvert
+  - black[jupyter]==26.5.1
+  - isort==8.0.1
   - nbwipers
   # development
-  - tox
+  - tox==4.58.0
   - pytest
   - pytest-cov
   - pytest-xdist
-  - ruff
-  - mypy
+  - ruff==0.16.1
+  - mypy==1.20.2
+  - toml
   - lxml
   - pyyaml
   - hatch
+  # hatchling's version comes from the hatch-vcs plugin, a separate package
+  # from `hatch` (the CLI) itself. Needed explicitly here because this
+  # environment does an editable `pip install --no-build-isolation`, which
+  # (unlike a normal pip install) never fetches build-system.requires itself
+  # -- it assumes those packages are already present. Same reasoning as
+  # conda/environment-test.yml's hatchling/hatch-vcs entries.
+  - hatch-vcs
   - pre-commit
+  # release tooling -- matches pyproject.toml's dev extra. conda-forge's
+  # package for PyPA's `build` is named `python-build`, not `build` (that
+  # name on conda-forge is a stale, unmaintained package last published in
+  # 2021 and no longer solvable).
+  - python-build
+  - twine

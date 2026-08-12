@@ -8,6 +8,15 @@ import pytest
 #  package imports
 from yapss import Problem
 
+pytestmark = pytest.mark.filterwarnings(
+    # These tests exist to exercise Ipopt's built-in derivative checker, so they cap
+    # the iteration count and never converge by design. The resulting
+    # IpoptConvergenceWarning is expected on every one of them and would otherwise
+    # bury the output. (The derivative check itself would be better done through
+    # "central-difference-full" than by reading Ipopt's stdout -- a job for later.)
+    "ignore::yapss.IpoptConvergenceWarning"
+)
+
 
 def optimal_control_problem(order):
     ocp = Problem(name="Test_Objective_Derivatives", nx=[3, 3], nq=[1, 3], ns=2)

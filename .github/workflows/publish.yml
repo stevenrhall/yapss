@@ -1,0 +1,111 @@
+name: Publish
+
+# Triggered by pushing a `vX.Y.Z` tag (see development/RELEASE_CHECKLIST.md §8).
+# `hatch-vcs` derives the package version from that same tag, so the version
+# published here is exactly what git says it is -- no separately-typed version
+# string to get out of sync.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+
+  # -------------------------------------------------------------- build -----
+  # Built once. The same dist/ is uploaded to TestPyPI and, if that succeeds
+  # and is approved, to PyPI -- so what gets smoke-tested on TestPyPI is
+  # byte-for-byte what ships, not a second, separately-built copy.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install build
+        run: python -m pip install --upgrade pip build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  # --------------------------------------------------------- testpypi -------
+  # Runs automatically -- no approval gate here. A bad TestPyPI upload costs
+  # nothing (see the checklist: TestPyPI releases can be re-done, PyPI ones
+  # cannot), so there is nothing for a human gate to protect against yet.
+  publish-testpypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  # ---------------------------------------------------- smoke-test-testpypi -
+  # Installs the just-published package from TestPyPI into a clean
+  # environment and runs a real example, the same sanity check
+  # RELEASE_CHECKLIST.md's §6 build-verification step does locally. Retries
+  # the install briefly: TestPyPI's index sometimes takes a few seconds to
+  # reflect an upload it just accepted.
+  smoke-test-testpypi:
+    needs: publish-testpypi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install from TestPyPI (with retries for index propagation)
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for i in 1 2 3 4 5; do
+            python -m pip install \
+              --index-url https://test.pypi.org/simple/ \
+              --extra-index-url https://pypi.org/simple/ \
+              "yapss==${VERSION}" && break
+            echo "Attempt $i failed, waiting for TestPyPI index to catch up..."
+            sleep 20
+          done
+
+      - name: Run isoperimetric example
+        run: python -m yapss.examples.isoperimetric
+
+  # -------------------------------------------------------------- pypi ------
+  # Gated behind the `pypi` environment's required-reviewer protection rule
+  # (configured on GitHub, not here) -- publishing here is irreversible, so a
+  # human confirms the TestPyPI smoke test above actually looked right before
+  # this step is allowed to run.
+  publish-pypi:
+    needs: smoke-test-testpypi
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

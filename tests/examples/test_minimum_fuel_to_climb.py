@@ -10,7 +10,7 @@ import pytest
 # package imports
 from yapss.examples import minimum_time_to_climb as optimal_control_problem
 
-J = -1177.67
+J = 1177.67
 tol = 1e-5
 
 # parameters = [
@@ -22,12 +22,7 @@ tol = 1e-5
 
 parameters = [
     ("central-difference", "lg", "second"),
-    pytest.param(
-        "central-difference",
-        "lgr",
-        "second",
-        marks=pytest.mark.xfail(reason="Known issue with minimum_fuel_to_climb example."),
-    ),
+    ("central-difference", "lgr", "second"),
     ("central-difference", "lgl", "second"),
 ]
 

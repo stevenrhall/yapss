@@ -47,7 +47,7 @@ class PhaseArrayGuess:
     def __get__(self, instance: PhaseGuess, owner: type) -> Array:
         """Get the value of the guess."""
         value = getattr(instance, self.private_name)
-        assert isinstance(value, np.ndarray)  # noqa: S101
+        assert isinstance(value, np.ndarray)
         return value
 
     def __set__(
@@ -101,7 +101,7 @@ class Parameter(Protected):
 
         # Retrieve and return the attribute value
         value = getattr(instance, private_name)
-        assert isinstance(value, np.ndarray)  # noqa: S101
+        assert isinstance(value, np.ndarray)
         return value
 
     def __set__(self, instance: Guess, value: ArrayLike) -> None:
@@ -178,7 +178,18 @@ class Guess:
         for p, phase in enumerate(solution.phase):
             self.phase[p].time = phase.time
             self.phase[p].state = phase.state
-            self.phase[p].control = phase.control
+
+            # control is defined on phase.time_c, which only coincides with phase.time
+            # for the lgl spectral method. Interpolate/extrapolate onto phase.time so
+            # the guess has state and control on a common time grid.
+            control_interp = interp1d(
+                phase.time_c,
+                phase.control,
+                axis=1,
+                fill_value="extrapolate",
+            )(phase.time)
+            self.phase[p].control = control_interp
+
             self.phase[p].integral = phase.integral
 
         # set the guess for the problem parameters
@@ -277,7 +288,7 @@ class PhaseGuess(Protected):
         if self._time is None:
             msg = f"guess.phase[{p}].time has not been set."
             raise ValueError(msg)
-        assert isinstance(self._nt, int)  # noqa: S101
+        assert isinstance(self._nt, int)
         if self._state is None:
             self._state = np.zeros([self._n_state, self._nt], dtype=float)
         if self._control is None:
@@ -317,7 +328,7 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
         tau_x = mesh.tau_x[p]
         tau_u = mesh.tau_u[p]
         time = guess.phase[p].time
-        assert time is not None  # noqa: S101
+        assert time is not None
         t0 = time[0]
         tf = time[-1]
         # tau is defined over the interval [-1, 1], so we need to scale and shift it to the

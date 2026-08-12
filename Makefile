@@ -65,12 +65,27 @@ docs: readme ## Generate user guide documentation.
 dev-docs: ## Generate development documentation.
 	cd docs/development && $(MAKE) html SPHINXOPTS="-W"
 
+.PHONY: linkcheck
+linkcheck: ## Check links in the user guide documentation, including external URLs.
+	@# Not run in CI or as part of `docs`/`view-docs`: unlike `nitpicky` (which is
+	@# free, deterministic, and part of the regular -W build), this hits every
+	@# external URL in the docs -- citation DOIs, GitHub links, intersphinx targets
+	@# -- over the network. That makes it useful but flaky, so it is a separate,
+	@# manually-run target rather than something that can fail a build for reasons
+	@# unrelated to the change under review.
+	cd $(USER_GUIDE_DIR) && $(MAKE) linkcheck
+
 .PHONY: view-docs
-view-docs: ## Generate user guide documentation and open it in a browser.
+view-docs: readme ## Generate user guide documentation and open it in a browser.
+	@# Same mechanism and same output location as `docs`, deliberately, so there is one
+	@# build tree rather than two that cannot be told apart. The difference is that
+	@# SPHINXOPTS is left empty: warnings do not abort the build, so a page can still be
+	@# viewed while something on it is being debugged. Nothing is lost by that -- `docs`
+	@# and CI both build with -W, and RTD sets fail_on_warning, so a warning still has to
+	@# be fixed before it can ship.
 	rm -rf docs/build
-	#cd $(USER_GUIDE_DIR) && $(MAKE) html
-	python -m sphinx -b html $(USER_GUIDE_DIR) docs/build
-	$(OPEN) docs/build/index.html
+	cd $(USER_GUIDE_DIR) && $(MAKE) html
+	$(OPEN) docs/build/html/index.html
 
 .PHONY: doctest
 doctest: ## Run doctests on user guide documentation.
@@ -202,4 +217,37 @@ push-tag: ## push tags to remote repository
 
 .PHONY: readme
 readme: ## Generate README.md from docs/user_guide/index.md
-	awk '/<!-- End README.md -->/ {exit} {print}' docs/user_guide/index.md > README.md
+	@# Relative links are rewritten to absolute GitHub URLs. The same link has to
+	@# work in three places and only two of them resolve relative paths usefully:
+	@# GitHub resolves against the repo root and RTD against the copied page, but PyPI
+	@# resolves against https://pypi.org/project/yapss/ and 404s. Rewriting here keeps
+	@# index.md correct for the docs while README.md is correct for PyPI. Absolute
+	@# URLs cannot match any of the three patterns below, since their character
+	@# classes exclude the colon.
+	@#
+	@# .md links are assumed root-relative, since CONTRIBUTING.md (the only .md
+	@# target index.md links to) exists both at the repo root and, as an untracked
+	@# build artifact, under docs/user_guide/ -- the root copy is the canonical one.
+	@#
+	@# .rst links are resolved relative to docs/user_guide/, since .rst pages are
+	@# real, tracked files that live exactly where their relative path says.
+	@#
+	@# .ipynb links under notebooks/ are special-cased to examples/notebooks/: the
+	@# copies under docs/user_guide/notebooks/ that Sphinx actually links against
+	@# are gitignored build output, not the tracked source.
+	@#
+	@# A link can override all three extension-based rules above by following it
+	@# with `<!-- readme: URL -->` in index.md -- e.g. when the right README
+	@# destination isn't the docs page's own source file, such as a page that
+	@# only exists as Sphinx content (an index.rst with no repo-root
+	@# equivalent) or one that does have a better repo-root equivalent (license.rst
+	@# vs. the real LICENSE file). The override is applied first and always
+	@# writes a full https:// URL, which the extension rules below cannot then
+	@# re-rewrite: they only match link targets built from
+	@# [A-Za-z0-9_./-] characters, a class that excludes ":".
+	awk '/<!-- End README.md -->/ {exit} {print}' docs/user_guide/index.md \
+	  | sed -E 's#\]\(([^)]+)\)<!-- readme: ([^>]+) -->#](\2)#g' \
+	  | sed -E 's#\]\(([A-Za-z0-9_./-]+\.md)\)#](https://github.com/stevenrhall/yapss/blob/main/\1)#g' \
+	  | sed -E 's#\]\(notebooks/([A-Za-z0-9_.-]+\.ipynb)\)#](https://github.com/stevenrhall/yapss/blob/main/examples/notebooks/\1)#g' \
+	  | sed -E 's#\]\(([A-Za-z0-9_./-]+\.rst)\)#](https://github.com/stevenrhall/yapss/blob/main/docs/user_guide/\1)#g' \
+	  > README.md

@@ -72,11 +72,12 @@ def test_name_keyword():
 
 # noinspection PyTypeChecker
 def test_keywords():
-    # valid nx
+    # valid nx, including a phase with zero states (see test_auto.test_no_dynamics
+    # for a fully solved example of this edge case)
     Problem(name="test", nx=[1, 2, 3])
+    Problem(name="test", nx=[1, 0, 3])
     # nx must be a sequence
-    # msg = "Keyword 'nx' must be a tuple or list of nonnegative integers, or None."
-    msg = "Keyword 'nx' must be a tuple or list of positive integers."
+    msg = "Keyword 'nx' must be a tuple or list of nonnegative integers."
     with pytest.raises(TypeError, match=msg):
         Problem(name="test", nx=1)
     with pytest.raises(ValueError, match=msg):
@@ -114,11 +115,14 @@ def test_collocation_points():
     msg = "collocation_points must be a sequence of positive integers, not 0.5"
     with pytest.raises(TypeError, match=msg):
         ocp.mesh.phase[0].collocation_points = 0.5
-    msg = "collocation_points must be a sequence of positive integers"
+    msg = "collocation_points must be a sequence of integers, each at least 2"
     with pytest.raises(ValueError, match=msg):
         ocp.mesh.phase[0].collocation_points = (0.5, 0.5, 0.5)
     with pytest.raises(ValueError, match=msg):
         ocp.mesh.phase[0].collocation_points = (10, 10, 0)
+    with pytest.raises(ValueError, match=msg):
+        ocp.mesh.phase[0].collocation_points = (10, 10, 1)
+    ocp.mesh.phase[0].collocation_points = (10, 10, 2)
 
 
 def test_mesh_validates():

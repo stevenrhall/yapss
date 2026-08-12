@@ -17,6 +17,25 @@ DEFAULT_IPOPT_OPTIONS = {
 }
 """Default Ipopt options."""
 
+RESERVED_IPOPT_OPTIONS = {
+    "nlp_scaling_method": (
+        "YAPSS always solves with nlp_scaling_method='user-scaling'; "
+        "set 'problem.sense' and 'problem.scale.objective' instead."
+    ),
+    "obj_scaling_factor": (
+        "YAPSS manages objective scaling internally; set 'problem.sense' (sign) and "
+        "'problem.scale.objective' (magnitude) instead."
+    ),
+    "hessian_approximation": (
+        "YAPSS chooses this based on 'problem.derivatives.order'; set that instead."
+    ),
+    "warm_start_init_point": (
+        "YAPSS does not pass warm-start dual/bound information to Ipopt, so this "
+        "option has no effect and is not supported."
+    ),
+}
+"""Ipopt options YAPSS configures itself; setting them directly is disallowed."""
+
 
 class IpoptOptions:
     """Container for Ipopt options.
@@ -43,6 +62,12 @@ class IpoptOptions:
 
     def __setattr__(self, name: str, value: str | float | None) -> None:
         """Set an option value, or delete the option if value is None."""
+        if name in RESERVED_IPOPT_OPTIONS:
+            msg = (
+                f"'{name}' is managed by YAPSS and cannot be set directly. "
+                f"{RESERVED_IPOPT_OPTIONS[name]}"
+            )
+            raise ValueError(msg)
         if value is None:
             if hasattr(self, name):
                 delattr(self, name)

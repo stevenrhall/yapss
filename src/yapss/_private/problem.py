@@ -12,9 +12,9 @@ __all__ = ["Problem"]
 import inspect
 
 # standard imports
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import FrameType, SimpleNamespace
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 # third party imports
 import numpy as np
@@ -22,8 +22,10 @@ from numpy import float64
 
 # package imports
 from .bounds import Bounds
+from .config import warn_ipopt_source_deprecated
 from .guess import Guess
 from .ipopt_options import IpoptOptions
+from .solution import warn_if_not_converged
 from .solver import solve
 from .types_ import LimitOptions, Protected
 
@@ -55,6 +57,7 @@ DEFAULT_NUMBER_OF_COLLOCATION_POINTS = 10
 DEFAULT_SPECTRAL_METHOD = "lgl"
 DEFAULT_DERIVATIVE_METHOD = "auto"
 DEFAULT_DERIVATIVE_ORDER = "second"
+DEFAULT_SENSE = "minimize"
 
 
 class Problem(Protected):
@@ -119,6 +122,11 @@ class Problem(Protected):
         The mesh data structure for the problem.
     spectral_method : {"lg", "lgr", "lgl"}
         The type of interpolation used for the problem.
+    sense : {"minimize", "maximize"}
+        Whether the objective should be minimized or maximized. Defaults to
+        ``"minimize"``. This is the only supported way to flip the sign of the
+        objective -- ``scale.objective`` must be positive and controls magnitude
+        conditioning only.
     """
 
     auxdata: Auxdata
@@ -141,6 +149,7 @@ class Problem(Protected):
     scale: Scale
     mesh: Mesh
     spectral_method: LimitOptions[str] = LimitOptions(("lgl", "lgr", "lg"))
+    sense: LimitOptions[str] = LimitOptions(("minimize", "maximize"))
 
     # TODO: mesh should be ReadOnlyProperty
 
@@ -209,8 +218,11 @@ class Problem(Protected):
             "ipopt_source",
             "_abort",
             "_catch_keyboard_interrupt",
+            "sense",
+            "_sense",
         )
         self.spectral_method = DEFAULT_SPECTRAL_METHOD
+        self.sense = DEFAULT_SENSE
 
     # ipopt_source getter
     @property
@@ -226,17 +238,34 @@ class Problem(Protected):
         if not isinstance(value, str):
             msg = f"'ipopt_source' must have type 'str', not {type(value)}"  # type: ignore[unreachable]
             raise TypeError(msg)
+        # Warn here rather than at solve time so the report points at the line the
+        # user actually wrote. `__init__` assigns `_ipopt_source` directly and
+        # bypasses this setter, so nobody who never opted in is warned.
+        warn_ipopt_source_deprecated(value, stacklevel=2)
         self.__dict__["_ipopt_source"] = value
 
     def solve(self) -> Solution:
         """Solve the optimal control problem.
 
+        A `Solution` is returned whatever Ipopt reports. If Ipopt did not converge,
+        an `IpoptConvergenceWarning` is emitted -- the returned trajectory looks
+        perfectly ordinary otherwise.
+
         Returns
         -------
         solution : Solution
             The solution to the optimal control problem.
+
+        Warns
+        -----
+        IpoptConvergenceWarning
+            If Ipopt reported a status other than 0 (optimal), 1 (acceptable level)
+            or 6 (feasible point for a square problem).
         """
-        return solve(self)
+        solution = solve(self)
+        # stacklevel=3: warn -> warn_if_not_converged -> this method -> user code.
+        warn_if_not_converged(solution, stacklevel=3)
+        return solution
 
     def validate(self) -> None:
         """Validate the optimal control problem input.
@@ -311,7 +340,7 @@ class Problem(Protected):
         if array is None:
             return self.np * (0,)
         if arg_name == "nx":
-            msg = f"Keyword '{arg_name}' must be a tuple or list of positive integers."
+            msg = f"Keyword '{arg_name}' must be a tuple or list of nonnegative integers."
         else:
             msg = (
                 f"Keyword '{arg_name}' must be a tuple or list of nonnegative integers, "
@@ -321,7 +350,7 @@ class Problem(Protected):
             raise TypeError(msg)
         if not all(isinstance(item, int) for item in array):
             raise TypeError(msg)
-        if not all(item >= (0 if arg_name == "nx" else 0) for item in array):
+        if not all(item >= 0 for item in array):
             raise ValueError(msg)
         if arg_name != "nx" and len(array) != self.np:
             msg = f"Length of '{arg_name}' must be the same as length of 'nx'."
@@ -519,6 +548,7 @@ class Scale(Protected):
         "_discrete",
         "_parameter",
         "objective",
+        "_objective",
         "phase",
         "discrete",
         "parameter",
@@ -533,6 +563,26 @@ class Scale(Protected):
         self._discrete: Array = np.ones([ocp.nd], dtype=float)
         self._parameter: Array = np.ones([ocp.ns], dtype=float)
         self.objective = 1.0
+
+    @property
+    def objective(self) -> float:
+        """Objective scale factor. Magnitude conditioning only -- must be positive.
+
+        Use `Problem.sense` to select minimization or maximization; this factor no
+        longer carries sign.
+        """
+        return self._objective
+
+    @objective.setter
+    def objective(self, value: float) -> None:
+        if value <= 0:
+            msg = (
+                f"'scale.objective' must be positive, got {value!r}. "
+                "Use 'problem.sense = \"maximize\"' to maximize the objective instead "
+                "of a negative scale factor."
+            )
+            raise ValueError(msg)
+        self._objective = float(value)
 
     def __getitem__(self, item: tuple[int, str, int]) -> float:  # TODO: not correct
         """Get the scale value for a given item."""
@@ -556,7 +606,9 @@ class Derivatives(Protected):
     Attributes
     ----------
     method : {"auto", "central-difference", "central-difference-full", "user"}
+        Method used to compute derivatives.
     order : {"first", "second"}
+        Order of derivatives used in search for optimum.
     """
 
     _allowed_attrs = ("_method", "_order", "method", "order")
@@ -705,9 +757,15 @@ class MeshPhase(Protected):
         if not isinstance(value, Sequence):
             msg = f"collocation_points must be a sequence of positive integers, not {value}"  # type: ignore[unreachable]
             raise TypeError(msg)
-        # TODO: Change to minimum number of collocation points. 3?
-        if not all(isinstance(i, int) and i > 0 for i in value):
-            msg = "collocation_points must be a sequence of positive integers"
+        # The true minimum depends on the spectral method: LG and LGR quadrature will
+        # accept 1 point, but LGL requires at least 2. Since the spectral method can be
+        # set independently of (and after) the mesh, we enforce the higher, universal
+        # floor of 2 here so a mesh is never silently invalid for whichever method ends
+        # up being selected. Values of 2 or 3 work but are rarely a good choice in
+        # practice -- 4 or more collocation points per segment is recommended.
+        min_collocation_points = 2
+        if not all(isinstance(i, int) and i >= min_collocation_points for i in value):
+            msg = "collocation_points must be a sequence of integers, each at least 2"
             raise ValueError(msg)
         self._collocation_points = tuple(value)
 
@@ -723,8 +781,8 @@ class Mesh(Protected):
         segments = DEFAULT_NUMBER_OF_SEGMENTS
         points = DEFAULT_NUMBER_OF_COLLOCATION_POINTS
         for p in range(problem.np):
-            self.phase[p].collocation_points = segments * (segments,)
-            self.phase[p].fraction = segments * (1 / points,)
+            self.phase[p].collocation_points = segments * (points,)
+            self.phase[p].fraction = segments * (1 / segments,)
 
     # TODO: should just init mesh inside class?
 

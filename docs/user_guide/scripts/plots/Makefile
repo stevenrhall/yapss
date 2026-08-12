@@ -2,7 +2,7 @@ help: ## Print this help message.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[35m%-10s\033[0m %s\n", $$1, $$2}'
 
 SRC_DIR := ../../../../src/yapss/examples
-YAPSS_DIRS := ../../../../src/yapss ../../../../src/yapss/_private ../../../../src/yapss/numpy
+YAPSS_DIRS := ../../../../src/yapss ../../../../src/yapss/_private ../../../../src/yapss/math
 YAPSS_FILES := $(wildcard $(YAPSS_DIRS)/*.py)
 
 TEXT := \

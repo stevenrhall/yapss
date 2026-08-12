@@ -5,7 +5,11 @@
     top: 0;
 }
 
-.fn-bracket {
+/* Scoped to the inline reference, which is the only place the brackets are put back
+   by the :before/:after rules below. Unscoped, this also hid the brackets in the
+   footnote list at the foot of the page -- `<aside class="footnote brackets">` uses
+   the same `fn-bracket` spans -- leaving a bare "1" where "[1]" belongs. */
+.footnote-reference.brackets .fn-bracket {
     display: none;
 }
 
@@ -75,4 +79,50 @@ span.go {
 table.docutils td {
     white-space: normal;
     word-wrap: break-word;
+}
+
+/* Version notices: the RTD theme renders .. deprecated:: / .. versionchanged:: as a
+   run of italic text with no box, so they read as an aside rather than as the
+   behavior change they announce. Style them like admonitions, using the theme's own
+   admonition colors so they look native.
+
+   The `div.` prefix is required, not tidiness: Sphinx gives the inline label inside a
+   deprecation the classes `versionmodified deprecated`, so a bare `.deprecated`
+   selector styles the label as well as the container and draws a second left border
+   at the start of the first line. */
+div.deprecated,
+div.versionchanged,
+div.versionadded {
+    padding: 8px 12px;
+    margin-bottom: 24px;
+    border-left: 4px solid #6ab0de;
+    background: #e7f2fa;
+}
+
+div.deprecated {
+    border-left-color: #f0b37e;
+    background: #ffedcc;
+}
+
+div.versionadded {
+    border-left-color: #1abc9c;
+    background: #dbfaf4;
+}
+
+/* The theme zeroes the bottom margin of the last child inside every admonition class,
+   because `p { margin-bottom: 24px }` would otherwise land inside the colored area.
+   These three are not admonitions as far as the theme is concerned, so they need the
+   same treatment or the box is 8px of padding above the text and 32px below it. */
+div.deprecated > :last-child,
+div.versionchanged > :last-child,
+div.versionadded > :last-child {
+    margin-bottom: 0;
+}
+
+/* "Deprecated since version 0.1.2:" is a label, not an aside. */
+div.deprecated span.versionmodified,
+div.versionchanged span.versionmodified,
+div.versionadded span.versionmodified {
+    font-style: normal;
+    font-weight: bold;
 }

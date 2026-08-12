@@ -10,13 +10,14 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from warnings import warn
 
 # third party imports
 import numpy as np
 from scipy.sparse import csr_matrix
 
 # package imports
-from .structure import CFStructure, get_nlp_cf_structure, get_nlp_dv_structure
+from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -27,14 +28,52 @@ if TYPE_CHECKING:
     from .mesh import Mesh
     from .nlp import NLP
 
-__all__ = ["NLPInfo", "Solution", "SolutionPhase", "SolutionPhases", "make_solution_object"]
+__all__ = [
+    "IpoptConvergenceWarning",
+    "NLPInfo",
+    "Solution",
+    "SolutionPhase",
+    "SolutionPhases",
+    "make_solution_object",
+    "warn_if_not_converged",
+]
 
-# ipopt status message
+
+class IpoptConvergenceWarning(Warning):
+    """Ipopt did not report a converged solution.
+
+    A `Solution` is returned whatever Ipopt reports, so an unconverged run yields a
+    plausible-looking trajectory that satisfies nothing in particular. This warning
+    exists so that outcome is not silent.
+
+    Public, so it can be filtered or escalated::
+
+        warnings.filterwarnings("error", category=yapss.IpoptConvergenceWarning)
+    """
+
+
+# Ipopt statuses that do NOT warrant a warning.
+#
+#   0  Optimal Solution Found
+#   1  Solved To Acceptable Level
+#   6  Feasible point for square problem found
+#
+# 1 is deliberately included. It is the normal outcome when pushing tolerances hard --
+# the answer is routinely correct to many more digits than requested -- and warning on
+# it would train users to ignore the warning, which destroys its value for the cases
+# that matter. CasADi raises on 1, and it is a known annoyance.
+QUIET_IPOPT_STATUSES = frozenset({0, 1, 6})
+
+# Ipopt status messages, transcribed from the `EXIT:` lines Ipopt itself prints in
+# `IpIpoptApplication.cpp::call_optimize`. They are reproduced verbatim, punctuation
+# included, so that the message YAPSS reports and the message in the console output
+# directly above it are the same string. Status -101 is the exception: that branch
+# reports the exception and prints no `EXIT:` line, so the text below is YAPSS's own.
 ipopt_status_messages = {
-    0: "Optimal Solution Found",
+    0: "Optimal Solution Found.",
     1: "Solved To Acceptable Level.",
     2: "Converged to a point of local infeasibility. Problem may be infeasible.",
-    3: "Search Direction is becoming Too Small",
+    3: "Search Direction is becoming Too Small.",
     4: "Iterates diverging; problem might be unbounded.",
     5: "Stopping optimization at current point as requested by user.",
     6: "Feasible point for square problem found.",
@@ -45,18 +84,50 @@ ipopt_status_messages = {
     -5: "Maximum wallclock time exceeded.",
     -10: "Problem has too few degrees of freedom.",
     -11: "Problem has inconsistent variable bounds or constraint sides.",
-    -12: "Invalid_Option (Details about the particular error will be output to the console.)",
+    -12: "Invalid option encountered.",
     -13: "Invalid number in NLP function or derivative detected.",
-    -100: (
-        "Unrecoverable_Exception (Details about the particular error will be output to "
-        "the console.)"
-    ),
-    -101: "Unknown Exception caught in Ipopt",
+    -100: "Some uncaught Ipopt exception encountered.",
+    -101: "An exception not raised by Ipopt was caught during the solve.",
     -102: "Not enough memory.",
     -199: "INTERNAL ERROR: Unknown SolverReturn value - Notify IPOPT Authors.",
 }
 
 _dataclass_msg = "All attributes must be provided, and cannot be None"
+
+
+def warn_if_not_converged(solution: Solution, stacklevel: int = 2) -> None:
+    """Emit `IpoptConvergenceWarning` unless Ipopt reported a converged solution.
+
+    Called from `Problem.solve` rather than from `make_solution_object`, so that the
+    default `stacklevel` points at the caller's own `solve()` rather than at YAPSS
+    internals.
+
+    Parameters
+    ----------
+    solution : Solution
+        The solution just constructed.
+    stacklevel : int, default=2
+        Passed through to `warnings.warn`.
+    """
+    status = solution.nlp_info.ipopt_status
+    if status in QUIET_IPOPT_STATUSES:
+        return
+
+    # The Ipopt message is quoted, and on its own line, for two reasons: it is Ipopt's
+    # wording rather than YAPSS's, which is not otherwise apparent to a reader; and its
+    # punctuation varies, so interpolating it mid-sentence produced run-ons. The
+    # explanation is left as one paragraph rather than hard-wrapped, so that it wraps
+    # to the reader's terminal instead of to a width guessed here.
+    message = ipopt_status_messages.get(status, "Unknown status code.")
+    warn(
+        f'Ipopt did not converge. Status {status}: "{message}"\n'
+        f"The returned solution does not satisfy Ipopt's convergence criteria and "
+        f"should not be treated as an optimal trajectory. Check "
+        f"solution.nlp_info.ipopt_status and the Ipopt output before using these "
+        f"results.",
+        category=IpoptConvergenceWarning,
+        stacklevel=stacklevel,
+    )
 
 
 def make_solution_object(
@@ -130,8 +201,6 @@ def make_solution_object(
     status_message: str = ipopt_status_messages.get(status, "Unknown status code")
 
     # initialize data views
-    from .structure import DVStructure
-
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     dv.z[:] = x
     dv_multiplier: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
@@ -183,7 +252,7 @@ def make_solution_object(
         # continuous multipliers
 
         control_multiplier = np.array(
-            [z_phase.u[i] for i in range(problem.nu[p])],
+            [dv_multiplier.phase[p].u[i] / mesh.w[p] for i in range(problem.nu[p])],
             dtype=np.float64,
         )
         control_multiplier *= (tf - t0) / 2
@@ -420,8 +489,6 @@ class Solution:
         mult_g : numpy.ndarray
             Lagrange multipliers associated with the constraints.
     """
-
-    # TODO: Add integral to SolutionPhase
 
     name: str
     problem: yapss.Problem

@@ -12,9 +12,11 @@ either central differences.
 from __future__ import annotations
 
 __all__ = ["make_cd_functions"]
+from collections.abc import Callable
+
 # standard imports
 from itertools import product
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 
 # third party imports
 import numpy as np
@@ -44,7 +46,7 @@ from .types_ import PhaseIndex
 
 if TYPE_CHECKING:
     # standard imports
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     # third party imports
     from numpy.typing import NDArray
@@ -69,7 +71,11 @@ DELTA1: np.float64 = (3 * EPS) ** (1 / 3)
 DELTA2: np.float64 = (3 * EPS) ** (1 / 4)
 
 
-def make_cd_functions(problem: yapss.Problem, z0: Array) -> ProblemFunctions:
+def make_cd_functions(
+    problem: yapss.Problem,
+    z0: Array,
+    tau_u: Sequence[NDArray[np.float64]],
+) -> ProblemFunctions:
     """Make derivative callback functions and structures.
 
     Make callback functions for the gradients, Jacobians, and Hessians (first
@@ -88,7 +94,7 @@ def make_cd_functions(problem: yapss.Problem, z0: Array) -> ProblemFunctions:
     ProblemFunctions
         The structure containing the callback functions.
     """
-    cd_functions = make_fd_structure(problem, z0)
+    cd_functions = make_fd_structure(problem, z0, tau_u)
     order = problem.derivatives.order
 
     # first derivatives
@@ -104,7 +110,7 @@ def make_cd_functions(problem: yapss.Problem, z0: Array) -> ProblemFunctions:
         dhfds: DHFDS | None = cd_functions.discrete_hessian_structure_cd
 
         # mypy hinting
-        assert dhfds is not None  # noqa: S101
+        assert dhfds is not None
         cd_functions.discrete_hessian = make_discrete_hessian(problem, dhfds)
 
         # objective hessian
@@ -112,8 +118,8 @@ def make_cd_functions(problem: yapss.Problem, z0: Array) -> ProblemFunctions:
 
         # continuous hessian
         chfds: CHFDS | None = cd_functions.continuous_hessian_structure_cd
-        assert chfds is not None  # noqa: S101
-        cd_functions.continuous_hessian = make_continuous_hessian(problem, chfds)
+        assert chfds is not None
+        cd_functions.continuous_hessian = make_continuous_hessian(problem, chfds, tau_u)
 
     return cd_functions
 
@@ -338,7 +344,11 @@ def make_objective_hessian(problem: yapss.Problem, ogs: OGS) -> ObjectiveHessian
     return objective_hessian
 
 
-def make_continuous_hessian(problem: yapss.Problem, chfds: CHFDS) -> ContinuousHessianFunction:
+def make_continuous_hessian(
+    problem: yapss.Problem,
+    chfds: CHFDS,
+    tau_u: Sequence[NDArray[np.float64]],
+) -> ContinuousHessianFunction:
     """Generate continuous Hessian callback function using finite differences.
 
     Parameters
@@ -354,18 +364,22 @@ def make_continuous_hessian(problem: yapss.Problem, chfds: CHFDS) -> ContinuousH
         The continuous Hessian callback function.
     """
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, dtype=np.float64)
-    arg2: ContinuousArg[np.float64] = ContinuousArg(problem, dv, dtype=np.float64)
+    arg2: ContinuousArg[np.float64] = ContinuousArg(
+        problem,
+        dv,
+        dtype=np.float64,
+        tau_u=tau_u,
+    )
     scale: Scale = problem.scale
 
     def continuous_hessian(arg: ContinuousArg[np.float64]) -> None:
         """Calculate Hessian of the continuous constraint functions using finite differences."""
         continuous = cast(ContinuousFunctionFloat, problem.functions.continuous)
-        arg2._dv.z[:] = arg._dv.z
+        arg2._sync(arg._dv.z)
         phase_list = arg.phase_list
 
         for p in [PhaseIndex(p) for p in phase_list]:
             hessian = arg.phase[p].hessian
-            arg2.phase[p].time[:] = arg.phase[p].time
             ne = len(arg2.phase[p].time)
             arg2._phase_list = (p,)
 

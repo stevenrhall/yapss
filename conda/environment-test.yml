@@ -3,11 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.13
-  # Same NumPy typing-import bug as the pip stack (see pyproject.toml). This
-  # file isn't consulted by `pip install .` -- CI installs with --no-deps so
-  # it doesn't clobber the conda-linked cyipopt build -- so the ceiling has
-  # to be declared here explicitly rather than inherited.
-  - numpy<2.5
+  - numpy
   - scipy
   - mpmath
   - matplotlib

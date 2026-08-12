@@ -10,7 +10,7 @@ import pytest
 # package imports
 from yapss.examples import orbit_raising as optimal_control_problem
 
-J = -1.5252777
+J = 1.5252777
 tol = 3e-8
 
 parameters = [

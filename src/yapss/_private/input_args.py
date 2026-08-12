@@ -8,9 +8,11 @@ This module defines arguments which are used to call the user-defined callback f
 # future imports
 from __future__ import annotations
 
+from collections.abc import Callable
+
 # standard inputs
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Callable, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 # third party imports
 import numpy  # noqa: ICN001
@@ -153,17 +155,17 @@ class DiscretePhase(Generic[T]):
     @property
     def initial_state(self) -> NDArray[T]:
         """Initial state of the phase as an immutable copy."""
-        return cast(NDArray[T], self._initial_state.copy())
+        return self._initial_state.copy()
 
     @property
     def final_state(self) -> NDArray[T]:
         """Final state of the phase as an immutable copy."""
-        return cast(NDArray[T], self._final_state.copy())
+        return self._final_state.copy()
 
     @property
     def integral(self) -> NDArray[T]:
         """Array of integral values for the phase as an immutable copy."""
-        return cast(NDArray[T], self._integral.copy())
+        return self._integral.copy()
 
 
 class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
@@ -382,8 +384,19 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         The data type for the continuous array elements, such as float or object.
     """
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
+    def __init__(
+        self,
+        problem: yapss.Problem,
+        dv: DVStructure[T],
+        dtype: type[T],
+        *,
+        tau_u: Sequence[NDArray[np.float64]] | None = None,
+    ) -> None:
         super().__init__(problem, dv, dtype)
+        if dtype == np.float64 and tau_u is None:
+            msg = "Numeric ContinuousArg instances require tau_u."
+            raise ValueError(msg)
+        self._tau_u = tau_u
         # Initialize _phase with a tuple of ContinuousPhase instances
         self._phase: tuple[ContinuousPhase[T], ...] = tuple(
             ContinuousPhase(problem, dv, q, dtype) for q in range(problem.np)
@@ -392,7 +405,19 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         self._phase_list: tuple[int, ...] = tuple(range(problem.np))
         self._allowed_del_attrs = ()
         # Update allowed attributes to reflect the correct structure
-        self._allowed_attrs = ("_phase_list", "_phase")
+        self._allowed_attrs = ("_phase_list", "_phase", "_tau_u")
+
+    def _sync(self, z: NDArray[np.float64]) -> None:
+        """Synchronize numeric continuous inputs with an NLP decision vector."""
+        if self._dtype != np.float64 or self._tau_u is None:
+            msg = "ContinuousArg._sync() is available for numeric arguments only."
+            raise TypeError(msg)
+
+        self._dv.z[:] = z
+        for p, tau in enumerate(self._tau_u):
+            t0 = self._dv.phase[p].t0[0]
+            tf = self._dv.phase[p].tf[0]
+            self.phase[p].time[:] = tau * (tf - t0) / 2 + (t0 + tf) / 2
 
     def __getitem__(
         self,
@@ -521,7 +546,7 @@ class ContinuousArray(np.ndarray[Any, np.dtype[T]], Generic[T]):
         # Create an instance of ContinuousArray with the specified dtype
         obj = super().__new__(cls, shape, dtype=dtype, **kwargs)
         obj.fill(0)  # Initialize with zeros or appropriate type
-        return cast(ContinuousArray[T], obj)
+        return obj
 
     # Deliberately narrower than ndarray's real overloaded __setitem__ (this
     # subclass only ever needs slice/int indexing with scalar-expansion below).
@@ -551,21 +576,21 @@ class ContinuousHessianArg(ContinuousArg[np.float64]):
 # Define function type aliases with generics
 ObjectiveFunctionFloat = Callable[["ObjectiveArg[np.float64]"], None]
 ObjectiveFunctionObject = Callable[["ObjectiveArg[np.object_]"], None]
-ObjectiveFunction = Union[ObjectiveFunctionFloat, ObjectiveFunctionObject]
+ObjectiveFunction = ObjectiveFunctionFloat | ObjectiveFunctionObject
 
 ObjectiveGradientFunction = Callable[["ObjectiveGradientArg"], None]
 ObjectiveHessianFunction = Callable[["ObjectiveHessianArg"], None]
 
 DiscreteFunctionFloat = Callable[["DiscreteArg[np.float64]"], None]
 DiscreteFunctionObject = Callable[["DiscreteArg[np.object_]"], None]
-DiscreteFunction = Union[DiscreteFunctionFloat, DiscreteFunctionObject]
+DiscreteFunction = DiscreteFunctionFloat | DiscreteFunctionObject
 
 DiscreteJacobianFunction = Callable[["DiscreteJacobianArg"], None]
 DiscreteHessianFunction = Callable[["DiscreteHessianArg"], None]
 
 ContinuousFunctionFloat = Callable[["ContinuousArg[np.float64]"], None]
 ContinuousFunctionObject = Callable[["ContinuousArg[np.object_]"], None]
-ContinuousFunction = Union[ContinuousFunctionFloat, ContinuousFunctionObject]
+ContinuousFunction = ContinuousFunctionFloat | ContinuousFunctionObject
 
 ContinuousJacobianFunction = Callable[["ContinuousJacobianArg"], None]
 ContinuousHessianFunction = Callable[["ContinuousHessianArg"], None]

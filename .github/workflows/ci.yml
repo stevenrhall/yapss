@@ -23,6 +23,7 @@ on:
           - all
           - test
           - test-conda
+          - test-conda-dev-env
           - lint
           - docs
 
@@ -117,7 +118,13 @@ jobs:
         run: tox
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@v6
+        # always(): a job that fails its tests has still measured everything it
+        # ran, and that data is needed for an accurate combined total. Without
+        # this, a single failing platform silently drops its lines from the
+        # combined report -- which then looks like a coverage regression rather
+        # than the test failure it actually is.
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
           path: .tox/.coverage.*
@@ -128,8 +135,7 @@ jobs:
   # ------------------------------------------------------------- conda ------
   # Weekly canary only -- not run on push/PR. cyipopt links conda-forge's own
   # IPOPT build, a materially different path from the pip stack's mseipopt;
-  # nothing else here exercises it. See conda/environment-test.yml for why
-  # the NumPy ceiling is repeated here instead of inherited.
+  # nothing else here exercises it.
   test-conda:
     if: >-
       github.event_name == 'schedule'
@@ -157,6 +163,48 @@ jobs:
       - name: Test with pytest
         run: python -m pytest tests/
 
+  # Weekly canary for conda/environment.yml, the yapss-dev contributor dev
+  # environment -- not consumed by any other CI job, so nothing else catches
+  # it drifting out of resolvability. Same weekly/manual-dispatch cadence and
+  # single-platform scope as test-conda above: this checks whether the dev
+  # tooling stack resolves and works, which isn't platform-sensitive the way
+  # solver behavior is, so a 3-machine matrix wouldn't buy much here.
+  test-conda-dev-env:
+    if: >-
+      github.event_name == 'schedule'
+      || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all", "test-conda-dev-env"]'), inputs.job))
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+          activate-environment: yapss-dev
+          channels: conda-forge
+          conda-remove-defaults: true
+
+      - name: Install dev environment
+        run: conda env update --name yapss-dev --file conda/environment.yml
+
+      - name: Install yapss (--no-deps so pip doesn't override the conda-linked solver build)
+        run: python -m pip install --no-deps --no-build-isolation -e .
+
+      # nbsphinx is the only thing in the project that needs pandoc.
+      - name: Install pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
+      - name: Run sync/pinning checks and full test suite
+        run: python -m pytest tests/
+
+      - name: Build docs
+        run: python -m sphinx -b html docs/user_guide docs/build -W
+
   # ------------------------------------------------------------- coverage ---
   report:
     if: always() && needs.test.result != 'skipped'
@@ -172,7 +220,7 @@ jobs:
           cache-dependency-path: tox.ini
 
       - name: Download all coverage data
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-*
           path: coverage-data
@@ -182,10 +230,17 @@ jobs:
         run: python -m pip install --upgrade pip tox
 
       - name: Combine and report
+        # The coverage gate is applied here and only here. `tox.ini` leaves the
+        # threshold at 0 so a local `tox -p` -- which can only ever combine one
+        # machine's runs, and so cannot reach another platform's branches -- reports
+        # without failing. This job has the full matrix's data, which is the only
+        # thing the 95% figure was calibrated against.
+        env:
+          COVERAGE_FAIL_UNDER: 95
         run: tox -e report -- coverage-data
 
       - name: Upload HTML coverage report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-html
           path: htmlcov
@@ -200,12 +255,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # ruff/isort/black pin basepython to 3.13; mypy pins 3.10. Install both.
+      # ruff/isort pin basepython to 3.13; black pins 3.14; mypy pins 3.13 and
+      # mypy-floor pins 3.10 (see tox.ini). Install all three Python versions.
       - uses: actions/setup-python@v6
         with:
           python-version: |
             3.10
             3.13
+            3.14
           cache: pip
           cache-dependency-path: tox.ini
 
@@ -213,7 +270,7 @@ jobs:
         run: python -m pip install --upgrade pip tox
 
       - name: Run linters
-        run: tox -e ruff,isort,black,mypy
+        run: tox -e ruff,isort,black,mypy,mypy-floor
 
   # ----------------------------------------------------------------- docs ---
   docs:
@@ -243,7 +300,7 @@ jobs:
         run: tox -e docs
 
       - name: Upload built docs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: docs-html
           path: docs/build

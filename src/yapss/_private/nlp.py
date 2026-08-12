@@ -240,7 +240,7 @@ def simplify_hessian(nlp: NLP) -> None:
             [irow[i], jcol[i]] if irow[i] >= jcol[i] else [jcol[i], irow[i]]
             for i in range(len(irow))
         ]
-        irow, jcol = tuple(zip(*temp))
+        irow, jcol = tuple(zip(*temp, strict=True))
 
     # make dictionary that will have values that are the row index of sparse matrix
     rc_dict = {item: k for k, item in enumerate(rc)}
@@ -350,12 +350,16 @@ def make_nlp_constraints(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
         NLP constraint function
     """
     problem = nlp.problem
+    mesh: Mesh = nlp.mesh
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
-    ci: ContinuousArg[np.float64] = ContinuousArg(problem, dv, dtype=np.float64)
+    ci: ContinuousArg[np.float64] = ContinuousArg(
+        problem,
+        dv,
+        dtype=np.float64,
+        tau_u=mesh.tau_u,
+    )
     di: DiscreteArg[np.float64] = DiscreteArg(problem, dv, np.float64)
     cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, np.float64)
-    mesh: Mesh
-    mesh = nlp.mesh
 
     if problem.np > 0:
         continuous_function = cast(ContinuousFunctionFloat, nlp.functions.continuous)
@@ -379,16 +383,7 @@ def make_nlp_constraints(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
         FloatArray
             NLP constraint functions values
         """
-        # mesh
-        dv.z[:] = z
-
-        for p in range(problem.np):
-            dv_phase = dv.phase[p]
-
-            # form time vector
-            t0 = dv_phase.t0[0]
-            tf = dv_phase.tf[0]
-            ci.phase[p].time[:] = mesh.tau_u[p] * (tf - t0) / 2 + (t0 + tf) / 2
+        ci._sync(z)
 
         # call the user-defined continuous function
         if problem.np > 0:
@@ -833,7 +828,7 @@ def make_nlp_hessian(nlp: NLP) -> Callable[[FloatArray, FloatArray, np.float64],
 
         if problem.nd > 0:
             dv.z[:] = z
-            objective_input.hessian.clear()
+            discrete_input.hessian.clear()
             nlp.functions.discrete_hessian(discrete_input)
 
             dhs = nlp.functions.discrete_hessian_structure
@@ -875,10 +870,12 @@ def make_eval_continuous(nlp: NLP) -> Callable[[FloatArray, int], ContinuousArg[
     mesh = nlp.mesh
 
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
-    ci: ContinuousArg[np.float64] = ContinuousArg(problem, dv, dtype=np.float64)
-    nlp_dv: DVStructure[np.float64]
-    nlp_dv = ci._dv
-
+    ci: ContinuousArg[np.float64] = ContinuousArg(
+        problem,
+        dv,
+        dtype=np.float64,
+        tau_u=mesh.tau_u,
+    )
     if problem.np > 0:
         continuous_function = cast(ContinuousFunctionFloat, nlp.functions.continuous)
 
@@ -887,16 +884,7 @@ def make_eval_continuous(nlp: NLP) -> Callable[[FloatArray, int], ContinuousArg[
     def eval_continuous(z: FloatArray, order: int = 0) -> ContinuousArg[np.float64]:
         # distribute nlp decision variables passed from pyipopt to x0, xf, q, t0, tf
         # (for each phase) and s
-        nlp_dv.z[:] = z
-
-        for p in range(problem.np):
-            nlp_dv_phase = nlp_dv.phase[p]
-
-            # form time vector
-            t0 = nlp_dv_phase.t0[0]
-            tf = nlp_dv_phase.tf[0]
-            time = mesh.tau_u[p] * (tf - t0) / 2 + (t0 + tf) / 2
-            ci.phase[p].time[:] = time
+        ci._sync(z)
 
         # call the user-defined continuous constraint function
         ci._phase_list = tuple(range(problem.np))
@@ -1019,9 +1007,10 @@ def get_nlp_jacobian_structure(
     col: list[int] = []
     linear_jacobian: list[np.float64 | float] = []
 
-    dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, int)
+    # dv holds integer indices into the NLP vectors, not values.
+    dv: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
     dv.z[:] = list(range(len(dv.z)))
-    cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, int)
+    cf: CFStructure[np.int_] = get_nlp_cf_structure(problem, int)
     cf.c[:] = list(range(len(cf.c)))
 
     # for each phase
@@ -1217,9 +1206,9 @@ def get_nlp_hessian_structure(nlp: NLP) -> tuple[tuple[int, ...], tuple[int, ...
         raise RuntimeError
 
     # index structure of nlp problem
-    dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, int)
+    dv: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
     dv.z[:] = list(range(len(dv.z)))
-    cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, int)
+    cf: CFStructure[np.int_] = get_nlp_cf_structure(problem, int)
     cf.c[:] = list(range(len(cf.c)))
 
     # continuous jacobian and hessian structures
@@ -1267,10 +1256,14 @@ def get_nlp_hessian_structure(nlp: NLP) -> tuple[tuple[int, ...], tuple[int, ...
                     cv_name2, k = cv_name1, j
 
                 # x, u, and s cases
+                # `.tolist()` rather than `list(...)`: the latter yields numpy
+                # scalars, and `np.int_` is not a subclass of `int`, so it cannot
+                # go into these `list[int]` index lists. `.tolist()` converts to
+                # native ints, which is what was meant all along.
                 if cv_name2 == "x":
-                    row2 += 2 * list(dv_phase.x[k][index])
+                    row2 += 2 * dv_phase.x[k][index].tolist()
                 elif cv_name2 == "u":
-                    row2 += 2 * list(dv_phase.u[k][index])
+                    row2 += 2 * dv_phase.u[k][index].tolist()
                 elif cv_name1 == "s":
                     row2 += 2 * n * [dv.s[j]]
                 else:  # pragma: no cover
@@ -1330,9 +1323,9 @@ def get_nlp_hessian_structure(nlp: NLP) -> tuple[tuple[int, ...], tuple[int, ...
 
             elif cf_name in ("f", "g"):
                 if cv_name == "x":
-                    col2 += 2 * list(dv_phase.x[j][index])
+                    col2 += 2 * dv_phase.x[j][index].tolist()
                 elif cv_name == "u":
-                    col2 += 2 * list(dv_phase.u[j][index])
+                    col2 += 2 * dv_phase.u[j][index].tolist()
                 elif cv_name == "s":
                     col2 += 2 * n * [dv.s[j]]
                 else:  # pragma: no cover

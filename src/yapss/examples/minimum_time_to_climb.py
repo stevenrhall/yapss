@@ -18,7 +18,6 @@ __all__ = [
     "plot_eta",
     "plot_lift_curve_slope",
     "plot_solution",
-    "plot_solution",
     "plot_speed_of_sound",
     "setup",
 ]
@@ -52,7 +51,7 @@ def objective(arg: ObjectiveArg) -> None:
     None
     """
     if arg.auxdata.min_fuel:
-        arg.objective = -arg.phase[0].final_state[3]
+        arg.objective = arg.phase[0].final_state[3]
     else:
         arg.objective = arg.phase[0].final_time
 
@@ -112,6 +111,7 @@ def setup(*, min_fuel: bool = False) -> Problem:
 
     # user functions
     ocp.functions.objective = objective
+    ocp.sense = "maximize" if min_fuel else "minimize"
     ocp.functions.continuous = continuous
 
     # auxdata
@@ -198,7 +198,8 @@ thrust_data = np.array(
      [   0, 36.6, 38.5, 36.1, 31.6, 28.1, 24.2, 16.2, 10.0,  2.2],
      [   0,    0,    0, 38.7, 35.7, 32.0, 28.1, 19.3, 11.9,  2.9],
      [   0,    0,    0,    0,    0, 34.6, 31.1, 21.7, 13.3,  3.1]],
-)  # fmt:on
+)
+# fmt: on
 
 # convert to lbf
 thrust_data *= 1000
@@ -250,8 +251,8 @@ def thrust_function(mach: NDArray[np.float64], h: NDArray[np.float64]) -> NDArra
 # make splines of atmospheric data, using the U.S. 1976 Standard Atmosphere in US
 # customary units. Data from: http://www.pdas.com/atmosTable1US.html
 
+# fmt: off
 atmosphere_data = np.array(
-    # fmt:off
     #  h     rho       c
     # --  --------  ------
     [[ 0, 2.377E-3, 1116.5],
@@ -273,7 +274,8 @@ atmosphere_data = np.array(
      [80, 8.571E-5,  977.6],
      [85, 6.743E-5,  981.0],
      [90, 5.315E-5,  984.3]],
-)  # fmt:on
+)
+# fmt: on
 
 atmosphere_data[:, 0] *= 1000
 
@@ -460,9 +462,9 @@ def plot_solution(solution: Solution, *, plot_energy_contours: bool = False) -> 
             plt.plot(v_, h_ / 1000, "grey", linewidth=1)
 
         # excess power contours
-        h_grid = np.linspace(-1000, 70000, num=100, dtype=np.float64)
-        v_grid = np.linspace(0.1, 1800, num=100, dtype=np.float64)
-        v_grid, h_grid = np.meshgrid(v_grid, h_grid)
+        h_axis = np.linspace(-1000, 70000, num=100, dtype=np.float64)
+        v_axis = np.linspace(0.1, 1800, num=100, dtype=np.float64)
+        v_grid, h_grid = np.meshgrid(v_axis, h_axis)
         power = get_excess_power(h_grid, v_grid)
         cp = plt.contour(
             v_grid,
@@ -523,7 +525,6 @@ def plot_solution(solution: Solution, *, plot_energy_contours: bool = False) -> 
     plt.tight_layout()
 
     # figure 7: Hamiltonian
-    plt.figure(7)
     plt.figure(7)
     plt.plot(tc, hamiltonian)
     plt.ylim(-1.001, -0.999)

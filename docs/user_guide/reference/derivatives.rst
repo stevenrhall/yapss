@@ -2,17 +2,17 @@ Derivatives
 ===========
 
 Users have a choice of how YAPSS calculates derivatives required for the solution of the
-optimal control problem. The ``derivatives`` attribute of a :class:`~yapss.Problem` optimal control
-problem object controls how derivatives are calculated.
+optimal control problem. The ``derivatives`` attribute of a :class:`~yapss.Problem` object controls
+how derivatives are calculated.
 
 The ``derivatives.method`` Attribute
 ------------------------------------
 
 The ``derivatives.method`` option can take on one of four values:
 
-*  "auto" (default), for automatic differentiation using the casadi package.
+*  "auto" (default), for automatic differentiation using the CasADi package.
 
-*  "central-difference" or "central-difference-full", for derivatives calculated using central
+*  "central-difference" or "central-difference-full", for derivatives calculated using central-
    difference techniques. For the "central-difference" method, the sparsity pattern of the
    derivatives is found automatically, by passing numerical arguments to the user-defined
    callback functions that include the ``nan`` (not a number) floating point value in specific
@@ -28,7 +28,7 @@ The ``derivatives.method`` option can take on one of four values:
 *  "user", in which case the user must supply the first and perhaps second derivatives.
 
 It's usually best to use the "auto" method, as it is typically faster and more accurate than the
-central difference methods. If central difference methods are required because the casadi package
+central-difference methods. If central-difference methods are required because the CasADi package
 is unable to calculate the derivatives, it is safer (but slower) to start with the
 "central-difference-full" method. Once the problem is working, the "central-difference" method can
 be tried to see if it produces the same solution.
@@ -38,7 +38,7 @@ The ``derivatives.order`` Attribute
 
 Users can also choose whether YAPSS calculates first or second derivatives. The
 ``derivatives.order`` option can take on one of two values, "first" or "second". When using
-automatic differentiation, it’s almost always better to use "second". When using the central
+automatic differentiation, it’s almost always better to use "second". When using the central-
 difference method, it can sometimes be advantageous to use only first-order derivatives, because
 taking second derivatives is computationally expensive, and numerical second derivatives are
 less accurate than numerical first derivatives.
@@ -49,7 +49,7 @@ Example
 Consider the minimum time-to-climb problem, where the objective is to minimize the time to climb.
 Because tabular data is used to represent the aerodynamic performance, automatic differentiation
 is not an option. So the differentiation method chosen is "central-difference". Even though
-numerical differentiation is used, the derivatives order is set to "second", as that turns
+numerical differentiation is used, the derivative order is set to "second", as that turns
 out to be (a little bit) faster than using first-order derivatives.
 
    >>> from yapss import Problem
@@ -65,3 +65,5 @@ Below is a complete reference of the ``Derivatives`` class attributes.
 
 .. autoclass:: yapss._private.problem.Derivatives
     :members:
+    :no-special-members:
+    :no-undoc-members:

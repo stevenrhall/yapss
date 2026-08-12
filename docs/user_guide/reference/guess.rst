@@ -23,27 +23,27 @@ Initial Guess for Parameters
 ----------------------------
 
 To initialize the guess for the parameter array, assign a one-dimensional array-like object to the
-``guess.parameters`` attribute, with length equal to the number of parameters in the optimization.
+``guess.parameter`` attribute, with length equal to the number of parameters in the optimization.
 For example, in the Rosenbrock problem, we might have:
 
-.. code-block:: python
+.. doctest:: guess-rosenbrock
 
-    from yapss import Problem
+    >>> from yapss import Problem
+    >>>
+    >>> problem = Problem(name="Rosenbrock", nx=[], ns=2)
+    >>> problem.guess.parameter = [-2.0, 2.0]
 
-    problem = Problem(name="Rosenbrock", nx=[], ns=2)
-    problem.guess.parameter = [-2.0, 2.0]
+An exception will be raised if the object assigned to ``guess.parameter`` cannot be converted to a
+NumPy array with ``dtype=float`` and shape ``(ns,)``.
 
-An exception will be raised if the object assigned to ``guess.parameters`` cannot be converted to a
-numpy array with ``dtype=float`` and shape ``(ns,)``.
-
-The initial guess array is stored as a numpy array in the ``guess.parameters`` attribute, so
+The initial guess array is stored as a NumPy array in the ``guess.parameter`` attribute, so
 individual elements can be modified using indexing or slicing. The example above could also be
 written as:
 
-.. code-block:: python
+.. doctest:: guess-rosenbrock
 
-    problem.guess.parameter[0] = -2.0
-    problem.guess.parameter[1] = 2.0
+    >>> problem.guess.parameter[0] = -2.0
+    >>> problem.guess.parameter[1] = 2.0
 
 The default initial guess for the parameters is an array of zeros.
 
@@ -55,15 +55,15 @@ array-like object to ``guess.phase[p].integral``, where ``p`` is the phase index
 array-like object should match the number of integrals in the phase. For instance, in the
 isoperimetric problem, we might have:
 
-.. code-block:: python
+.. doctest:: guess-isoperimetric
 
-    from yapss import Problem
-
-    problem = Problem(name="Isoperimetric Problem", nx=[2], nu=[2], nq=[3], nh=[1], nd=4)
-    problem.guess.phase[0].integral = [0.0, 0.0, 0.0]
+    >>> from yapss import Problem
+    >>>
+    >>> problem = Problem(name="Isoperimetric Problem", nx=[2], nu=[2], nq=[3], nh=[1], nd=4)
+    >>> problem.guess.phase[0].integral = [0.0, 0.0, 0.0]
 
 An exception is raised if the object assigned to ``guess.phase[p].integral`` cannot be converted to
-a numpy array with ``dtype=float`` and shape ``(nq[p],)``.
+a NumPy array with ``dtype=float`` and shape ``(nq[p],)``.
 
 As with parameters, the default initial guess for each phase's integrals is an array of zeros. Thus,
 in this example, we could omit the ``integral`` assignment and obtain the same result.
@@ -78,8 +78,8 @@ detail. The first and last elements of the time vector must be the initial and f
 phase, and the time vector must be strictly increasing.
 
 If the time array for phase ``p`` contains ``k`` elements, the initial guesses for the state and
-control histories should be two-dimensional array-like objects, with shapes ``(k, nx[p])`` and ``(k,
-nu[p])``, respectively.
+control histories should be two-dimensional array-like objects, with shapes ``(nx[p], k)`` and ``(nu[p],
+k)``, respectively.
 
 The ``guess.phase[p].state`` and ``guess.phase[p].control`` attributes default to ``None`` until an
 array is assigned. Therefore, indexing or slicing cannot be used for assignment until an array is
@@ -87,7 +87,7 @@ explicitly provided.
 
 If no initial guess is assigned to the time array, an exception will be raised when the ``solve()``
 method is called. An exception is also raised if the shapes of the arrays assigned to
-``guess.phase[p].state`` or ``guess.phase[p].control`` are not ``(k, nx[p])`` and ``(k, nu[p])``,
+``guess.phase[p].state`` or ``guess.phase[p].control`` are not ``(nx[p], k)`` and ``(nu[p], k)``,
 respectively, where ``k`` is the length of the time array for phase ``p``.
 
 If no array is assigned to ``guess.phase[p].state`` or ``guess.phase[p].control``, the default
@@ -95,36 +95,39 @@ initial guess is an array of zeros.
 
 Below is an example from the Dynamic Soaring problem:
 
-.. code-block:: python
+.. doctest:: guess-dynamic-soaring
 
-    import numpy as np
-    from yapss import Problem
-
-    problem = Problem(name="Dynamic Soaring", nx=[6], nu=[2], nh=[1], ns=1, nd=3)
-
-    pi = np.pi
-    tf = 24
-    one = np.ones(50, dtype=float)
-    t = np.linspace(0, tf, num=50, dtype=float)
-    y = -200 * np.sin(2 * pi * t / tf)
-    x = 600 * (np.cos(2 * pi * t / tf) - 1)
-    h = -0.7 * x
-    v = 150 * one
-    gamma = 0 * one
-    psi = np.radians(t / tf * 360)
-    cl = 0.5 * one
-    phi = np.radians(45) * one
-
-    problem.guess.phase[0].time = t
-    problem.guess.phase[0].state = x, y, h, v, gamma, psi
-    problem.guess.phase[0].control = cl, phi
-    problem.guess.parameter = 0.08,
+    >>> import numpy as np
+    >>> from yapss import Problem
+    >>>
+    >>> problem = Problem(name="Dynamic Soaring", nx=[6], nu=[2], nh=[1], ns=1, nd=3)
+    >>>
+    >>> pi = np.pi
+    >>> tf = 24
+    >>> one = np.ones(50, dtype=float)
+    >>> t = np.linspace(0, tf, num=50, dtype=float)
+    >>> y = -200 * np.sin(2 * pi * t / tf)
+    >>> x = 600 * (np.cos(2 * pi * t / tf) - 1)
+    >>> h = -0.7 * x
+    >>> v = 150 * one
+    >>> gamma = 0 * one
+    >>> psi = np.radians(t / tf * 360)
+    >>> cl = 0.5 * one
+    >>> phi = np.radians(45) * one
+    >>>
+    >>> problem.guess.phase[0].time = t
+    >>> problem.guess.phase[0].state = x, y, h, v, gamma, psi
+    >>> problem.guess.phase[0].control = cl, phi
+    >>> problem.guess.parameter = 0.08,
 
 Initial Guess from Previous Solution
 ------------------------------------
 
-The initial guess can also be set from a previous solution of the same (or similar) problem.
-This approach is particularly useful in two scenarios:
+The initial guess can also be set from a previous solution of the same problem—for example,
+after modifying its bounds—or from a related problem with different path or discrete constraints.
+In either case, the previous solution must have the same number of phases, the same numbers of
+states, controls, and integrals in each phase, and the same number of parameters. This approach
+is particularly useful in two scenarios:
 
 -  Mesh Refinement – Start with a coarse mesh to find an initial solution, then use that
    solution as a guess for a finer mesh.
@@ -147,8 +150,10 @@ to the ultimate solution and reduces computation time.
     solution = problem.solve()  # solve the minimum time to climb problem
 
     # modify the problem to solve the minimum fuel to climb problem:
+    problem.sense = "maximize"
+
     def objective_2(arg):
-        arg.objective = -arg.phase[0].final_state[3]  # maximize final vehicle mass
+        arg.objective = arg.phase[0].final_state[3]  # final vehicle mass
 
     problem.functions.objective = objective_2   # change only the objective function
     problem.guess(solution)   # use prior solution as a guess

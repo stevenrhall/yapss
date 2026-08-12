@@ -39,7 +39,7 @@ theta_0, v_theta_0 = 0.0, 1.0
 r_min, r_max = 1, 10
 theta_min, theta_max = -pi, pi
 v_r_min, v_r_max = -10, 10
-v_theta_min, v_theta_max = -pi, pi
+v_theta_min, v_theta_max = -10, 10
 u1_min, u1_max = u2_min, u2_max = -1.1, 1.1
 
 
@@ -62,7 +62,7 @@ def setup() -> Problem:
 
     def objective(arg: ObjectiveArg) -> None:
         """Evaluate objective function."""
-        arg.objective = -arg.phase[0].final_state[0]
+        arg.objective = arg.phase[0].final_state[0]
 
     def continuous(arg: ContinuousArg) -> None:
         """Evaluate continuous dynamics and path constraint."""
@@ -102,7 +102,6 @@ def setup() -> Problem:
     bounds.control.lower[:] = u1_min, u2_min
     bounds.control.upper[:] = u1_max, u2_max
 
-    bounds.path.lower[:] = 1
     bounds.path.upper[:] = 1
 
     problem.bounds.discrete.lower[:] = problem.bounds.discrete.upper[:] = [0]
@@ -119,17 +118,16 @@ def setup() -> Problem:
 
     # functions
     problem.functions.objective = objective
+    problem.sense = "maximize"
     problem.functions.continuous = continuous
     problem.functions.discrete = discrete
 
     # solver options
-    problem.derivatives.method = "central-difference"
     problem.derivatives.order = "second"
     problem.spectral_method = "lgl"
 
     # ipopt options
     problem.ipopt_options.print_level = 3
-    problem.ipopt_options.tol = 1e-20
 
     return problem
 
@@ -206,7 +204,7 @@ def plot_solution(solution: Solution) -> None:
     hamiltonian = solution.phase[0].hamiltonian
     plt.plot(tc, hamiltonian)
     plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
-    plt.ylim((-0.36, -0.31))
+    plt.ylim((0.31, 0.36))
 
     for i in range(5, 0, -1):
         plt.figure(i)

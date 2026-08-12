@@ -6,10 +6,10 @@ Theory
 
 In pseudospectral optimal control methods, the state variable history over an interval is
 approximated by a polynomial, defined by the value of the state at specific points in
-time, the *interpolation* points. The state variable is then defined the the *Lagrange
+time, the *interpolation* points. The state history is then defined by the *Lagrange
 interpolating polynomial*, which is the polynomial of minimal degree that passes through
 the interpolation points. In addition, some of the interpolation points are also
-*collocation* points, where the dynamics (and also) path constraints are enforced. In
+*collocation* points, where the dynamics and path constraints are enforced. In
 addition, any integrands in the problem are evaluated at the collocation points, and
 integrated using Gauss-Radau quadrature.
 
@@ -45,20 +45,20 @@ The decision variables are the elements of the  :math:`N+1`-dimensional state ve
 
 .. math::
 
-    \boldsymbol{x}_i &= x(t_i),\quad N=0,1,\dots,N \\
-    \boldsymbol{u}_i &= u(t_i),\quad N=0,1,\dots,N-1
+    \boldsymbol{x}_i &= x(t_i),\quad i=0,1,\dots,N \\
+    \boldsymbol{u}_i &= u(t_i),\quad i=0,1,\dots,N-1
 
-Because the interpolating polymonial for :math:`\boldsymbol{x}` is unique, the time
+Because the interpolating polynomial for :math:`\boldsymbol{x}` is unique, the time
 derivative at each of the collocation points is also unique, and can be related to the
 dynamics function :math:`f` evaluated at the collocation points. If the dynamics function
-values is represented by the vector :math:`\boldsymbol{f}`, then the state dynamics
+values are represented by the vector :math:`\boldsymbol{f}`, then the state dynamics
 constraint becomes
 
 .. math::
 
     D \boldsymbol{x} = \boldsymbol{f(\boldsymbol{x},\boldsymbol{u})}
 
-where :math:`D` is the differentation matrix for the interpolating scheme. Further, the
+where :math:`D` is the differentiation matrix for the interpolating scheme. Further, the
 integral is approximated by Gauss-Radau quadrature, so that the objective function becomes
 
 .. math::
@@ -71,7 +71,7 @@ The Legendre-Gauss (LG), Legendre-Gauss-Radau (LGR), and Legendre-Gauss-Lobatto 
 interpolation points give (in some sense) the most accurate approximations for the
 integral and the dynamics constraint for a given number of collocation points. The methods
 can be remarkably accurate for a modest number of points, especially for problems that are
-sufficiently smooth. For many problem, the errors become exponentially small as the number of
+sufficiently smooth. For many problems, the errors become exponentially small as the number of
 collocation points increases.
 
 However, for some problems the error converges to zero slowly with increasing number of
@@ -88,15 +88,20 @@ The mesh structure is controlled by the ``mesh`` attribute of ``Problem`` instan
 attributes that can be set are:
 
 -  ``mesh.phase[k].collocation_points`` (Sequence[int]): Number of collocation points for
-   each segment of phase ``k``. Each integer must be greater than or equal to 3. The
-   length of the sequence is the number segments in the phase.
+   each segment of phase ``k``. Each integer must be greater than or equal to 2, regardless
+   of which spectral method is in use. (The LG and LGR quadrature rules themselves accept as
+   few as 1 point per segment, but LGL requires at least 2, so YAPSS enforces the higher
+   floor of 2 uniformly, since the spectral method can be changed independently of the
+   mesh.) In practice, 2 or 3 collocation points per segment rarely gives a good
+   approximation -- 4 or more per segment is recommended. The length of the sequence is the
+   number of segments in the phase.
 
 -  ``mesh.phase[k].fraction`` (Sequence[float]): The fraction of the phase duration of
    each segment. Each element must be greater than 0.0 and less than 1.0, and the sum of
-   the elements must be close 1.0. The length of the ``fraction`` attribute  must be the
+   the elements must be close to 1.0. The length of the ``fraction`` attribute must be the
    same as the length of the ``collocation_points`` attribute.
 
-The default mesh structure is 10 segments of equal duration duration, each with 10 collocation
+The default mesh structure is 10 segments of equal duration, each with 10 collocation
 points. That is, the default is
 
 .. code-block:: python
@@ -104,33 +109,45 @@ points. That is, the default is
     problem.mesh.phase[k].collocation_points = 10 * [10]
     problem.mesh.phase[k].fraction = 10 * [0.1]
 
-Consider first the `Delta III ascent problem <../notebooks/delta_iii_ascent.html>`_ to minimize the
-fuel require to reach a specific orbit. The vehicle has four stages, and hence the problems has
+Consider first the `Delta III ascent problem <../notebooks/delta_iii_ascent.ipynb>`_ to minimize the
+fuel required to reach a specific orbit. The vehicle has four stages, and hence the problem has
 four phases. The default mesh results in a very large number of decision variables, and hence the
 problem is slow to solve. We can speed up the solution by reducing the number of collocation points:
 
-.. code-block:: python
+.. testsetup:: group3
 
-    # set the mesh structure for the Delta III ascent problem
-    m, n = 5, 5  # 5 segments, each with 5 collocation points
-    for p_ in range(4):
-        problem.mesh.phase[p_].collocation_points = m * (n,)
-        problem.mesh.phase[p_].fraction = m * (1.0 / m,)
+   from yapss.examples.delta_iii_ascent import setup
 
-Or consider the `dynamic soaring problem <../notebooks/dynamic_soaring.html>`_, where the objective
-is to find the trajectory that allows a bird or glider to fly continuously using dynamics soaring,
+   problem = setup()
+
+.. testcode:: group3
+
+   # set the mesh structure for the Delta III ascent problem
+   m, n = 5, 5  # 5 segments, each with 5 collocation points
+   for p_ in range(4):
+       problem.mesh.phase[p_].collocation_points = m * (n,)
+       problem.mesh.phase[p_].fraction = m * (1.0 / m,)
+
+Or consider the `dynamic soaring problem <../notebooks/dynamic_soaring.ipynb>`_, where the objective
+is to find the trajectory that allows a bird or glider to fly continuously using dynamic soaring,
 with the minimum possible wind speed gradient. The solution is not smooth (it has discontinuous derivatives), because there is a
-path constraint (on the maximum lift coefficient) that is active only for part of the soaring cycle.
+upper bound on the lift coefficient that is active only for part of the soaring cycle.
 To give a good solution even in the vicinity of the discontinuity, we can use a segmented mesh with
 many segments:
 
-.. code-block:: python
+.. testsetup:: group4
 
-    # set the mesh structure for the dynamic soaring problem
-    m, n = 50, 6  # 50 segments, each with 6 collocation points
-    problem.mesh.phase[0].collocation_points = m * (n,)
-    problem.mesh.phase[0].fraction = m * (1.0 / m,)
-    problem.spectral_method = "lgl"
+   from yapss.examples.dynamic_soaring import setup
+
+   problem = setup()
+
+.. testcode:: group4
+
+   # set the mesh structure for the dynamic soaring problem
+   m, n = 50, 6  # 50 segments, each with 6 collocation points
+   problem.mesh.phase[0].collocation_points = m * (n,)
+   problem.mesh.phase[0].fraction = m * (1.0 / m,)
+   problem.spectral_method = "lgl"
 
 It would be better to refine the mesh only in the vicinity of the discontinuities, but YAPSS does not
 yet support automatic mesh refinement.

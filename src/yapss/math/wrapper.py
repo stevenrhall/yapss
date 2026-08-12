@@ -8,7 +8,7 @@ Define wrapper classes that allow casadi SX objects to work with numpy arrays.
 from __future__ import annotations
 
 # standard imports
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 # third party imports
 import casadi as ca
@@ -17,6 +17,8 @@ from casadi import SX
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from numpy.typing import NDArray
 
 
@@ -36,6 +38,12 @@ def ufunc_num_args(name: str) -> tuple[int, int] | None:
 
 class SXW(NDArrayOperatorsMixin):
     """Base class for wrapper classes encapsulating casadi SX objects."""
+
+    # __eq__ (inherited from NDArrayOperatorsMixin, via __array_ufunc__ below)
+    # returns an elementwise SXW, not a bool -- the same numpy.ndarray convention
+    # that makes arrays unhashable. Set explicitly, like numpy does, rather than
+    # leaving it implicit.
+    __hash__: ClassVar[None] = None  # type: ignore[assignment]
 
     def __init__(self, value: float | SX | SXW):
         while isinstance(value, SXW):

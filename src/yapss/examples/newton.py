@@ -33,6 +33,7 @@ def continuous(arg: ContinuousArg) -> None:
     """Newton's minimal resistance problem dynamics and cost integrand."""
     _, yp = arg.phase[0].state
     (u,) = arg.phase[0].control
+    # radius r is the independent variable for this problem, not time
     r = arg.phase[0].time
     arg.phase[0].dynamics[:] = yp, u
     arg.phase[0].integrand[:] = (8 * r / (1 + yp**2),)
@@ -183,7 +184,7 @@ def setup2(y_max: float = 1.0) -> Problem:
     ocp.functions.objective = objective2
     ocp.functions.objective_gradient = objective_gradient2
     ocp.functions.objective_hessian = objective_hessian2
-    ocp.bounds.phase[0].initial_time.upper = 0.7
+    ocp.bounds.phase[0].initial_time.upper = 1.0
     return ocp
 
 
@@ -193,7 +194,7 @@ def plot_solution(solution: Solution) -> None:
     Parameters
     ----------
     solution : Solution
-        The solution to the Newton's minimal resistance problem.
+        The solution to Newton's minimal resistance problem.
     """
     # plot style information
     linewidth = 2
@@ -208,9 +209,9 @@ def plot_solution(solution: Solution) -> None:
 
     # plot
     plt.plot(r, y, "r", linewidth=linewidth)
-    plt.axis("equal")
     plt.xlim((-1, 1))
     plt.ylim((-0.1, 2.1))
+    plt.axis("scaled")
     plt.xlabel("Radius, $r/R$")
     plt.ylabel("Height, $y/R$")
     plt.tight_layout()
@@ -230,7 +231,7 @@ def main() -> None:
     plt.figure(1, figsize=(6.4, 4))
     plot_solution(solution1a)
     plt.axis((-1.2, 1.2, -0.1, 1.1))
-    plt.axis("equal")
+    plt.axis("scaled")
     plt.title("Solution with $y_{max} = 1$, first formulation")
     plt.xticks(np.linspace(-1, 1, 5))
     plt.tight_layout()
@@ -241,7 +242,7 @@ def main() -> None:
     plt.figure(2, figsize=(6.4, 4))
     plot_solution(solution1b)
     plt.axis((-1.2, 1.2, -0.1, 1.1))
-    plt.axis("equal")
+    plt.axis("scaled")
     plt.title("Solution with $y_{max} = 1$, second formulation")
     plt.xticks(np.linspace(-1, 1, 5))
     plt.tight_layout()
@@ -262,7 +263,7 @@ def main() -> None:
     print("\nObjective values for different values of y_max:\n")
     print("y_max | Objective (C_D)")
     print("------+----------------")
-    for y_max, objective_value in zip(y_max_list, objective_list):
+    for y_max, objective_value in zip(y_max_list, objective_list, strict=True):
         print(f"{y_max:5.2f} |  {_truncate_float(objective_value):8.5f}...")
 
     plt.show()

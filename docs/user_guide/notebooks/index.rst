@@ -2,7 +2,7 @@ JupyterLab Notebooks
 ====================
 
 This section contains a collection of examples that demonstrate how to use YAPSS to solve optimal
-control problems in a Jupyter Lab notebook. All the examples here are available in the
+control problems in JupyterLab notebooks. All the examples here are available in the
 `YAPSS GitHub repository <https://github.com/stevenrhall/yapss>`_ in the
 `examples/notebooks <https://github.com/stevenrhall/yapss/tree/main/examples/notebooks>`_
 directory.

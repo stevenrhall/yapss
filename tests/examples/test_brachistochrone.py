@@ -29,7 +29,6 @@ def test_optimal_control_problem(method: str, mode: str, order: str) -> None:
     ocp = optimal_control_problem.setup()
     ocp.ipopt_options.print_level = 3
     ocp.ipopt_options.print_user_options = "yes"
-    ocp.ipopt_options.tol = 1e-20
     ocp.derivatives.method = method
     ocp.derivatives.order = order
     ocp.spectral_method = mode

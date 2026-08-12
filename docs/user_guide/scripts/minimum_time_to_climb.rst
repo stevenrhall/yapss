@@ -5,7 +5,7 @@ For a description of the minimum time to climb problem, see the
 `JupyterLab notebook documentation <../notebooks/minimum_time_to_climb.ipynb>`_ for this
 problem.
 
-The python script in this example can be executed from the command line with:
+The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
@@ -29,7 +29,6 @@ Text Output
 .. literalinclude:: plots/minimum_time_to_climb.txt
    :language: none
 
------
 Plots
 -----
 

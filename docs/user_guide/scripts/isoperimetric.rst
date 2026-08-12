@@ -4,7 +4,7 @@ The Isoperimetric Problem
 For a description of the isoperimetric problem, see the
 `JupyterLab notebook documentation <../notebooks/isoperimetric.ipynb>`_ for this problem.
 
-The python script in this example can be executed from the command line with:
+The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
@@ -31,6 +31,16 @@ Text Output
 Plots
 -----
 
+Optimal Solution
+................
+
 .. figure:: plots/isoperimetric_plot_1.png
+   :width: 400pt
+   :align: center
+
+Hamiltonian
+...........
+
+.. figure:: plots/isoperimetric_plot_2.png
    :width: 400pt
    :align: center

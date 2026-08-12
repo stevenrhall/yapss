@@ -63,8 +63,8 @@ def print_solution(solution: Solution) -> None:
     """
 
     def print_variable(name: str, values: NDArray[np.float64]) -> None:
-        for i, _value in enumerate(values):
-            print(f"{name}[{i}] = {_value:1.6e}")
+        for i, value in enumerate(values):
+            print(f"{name}[{i}] = {value:1.6e}")
 
     x = solution.parameter
     print()
@@ -85,6 +85,17 @@ def main() -> None:
     problem = setup()
     solution = problem.solve()
     print_solution(solution)
+
+    # smoke test that raises an exception during user installation test
+    if solution.nlp_info.ipopt_status not in (0, 1):
+        msg = "YAPSS did not converge to an optimal solution."
+        raise RuntimeError(msg)
+    if not np.isclose(solution.objective, 17.01401714, rtol=1e-6):
+        msg = "YAPSS returned an unexpected objective value."
+        raise RuntimeError(msg)
+
+    # confirmation for user that YAPSS is function properly
+    print("\nYAPSS solution is correct.")
 
 
 if __name__ == "__main__":

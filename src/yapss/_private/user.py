@@ -25,6 +25,9 @@ from .input_args import (
 from .structure import DVStructure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
+    # standard library imports
+    from collections.abc import Sequence
+
     # third party imports
     from numpy.typing import NDArray
 
@@ -32,7 +35,11 @@ if TYPE_CHECKING:
     import yapss
 
 
-def make_user_functions(problem: yapss.Problem, z0: NDArray[np.float64]) -> ProblemFunctions:
+def make_user_functions(
+    problem: yapss.Problem,
+    z0: NDArray[np.float64],
+    tau_u: Sequence[NDArray[np.float64]],
+) -> ProblemFunctions:
     """
     Assemble a ProblemFunctions object with the required functions and derivative structures.
 
@@ -78,7 +85,13 @@ def make_user_functions(problem: yapss.Problem, z0: NDArray[np.float64]) -> Prob
         discrete_jacobian_structure = None
 
     # continuous Jacobian
-    continuous_jacobian_arg = ContinuousJacobianArg(problem, dv=dv, dtype=np.float64)
+    continuous_jacobian_arg = ContinuousJacobianArg(
+        problem,
+        dv=dv,
+        dtype=np.float64,
+        tau_u=tau_u,
+    )
+    continuous_jacobian_arg._sync(z0)
     if problem.functions.continuous_jacobian is not None:
         problem.functions.continuous_jacobian(continuous_jacobian_arg)
     else:
@@ -121,7 +134,13 @@ def make_user_functions(problem: yapss.Problem, z0: NDArray[np.float64]) -> Prob
             discrete_hessian_structure = None
 
         # continuous hessian
-        continuous_hessian_arg = ContinuousHessianArg(problem, dv=dv, dtype=np.float64)
+        continuous_hessian_arg = ContinuousHessianArg(
+            problem,
+            dv=dv,
+            dtype=np.float64,
+            tau_u=tau_u,
+        )
+        continuous_hessian_arg._sync(z0)
         if problem.functions.continuous_hessian is not None:
             problem.functions.continuous_hessian(continuous_hessian_arg)
         else:

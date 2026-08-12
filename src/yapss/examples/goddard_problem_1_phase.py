@@ -127,6 +127,7 @@ def setup() -> Problem:
     functions.objective = objective
     functions.objective_gradient = objective_gradient
     functions.objective_hessian = objective_hessian
+    ocp.sense = "maximize"
     functions.continuous = continuous
     functions.continuous_jacobian = continuous_jacobian
     functions.continuous_hessian = continuous_hessian
@@ -147,18 +148,15 @@ def setup() -> Problem:
     # guess
     phase = ocp.guess.phase[0]
     phase.time = (t0, tfMax)
-    phase.state = ((h0, h0), (v0, v0), (m0, mf))
-    phase.control = ((0, Tm),)
+    phase.state = ((hmin, hmax), (v0, v0), (m0, mf))
+    phase.control = ((Tm, 0),)
 
     # solver settings
     ocp.derivatives.order = "second"
     ocp.derivatives.method = "auto"
 
     # ipopt options
-    ocp.ipopt_options.tol = 1e-20
     ocp.ipopt_options.print_level = 3
-
-    ocp.scale.objective = -1
     # TODO: Fails if all scales are integers
     ocp.scale.phase[0].state = ocp.scale.phase[0].dynamics = 18_000, 800, 3
     ocp.scale.phase[0].time = 30
@@ -207,7 +205,7 @@ def plot_solution(solution: Solution) -> None:
     # hamiltonian
     plt.figure(5)
     plt.plot(time_c, hamiltonian)
-    plt.ylabel(r"Hamiltonian, $\mathcal{H}")
+    plt.ylabel(r"Hamiltonian, $\mathcal{H}$ (ft/s)")
 
     for i in range(1, 6):
         plt.figure(i)

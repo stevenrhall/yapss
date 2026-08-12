@@ -170,7 +170,7 @@ class Mesh:
                 k0 += len(tk) - 1
                 tau_last += fraction[k]
                 d[i0 : i0 + nc, j0 : j0 + nc] = dk * alpha
-                assert d0k is not None  # noqa: S101
+                assert d0k is not None
                 d0[i0 : i0 + nc, k] = d0k * alpha
 
                 # assemble w

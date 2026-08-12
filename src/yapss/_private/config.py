@@ -2,12 +2,13 @@
 
 The module provides helper functions to configure the Ipopt source.
 
+Locating the Ipopt library itself lives in `mseipopt.library`, not here.
+
 """
 
 from __future__ import annotations
 
 # standard library imports
-import inspect
 import logging
 import os
 import platform
@@ -15,28 +16,31 @@ import sys
 from pathlib import Path
 from warnings import warn
 
-# third party imports
-import casadi
-
 # ANSI escape codes for colors
 RED = "\033[31m"
 RESET = "\033[0m"
 
 logger = logging.getLogger(__name__)
+
+# Configure the package root rather than this module, so every `yapss` submodule
+# inherits the level and the handler -- notably `mseipopt.library`, where the Ipopt
+# resolver logs which library it picked. Configuring `__name__` here left those
+# messages invisible under YAPSS_LOGGING=DEBUG.
+_package_logger = logging.getLogger("yapss")
 level = os.environ.get("YAPSS_LOGGING", None)
 if level:
     try:
-        logger.setLevel(level.upper())
+        _package_logger.setLevel(level.upper())
     except ValueError:
         msg = (
             f"Invalid logging level: '{level}'. \n"
             f"    Valid levels are: DEBUG, INFO, WARNING, ERROR, CRITICAL."
         )
         warn(msg, stacklevel=2)
-        logger.setLevel(logging.WARNING)
+        _package_logger.setLevel(logging.WARNING)
 
 else:
-    logger.setLevel(logging.WARNING)
+    _package_logger.setLevel(logging.WARNING)
 
 # Create a console handler and set the level to DEBUG
 console_handler = logging.StreamHandler()
@@ -46,42 +50,8 @@ console_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter(f"{RED}%(levelname)s %(name)s:%(lineno)d  %(message)s{RESET}")
 console_handler.setFormatter(formatter)
 
-# Add the handler to the logger
-logger.addHandler(console_handler)
-
-
-def get_casadi_ipopt_library_path() -> str:
-    """Find an Ipopt library for mseipopt to use."""
-    # Set the library name depending on the platform
-    platform_str = platform.system()
-    if platform_str == "Windows":
-        library_names = ["ipopt-3.dll", "ipopt.dll", "libipopt-3.dll", "libipopt.dll"]
-    elif platform_str == "Darwin":
-        library_names = ["libipopt.3.dylib", "libipopt.dylib"]
-    else:  # Linux, or hope that systems uses the same naming convention as Linux
-        library_names = ["libipopt.so.3", "libipopt.so"]
-
-    # Check whether we are in a conda environment
-    conda_default_env = get_conda_prefix()
-
-    # determine the library directory
-    if conda_default_env:
-        conda_suffix = "Library/bin" if platform_str == "Windows" else "lib"
-        library_directory = Path(conda_default_env) / conda_suffix
-    else:
-        library_directory = Path(inspect.getfile(casadi)).parent
-
-    # Look for the library in the library directory
-    logger.debug(f"Looking for Ipopt library in {library_directory}")
-    for library_name in library_names:
-        ipopt_path = library_directory / library_name
-        logger.debug(f"Checking library_name: {library_name}")
-        if ipopt_path.exists():
-            logger.debug(f"Found casadi Ipopt library: {ipopt_path}")
-            return ipopt_path.as_posix()
-
-    msg = "Ipopt library not found."
-    raise ValueError(msg)
+# Add the handler to the package logger
+_package_logger.addHandler(console_handler)
 
 
 def get_conda_prefix() -> Path | None:
@@ -115,3 +85,100 @@ def get_conda_prefix() -> Path | None:
 
     logger.debug("Not a Conda environment.")
     return None
+
+
+# --- `ipopt_source` deprecation -------------------------------------------------
+#
+# Removed in 0.3.0. Two distinct deprecations are in play and the messages differ
+# accordingly: the attribute and environment variable are going away (which
+# affects anyone who touches them at all, including someone setting "default"),
+# and the *capability* of choosing a non-default backend is going away (which
+# affects only the non-default values, and those users face a behavior change
+# rather than merely an API change).
+#
+# Message text lives here, in one place, because it is emitted from two sites --
+# the `Problem.ipopt_source` setter and the environment-variable branch of
+# `solver.configure_ipopt_source()` -- and the two must not drift. Policy and
+# rationale: IPOPT_BACKEND_POLICY.md §3.
+
+_REMOVAL_VERSION = "0.3.0"
+
+_SEE_ALSO = (
+    'See "Sharp Edges" in the user guide for why YAPSS must control which Ipopt ' "it loads."
+)
+
+
+def ipopt_source_deprecation(value: str) -> tuple[type[Warning], str]:
+    """Return the warning category and message for an `ipopt_source` value.
+
+    `FutureWarning` for a custom library path, `DeprecationWarning` otherwise.
+    The distinction is not cosmetic: `DeprecationWarning` is hidden by default
+    unless triggered in ``__main__``, and the custom-path case can end in a
+    SIGSEGV rather than an exception, so its warning must be visible from a
+    notebook or an imported module as well.
+
+    Parameters
+    ----------
+    value : str
+        The requested `ipopt_source` value.
+
+    Returns
+    -------
+    tuple[type[Warning], str]
+        Warning category, and the message to emit.
+    """
+    tail = f"It is deprecated and will be removed in YAPSS {_REMOVAL_VERSION}."
+
+    if value == "default":
+        return DeprecationWarning, (
+            f"'ipopt_source' is no longer used; the Ipopt backend is determined by "
+            f"whether YAPSS is running in a Conda environment. {tail} Setting it to "
+            f"'default' selects the behavior that is already in effect, so this line "
+            f"can simply be deleted."
+        )
+
+    if value == "cyipopt":
+        if get_conda_prefix():
+            return DeprecationWarning, (
+                f"'ipopt_source' is deprecated. In a Conda environment YAPSS already "
+                f"uses cyipopt, so this line can simply be deleted. {tail}"
+            )
+        return DeprecationWarning, (
+            f"'ipopt_source=\"cyipopt\"' outside a Conda environment loads a second, "
+            f"independently built Ipopt alongside the one CasADi bundles. The two can "
+            f"collide over their vendored OpenMP runtimes and crash. {tail} After that, "
+            f"YAPSS will use its own bundled interface here. {_SEE_ALSO}"
+        )
+
+    if value == "casadi":
+        return DeprecationWarning, (
+            f"'ipopt_source' is deprecated. Outside a Conda environment 'casadi' is "
+            f"already what YAPSS does, so this line can simply be deleted. {tail}"
+        )
+
+    return FutureWarning, (
+        f"'ipopt_source' is set to an explicit Ipopt library path "
+        f"({value!r}). YAPSS cannot verify a library it did not bundle: there is no "
+        f"matching 'IpoptConfig.h' to check the ABI against, and a mismatched build "
+        f"crashes the process rather than raising. {tail} {_SEE_ALSO}"
+    )
+
+
+def warn_ipopt_source_deprecated(value: str, stacklevel: int = 3) -> None:
+    """Emit the deprecation warning for an `ipopt_source` value.
+
+    Flushes `sys.stderr` after a `FutureWarning`, because that path may be
+    followed by a hard crash and `stderr` is block-buffered when redirected to a
+    file -- an unflushed warning would be lost precisely when it matters most.
+
+    Parameters
+    ----------
+    value : str
+        The requested `ipopt_source` value.
+    stacklevel : int, default=3
+        Passed through to `warnings.warn`, so the report points at user code.
+    """
+    category, message = ipopt_source_deprecation(value)
+    warn(message, category=category, stacklevel=stacklevel)
+    if category is FutureWarning:
+        sys.stderr.flush()
