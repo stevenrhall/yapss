@@ -133,12 +133,13 @@ jobs:
           retention-days: 5
 
   # ------------------------------------------------------------- conda ------
-  # Weekly canary only -- not run on push/PR. cyipopt links conda-forge's own
-  # IPOPT build, a materially different path from the pip stack's mseipopt;
-  # nothing else here exercises it.
+  # Run on PRs and as a weekly canary. cyipopt links conda-forge's own IPOPT
+  # build, a materially different path from the pip stack's mseipopt; nothing
+  # else here exercises it.
   test-conda:
     if: >-
-      github.event_name == 'schedule'
+      github.event_name == 'pull_request'
+      || github.event_name == 'schedule'
       || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all", "test-conda"]'), inputs.job))
     runs-on: ubuntu-latest
     defaults:
@@ -165,10 +166,10 @@ jobs:
 
   # Weekly canary for conda/environment.yml, the yapss-dev contributor dev
   # environment -- not consumed by any other CI job, so nothing else catches
-  # it drifting out of resolvability. Same weekly/manual-dispatch cadence and
-  # single-platform scope as test-conda above: this checks whether the dev
-  # tooling stack resolves and works, which isn't platform-sensitive the way
-  # solver behavior is, so a 3-machine matrix wouldn't buy much here.
+  # it drifting out of resolvability. This remains a weekly/manual-dispatch
+  # single-platform check: the dev tooling stack isn't platform-sensitive the
+  # way solver behavior is, so running it on every PR or using a 3-machine
+  # matrix wouldn't buy much here.
   test-conda-dev-env:
     if: >-
       github.event_name == 'schedule'
