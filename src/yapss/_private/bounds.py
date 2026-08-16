@@ -472,12 +472,6 @@ def get_nlp_constraint_function_bounds(
         lb.phase[p].duration[:] = problem.bounds.phase[p].duration.lower
         ub.phase[p].duration[:] = problem.bounds.phase[p].duration.upper
 
-        # zero mode
-        if problem.spectral_method in ("lg", "lgr"):
-            for i in range(problem.nx[p]):
-                lb.phase[p].zero_mode[i][:] = problem.bounds.phase[p]._zero_mode.lower[i]
-                ub.phase[p].zero_mode[i][:] = problem.bounds.phase[p]._zero_mode.upper[i]
-
     # discrete constraints
     lb.discrete[:] = problem.bounds.discrete.lower
     ub.discrete[:] = problem.bounds.discrete.upper

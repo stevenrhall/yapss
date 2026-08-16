@@ -476,8 +476,6 @@ def get_nlp_scaling(
             if problem.spectral_method == "lg":
                 lg_defect = cf.phase[p].lg_defect
                 lg_defect[i][:] = 1.0 / phase.state[i]
-            if problem.spectral_method in ("lg", "lgr"):
-                cf.phase[p].zero_mode[i][:] = 1.0 / phase.state[i]
         for i in range(problem.nq[p]):
             cf.phase[p].integral[i] = 1.0 / phase.integral[i]
         for i in range(problem.nh[p]):

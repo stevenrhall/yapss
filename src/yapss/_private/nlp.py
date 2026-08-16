@@ -425,17 +425,6 @@ def make_nlp_constraints(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
             # duration
             nlp_cf_phase.duration[:] = tf - t0
 
-            # zero_mode for lgr
-            if problem.spectral_method == "lgr":
-                col_points = problem.mesh.phase[p].collocation_points
-                j = 0
-                for i, nc in enumerate(col_points):
-                    for ix in range(problem.nx[p]):
-                        nlp_cf_phase.zero_mode[ix][i] = (
-                            mesh.b_lgr[p][i] @ dv.phase[p].x[ix][j : j + nc + 1]
-                        )
-                    j += nc
-
         # call the user-defined discrete function
         if problem.nd > 0:
             discrete_function(di)
@@ -604,10 +593,6 @@ def make_nlp_constraint_jacobian(nlp: NLP) -> Callable[[FloatArray], FloatArray]
             # duration
             j += 2
 
-            # zero_mode for lgr
-            if problem.spectral_method == "lgr":
-                j += (sum(col_points) + len(col_points)) * problem.nx[p]
-
         # discrete terms
         jacobian[j:] = eval_discrete_jacobian(z)
 
@@ -661,12 +646,9 @@ def make_nlp_hessian(nlp: NLP) -> Callable[[FloatArray, FloatArray, np.float64],
         rhs: FloatArray
 
         hessian[:] = 0.0
-        # Phase times used by the transcription chain rule live in this local
-        # decision-variable structure, which is distinct from the one synchronized
-        # by ``eval_continuous``. It must be current before any continuous Hessian
-        # terms are assembled. Synchronizing only near the objective terms below
-        # made the first Hessian call use zero-initialized times and later calls use
-        # the correct point.
+        # The phase endpoint views used below belong to this local decision-variable
+        # structure, not to the structure synchronized by ``eval_continuous``.
+        # Copy the current NLP point before using its t0 and tf values.
         dv.z[:] = z
 
         continuous_jacobian_structure = nlp.functions.continuous_jacobian_structure
@@ -820,7 +802,6 @@ def make_nlp_hessian(nlp: NLP) -> Callable[[FloatArray, FloatArray, np.float64],
                     msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
                     raise ValueError(msg)
 
-        dv.z[:] = z
         objective_input.hessian.clear()
         nlp.functions.objective_hessian(objective_input)
 
@@ -906,20 +887,12 @@ def make_eval_continuous(nlp: NLP) -> Callable[[FloatArray, int], ContinuousArg[
         nlp.functions.continuous_jacobian(cast(ContinuousJacobianArg, ci))
 
         if order == 1:
-            # A derivative callback may use the function output arrays as scratch
-            # space. The generated central-difference Jacobian does exactly that,
-            # leaving them evaluated at its final perturbation even though it
-            # restores the decision variables. Downstream NLP chain-rule terms use
-            # both the function and derivative values, so restore the functions at
-            # the unperturbed point before returning.
-            continuous_function(ci)
             return ci
 
         for p in range(problem.np):
             ci.phase[p].hessian.clear()
         nlp.functions.continuous_hessian(cast(ContinuousHessianArg, ci))
 
-        continuous_function(ci)
         return ci
 
     # end callback function
@@ -1154,17 +1127,6 @@ def get_nlp_jacobian_structure(
         row += list(cf_phase.duration)
         col += list(dv_phase.t0)
         linear_jacobian += [1.0, -1.0]
-
-        # zero_mode for lgr
-        if problem.spectral_method == "lgr":
-            col_points = problem.mesh.phase[p].collocation_points
-            j = 0
-            for i, nc in enumerate(col_points):
-                for ix in range(problem.nx[p]):
-                    row += (nc + 1) * [cf_phase.zero_mode[ix][i]]
-                    col += list(dv_phase.x[ix][j : j + nc + 1])
-                    linear_jacobian += list(mesh.b_lgr[p][i])
-                j += nc
 
     # discrete constraints
     if problem.nd > 0:

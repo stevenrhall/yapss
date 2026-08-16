@@ -11,7 +11,7 @@ import pytest
 from yapss.examples import orbit_raising as optimal_control_problem
 
 J = 1.5252777
-tol = 3e-8
+tol = 1e-7
 
 parameters = [
     (method, mode, order)

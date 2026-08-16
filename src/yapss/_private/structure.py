@@ -111,7 +111,6 @@ class CFPhase(Generic[T], SimpleNamespace):
     path: list[Array]
     integral: Array
     duration: Array
-    zero_mode: list[Array]
     """
 
     defect: list[Array[T]]
@@ -120,7 +119,6 @@ class CFPhase(Generic[T], SimpleNamespace):
     path: list[Array[T]]
     integral: Array[T]
     duration: Array[T]
-    zero_mode: list[Array[T]]
 
 
 class CFStructure(Generic[T], SimpleNamespace):
@@ -323,8 +321,6 @@ def calculate_ic(problem: yapss.Problem, spectral_method: str) -> int:
         if spectral_method == "lgl":
             nhpoints += -len(col_points) + 1
         ic += nc * problem.nx[p] + nhpoints * problem.nh[p] + problem.nq[p] + 1
-        if spectral_method in ("lg", "lgr"):
-            ic += len(col_points) * problem.nx[p]
         if spectral_method == "lg":
             ic += len(col_points) * problem.nx[p]
     ic += problem.nd
@@ -403,14 +399,6 @@ def get_nlp_cf_structure(problem: yapss.Problem, dtype: type) -> CFStructure[T]:
         # duration
         cf.phase[p].duration = c[ic : ic + 1]
         ic += 1
-
-        # lgr zero mode
-        if spectral_method in ("lg", "lgr"):
-            cf.phase[p].zero_mode = []
-            nz = len(col_points)
-            for _ in range(problem.nx[p]):
-                cf.phase[p].zero_mode.append(c[ic : ic + nz])
-                ic += nz
 
     n = problem.nd
     cf.discrete = c[ic : ic + n]

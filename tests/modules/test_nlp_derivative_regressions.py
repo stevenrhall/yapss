@@ -11,7 +11,6 @@ from yapss._private.central_difference import make_cd_functions
 from yapss._private.guess import make_initial_guess_nlp
 from yapss._private.mesh import Mesh
 from yapss._private.nlp import NLP
-from yapss._private.solver import get_nlp_scaling
 from yapss._private.structure import get_nlp_cf_structure
 from yapss.examples import delta_iii_ascent, orbit_raising
 
@@ -74,17 +73,14 @@ def test_first_hessian_call_uses_current_phase_times() -> None:
 
 
 @pytest.mark.parametrize("spectral_method", ["lg", "lgr"])
-def test_zero_modes_use_state_scaling(spectral_method: str) -> None:
-    """Scale every retained zero-mode row consistently with its state variable."""
+def test_lg_lgr_do_not_allocate_zero_mode_constraints(spectral_method: str) -> None:
+    """Do not pass the inactive research zero-mode rows to Ipopt."""
     problem = delta_iii_ascent.setup()
     problem.spectral_method = spectral_method
 
-    _, _, constraint_scaling = get_nlp_scaling(problem)
     structure = get_nlp_cf_structure(problem, np.float64)
-    structure.c[:] = constraint_scaling
+    assert all(not hasattr(phase, "zero_mode") for phase in structure.phase)
 
-    for phase_index, phase in enumerate(problem.scale.phase):
-        for state_index, state_scale in enumerate(phase.state):
-            assert structure.phase[phase_index].zero_mode[state_index] == pytest.approx(
-                1.0 / state_scale,
-            )
+    constraint_upper, constraint_lower = get_nlp_constraint_function_bounds(problem)
+    free = np.isneginf(constraint_lower) & np.isposinf(constraint_upper)
+    assert not np.any(free)

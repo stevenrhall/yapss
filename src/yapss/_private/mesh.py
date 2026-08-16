@@ -53,7 +53,6 @@ class Mesh:
         self.tau_x: list[NDArray[np.float64]] = []
         self.tau_u: list[NDArray[np.float64]] = []
         self.b_lg: list[NDArray[np.float64]] = []
-        self.b_lgr: list[list[NDArray[np.float64]]] = []
         self.lg_index: list[NDArray[np.int_]] = []
 
     def set_matrices(self, spectral_method: str) -> None:
@@ -92,8 +91,6 @@ class Mesh:
 
             tau_x: Array = np.zeros([nxpoints], dtype=np.float64)
             tau_u: Array = np.zeros([nupoints], dtype=np.float64)
-            bmat = []
-
             tau_last = 0.0
             i0 = 0  # row (wc) index
             j0 = 0  # column (w) index
@@ -101,8 +98,7 @@ class Mesh:
 
             for k, nc in enumerate(col_points):
                 alpha = 1 / fraction[k]
-                tk, wk, dk, bk = lgr(nc)
-                bmat.append(bk)
+                tk, wk, dk, _ = lgr(nc)
 
                 tk[:] = (tk + 1) / 2
                 tau_x[j0 : j0 + len(tk)] = tau_last + tk * fraction[k]
@@ -122,7 +118,6 @@ class Mesh:
             d.eliminate_zeros()
             self.d.append(d)
             self.w.append(w)
-            self.b_lgr.append(bmat)
 
             tau_x[:] = 2 * tau_x - 1.0
             tau_x[0], tau_x[-1] = -1.0, 1.0

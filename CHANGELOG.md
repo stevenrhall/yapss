@@ -19,12 +19,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
-- Fixed three defects in the assembled NLP derivatives: generated central-difference
-  callbacks no longer leave continuous outputs at a perturbed point; the first Hessian
-  evaluation now uses the current phase times instead of zero-initialized values; and
-  retained LG/LGR zero-mode constraints now use the corresponding state scaling. The
-  zero-mode correction also removes the platform-dependent Delta III LGR convergence
-  failure.
+- Fixed defects in the assembled NLP derivatives. Generated central-difference
+  callbacks no longer leave continuous outputs at a perturbed point. The first Hessian
+  evaluation now uses the current phase times instead of zero-initialized values.
+- Removed inactive LG/LGR zero-mode constraint rows that were retained for research.
+  Although the rows were completely unbounded, Ipopt did not remove them, and their
+  presence caused the platform-dependent Delta III LGR convergence failure.
 
 ## [0.2.0] - 2026-08-12
 

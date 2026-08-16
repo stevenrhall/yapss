@@ -229,6 +229,10 @@ def make_continuous_jacobian(problem: yapss.Problem, cjfds: CJFDS) -> Continuous
                 var[:] = w
 
         arg._phase_list = phase_list
+        # The function output arrays share ``arg`` with the caller and were left at
+        # the final perturbation above. Restore them at the unperturbed point along
+        # with the original phase list.
+        continuous(arg)
 
         # end of continuous_jacobian callback function
 
@@ -357,6 +361,8 @@ def make_continuous_hessian(
         The user-defined problem object.
     chfds : CHFDS
         Finite difference structure for the continuous Hessian.
+    tau_u : Sequence[NDArray[np.float64]]
+        Non-dimensional collocation time points.
 
     Returns
     -------
