@@ -89,10 +89,8 @@ dev = [
     "pyyaml",
     "hatch",
     "pre-commit",
-    # release tooling -- used by `make test-pypi-upload`/`pypi-upload` and
-    # RELEASE_CHECKLIST.md's build-verification step
+    # release tooling -- used by RELEASE_CHECKLIST.md's build-verification step
     "build",
-    "twine",
 ]
 
 [project.urls]

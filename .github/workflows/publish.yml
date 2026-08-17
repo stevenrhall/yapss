@@ -21,9 +21,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
@@ -59,7 +59,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-          skip-existing: true
 
   # ---------------------------------------------------- smoke-test-testpypi -
   # Installs the just-published package from TestPyPI into a clean
@@ -71,7 +70,7 @@ jobs:
     needs: publish-testpypi
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
@@ -79,10 +78,16 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           for i in 1 2 3 4 5; do
-            python -m pip install \
-              --index-url https://test.pypi.org/simple/ \
-              --extra-index-url https://pypi.org/simple/ \
-              "yapss==${VERSION}" && break
+            if python -m pip install \
+                --index-url https://test.pypi.org/simple/ \
+                --extra-index-url https://pypi.org/simple/ \
+                "yapss==${VERSION}"; then
+              break
+            fi
+            if [ "$i" -eq 5 ]; then
+              echo "Failed to install yapss after $i attempts."
+              exit 1
+            fi
             echo "Attempt $i failed, waiting for TestPyPI index to catch up..."
             sleep 20
           done

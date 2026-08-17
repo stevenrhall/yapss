@@ -7,7 +7,7 @@ package:
   version: {{ version }}
 
 source:
-  path: ..
+  path: ../..
   # url: https://github.com/stevenrhall/yapss/archive/v{{ version }}.tar.gz
   # sha256: generate this with `openssl sha256 <filename>`
 
@@ -24,7 +24,7 @@ requirements:
   run:
     - python>=3.10,<3.15
     - numpy
-    - casadi>=3.6.0
+    - casadi>=3.6.0,<=3.7.2
     - scipy
     - mpmath
     - matplotlib
@@ -43,7 +43,7 @@ outputs:
       run:
         - python>=3.10,<3.15
         - numpy
-        - casadi>=3.6.0
+        - casadi>=3.6.0,<=3.7.2
         - scipy
         - mpmath
         - matplotlib
@@ -84,7 +84,7 @@ outputs:
         # yapss dependencies
         - python>=3.10,<3.15
         - numpy
-        - casadi>=3.6.0
+        - casadi>=3.6.0,<=3.7.2
         - scipy
         - mpmath
         - matplotlib
@@ -130,11 +130,10 @@ outputs:
         # See conda/environment.yml for why hatch-vcs is needed alongside hatch.
         - hatch-vcs
         - pre-commit
-        # release tooling -- matches pyproject.toml's dev extra. conda-forge's
+        # build verification tooling -- matches pyproject.toml's dev extra. conda-forge's
         # package for PyPA's `build` is named `python-build` (see
         # conda/environment.yml for why).
         - python-build
-        - twine
     test:
       source_files:
         - tests/examples/test_hs071.py

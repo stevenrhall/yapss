@@ -32,6 +32,7 @@ def test_optimal_control_problem(method: str, mode: str, order: str) -> None:
     ocp.spectral_method = mode
     ocp.ipopt_options.linear_solver = "mumps"
     solution = ocp.solve()
+    assert solution.nlp_info.ipopt_status in (0, 1)
     assert solution.objective == pytest.approx(J, rel=tol)
     if method == "auto" and mode == "lgl" and order == "second":
         optimal_control_problem.plot_solution(solution)

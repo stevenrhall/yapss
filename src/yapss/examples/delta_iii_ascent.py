@@ -27,6 +27,9 @@ from yapss import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
 from yapss.math import arccos, cos, exp, pi, sin, sqrt
 
 if TYPE_CHECKING:
+    # third party imports
+    from numpy.typing import NDArray
+
     # package imports
     from yapss import Solution
 
@@ -172,6 +175,62 @@ def oe_to_rv(  # noqa: PLR0913, PLR0917 -- classical orbital elements, conventio
     r_vec = R @ r_vec
     v_vec = R @ v_vec
     return r_vec, v_vec
+
+
+def _set_initial_guess(ocp: Problem) -> None:
+    """Interpolate a continuous guess without passing through the Earth."""
+    final_time = t4_max
+    phase_times = (t0, t1, t2, t3, final_time)
+    initial_masses = (mi_0, mi_1, mi_2, mi_3)
+    final_masses = (mf_0, mf_1, mf_2, pi_p)
+
+    initial_position = np.asarray(r0_vec, dtype=float)
+    initial_velocity = np.array((0.0, R_e * omega_e * np.cos(psi_l), 0.0))
+    final_position, final_velocity = oe_to_rv(a_f, e_f, i_f, Omega_f, omega_f, 0.0, mu)
+    final_position = np.asarray(final_position, dtype=float)
+    final_velocity = np.asarray(final_velocity, dtype=float)
+
+    initial_radius = np.linalg.norm(initial_position)
+    final_radius = np.linalg.norm(final_position)
+    initial_altitude = initial_radius - R_e
+    final_altitude = final_radius - R_e
+    initial_latitude = np.arcsin(initial_position[2] / initial_radius)
+    final_latitude = np.arcsin(final_position[2] / final_radius)
+    initial_longitude = np.arctan2(initial_position[1], initial_position[0])
+    final_longitude = np.arctan2(final_position[1], final_position[0])
+    longitude_change = np.arctan2(
+        np.sin(final_longitude - initial_longitude),
+        np.cos(final_longitude - initial_longitude),
+    )
+
+    for phase in range(4):
+        time: NDArray[np.float64] = np.linspace(
+            phase_times[phase],
+            phase_times[phase + 1],
+            9,
+            dtype=np.float64,
+        )
+        fraction = time / final_time
+        latitude = initial_latitude + fraction * (final_latitude - initial_latitude)
+        longitude = initial_longitude + fraction * longitude_change
+        altitude = initial_altitude + fraction * (final_altitude - initial_altitude)
+        radius = R_e + altitude
+        position = np.vstack(
+            (
+                radius * np.cos(latitude) * np.cos(longitude),
+                radius * np.cos(latitude) * np.sin(longitude),
+                radius * np.sin(latitude),
+            ),
+        )
+        velocity = (
+            initial_velocity[:, None] + fraction * (final_velocity - initial_velocity)[:, None]
+        )
+        mass = np.linspace(initial_masses[phase], final_masses[phase], len(time))[None, :]
+
+        guess = ocp.guess.phase[phase]
+        guess.time = time
+        guess.state = np.vstack((position, velocity, mass))
+        guess.control = np.tile(((0.0,), (1.0,), (0.0,)), (1, len(time)))
 
 
 def setup() -> Problem:
@@ -395,35 +454,7 @@ def setup() -> Problem:
         Omega_f,
         omega_f,
     )
-    # time guess
-    ocp.guess.phase[0].time = (t0, t1)
-    ocp.guess.phase[1].time = (t1, t2)
-    ocp.guess.phase[2].time = (t2, t3)
-    ocp.guess.phase[3].time = (t3, t4_max)
-
-    for p in range(4):
-        ocp.guess.phase[p].state = np.zeros([7, 2])
-    # mass guess
-    ocp.guess.phase[0].state[6] = (mi_0, mf_0)
-    ocp.guess.phase[1].state[6] = (mi_1, mf_1)
-    ocp.guess.phase[2].state[6] = (mi_2, mf_2)
-    ocp.guess.phase[3].state[6] = (mi_3, pi_p)
-
-    # position, velocity, and control guess
-    for p_ in range(2):
-        guess = ocp.guess.phase[p_]
-        guess.state[:3] = 2 * (x0[0],), 2 * (x0[1],), 2 * (x0[2],)
-        guess.state[3:6] = 2 * (v0[0],), 2 * (v0[1],), 2 * (v0[2],)
-        guess.control = [[0.0, 0.0], [1.0, 1.0], [0.0, 0.0]]
-
-    # terminal state
-    temp = np.concatenate(oe_to_rv(a_f, e_f, i_f, Omega_f, omega_f, 0, mu))
-    temp = np.array([temp, temp]).transpose()
-
-    for p_ in range(2, 4):
-        guess = ocp.guess.phase[p_]
-        guess.state[:6] = temp
-        guess.control = [[0.0, 0.0], [1.0, 1.0], [0.0, 0.0]]
+    _set_initial_guess(ocp)
 
     ocp.derivatives.method = "auto"
     ocp.derivatives.order = "second"

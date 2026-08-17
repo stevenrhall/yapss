@@ -109,7 +109,7 @@ def setup(*, wall: bool = False) -> Problem:
     # guess
     phase = ocp.guess.phase[0]
     phase.time = (0.0, 1.0)
-    phase.state = ((0.0, 1.0), (0.0, 1), (0.0, 1.0))
+    phase.state = ((0.0, 1.0), (0.0, 1), (0.0, 5.0))
     phase.control = ((0, 0.0),)
 
     # mesh

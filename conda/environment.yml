@@ -51,9 +51,8 @@ dependencies:
   # conda/environment-test.yml's hatchling/hatch-vcs entries.
   - hatch-vcs
   - pre-commit
-  # release tooling -- matches pyproject.toml's dev extra. conda-forge's
+  # build verification tooling -- matches pyproject.toml's dev extra. conda-forge's
   # package for PyPA's `build` is named `python-build`, not `build` (that
   # name on conda-forge is a stale, unmaintained package last published in
   # 2021 and no longer solvable).
   - python-build
-  - twine

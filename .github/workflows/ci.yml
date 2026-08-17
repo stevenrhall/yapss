@@ -47,9 +47,9 @@ jobs:
       || contains(fromJSON('["all", "test"]'), inputs.job)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.14'
           cache: pip
@@ -96,10 +96,10 @@ jobs:
           - os: macos-latest
             python-version: '3.14'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -146,7 +146,7 @@ jobs:
       run:
         shell: bash -el {0}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: conda-incubator/setup-miniconda@v4
         with:
@@ -179,7 +179,7 @@ jobs:
       run:
         shell: bash -el {0}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: conda-incubator/setup-miniconda@v4
         with:
@@ -212,9 +212,9 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip
@@ -254,11 +254,11 @@ jobs:
       || contains(fromJSON('["all", "lint"]'), inputs.job)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # ruff/isort pin basepython to 3.13; black pins 3.14; mypy pins 3.13 and
       # mypy-floor pins 3.10 (see tox.ini). Install all three Python versions.
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: |
             3.10
@@ -280,9 +280,9 @@ jobs:
       || contains(fromJSON('["all", "docs"]'), inputs.job)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip

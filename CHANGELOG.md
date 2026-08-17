@@ -15,16 +15,24 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - Users can pin to a specific minor version (e.g., yapss>=0.3.0,<0.4.0) to avoid unexpected
   changes, but should expect significant updates when upgrading to a new minor version.
 
-## [Unreleased]
+## [0.2.1] - 2026-08-17
 
 ### Fixed
 
-- Fixed defects in the assembled NLP derivatives. Generated central-difference
-  callbacks no longer leave continuous outputs at a perturbed point. The first Hessian
-  evaluation now uses the current phase times instead of zero-initialized values.
-- Removed inactive LG/LGR zero-mode constraint rows that were retained for research.
-  Although the rows were completely unbounded, Ipopt did not remove them, and their
-  presence caused the platform-dependent Delta III LGR convergence failure.
+- Fixed defects in the assembled NLP derivatives. Generated central-difference callbacks no longer
+  leave continuous outputs at a perturbed point. The first Hessian evaluation now uses the current
+  phase times instead of zero-initialized values.
+- Removed inactive LG/LGR zero-mode constraint rows that were retained for research. Although the
+  rows were completely unbounded, Ipopt did not remove them, and their presence caused the
+  platform-dependent convergence failure of the Delta III ascent example when the LGR spectral
+  method was used.
+- Improved cold-start robustness of the Delta III ascent example across supported Ipopt backends.
+  The original boundary-data-only guess worked in many solver configurations but introduced a large
+  position and velocity discontinuity between phases, leading to nondeterministic restoration
+  failures with conda-forge Ipopt/MUMPS. The example now retains a simple boundary-data-based guess
+  while interpolating position continuously in geocentric latitude, longitude, and altitude. The
+  example test now also requires Ipopt to report a converged status, and the notebook documents the
+  motivation for the revised guess.
 
 ## [0.2.0] - 2026-08-12
 
