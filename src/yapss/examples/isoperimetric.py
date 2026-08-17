@@ -142,8 +142,6 @@ def main() -> None:
     print(f"\n\nMaximum area = {area} (Should be 1 / (4 pi) = {area_ideal})")
     print(f"Relative error in solution = {abs(area - area_ideal) / area_ideal}")
 
-    print(solution.discrete_multiplier)
-
     # plot the solution
     plot_solution(solution)
     plt.show()
