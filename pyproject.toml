@@ -112,7 +112,6 @@ local_scheme = "no-local-version"
 
 [tool.hatch.build.targets.sdist]
 include = ["src/", "tests/", "examples/", "README.md", "CHANGELOG.md"]
-exclude = [".gitignore"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/yapss"]

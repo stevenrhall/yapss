@@ -18,9 +18,10 @@ the recurring process.
 - [ ] Confirm that `pyproject.toml` remains the source of truth for pip
       dependencies. The conda-forge feedstock is synchronized from it
       manually.
-- [ ] If dependencies changed, manually synchronize
-      `conda/environment-test.yml` and `conda/recipe/meta.yaml` with
-      `pyproject.toml`.
+- [ ] If dependencies changed, manually synchronize the applicable conda
+      mirrors with `pyproject.toml`: `conda/environment-test.yml` for the test
+      environment, `conda/environment.yml` for the contributor environment,
+      and `conda/recipe/meta.yaml` for the package and development outputs.
 
 ## 2. Changelog
 
@@ -74,9 +75,11 @@ content.
 - [ ] Review `.github/workflows/*.yml` for correctness and required updates.
       Check comments, supported Python versions, action versions, job coverage,
       permissions, and jobs that should be added or retired.
-- [ ] Green CI on the release branch: full test matrix, lint, docs, and (if
-      dependencies touching the conda stack changed) a manual
-      `workflow_dispatch` run of the conda test job.
+- [ ] Confirm green CI on the release branch: full test matrix, lint, docs,
+      and the `test-conda` job that runs automatically on pull requests. If
+      contributor dependencies or `conda/environment.yml` changed, manually
+      dispatch `test-conda-dev-env`, which otherwise runs only on its weekly
+      schedule.
 - [ ] Before merging a branch that changes workflow trigger configuration
       (`on:` blocks), run the workflow manually with `workflow_dispatch` from
       that branch. GitHub applies trigger changes to pull-request checks when
@@ -91,7 +94,7 @@ content.
       different network access and toolchain constraints from local
       `make docs` or tox builds and requires Read the Docs project
       administration access. This pre-merge check is separate from the
-      post-publish `stable` check in §10.
+      post-publish `stable` check in §9.
 
 ## 6. Build verification
 
@@ -111,7 +114,9 @@ from previous builds and editable installations.
       ```
 - [ ] Review the sdist and wheel file listings (`tar tzf dist/*.tar.gz` and
       `unzip -l dist/*.whl`) for missing package data and unintended
-      development or test files.
+      development or test files. Compare the wheel's `METADATA` with the
+      sdist's `PKG-INFO`, and confirm the version, Python requirement,
+      dependencies, license files, and package data in both artifacts.
 
 ## 7. Merge to main
 
@@ -126,9 +131,17 @@ lines needed concurrent maintenance.
 - [ ] Squash merge, with a commit message drawn from the PR description or
       `CHANGELOG.md` entry rather than GitHub's default (which concatenates
       every commit subject from the branch).
-- [ ] Delete the head branch after the merge. The squashed commit remains in
+- [ ] Confirm that GitHub deleted the head branch automatically after the
+      merge; otherwise delete it manually. The squashed commit remains in
       `main`, and the pull-request page retains the pre-squash commit history.
 - [ ] Confirm that CI succeeds on `main` after the merge's `push` event.
+- [ ] Update local `main`, delete the merged local branch, and run
+      `git remote prune origin` to remove stale remote-tracking references.
+- [ ] Confirm that Read the Docs does not retain an active version for the
+      deleted branch. Configure an RTD automation rule with the `Delete
+      version` action for deleted branches so this cleanup normally occurs
+      automatically. Pull-request previews are separate and expire according
+      to RTD's retention policy.
 
 ## 8. Tag & publish
 
@@ -139,47 +152,52 @@ smoke test succeeds and a reviewer approves the protected `pypi` environment,
 the workflow publishes the same distribution to PyPI. Local publishing
 commands are not used.
 
-- [ ] For a dry run, create and push a temporary pre-release tag such as
-      `vX.Y.Zrc1`. Allow the build, TestPyPI publication, and installation
-      smoke test to complete without approving the final `pypi` deployment.
-      Delete the local and remote tag afterward:
-      ```
-      git tag -d vX.Y.Zrc1
-      git push origin :refs/tags/vX.Y.Zrc1
-      ```
-      A routine dry run may stop after the TestPyPI smoke test. The
-      conda-forge autotick bot tracks stable PyPI releases independently and
-      does not act on this pre-release. The dry run may be omitted if a recent
-      release exercised the same workflow and neither `publish.yml`, the
-      trusted-publisher registrations, nor the `pypi` environment protection
-      rule has changed.
+- [ ] If a release-candidate dry run is required, create and push a temporary
+      pre-release tag such as `vX.Y.Zrc1`. Confirm that the build, TestPyPI
+      publication, and installation smoke test succeed. TestPyPI distributions
+      cannot be replaced with the same version and filenames; if the artifacts
+      require correction, use a new tag such as `vX.Y.Zrc2` rather than
+      rerunning the complete workflow for the existing version. The dry run
+      may be omitted if a recent release exercised the same workflow and
+      neither `publish.yml`, the trusted-publisher registrations, nor the
+      `pypi` environment protection rule has changed.
 - [ ] On the first use of the workflow and after any subsequent workflow
-      change, approve the `pypi` deployment for the release-candidate tag.
-      Then run `pip install yapss==X.Y.Zrc1` without index options. TestPyPI
-      verifies installation only when it is configured as an additional
-      index; publishing the release candidate verifies normal PyPI resolution.
-      A published pre-release cannot be replaced and must be superseded by a
-      later release candidate if correction is required, so this is not part
-      of routine dry runs.
-- [ ] Tag `vX.Y.Z` and push. `hatch-vcs` derives the version from the tag,
-      and the tag push triggers the publish workflow.
-- [ ] Monitor the workflow. Review the TestPyPI publication and installation
-      smoke-test jobs before approving the protected `pypi` environment.
+      change, leave the release-candidate workflow waiting at the protected
+      `pypi` environment, review the preceding jobs, and approve the
+      production deployment. Then run `pip install yapss==X.Y.ZrcN` without
+      index options. TestPyPI verifies installation only when configured as an
+      additional index; publishing the release candidate verifies normal PyPI
+      resolution. For a routine dry run that does not require this production
+      test, cancel the workflow at the approval gate instead.
+- [ ] After completing the applicable release-candidate path, delete its local
+      and remote Git tags:
+      ```
+      git tag -d vX.Y.ZrcN
+      git push origin :refs/tags/vX.Y.ZrcN
+      ```
+      Deleting the Git tag does not remove a distribution already published to
+      PyPI or TestPyPI. Leave a production release candidate published, or yank
+      it with a reason after the final release; do not delete it as routine
+      cleanup. The conda-forge autotick bot tracks stable PyPI releases and
+      does not act on pre-releases.
+- [ ] Fetch `main`, confirm that local and remote `main` point to the approved
+      release commit, and confirm that `vX.Y.Z` is unused. Create and push the
+      final tag. `hatch-vcs` derives the version from the tag, and the tag push
+      triggers the publish workflow.
+- [ ] Before approving production publication, confirm that CI for the exact
+      tag succeeds, the tagged Read the Docs build succeeds, and the Publish
+      workflow's build, TestPyPI publication, installation, and smoke-test jobs
+      succeed. Review the TestPyPI version, dependency constraints, wheel, and
+      sdist.
 - [ ] Approve the `pypi` deployment in the Actions UI to run the final job.
-- [ ] Confirm the new version appears on pypi.org.
+- [ ] Confirm that the new version appears on pypi.org and that the production
+      wheel and sdist SHA-256 values match the artifacts tested on TestPyPI.
+- [ ] If this release supersedes a release with serious installation,
+      correctness, crash, or security defects, review whether the affected
+      release should be yanked. Prefer yanking with a clear reason to deleting
+      a release, which breaks exact pins and is irreversible.
 
-## 9. Conda
-
-- [ ] Wait for the conda-forge autotick bot pull request. It may take several
-      hours. The bot updates the version and SHA-256 value and resets the build
-      number to 0, but does **not** synchronize dependency changes; apply those
-      manually when required.
-- [ ] Merge the bot PR from a fork. conda-forge rejects PRs from branches on
-      the feedstock repo itself, even from maintainers.
-- [ ] Verify: `conda create -n check -c conda-forge yapss`, then run the
-      isoperimetric example.
-
-## 10. Post-publish docs checks
+## 9. Post-publish docs checks
 
 - [ ] Confirm that `stable` on Read the Docs resolves to the new version. Read
       the Docs normally selects the highest semantic-version tag; verify that
@@ -188,3 +206,17 @@ commands are not used.
       build does not confirm that the rendered output is correct.
 - [ ] If the previous release had a known-broken install and a docs banner
       or notice was added for it, remove or update that notice now.
+
+## 10. Conda
+
+Conda-forge automation may lag the PyPI release by several days; it does not
+block the post-publish documentation checks in section 9.
+
+- [ ] Wait for the conda-forge autotick bot pull request. The bot updates the
+      version and SHA-256 value and resets the build number to 0, but does
+      **not** synchronize dependency changes; apply those manually when
+      required.
+- [ ] Merge the bot PR from a fork. conda-forge rejects PRs from branches on
+      the feedstock repo itself, even from maintainers.
+- [ ] Verify: `conda create -n check -c conda-forge yapss`, then run the
+      isoperimetric example.
