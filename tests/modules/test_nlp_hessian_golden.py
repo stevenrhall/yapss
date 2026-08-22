@@ -255,6 +255,15 @@ def test_nlp_callbacks_match_golden(name, spectral_method, derivative_method, go
         )
 
 
+def fold_jacobian_dense(nlp: NLP, values: np.ndarray, nz: int) -> np.ndarray:
+    """Reconstruct the dense Jacobian from the sparse triple, summing duplicates."""
+    row, col = nlp.jacobianstructure()
+    dense = np.zeros((max(row) + 1 if row else 0, nz))
+    for r, c, v in zip(row, col, values, strict=True):
+        dense[r, c] += v
+    return dense
+
+
 def fold_hessian_dense(nlp: NLP, values: np.ndarray, nz: int) -> np.ndarray:
     """Reconstruct the dense symmetric Hessian from the sparse triple.
 
@@ -324,3 +333,61 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+FD_CASES = [(n, s) for n in PROBLEMS for s in (SPECTRAL_METHODS if MESHES[n] else ("lgl",))]
+
+
+@pytest.mark.parametrize(("name", "spectral_method"), FD_CASES)
+def test_central_difference_full_matches_central_difference(name, spectral_method):
+    """The "-full" variant must produce the same derivatives as sparsity-probed CD.
+
+    "central-difference-full" differs from "central-difference" only in the
+    first-derivative structure builders: it assumes every function depends on every
+    variable rather than probing sparsity at the initial guess. Everything downstream
+    is shared code fed a denser structure, so rather than pinning a second set of
+    near-identical golden values, this checks the two variants against each other:
+
+    * the probed structure must be a subset of the full structure (a full builder
+      that drops a variable class fails here), and
+    * the dense Jacobian and Hessian must agree to the finite-difference noise
+      floor. The extra entries of the full structure are central differences of
+      structurally-zero derivatives, which cancel only to roundoff -- about
+      eps/DELTA2**2 ~ 1e-9 of the function magnitude for the Hessian -- and fold
+      into coordinates shared with real terms, so agreement is not bitwise.
+
+    This is the only coverage the "-full" structure builders have; the golden matrix
+    deliberately excludes the method.
+    """
+    nlp_cd, inputs = build_nlp(name, spectral_method, "central-difference")
+    nlp_full, _ = build_nlp(name, spectral_method, "central-difference-full")
+    z, lam = inputs["z"], inputs["lam"]
+    nz = len(z)
+
+    # structure containment, as coordinate sets
+    for structure_of in (NLP.jacobianstructure, NLP.hessianstructure):
+        cd_pairs = set(zip(*structure_of(nlp_cd), strict=True))
+        full_pairs = set(zip(*structure_of(nlp_full), strict=True))
+        missing = cd_pairs - full_pairs
+        assert not missing, (
+            f"{structure_of.__name__}: full structure is missing {len(missing)} "
+            f"coordinate(s) present in the probed structure: {sorted(missing)[:5]}"
+        )
+
+    # dense value agreement, normalized so the absolute tolerance tracks the
+    # problem's magnitude; a dropped or mis-scaled term fails by many orders
+    jac_cd = fold_jacobian_dense(nlp_cd, np.asarray(nlp_cd.jacobian(z)), nz)
+    jac_full = fold_jacobian_dense(nlp_full, np.asarray(nlp_full.jacobian(z)), nz)
+    jac_scale = max(1.0, np.abs(jac_cd).max())
+    np.testing.assert_allclose(jac_full / jac_scale, jac_cd / jac_scale, rtol=1e-8, atol=1e-9)
+
+    sigma = inputs["objective_factor"]
+    hess_cd = fold_hessian_dense(nlp_cd, np.asarray(nlp_cd.hessian(z, lam, sigma)), nz)
+    hess_full = fold_hessian_dense(nlp_full, np.asarray(nlp_full.hessian(z, lam, sigma)), nz)
+    hess_scale = max(1.0, np.abs(hess_cd).max())
+    np.testing.assert_allclose(
+        hess_full / hess_scale,
+        hess_cd / hess_scale,
+        rtol=1e-6,
+        atol=1e-8,
+    )
