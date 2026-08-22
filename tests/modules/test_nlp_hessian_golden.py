@@ -32,8 +32,9 @@ To regenerate the golden file after an *intentional* change in behavior:
 
     python tests/modules/test_nlp_hessian_golden.py
 
-and commit the resulting ``data/nlp_golden.json`` along with the change that explains
-it. Never regenerate to make a refactor pass: a refactor must reproduce these values.
+which adds any missing cases while keeping the existing pinned values (pass ``--all``
+to overwrite everything, only for an intentional behavior change). Never regenerate to
+make a refactor pass: a refactor must reproduce these values.
 
 ``test_hessian_matches_finite_difference`` is different in kind: it checks the current
 assembly against finite differences of the gradient and constraint Jacobian, so it
@@ -54,6 +55,7 @@ from yapss._private.central_difference import make_cd_functions
 from yapss._private.guess import make_initial_guess_nlp
 from yapss._private.mesh import Mesh
 from yapss._private.nlp import NLP
+from yapss._private.user import make_user_functions
 from yapss.examples import (
     brachistochrone,
     dynamic_soaring,
@@ -137,6 +139,157 @@ def kitchen_sink_setup():
     return problem
 
 
+def kitchen_sink_user_derivatives(problem):
+    """Attach hand-derived derivative callbacks for the "user" method.
+
+    Each Hessian pair is supplied once, per the documented convention. Continuous
+    entries are broadcast over the time grid because constant f-term entries must be
+    arrays. The user-vs-auto agreement test validates this algebra against CasADi
+    before the values are pinned.
+    """
+
+    def objective_gradient(arg):
+        phase = arg.phase[0]
+        s = arg.parameter
+        gradient = arg.gradient
+        gradient[0, "tf", 0] = phase.integral[0]
+        gradient[0, "q", 0] = phase.final_time
+        gradient[0, "t0", 0] = 2.0 * phase.initial_time * s[0]
+        gradient[0, "s", 0] = phase.initial_time**2
+        gradient[0, "xf", 0] = phase.initial_state[1]
+        gradient[0, "x0", 1] = phase.final_state[0]
+        gradient[0, "s", 1] = phase.integral[1] ** 2
+        gradient[0, "q", 1] = 2.0 * s[1] * phase.integral[1]
+
+    def objective_hessian(arg):
+        phase = arg.phase[0]
+        s = arg.parameter
+        hessian = arg.hessian
+        hessian[(0, "tf", 0), (0, "q", 0)] = 1.0
+        hessian[(0, "t0", 0), (0, "t0", 0)] = 2.0 * s[0]
+        hessian[(0, "t0", 0), (0, "s", 0)] = 2.0 * phase.initial_time
+        hessian[(0, "xf", 0), (0, "x0", 1)] = 1.0
+        hessian[(0, "s", 1), (0, "q", 1)] = 2.0 * phase.integral[1]
+        hessian[(0, "q", 1), (0, "q", 1)] = 2.0 * s[1]
+
+    def continuous_jacobian(arg):
+        s = arg.parameter
+        for p in arg.phase_list:
+            x = arg.phase[p].state
+            (u,) = arg.phase[p].control
+            t = arg.phase[p].time
+            one = 0.0 * t + 1.0
+            jacobian = arg.phase[p].jacobian
+            # f0 = x0*x1*u + t**2*x0 + s0*t*u
+            jacobian[("f", 0), ("x", 0)] = x[1] * u + t**2
+            jacobian[("f", 0), ("x", 1)] = x[0] * u
+            jacobian[("f", 0), ("u", 0)] = x[0] * x[1] + s[0] * t
+            jacobian[("f", 0), ("t", 0)] = 2.0 * t * x[0] + s[0] * u
+            jacobian[("f", 0), ("s", 0)] = t * u
+            # f1 = t**3 + s1*x1**2 + u**2*t
+            jacobian[("f", 1), ("x", 1)] = 2.0 * s[1] * x[1]
+            jacobian[("f", 1), ("u", 0)] = 2.0 * u * t
+            jacobian[("f", 1), ("t", 0)] = 3.0 * t**2 + u**2
+            jacobian[("f", 1), ("s", 1)] = x[1] ** 2
+            # g0 = t**2*x0*u + s0*s1*t
+            jacobian[("g", 0), ("x", 0)] = t**2 * u
+            jacobian[("g", 0), ("u", 0)] = t**2 * x[0]
+            jacobian[("g", 0), ("t", 0)] = 2.0 * t * x[0] * u + s[0] * s[1]
+            jacobian[("g", 0), ("s", 0)] = s[1] * t
+            jacobian[("g", 0), ("s", 1)] = s[0] * t
+            # g1 = x1*u*t + s1**2
+            jacobian[("g", 1), ("x", 1)] = u * t
+            jacobian[("g", 1), ("u", 0)] = x[1] * t
+            jacobian[("g", 1), ("t", 0)] = x[1] * u
+            jacobian[("g", 1), ("s", 1)] = 2.0 * s[1] * one
+            # h0 = t**2*u*s0 + x0**2*t + x1*s1
+            jacobian[("h", 0), ("x", 0)] = 2.0 * x[0] * t
+            jacobian[("h", 0), ("x", 1)] = s[1] * one
+            jacobian[("h", 0), ("u", 0)] = t**2 * s[0]
+            jacobian[("h", 0), ("t", 0)] = 2.0 * t * u * s[0] + x[0] ** 2
+            jacobian[("h", 0), ("s", 0)] = t**2 * u
+            jacobian[("h", 0), ("s", 1)] = x[1] * one
+
+    def continuous_hessian(arg):
+        s = arg.parameter
+        for p in arg.phase_list:
+            x = arg.phase[p].state
+            (u,) = arg.phase[p].control
+            t = arg.phase[p].time
+            one = 0.0 * t + 1.0
+            hessian = arg.phase[p].hessian
+            # f0 = x0*x1*u + t**2*x0 + s0*t*u
+            hessian[("f", 0), ("x", 0), ("x", 1)] = u * one
+            hessian[("f", 0), ("x", 0), ("u", 0)] = x[1] * one
+            hessian[("f", 0), ("x", 1), ("u", 0)] = x[0] * one
+            hessian[("f", 0), ("x", 0), ("t", 0)] = 2.0 * t
+            hessian[("f", 0), ("t", 0), ("t", 0)] = 2.0 * x[0]
+            hessian[("f", 0), ("s", 0), ("t", 0)] = u * one
+            hessian[("f", 0), ("s", 0), ("u", 0)] = t
+            hessian[("f", 0), ("t", 0), ("u", 0)] = s[0] * one
+            # f1 = t**3 + s1*x1**2 + u**2*t
+            hessian[("f", 1), ("t", 0), ("t", 0)] = 6.0 * t
+            hessian[("f", 1), ("x", 1), ("x", 1)] = 2.0 * s[1] * one
+            hessian[("f", 1), ("s", 1), ("x", 1)] = 2.0 * x[1]
+            hessian[("f", 1), ("u", 0), ("u", 0)] = 2.0 * t
+            hessian[("f", 1), ("u", 0), ("t", 0)] = 2.0 * u
+            # g0 = t**2*x0*u + s0*s1*t
+            hessian[("g", 0), ("x", 0), ("u", 0)] = t**2
+            hessian[("g", 0), ("x", 0), ("t", 0)] = 2.0 * t * u
+            hessian[("g", 0), ("u", 0), ("t", 0)] = 2.0 * t * x[0]
+            hessian[("g", 0), ("t", 0), ("t", 0)] = 2.0 * x[0] * u
+            hessian[("g", 0), ("s", 0), ("s", 1)] = t
+            hessian[("g", 0), ("s", 0), ("t", 0)] = s[1] * one
+            hessian[("g", 0), ("s", 1), ("t", 0)] = s[0] * one
+            # g1 = x1*u*t + s1**2
+            hessian[("g", 1), ("x", 1), ("u", 0)] = t
+            hessian[("g", 1), ("x", 1), ("t", 0)] = u * one
+            hessian[("g", 1), ("u", 0), ("t", 0)] = x[1] * one
+            hessian[("g", 1), ("s", 1), ("s", 1)] = 2.0 * one
+            # h0 = t**2*u*s0 + x0**2*t + x1*s1
+            hessian[("h", 0), ("t", 0), ("t", 0)] = 2.0 * u * s[0]
+            hessian[("h", 0), ("t", 0), ("u", 0)] = 2.0 * t * s[0]
+            hessian[("h", 0), ("s", 0), ("t", 0)] = 2.0 * t * u
+            hessian[("h", 0), ("s", 0), ("u", 0)] = t**2
+            hessian[("h", 0), ("x", 0), ("x", 0)] = 2.0 * t
+            hessian[("h", 0), ("x", 0), ("t", 0)] = 2.0 * x[0]
+            hessian[("h", 0), ("x", 1), ("s", 1)] = one
+
+    def discrete_jacobian(arg):
+        phase = arg.phase[0]
+        s = arg.parameter
+        jacobian = arg.jacobian
+        # d0 = tf**2*s0 + x0_0*q1
+        jacobian[0, (0, "tf", 0)] = 2.0 * phase.final_time * s[0]
+        jacobian[0, (0, "s", 0)] = phase.final_time**2
+        jacobian[0, (0, "x0", 0)] = phase.integral[1]
+        jacobian[0, (0, "q", 1)] = phase.initial_state[0]
+        # d1 = t0*xf_1 + s1**2*q0
+        jacobian[1, (0, "t0", 0)] = phase.final_state[1]
+        jacobian[1, (0, "xf", 1)] = phase.initial_time
+        jacobian[1, (0, "s", 1)] = 2.0 * s[1] * phase.integral[0]
+        jacobian[1, (0, "q", 0)] = s[1] ** 2
+
+    def discrete_hessian(arg):
+        phase = arg.phase[0]
+        s = arg.parameter
+        hessian = arg.hessian
+        hessian[0, (0, "tf", 0), (0, "tf", 0)] = 2.0 * s[0]
+        hessian[0, (0, "tf", 0), (0, "s", 0)] = 2.0 * phase.final_time
+        hessian[0, (0, "x0", 0), (0, "q", 1)] = 1.0
+        hessian[1, (0, "t0", 0), (0, "xf", 1)] = 1.0
+        hessian[1, (0, "s", 1), (0, "s", 1)] = 2.0 * phase.integral[0]
+        hessian[1, (0, "s", 1), (0, "q", 0)] = 2.0 * s[1]
+
+    functions = problem.functions
+    functions.objective_gradient = objective_gradient
+    functions.objective_hessian = objective_hessian
+    functions.continuous_jacobian = continuous_jacobian
+    functions.continuous_hessian = continuous_hessian
+    functions.discrete_jacobian = discrete_jacobian
+    functions.discrete_hessian = discrete_hessian
+
+
 class _KitchenSinkModule:
     setup = staticmethod(kitchen_sink_setup)
 
@@ -166,17 +319,25 @@ PROBLEMS = {
 SPECTRAL_METHODS = ("lg", "lgr", "lgl")
 DERIVATIVE_METHODS = ("auto", "central-difference")
 
+# problems whose "user"-method derivative callbacks exist: the examples define their
+# own, and the kitchen sink's are attached by kitchen_sink_user_derivatives
+USER_METHOD_PROBLEMS = ("kitchen_sink", "brachistochrone", "goddard_problem_3_phase")
+
+# the "user" cases are appended after the original matrix so that regenerating the
+# golden file extends it without rewriting the existing entries
 CASES = [
     (name, spectral, method)
     for name in PROBLEMS
     for spectral in (SPECTRAL_METHODS if MESHES[name] else ("lgl",))
     for method in DERIVATIVE_METHODS
-]
+] + [(name, spectral, "user") for name in USER_METHOD_PROBLEMS for spectral in SPECTRAL_METHODS]
 
 
 def build_nlp(name: str, spectral_method: str, derivative_method: str) -> tuple[NLP, dict]:
     """Build the NLP for one case, with deterministic evaluation inputs."""
     problem = PROBLEMS[name].setup()
+    if name == "kitchen_sink" and derivative_method == "user":
+        kitchen_sink_user_derivatives(problem)
     for p, points in enumerate(MESHES[name]):
         problem.mesh.phase[p].collocation_points = points
         problem.mesh.phase[p].fraction = [1.0 / len(points)] * len(points)
@@ -190,6 +351,8 @@ def build_nlp(name: str, spectral_method: str, derivative_method: str) -> tuple[
     z0 = make_initial_guess_nlp(problem, mesh)
     if derivative_method == "auto":
         functions = make_auto_functions(problem)
+    elif derivative_method == "user":
+        functions = make_user_functions(problem, z0, mesh.tau_u)
     else:
         functions = make_cd_functions(problem, z0, mesh.tau_u)
     nlp = NLP(problem, functions, mesh)
@@ -244,6 +407,9 @@ def golden() -> dict:
 # mutation this suite was validated against fails these by many orders of magnitude.
 TOLERANCES = {
     ("value", "auto"): {"rtol": 1e-10, "atol": 1e-12},
+    ("value", "user"): {"rtol": 1e-10, "atol": 1e-12},
+    ("first", "user"): {"rtol": 1e-10, "atol": 1e-12},
+    ("second", "user"): {"rtol": 1e-10, "atol": 1e-12},
     ("value", "central-difference"): {"rtol": 1e-10, "atol": 1e-12},
     ("first", "auto"): {"rtol": 1e-10, "atol": 1e-12},
     ("first", "central-difference"): {"rtol": 1e-8, "atol": 1e-9},
@@ -349,16 +515,34 @@ def test_hessian_matches_finite_difference(name, spectral_method):
     np.testing.assert_allclose(assembled / scale, (fd + fd.T) / 2 / scale, atol=5e-7)
 
 
-def main() -> None:
-    """Regenerate the golden file from the current implementation."""
-    data = {case_key(*case): evaluate_case(*case) for case in CASES}
+def main(regenerate_all: bool = False) -> None:
+    """Add missing cases to the golden file; keep the existing pinned values.
+
+    Existing entries are preserved deliberately: their authority comes from having
+    been generated by the implementation that predates the assembly refactors, and
+    regenerating them would replace that provenance with the current code's output
+    (bit-identical up to summation order, but no longer independent). Pass ``--all``
+    to overwrite everything -- only for an intentional behavior change, committed
+    together with the change that explains it.
+    """
+    data: dict = {}
+    if GOLDEN_PATH.exists() and not regenerate_all:
+        data = json.loads(GOLDEN_PATH.read_text())
+    added = 0
+    for case in CASES:
+        key = case_key(*case)
+        if key not in data:
+            data[key] = evaluate_case(*case)
+            added += 1
     GOLDEN_PATH.parent.mkdir(parents=True, exist_ok=True)
     GOLDEN_PATH.write_text(json.dumps(data, indent=1))
-    print(f"wrote {GOLDEN_PATH} ({len(data)} cases)")
+    print(f"wrote {GOLDEN_PATH} ({len(data)} cases, {added} added)")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    main(regenerate_all="--all" in sys.argv)
 
 
 FD_CASES = [(n, s) for n in PROBLEMS for s in (SPECTRAL_METHODS if MESHES[n] else ("lgl",))]
@@ -417,3 +601,33 @@ def test_central_difference_full_matches_central_difference(name, spectral_metho
         rtol=1e-6,
         atol=1e-8,
     )
+
+
+@pytest.mark.parametrize(
+    ("name", "spectral_method"),
+    [(n, sp) for n in USER_METHOD_PROBLEMS for sp in SPECTRAL_METHODS],
+)
+def test_user_derivatives_match_auto(name, spectral_method):
+    """User-supplied analytic derivatives must agree with automatic differentiation.
+
+    Both paths are exact, so the dense Jacobian and Hessian must match to roundoff.
+    This validates the hand-derived callbacks -- including the kitchen sink's, written
+    for this suite -- independently of the pinned values, and it is the only check
+    that the "user" structure deduction handles time-derivative terms: every example
+    problem with user derivatives is autonomous.
+    """
+    nlp_user, inputs = build_nlp(name, spectral_method, "user")
+    nlp_auto, _ = build_nlp(name, spectral_method, "auto")
+    z, lam = inputs["z"], inputs["lam"]
+    nz = len(z)
+
+    jac_user = fold_jacobian_dense(nlp_user, np.asarray(nlp_user.jacobian(z)), nz)
+    jac_auto = fold_jacobian_dense(nlp_auto, np.asarray(nlp_auto.jacobian(z)), nz)
+    scale = max(1.0, np.abs(jac_auto).max())
+    np.testing.assert_allclose(jac_user / scale, jac_auto / scale, rtol=1e-11, atol=1e-12)
+
+    sigma = inputs["objective_factor"]
+    hess_user = fold_hessian_dense(nlp_user, np.asarray(nlp_user.hessian(z, lam, sigma)), nz)
+    hess_auto = fold_hessian_dense(nlp_auto, np.asarray(nlp_auto.hessian(z, lam, sigma)), nz)
+    scale = max(1.0, np.abs(hess_auto).max())
+    np.testing.assert_allclose(hess_user / scale, hess_auto / scale, rtol=1e-11, atol=1e-12)

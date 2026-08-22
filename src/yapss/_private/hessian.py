@@ -13,8 +13,7 @@ Historically this lived in ``nlp.py`` as two functions that had to agree positio
 a structure builder emitting (row, col) index pairs, and an evaluator writing values at
 a manually-advanced cursor, each iterating the same term lists in the same order. A
 mismatch did not crash -- the sparse fold applied before handing the structure to
-Ipopt sums whatever entries
-it is given -- it silently produced a wrong Hessian.
+Ipopt sums whatever entries it is given -- it silently produced a wrong Hessian.
 
 This module instead builds a single **plan**: a sequence of :class:`HessianBlock`
 objects, each owning both its index pairs and the closure that produces the matching
