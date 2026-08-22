@@ -397,24 +397,33 @@ def golden() -> dict:
 
 # Tolerances for comparison against the pinned values, per (field kind, method).
 #
-# The golden data was generated on one numpy version, and numpy releases change SIMD
-# kernels for the transcendental functions, so callback evaluations differ across
-# versions at the last bit. Exact ("auto") derivatives inherit only that ulp-level
-# difference; finite differences amplify it by 1/step -- about eps/DELTA1 ~ 3e-11 of
-# the function magnitude for first derivatives and eps/DELTA2**2 ~ 1e-9 for second
-# derivatives -- so the central-difference fields carry the noise floor with margin.
+# Exact derivatives ("auto", "user") are pinned tightly: across numpy versions and
+# platforms they differ only by the last bit of the callback evaluations.
+#
+# Central-difference values cannot be pinned that tightly. A finite difference
+# amplifies the ulp-level evaluation differences between platforms and numpy versions
+# (different libm and SIMD kernels) by the reciprocal of the step, so the pinned
+# values are one platform's roundoff realization and another platform's differs by
+# up to the intrinsic finite-difference error. That error, measured against the
+# exact derivatives and normalized by the field's magnitude, is up to 3e-7 for the
+# Hessian (dynamic soaring, whose function values are large relative to its Hessian)
+# and 3e-10 for the Jacobian across the golden problems. The tolerances below sit an
+# order of magnitude above those measurements. A CI run on Linux/x86 against values
+# generated on macOS/arm64 differed by 1.9e-7 on exactly the predicted entry.
+#
 # All comparisons are normalized by the pinned field's magnitude; every assembly
-# mutation this suite was validated against fails these by many orders of magnitude.
+# mutation this suite was validated against -- down to a 0.04% scale error -- fails
+# these by orders of magnitude.
 TOLERANCES = {
     ("value", "auto"): {"rtol": 1e-10, "atol": 1e-12},
     ("value", "user"): {"rtol": 1e-10, "atol": 1e-12},
-    ("first", "user"): {"rtol": 1e-10, "atol": 1e-12},
-    ("second", "user"): {"rtol": 1e-10, "atol": 1e-12},
     ("value", "central-difference"): {"rtol": 1e-10, "atol": 1e-12},
     ("first", "auto"): {"rtol": 1e-10, "atol": 1e-12},
-    ("first", "central-difference"): {"rtol": 1e-8, "atol": 1e-9},
+    ("first", "user"): {"rtol": 1e-10, "atol": 1e-12},
+    ("first", "central-difference"): {"rtol": 1e-7, "atol": 1e-8},
     ("second", "auto"): {"rtol": 1e-10, "atol": 1e-12},
-    ("second", "central-difference"): {"rtol": 1e-6, "atol": 1e-7},
+    ("second", "user"): {"rtol": 1e-10, "atol": 1e-12},
+    ("second", "central-difference"): {"rtol": 1e-5, "atol": 3e-6},
 }
 FIELD_KIND = {
     "objective": "value",
