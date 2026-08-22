@@ -61,6 +61,20 @@ if TYPE_CHECKING:
 __all__ = ["HessianBlock", "make_nlp_hessian"]
 
 
+def over_points(value: Any, n_points: int) -> FloatArray:
+    """Return a derivative entry as an array over the evaluation points.
+
+    User callbacks treat states and controls as scalars, so a derivative that happens
+    to be constant is naturally written as a scalar -- ``hessian[key] = 1.0`` -- and
+    must be accepted wherever an array would be; the Jacobian assembly already does
+    this. Array entries pass through unchanged.
+    """
+    term = np.asarray(value, dtype=np.float64)
+    if term.ndim == 0:
+        return np.full(n_points, float(term))
+    return term
+
+
 @dataclass
 class HessianContext:
     """Per-evaluation inputs shared by all blocks.
@@ -329,10 +343,11 @@ def continuous_hessian_block(chs_term: CHSTerm, geometry: PhaseGeometry) -> Hess
     i_t0, i_tf = geometry.i_t0, geometry.i_tf
     t0_view, tf_view = geometry.t0_view, geometry.tf_view
     tau_index = geometry.tau[index]
+    n_points = len(geometry.tau)
 
     def term_values(context: HessianContext) -> FloatArray:
         dt = tf_view[0] - t0_view[0]
-        term = np.asarray(context.continuous_phase(p).hessian[chs_term], dtype=np.float64)
+        term = over_points(context.continuous_phase(p).hessian[chs_term], n_points)
         return term[index] * scale(dt)
 
     if cv_name1 == "t" and cv_name2 == "t":
@@ -394,19 +409,20 @@ def chain_rule_block(
     n, index = geometry.span(cf_name)
     i_t0, i_tf = geometry.i_t0, geometry.i_tf
     tau_index = geometry.tau[index]
+    n_points = len(geometry.tau)
 
     if cf_name == "f":
         lam_defect = lambda_.phase[p].defect[jj]
 
         def term_values(context: HessianContext) -> FloatArray:
-            jac = np.asarray(context.continuous_phase(p).jacobian[cjs_term], dtype=np.float64)
+            jac = over_points(context.continuous_phase(p).jacobian[cjs_term], n_points)
             return lam_defect * jac[index]
 
     else:
         lam_integral = lambda_.phase[p].integral
 
         def term_values(context: HessianContext) -> FloatArray:
-            jac = np.asarray(context.continuous_phase(p).jacobian[cjs_term], dtype=np.float64)
+            jac = over_points(context.continuous_phase(p).jacobian[cjs_term], n_points)
             return np.asarray(lam_integral[jj] * w * jac, dtype=np.float64)
 
     if cv_name == "t":
@@ -423,25 +439,21 @@ def chain_rule_block(
 
         return HessianBlock((i_t0, i_t0, i_tf), (i_t0, i_tf, i_tf), evaluate)
 
-    # variable terms: the Jacobian value may be a scalar (a constant derivative), so
-    # broadcast it over the evaluation points before indexing
+    # variable terms
     var_cols = geometry.variable_indices(cv_name, j, index)
-    n_points = len(geometry.tau)
 
     if cf_name == "f":
 
         def evaluate(context: HessianContext) -> FloatArray:
-            buffer = np.zeros(n_points)
-            buffer[:] = 0.5 * context.continuous_phase(p).jacobian[cjs_term]
-            rhs = buffer[index] * lam_defect
+            jac = over_points(context.continuous_phase(p).jacobian[cjs_term], n_points)
+            rhs = 0.5 * jac[index] * lam_defect
             return np.concatenate((-rhs, rhs))
 
     else:
 
         def evaluate(context: HessianContext) -> FloatArray:
-            buffer = np.zeros(n_points)
-            buffer[:] = 0.5 * context.continuous_phase(p).jacobian[cjs_term]
-            rhs = buffer[index] * (w * lam_integral[jj])
+            jac = over_points(context.continuous_phase(p).jacobian[cjs_term], n_points)
+            rhs = 0.5 * jac[index] * (w * lam_integral[jj])
             return np.concatenate((-rhs, rhs))
 
     return HessianBlock(n * (i_t0,) + n * (i_tf,), 2 * var_cols, evaluate)

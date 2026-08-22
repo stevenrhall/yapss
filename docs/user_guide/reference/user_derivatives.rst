@@ -84,6 +84,14 @@ Each entry is a partial derivative with respect to a decision variable. The deci
 - ``("s", i)``: Parameter vector element ``i``.
 - ``("t", 0)``: Time variable.
 
+The values follow the same convention as the continuous function itself: write each
+derivative as an expression in the states, controls, parameters, and time, treating them
+as scalars. A derivative that happens to be constant is simply a number -- for a dynamics
+element ``x * u``, the entries are ``jacobian[("f", 0), ("x", 0)] = u`` and
+``jacobian[("f", 0), ("u", 0)] = x``, and the mixed second derivative is
+``hessian[("f", 0), ("x", 0), ("u", 0)] = 1.0``. An array over the time grid is accepted
+wherever a scalar is, but it is never required.
+
 The Hessian of the continuous functions is defined similarly:
 
 .. testcode:: group1
