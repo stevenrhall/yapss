@@ -13,8 +13,11 @@ IPOPT. In particular, the class NLP defines the methods
  :meth:`NLP.jacobianstructure`
  :meth:`NLP.hessianstructure`
 
-required by Ipopt. In addition, it includes as an attribute `ipopt_kwargs`, which is a
-dictionary of the keyword arguments needed to instantiate a `cyipopt.Problem` instance.
+required by Ipopt. The Jacobian and Hessian callbacks and their structures are built
+by the `jacobian` and `hessian` modules from single assembly plans; this module holds
+the class, the value-level callbacks (objective, gradient, constraints), and the
+evaluators for the user's continuous and discrete functions that the plan modules
+consume.
 
 """
 
@@ -26,7 +29,6 @@ from typing import TYPE_CHECKING, cast
 
 # third party imports
 import numpy as np
-from scipy.sparse import csr_matrix
 
 from .hessian import make_nlp_hessian
 
@@ -58,7 +60,7 @@ if TYPE_CHECKING:
     import yapss
 
     from .mesh import Mesh
-    from .types_ import DJSTerm, DVKey
+    from .types_ import DVKey
 
     FloatArray = NDArray[np.float64]
     Intermediate = Callable[
@@ -107,8 +109,6 @@ class NLP:
             make_eval_discrete_jacobian(nlp),
         )
 
-        simplify_jacobian(nlp)
-
         self.nlp_hessian_structure: tuple[tuple[int, ...], tuple[int, ...]] = ((), ())
 
         self.intermediate: Intermediate | None = None
@@ -120,7 +120,6 @@ class NLP:
                 nlp,
                 make_eval_continuous(nlp),
             )
-            simplify_hessian(nlp)
         self.eval_continuous = make_eval_continuous(self)
 
     def objective(self, z: FloatArray) -> float:
@@ -224,90 +223,6 @@ class NLP:
         tuple[tuple[int, ...], tuple[int, ...]]
         """
         return self.nlp_hessian_structure
-
-
-def simplify_hessian(nlp: NLP) -> None:
-    """Eliminate redundant indices in the NLP hessian structure."""
-    hs = nlp.nlp_hessian_structure
-
-    # get sorted, unique row column pairs
-    row, col = hs
-    n = len(row)
-    rc = [(row[i], col[i]) for i in range(n)]
-    rc = list(set(rc))
-    rc.sort()
-    irow, jcol = tuple(item[0] for item in rc), tuple(item[1] for item in rc)
-
-    # make hessian structure lower triangular
-    if irow:
-        temp = [
-            [irow[i], jcol[i]] if irow[i] >= jcol[i] else [jcol[i], irow[i]]
-            for i in range(len(irow))
-        ]
-        irow, jcol = tuple(zip(*temp, strict=True))
-
-    # make dictionary that will have values that are the row index of sparse matrix
-    rc_dict = {item: k for k, item in enumerate(rc)}
-
-    a_value: FloatArray
-    a_value = np.ones(n)
-    a_row = [rc_dict[row[i], col[i]] for i in range(n)]
-    a_col = list(range(n))
-
-    if row:
-        a = csr_matrix((a_value, (a_row, a_col)))
-        nlp.nlp_hessian_structure = tuple(irow), tuple(jcol)
-        hessian_long = nlp._hessian
-
-        def hessian_short(
-            z: FloatArray,
-            lam: FloatArray,
-            objective_factor: np.float64,
-        ) -> FloatArray:
-            return np.array(
-                a * hessian_long(z, lam, np.float64(objective_factor)),
-                dtype=np.float64,
-            )
-
-        nlp._hessian = hessian_short
-
-
-def simplify_jacobian(nlp: NLP) -> None:
-    """Eliminate redundant indices in the NLP hessian structure."""
-    # TODO: Move to the jacobian routine
-    js = nlp.irow, nlp.jcol
-
-    # get sorted, unique row column pairs
-    row: tuple[int, ...] | list[int]
-    col: tuple[int, ...] | list[int]
-
-    row, col = js
-    row = [int(r) for r in row]
-    col = [int(c) for c in col]
-    n = len(row)
-    rc = [(row[i], col[i]) for i in range(n)]  # TODO: use zip?
-    rc = list(set(rc))
-    rc.sort()
-    irow, jcol = [item[0] for item in rc], [item[1] for item in rc]
-
-    # make dictionary have ??? values that are the row index of sparse matrix
-    rc_dict = {item: k for k, item in enumerate(rc)}
-
-    a_value: FloatArray
-    a_value = np.ones(n)
-    a_row = [rc_dict[row[i], col[i]] for i in range(n)]
-    a_col = list(range(n))
-
-    # n == 0 is edge case in which there are no constraints.
-    if n > 0:
-        a = csr_matrix((a_value, (a_row, a_col)))
-        nlp.irow, nlp.jcol = tuple(irow), tuple(jcol)
-        jacobian_long = nlp._jacobian
-
-        def jacobian_short(z: FloatArray) -> FloatArray:
-            return np.array(a * jacobian_long(z), dtype=float)
-
-        nlp._jacobian = jacobian_short
 
 
 def make_nlp_objective(nlp: NLP) -> Callable[[FloatArray], float]:
@@ -482,8 +397,8 @@ def make_eval_continuous(nlp: NLP) -> Callable[[FloatArray, int], ContinuousArg[
     """Make callback function to evaluate the problem continuous functions.
 
     Make callback function that returns the results of calling the continuous function,
-    and optionally the continuous_jacobian and continuous_hessian functions. Called by
-    `make_nlp_constraint_jacobian`.
+    and optionally the continuous_jacobian and continuous_hessian functions. Consumed
+    by the Jacobian and Hessian assembly plans.
 
     Parameters
     ----------
@@ -553,9 +468,6 @@ def make_eval_discrete_jacobian(nlp: NLP) -> Callable[[FloatArray], Sequence[np.
         Callback function to evaluate the contribution of the discrete constraints to the
         NLP Jacobian.
     """
-    # This section of code could be inside eval_nlp_jacobian, but that function is already
-    # too long
-
     problem = nlp.problem
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     arg = DiscreteJacobianArg(problem, dv)
@@ -581,16 +493,12 @@ def make_eval_discrete_jacobian(nlp: NLP) -> Callable[[FloatArray], Sequence[np.
         # (for each phase) and s
         dv.z[:] = z
 
-        discrete_jacobian = []
-
         # call and return the user-defined discrete jacobian
-        if problem.nd > 0:
-            nlp.functions.discrete_jacobian(arg)
-            djs_term: DJSTerm
-            for djs_term in nlp.functions.discrete_jacobian_structure:
-                discrete_jacobian.append(arg.jacobian[djs_term])  # noqa: PERF401
-
-        return discrete_jacobian
+        if problem.nd == 0:
+            return []
+        nlp.functions.discrete_jacobian(arg)
+        structure = nlp.functions.discrete_jacobian_structure
+        return [arg.jacobian[djs_term] for djs_term in structure]
 
     # end callback function
 

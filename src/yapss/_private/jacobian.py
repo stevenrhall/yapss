@@ -21,9 +21,9 @@ Two Jacobian-specific points:
 * **Duplicate coordinates are load-bearing.** A defect row's derivative with respect
   to a state has both a constant differentiation-matrix entry and a
   ``(tf - t0)/2 * df/dx`` entry at the same (row, col) coordinate, emitted as separate
-  entries. ``simplify_jacobian`` folds the triple through a sparse matrix that *sums*
-  duplicates, which is exactly what makes the total correct. Entry multiplicity and
-  order are therefore part of the interface, pinned by the golden tests.
+  entries. The fold applied before handing the structure to Ipopt sums duplicates,
+  which is exactly what makes the total correct. Entry multiplicity and order are
+  therefore part of the interface, pinned by the golden tests.
 
 """
 
@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 # package imports
+from .fold import fold_structure
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
@@ -185,7 +186,16 @@ def make_nlp_jacobian(
             jacobian[block_slice] = evaluate(context)
         return jacobian
 
-    return structure, eval_nlp_jacobian
+    # fold the long structure onto unique coordinates; the summing matrix adds
+    # coincident entries -- see the module docstring on why that is load-bearing
+    folded_rows, folded_cols, summing = fold_structure(row, col)
+    if summing is None:
+        return structure, eval_nlp_jacobian
+
+    def eval_folded_jacobian(z: FloatArray) -> FloatArray:
+        return np.asarray(summing @ eval_nlp_jacobian(z), dtype=np.float64)
+
+    return (folded_rows, folded_cols), eval_folded_jacobian
 
 
 def phase_geometry(

@@ -12,7 +12,8 @@ cross-terms in (t0, tf) as well.
 Historically this lived in ``nlp.py`` as two functions that had to agree positionally:
 a structure builder emitting (row, col) index pairs, and an evaluator writing values at
 a manually-advanced cursor, each iterating the same term lists in the same order. A
-mismatch did not crash -- the sparse fold in ``simplify_hessian`` sums whatever entries
+mismatch did not crash -- the sparse fold applied before handing the structure to
+Ipopt sums whatever entries
 it is given -- it silently produced a wrong Hessian.
 
 This module instead builds a single **plan**: a sequence of :class:`HessianBlock`
@@ -39,6 +40,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 # package imports
+from .fold import fold_structure
 from .input_args import DiscreteHessianArg, ObjectiveHessianArg
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
@@ -196,7 +198,23 @@ def make_nlp_hessian(
             hessian[block_slice] = block.evaluate(context)
         return hessian
 
-    return structure, eval_nlp_hessian
+    # fold the long structure onto unique coordinates, mirrored to the lower triangle;
+    # the summing matrix adds coincident entries, which is what makes the totals right
+    folded_rows, folded_cols, summing = fold_structure(row, col, lower_triangular=True)
+    if summing is None:
+        return structure, eval_nlp_hessian
+
+    def eval_folded_hessian(
+        z: FloatArray,
+        lam: FloatArray,
+        objective_factor: np.float64,
+    ) -> FloatArray:
+        return np.asarray(
+            summing @ eval_nlp_hessian(z, lam, np.float64(objective_factor)),
+            dtype=np.float64,
+        )
+
+    return (folded_rows, folded_cols), eval_folded_hessian
 
 
 def build_phase_blocks(
