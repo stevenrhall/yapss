@@ -44,6 +44,7 @@ from .input_args import (
     ObjectiveGradientArg,
     ProblemFunctions,
 )
+from .jacobian import make_nlp_jacobian
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
@@ -93,19 +94,18 @@ class NLP:
         self.functions: ProblemFunctions = functions
         self.mesh = mesh
 
-        # TODO: figure out where this should go, if at all:
-        self.nj: int
         nlp = self
         self._objective = make_nlp_objective(nlp)
         self._constraints = make_nlp_constraints(nlp)
         self._gradient = make_nlp_objective_gradient(nlp)
 
-        # constraint jacobian
-        self.irow: tuple[int, ...] = ()
-        self.jcol: tuple[int, ...] = ()
-        self.jconst: FloatArray
-        get_nlp_jacobian_structure(nlp)
-        self._jacobian = make_nlp_constraint_jacobian(nlp)
+        # constraint jacobian: structure and evaluator come from one assembly plan,
+        # so their entries correspond by construction; see the jacobian module
+        (self.irow, self.jcol), self._jacobian = make_nlp_jacobian(
+            nlp,
+            make_eval_continuous(nlp),
+            make_eval_discrete_jacobian(nlp),
+        )
 
         simplify_jacobian(nlp)
 
@@ -478,135 +478,6 @@ def make_nlp_objective_gradient(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
     return eval_nlp_objective_gradient
 
 
-def make_nlp_constraint_jacobian(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
-    """Construct the NLP constraint Jacobian function from the problem definition.
-
-    Returns
-    -------
-    :meth:`jacobian` function
-    """
-    jacobian_constant: FloatArray
-    nj: int
-
-    problem = nlp.problem
-    spectral_method = problem.spectral_method
-    cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, int)
-    cf.c[:] = list(range(len(cf.c)))
-
-    jacobian_constant = nlp.jconst
-
-    nj = nlp.nj
-    eval_discrete_jacobian = make_eval_discrete_jacobian(nlp)
-    eval_continuous = make_eval_continuous(nlp)
-
-    dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, float)
-
-    # begin callback function
-
-    def eval_nlp_jacobian(
-        z: FloatArray,
-    ) -> FloatArray:
-        mesh = nlp.mesh
-
-        j = nj
-        # linear terms
-        jacobian: FloatArray = jacobian_constant.copy()
-
-        # nonlinear terms
-        if problem.np > 0:
-            c_output = c_out_2 = eval_continuous(z, 1)
-            dv.z[:] = z
-
-        for p in range(problem.np):
-            f = c_output.phase[p].dynamics
-            g = c_output.phase[p].integrand
-
-            col_points = problem.mesh.phase[p].collocation_points
-            nc = sum(col_points)
-            ni = 1
-            if spectral_method == "lgl":
-                nw = nc - len(col_points) + 1
-                defect_index = cf.phase[p].defect_index
-                nf = 1
-            elif spectral_method == "lg":
-                nw = nc
-                defect_index = list(range(nc))
-                nf = 0
-                ni = 0
-            else:
-                nw = nc
-                defect_index = list(range(nc))
-                nf = 0
-
-            w = mesh.w[p]
-            t0 = dv.phase[p].t0[0]
-            tf = dv.phase[p].tf[0]
-            dt = (tf - t0) / 2
-
-            for cjs_term in nlp.functions.continuous_jacobian_structure[p]:
-                (cf_name, _), (cv_name, _) = cjs_term
-
-                # sanitize inputs in case they are scalar
-                jac_term: NDArray[np.float64] = np.zeros([nw], dtype=float)
-                jac_term[:] = c_out_2.phase[p].jacobian[cjs_term]
-                if cf_name == "f":
-                    jac_term = dt * jac_term[defect_index]
-                    npoints = nc
-                    index = defect_index
-                elif cf_name == "g":
-                    jac_term = dt * w * jac_term
-                    npoints = nw
-                    index = list(range(nw))
-                elif cf_name == "h":
-                    npoints = nw
-                    index = list(range(nw))
-                else:  # pragma: no cover
-                    msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
-                    raise ValueError(msg)
-
-                if cv_name in ("x", "u", "s"):
-                    jacobian[j : j + npoints] = jac_term
-                    j += npoints
-                elif cv_name == "t":
-                    jac_term1 = jac_term * (1 - mesh.tau_u[p][index]) / 2
-                    jacobian[j : j + npoints - nf] = jac_term1[: npoints - nf]
-                    j += npoints - nf
-                    jac_term2 = jac_term * (1 + mesh.tau_u[p][index]) / 2
-                    jacobian[j : j + npoints - ni] = jac_term2[ni:]
-                    j += npoints - ni
-                else:  # pragma: no cover
-                    msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
-                    raise ValueError(msg)
-
-            # df/t0 and df/dtf due to (tf-t0)/2 in state equation
-            for i in range(problem.nx[p]):
-                jacobian[j : j + nc] = -0.5 * f[i][defect_index]
-                j += nc
-                jacobian[j : j + nc] = 0.5 * f[i][defect_index]
-                j += nc
-
-            # d integral / dt0 and d integral / dtf due to (tf-t0)/2 in quadrature
-            for i in range(problem.nq[p]):
-                integral = (w * g[i]).sum()
-                jacobian[j] = -0.5 * integral
-                j += 1
-                jacobian[j] = +0.5 * integral
-                j += 1
-
-            # TODO: move duration up front with other constant terms
-            # duration
-            j += 2
-
-        # discrete terms
-        jacobian[j:] = eval_discrete_jacobian(z)
-
-        return jacobian
-
-    # end callback function
-
-    return eval_nlp_jacobian
-
-
 def make_eval_continuous(nlp: NLP) -> Callable[[FloatArray, int], ContinuousArg[np.float64]]:
     """Make callback function to evaluate the problem continuous functions.
 
@@ -724,198 +595,3 @@ def make_eval_discrete_jacobian(nlp: NLP) -> Callable[[FloatArray], Sequence[np.
     # end callback function
 
     return eval_discrete_jacobian
-
-
-def get_nlp_jacobian_structure(
-    nlp: NLP,
-) -> tuple[tuple[int, ...], tuple[int, ...], FloatArray, int]:
-    """Find the Jacobian structure of the constraints for the NLP.
-
-    Parameters
-    ----------
-    nlp : NLP
-
-    Returns
-    -------
-    tuple[int, ...]
-        The row indices of the nonzero elements of the Jacobian.
-    tuple[int, ...]
-        The column indices of the nonzero elements of the Jacobian.
-    NDArray
-        An array with the constant values of the Jacobian.
-    int
-        The number of constant values.
-    """
-    # typing
-    dv_key: DVKey
-
-    problem = nlp.problem
-    spectral_method = problem.spectral_method
-    mesh = nlp.mesh
-
-    r: list[int]
-
-    c: list[int] = []
-    c1: list[int] = []
-    c2: list[int] = []
-    defect_index: list[int] = []
-
-    row: list[int] = []
-    col: list[int] = []
-    linear_jacobian: list[np.float64 | float] = []
-
-    # dv holds integer indices into the NLP vectors, not values.
-    dv: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
-    dv.z[:] = list(range(len(dv.z)))
-    cf: CFStructure[np.int_] = get_nlp_cf_structure(problem, int)
-    cf.c[:] = list(range(len(cf.c)))
-
-    # for each phase
-    for p in range(problem.np):
-        dv_phase = dv.phase[p]
-        cf_phase = cf.phase[p]
-
-        # d(defect)/dx due to D terms
-        for i in range(problem.nx[p]):
-            r_, c_ = mesh.d[p].nonzero()
-            row += list(cf_phase.defect[i][r_])
-            col += list(dv_phase.xa[i][c_])
-            linear_jacobian += list((-mesh.d[p]).data)
-
-        # d(defect)/dx due to b terms
-        if problem.spectral_method == "lg":
-            for i in range(problem.nx[p]):
-                r_, c_ = mesh.b_lg[p].nonzero()
-                row += list(cf_phase.lg_defect[i][r_])
-                col += list(dv_phase.xa[i][c_])
-                linear_jacobian += list(mesh.b_lg[p].data)
-
-        # d(integral defect)/dq
-        nq = problem.nq[p]
-        row += list(cf_phase.integral)
-        col += list(dv_phase.q)
-        linear_jacobian += nq * [-1.0]
-
-    # Variable terms
-    nj = len(row)
-    jacobian_structure = nlp.functions.continuous_jacobian_structure
-
-    # for each phase
-    for p in range(problem.np):
-        dv_phase = dv.phase[p]
-        cf_phase = cf.phase[p]
-        if spectral_method == "lgl":
-            defect_index = cf_phase.defect_index
-        col_points = problem.mesh.phase[p].collocation_points
-        nc = sum(col_points)
-        if spectral_method == "lgl":
-            ni = nc - len(col_points) + 1
-            nw = ni
-        else:
-            ni = nc + 1
-            nw = nc
-
-        # d {f | g | h} / d {x | u | t | s} terms
-        for cjs_term in jacobian_structure[p]:
-            (cf_name, i), (cv_name, j) = cjs_term
-
-            ni_ = 1
-            if spectral_method == "lgl":
-                if cf_name == "f":
-                    index = defect_index
-                    n = nc
-                else:
-                    index = list(range(ni))
-                    n = ni
-                n0 = n - 1
-            else:
-                index = list(range(nc))
-                n = nc
-                n0 = nc
-            if spectral_method == "lg":
-                ni_ = 0
-
-            # generate row indices
-            if cf_name == "f":
-                r = list(cf_phase.defect[i])
-            elif cf_name == "g":
-                r = nw * [cf_phase.integral[i]]
-            elif cf_name == "h":
-                r = list(cf_phase.path[i])
-            else:  # pragma: no cover
-                msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
-                raise ValueError(msg)
-
-            # generate column indices
-            if cv_name == "x":
-                c = list(dv_phase.x[j][index])
-            elif cv_name == "u":
-                c = list(dv_phase.u[j][index])
-            elif cv_name == "s":
-                c = n * [dv.s[j]]
-            elif cv_name == "t":
-                c1 = n0 * [dv_phase.t0[0]]
-                c2 = (n - ni_) * [dv_phase.tf[0]]
-            else:  # pragma: no cover
-                msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
-                raise ValueError(msg)
-
-            if cv_name in ("x", "u", "s"):
-                row += r
-                col += c
-                linear_jacobian += n * [0.0]
-            elif cv_name == "t":
-                row += r[:n0]
-                row += r[ni_:]
-                col += c1
-                col += c2
-                linear_jacobian += n0 * [0.0]
-                linear_jacobian += (n - ni_) * [0.0]
-            else:  # pragma: no cover
-                msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
-                raise ValueError(msg)
-
-        # df/dt0, df/dtf due to (tf-t0)/2 term
-        for i in range(problem.nx[p]):
-            row += list(cf_phase.defect[i])
-            col += nc * [dv_phase.t0[0]]
-            row += list(cf_phase.defect[i])
-            col += nc * [dv_phase.tf[0]]
-            linear_jacobian += 2 * nc * [0.0]
-
-        # d integral / dt0 and d integral / dtf due to (tf-t0)/2 in quadrature
-        nq = problem.nq[p]
-        for i in range(nq):
-            row += list(2 * [cf_phase.integral[i]])
-        col += list(nq * [dv_phase.t0[0], dv_phase.tf[0]])
-        linear_jacobian += 2 * nq * [0.0]
-
-        # duration
-        row += list(cf_phase.duration)
-        col += list(dv_phase.tf)
-        row += list(cf_phase.duration)
-        col += list(dv_phase.t0)
-        linear_jacobian += [1.0, -1.0]
-
-    # discrete constraints
-    if problem.nd > 0:
-        for i, dv_key in nlp.functions.discrete_jacobian_structure:
-            col.append(dv.var_dict[dv_key][0])
-            row.append(cf.discrete[i])
-            linear_jacobian.append(0)
-
-    # store results for use by jacobian function
-    irow = tuple(row)
-    jcol = tuple(col)
-    jconst: NDArray[np.float64] = np.array(linear_jacobian, dtype=float)
-
-    # a crude check to make sure nothing has gone wrong:
-    if len(irow) != len(jcol) or len(irow) != len(jconst):
-        raise RuntimeError
-    nlp.irow = irow
-    nlp.jcol = jcol
-    nlp.jconst = jconst
-    # TODO: remove nj?
-    nlp.nj = nj
-
-    return irow, jcol, jconst, nj
