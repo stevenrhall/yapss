@@ -232,13 +232,38 @@ def golden() -> dict:
     return json.loads(GOLDEN_PATH.read_text())
 
 
+# Tolerances for comparison against the pinned values, per (field kind, method).
+#
+# The golden data was generated on one numpy version, and numpy releases change SIMD
+# kernels for the transcendental functions, so callback evaluations differ across
+# versions at the last bit. Exact ("auto") derivatives inherit only that ulp-level
+# difference; finite differences amplify it by 1/step -- about eps/DELTA1 ~ 3e-11 of
+# the function magnitude for first derivatives and eps/DELTA2**2 ~ 1e-9 for second
+# derivatives -- so the central-difference fields carry the noise floor with margin.
+# All comparisons are normalized by the pinned field's magnitude; every assembly
+# mutation this suite was validated against fails these by many orders of magnitude.
+TOLERANCES = {
+    ("value", "auto"): {"rtol": 1e-10, "atol": 1e-12},
+    ("value", "central-difference"): {"rtol": 1e-10, "atol": 1e-12},
+    ("first", "auto"): {"rtol": 1e-10, "atol": 1e-12},
+    ("first", "central-difference"): {"rtol": 1e-8, "atol": 1e-9},
+    ("second", "auto"): {"rtol": 1e-10, "atol": 1e-12},
+    ("second", "central-difference"): {"rtol": 1e-6, "atol": 1e-7},
+}
+FIELD_KIND = {
+    "objective": "value",
+    "constraints": "value",
+    "gradient": "first",
+    "jacobian": "first",
+    "hessian": "second",
+}
+
+
 @pytest.mark.parametrize(("name", "spectral_method", "derivative_method"), CASES)
 def test_nlp_callbacks_match_golden(name, spectral_method, derivative_method, golden):
     """All NLP callback outputs must be unchanged from the pinned values.
 
-    Structures are compared exactly. Values use a tolerance tight enough that any real
-    assembly defect (a missing, duplicated, or misplaced term) fails by many orders of
-    magnitude, while last-bit floating-point differences across platforms pass.
+    Structures are compared exactly; values per the tolerance table above.
     """
     expected = golden[case_key(name, spectral_method, derivative_method)]
     actual = evaluate_case(name, spectral_method, derivative_method)
@@ -246,11 +271,12 @@ def test_nlp_callbacks_match_golden(name, spectral_method, derivative_method, go
     assert actual["jacobian_structure"] == expected["jacobian_structure"]
     assert actual["hessian_structure"] == expected["hessian_structure"]
     for field in ("objective", "gradient", "constraints", "jacobian", "hessian"):
+        expected_values = np.asarray(expected[field])
+        scale = max(1.0, np.max(np.abs(expected_values)) if expected_values.size else 1.0)
         np.testing.assert_allclose(
-            np.asarray(actual[field]),
-            np.asarray(expected[field]),
-            rtol=1e-10,
-            atol=1e-12,
+            np.asarray(actual[field]) / scale,
+            expected_values / scale,
+            **TOLERANCES[FIELD_KIND[field], derivative_method],
             err_msg=f"{field} changed for {case_key(name, spectral_method, derivative_method)}",
         )
 
