@@ -315,11 +315,34 @@ Here’s a usage example for the ``arctan2`` function within a continuous callba
 ...     x1_dot = arctan2(x2, x3)
 ...     # more code here
 
+The Rule ``yapss.math`` Enforces
+................................
+
+Every function ``yapss.math`` provides must give the **same result under every differentiation
+method**. A function that quietly computed something different under automatic differentiation
+than under central differences would mean the solver was handed a different optimal control
+problem depending on a setting that is supposed to affect only how derivatives are obtained --
+and nothing would raise.
+
+So each NumPy `ufunc` falls into exactly one of three categories:
+
+**Supported**
+    Listed below. Checked against NumPy on both paths by the package's test suite.
+
+**Unsupported**
+    Raises ``yapss.math.UnsupportedMathFunctionError``. See `Unsupported Functions`_.
+
+**Not applicable**
+    Array-level functions (``sum``, ``clip``, ``matmul``), integer-domain functions (``gcd``,
+    ``left_shift``), and multiple-output functions (``frexp``, ``modf``). These are not
+    elementwise scalar operations, so the question does not arise.
+
+Note that "supported" is not the same as "smooth". ``abs``, ``sign``, ``floor``, ``maximum``,
+and the comparisons are all supported and all non-differentiable somewhere. They are legitimate
+modelling tools, but see the caution in `Comparisons and Gated Expressions`_.
+
 Available Functions
 ...................
-
-Essentially all NumPy `ufuncs` that are likely to be used in callback functions are available in
-``yapss.math``. Here are some of the most commonly used functions:
 
 **Trigonometric functions**
     - ``cos``, ``sin``, ``tan``
@@ -337,13 +360,127 @@ Essentially all NumPy `ufuncs` that are likely to be used in callback functions 
     - ``degrees``, ``radians``, ``deg2rad``, ``rad2deg``
 
 **Exponentials and logarithms**
-    - ``exp``, ``exp2``, ``log``, ``log2``, ``log10``
+    - ``exp``, ``exp2``, ``expm1``, ``log``, ``log1p``, ``log2``, ``log10``, ``logaddexp``,
+      ``logaddexp2``
+
+**Powers and roots**
+    - ``cbrt``, ``float_power``, ``hypot``, ``pow``, ``power``, ``reciprocal``, ``sqrt``,
+      ``square``
+
+**Arithmetic**
+    - ``add``, ``subtract``, ``multiply``, ``divide``, ``true_divide``
+
+**Modular arithmetic**
+    - ``mod``, ``remainder``, ``fmod``, ``floor_divide``
+
+    ``mod`` and ``remainder`` take the sign of the divisor; ``fmod`` truncates and takes the sign
+    of the dividend. This follows NumPy, and the two conventions differ whenever the operands
+    have opposite signs.
+
+**Sign and magnitude**
+    - ``abs``, ``absolute``, ``fabs``, ``copysign``, ``negative``, ``positive``, ``sign``,
+      ``conj``, ``conjugate``
+
+    ``copysign`` differs from NumPy at ``y == -0.0``: NumPy reads the floating-point sign bit,
+    which a symbolic expression cannot represent, so negative zero is treated as positive.
+
+**Rounding**
+    - ``ceil``, ``floor``, ``trunc``
+
+**Extrema**
+    - ``maximum``, ``minimum``, ``fmax``, ``fmin``
 
 **Comparison functions**
-    - ``maximum``, ``minimum``
+    - ``equal``, ``not_equal``, ``less``, ``less_equal``, ``greater``, ``greater_equal``
 
-**Miscellaneous functions**
-    - ``abs``, ``cbrt``, ``hypot``, ``power``, ``sign``, ``reciprocal``, ``square``, ``sqrt``
+**Logical functions**
+    - ``logical_and``, ``logical_or``, ``logical_not``, ``logical_xor``
+
+**Step function**
+    - ``heaviside``
+
+Comparisons and Gated Expressions
+.................................
+
+Comparisons are supported, and so are the corresponding **operators**. This matters because a
+gate is normally written with operators rather than function calls:
+
+>>> import numpy as np
+>>> from yapss.math import abs as yabs
+>>> y = np.array([-2.0, -0.5, 0.5, 2.0])
+>>> (yabs(y) <= 1) * 3.0
+array([0., 3., 3., 0.])
+
+The idiom above -- multiplying an expression by a comparison -- lets a path constraint apply over
+a finite interval instead of the whole phase. A constraint that should hold only while a state
+lies in some range can be written:
+
+.. code-block:: python
+
+    def continuous(arg):
+        x, y, v = arg.phase[0].state
+        (u,) = arg.phase[0].control
+        arg.phase[0].dynamics[:] = ...
+        # constrain v only where |y| <= 1; elsewhere the row evaluates to 0
+        arg.phase[0].path[:] = [(yabs(y) <= 1) * v]
+
+Because Python cannot overload ``and``, ``or``, and ``not``, combine masks with ``&``, ``|``, and
+``~`` instead:
+
+.. code-block:: python
+
+    inside = (y >= -1) & (y <= 1)
+    outside = ~inside
+
+.. caution::
+    A gate is not differentiable at its edges, and the two differentiation methods do not
+    disagree about the gate's *value* but do disagree about its *derivative* there. CasADi
+    differentiates a comparison to zero almost everywhere, while central differencing straddles
+    the discontinuity and sees a large finite difference.
+
+    In practice this means Ipopt may behave differently under the two methods on a gated
+    problem, and may converge to different points. A gate often works well near a solution and
+    can cause trouble far from one. If a gate is giving the solver difficulty, a smooth
+    approximation -- a ``tanh`` gate with a sharpness parameter, tightened over successive
+    solves -- trades the kink for a well-behaved gradient.
+
+Unsupported Functions
+.....................
+
+A few NumPy `ufuncs` inspect the floating-point representation of a number rather than its value,
+and have no symbolic equivalent. These raise
+``yapss.math.UnsupportedMathFunctionError``, a subclass of the built-in ``TypeError``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
+
+   * - Function
+     - Reason
+   * - ``nextafter``
+     - Steps between adjacent floating-point values.
+   * - ``rint``
+     - Rounds half to even, which CasADi cannot reproduce. ``floor(x + 0.5)`` rounds half away
+       from zero and would silently disagree with NumPy.
+   * - ``signbit``
+     - Reads the floating-point sign bit, including the sign of negative zero.
+   * - ``spacing``
+     - Returns the distance to the adjacent floating-point value.
+
+These raise for real arrays as well as symbolic ones:
+
+>>> from yapss.math import spacing
+>>> spacing(1.0)
+Traceback (most recent call last):
+    ...
+yapss.math.functions.UnsupportedMathFunctionError: 'spacing' is not supported in YAPSS callback functions...
+
+Rejecting on both paths is deliberate. If one of these worked under central differences and
+failed under automatic differentiation, a formulation could come to depend on the differentiation
+method, which is exactly what ``yapss.math`` exists to prevent.
+
+If you have a reason to use one anyway, call it through ``numpy`` directly -- ``yapss.math``
+declines to offer it, but does not prevent it.
 
 ``ContinuousArg`` Class Reference
 ----------------------------------

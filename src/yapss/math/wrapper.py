@@ -173,8 +173,8 @@ class SXW(NDArrayOperatorsMixin):
     # exponential and logarithmic functions
 
     def exp2(self) -> SXW:
-        """Return the exponential of the argument."""
-        return SXW(2 ** np.log(self._value))
+        """Return 2 raised to the power of the argument."""
+        return SXW(2**self._value)
 
     def log2(self) -> SXW:
         """Return the base 2 logarithm of the argument."""
@@ -189,7 +189,7 @@ class SXW(NDArrayOperatorsMixin):
     def cbrt(self) -> SXW:
         """Return the cube root of the argument."""
         value = self._value
-        return SXW(ca.sign(value) * ca.abs(value) ** (1 / 3))
+        return SXW(ca.sign(value) * ca.fabs(value) ** (1 / 3))
 
     def reciprocal(self) -> SXW:
         """Return the reciprocal of the argument."""
@@ -218,3 +218,116 @@ class SXW(NDArrayOperatorsMixin):
     def __ceil__(self) -> SXW:
         """Return the ceiling of the argument."""
         return self._apply_function(ca.ceil)
+
+    def __trunc__(self) -> SXW:
+        """Return the argument truncated toward zero."""
+        value = self._value
+        return SXW(ca.sign(value) * ca.floor(ca.fabs(value)))
+
+
+class SXArray(np.ndarray[Any, np.dtype[Any]]):
+    """Object-dtype ndarray of :class:`SXW` that keeps comparisons symbolic.
+
+    numpy's object-dtype comparison loop coerces each elementwise result to ``bool``.
+    :class:`SXW` defines no ``__bool__``, so Python's default makes every comparison
+    ``True``, and a gated expression such as ``(abs(y) <= 1) * x`` silently loses its
+    mask under the ``"auto"`` derivative method while working correctly under the
+    finite-difference methods.
+
+    ``yapss.math`` cannot intercept this: the operator form goes straight to
+    :class:`numpy.ndarray`, never through a module-level function. Overriding the
+    comparison operators on the array type is the only place it can be caught. CasADi
+    represents all of these exactly, so both derivative paths agree once it is.
+
+    Used for the symbolic state, control, and time arrays built in
+    ``yapss._private.auto``; the numeric path keeps plain float arrays, whose
+    comparisons already behave correctly.
+    """
+
+    # ensure the subclass wins reflected operations against plain ndarrays
+    __array_priority__ = 20.0
+
+    def _elementwise(self, other: Any, casadi_func: Callable[..., SX]) -> SXArray:
+        """Apply a two-argument casadi function elementwise, broadcasting `other`."""
+        left, right = np.broadcast_arrays(
+            np.asarray(self, dtype=object),
+            np.asarray(other, dtype=object),
+        )
+        result = np.empty(left.shape, dtype=object)
+        for index in np.ndindex(result.shape):
+            # annotated Any because mypy types ndarray tuple-indexing as ndarray, and so
+            # rules out the isinstance narrowing below; the elements really are SXW
+            a: Any = left[index]
+            b: Any = right[index]
+            result[index] = SXW(
+                casadi_func(
+                    a._value if isinstance(a, SXW) else a,
+                    b._value if isinstance(b, SXW) else b,
+                ),
+            )
+        return result.view(SXArray)
+
+    def _elementwise_unary(self, casadi_func: Callable[[SX], SX]) -> SXArray:
+        """Apply a one-argument casadi function elementwise."""
+        result = np.empty(self.shape, dtype=object)
+        for index in np.ndindex(result.shape):
+            a: Any = self[index]
+            result[index] = SXW(casadi_func(a._value if isinstance(a, SXW) else a))
+        return result.view(SXArray)
+
+    # comparison operators
+
+    def __eq__(self, other: Any) -> SXArray:  # type: ignore[override]
+        """Return the elementwise symbolic equality."""
+        return self._elementwise(other, ca.eq)
+
+    def __ne__(self, other: Any) -> SXArray:  # type: ignore[override]
+        """Return the elementwise symbolic inequality."""
+        return self._elementwise(other, ca.ne)
+
+    def __lt__(self, other: Any) -> SXArray:
+        """Return the elementwise symbolic less-than."""
+        return self._elementwise(other, ca.lt)
+
+    def __le__(self, other: Any) -> SXArray:
+        """Return the elementwise symbolic less-than-or-equal."""
+        return self._elementwise(other, ca.le)
+
+    def __gt__(self, other: Any) -> SXArray:
+        """Return the elementwise symbolic greater-than."""
+        return self._elementwise(other, ca.gt)
+
+    def __ge__(self, other: Any) -> SXArray:
+        """Return the elementwise symbolic greater-than-or-equal."""
+        return self._elementwise(other, ca.ge)
+
+    # mask combination: `&`, `|`, and `~`, since `and`, `or`, and `not` cannot be
+    # overloaded in Python
+
+    def __and__(self, other: Any) -> SXArray:
+        """Return the elementwise symbolic logical and."""
+        return self._elementwise(other, ca.logic_and)
+
+    def __rand__(self, other: Any) -> SXArray:
+        """Return the elementwise symbolic logical and."""
+        return self._elementwise(other, ca.logic_and)
+
+    def __or__(self, other: Any) -> SXArray:
+        """Return the elementwise symbolic logical or."""
+        return self._elementwise(other, ca.logic_or)
+
+    def __ror__(self, other: Any) -> SXArray:
+        """Return the elementwise symbolic logical or."""
+        return self._elementwise(other, ca.logic_or)
+
+    def __invert__(self) -> SXArray:
+        """Return the elementwise symbolic logical not."""
+        return self._elementwise_unary(ca.logic_not)
+
+    # __eq__ is overridden above, so __hash__ must be restated, as for SXW
+    __hash__: ClassVar[None] = None
+
+
+def sx_array(values: Any) -> SXArray:
+    """Build an :class:`SXArray` from a sequence of :class:`SXW` values."""
+    return np.array(values, dtype=object).view(SXArray)

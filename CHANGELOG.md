@@ -15,6 +15,55 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - Users can pin to a specific minor version (e.g., yapss>=0.3.0,<0.4.0) to avoid unexpected
   changes, but should expect significant updates when upgrading to a new minor version.
 
+## [Unreleased]
+
+### Fixed
+
+- Comparison and logical operations on symbolic values no longer silently collapse to `True` under
+  the `"auto"` derivative method. numpy's object-dtype loop coerces each elementwise result to
+  `bool`, and `SXW` defines no `__bool__`, so Python's default made every comparison true. A gated
+  expression such as `(abs(y) <= 1) * x` — enforcing a constraint only over a finite interval —
+  therefore evaluated correctly under the finite-difference derivative methods and lost its mask
+  entirely under `"auto"`, silently enforcing the constraint over the whole domain. CasADi
+  represents comparisons exactly, so the two paths now agree.
+
+  This is fixed at two levels. `yapss.math.equal`, `not_equal`, `less`, `less_equal`, `greater`,
+  `greater_equal`, `logical_and`, `logical_or`, and `logical_not` are now dispatched explicitly, as
+  `maximum` and `minimum` already were. The operator forms (`<=`, `&`, `~`, and so on) cannot be
+  intercepted by `yapss.math` at all, since they go straight to `numpy.ndarray`; the symbolic
+  state, control, and time arrays are now instances of a new `SXArray` subclass that overrides the
+  comparison and mask-combination operators.
+
+  Formulations that unknowingly relied on the mask being dropped will now produce different
+  results. Note also that agreement of *values* does not imply agreement of *derivatives*: CasADi
+  differentiates a comparison node to zero almost everywhere, while central differencing straddles
+  the discontinuity, so the two backends may still converge to different points on a gated problem.
+
+- The following `yapss.math` functions raised `TypeError` under the `"auto"` derivative method and
+  now work: `copysign`, `float_power`, `floor_divide`, `fmod`, `heaviside`, `logaddexp`,
+  `logaddexp2`, and `logical_xor`. `logaddexp` and `logaddexp2` are computed in a form that does
+  not overflow for large arguments, matching numpy.
+- `yapss.math.fmax` and `fmin` returned their first argument rather than the larger or smaller of
+  the two under the `"auto"` derivative method.
+- `yapss.math.mod` and `remainder` took the sign of the dividend rather than the divisor under the
+  `"auto"` derivative method, following casadi's truncating `fmod` instead of numpy's convention.
+  `yapss.math.fmod` keeps the truncating convention, as numpy does.
+- `yapss.math.exp2` computed `2**log(x)` rather than `2**x` under the `"auto"` derivative method.
+- `yapss.math.cbrt` raised `AttributeError` under the `"auto"` derivative method, calling the
+  nonexistent `casadi.abs` instead of `casadi.fabs`.
+- `yapss.math.trunc` raised `TypeError` under the `"auto"` derivative method; `SXW` defined
+  `__floor__` and `__ceil__` but not `__trunc__`.
+
+### Changed
+
+- `yapss.math.nextafter`, `rint`, `signbit`, and `spacing` now raise
+  `yapss.math.UnsupportedMathFunctionError` — a subclass of `TypeError`, which is what numpy
+  already raised for them under the `"auto"` derivative method — with a message naming the
+  function and suggesting `numpy` directly. These step between adjacent floating-point values or
+  read the sign bit, and have no symbolic equivalent. They raise for real arrays as well as
+  symbolic ones: a function that works under one derivative method and fails under another would
+  let a formulation depend on the derivative method chosen.
+
 ## [0.2.1] - 2026-08-17
 
 ### Fixed
