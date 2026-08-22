@@ -142,10 +142,11 @@ def kitchen_sink_setup():
 def kitchen_sink_user_derivatives(problem):
     """Attach hand-derived derivative callbacks for the "user" method.
 
-    Each Hessian pair is supplied once, per the documented convention. Continuous
-    entries are broadcast over the time grid because constant f-term entries must be
-    arrays. The user-vs-auto agreement test validates this algebra against CasADi
-    before the values are pinned.
+    Each Hessian pair is supplied once, per the documented convention. Entries are
+    written the way a user would write them: a derivative that is constant is a
+    scalar, not an array broadcast over the time grid, so these callbacks also pin
+    that scalar entries are accepted for every term kind. The user-vs-auto agreement
+    test validates the algebra against CasADi before the values are pinned.
     """
 
     def objective_gradient(arg):
@@ -178,7 +179,6 @@ def kitchen_sink_user_derivatives(problem):
             x = arg.phase[p].state
             (u,) = arg.phase[p].control
             t = arg.phase[p].time
-            one = 0.0 * t + 1.0
             jacobian = arg.phase[p].jacobian
             # f0 = x0*x1*u + t**2*x0 + s0*t*u
             jacobian[("f", 0), ("x", 0)] = x[1] * u + t**2
@@ -201,14 +201,14 @@ def kitchen_sink_user_derivatives(problem):
             jacobian[("g", 1), ("x", 1)] = u * t
             jacobian[("g", 1), ("u", 0)] = x[1] * t
             jacobian[("g", 1), ("t", 0)] = x[1] * u
-            jacobian[("g", 1), ("s", 1)] = 2.0 * s[1] * one
+            jacobian[("g", 1), ("s", 1)] = 2.0 * s[1]
             # h0 = t**2*u*s0 + x0**2*t + x1*s1
             jacobian[("h", 0), ("x", 0)] = 2.0 * x[0] * t
-            jacobian[("h", 0), ("x", 1)] = s[1] * one
+            jacobian[("h", 0), ("x", 1)] = s[1]
             jacobian[("h", 0), ("u", 0)] = t**2 * s[0]
             jacobian[("h", 0), ("t", 0)] = 2.0 * t * u * s[0] + x[0] ** 2
             jacobian[("h", 0), ("s", 0)] = t**2 * u
-            jacobian[("h", 0), ("s", 1)] = x[1] * one
+            jacobian[("h", 0), ("s", 1)] = x[1]
 
     def continuous_hessian(arg):
         s = arg.parameter
@@ -216,20 +216,19 @@ def kitchen_sink_user_derivatives(problem):
             x = arg.phase[p].state
             (u,) = arg.phase[p].control
             t = arg.phase[p].time
-            one = 0.0 * t + 1.0
             hessian = arg.phase[p].hessian
             # f0 = x0*x1*u + t**2*x0 + s0*t*u
-            hessian[("f", 0), ("x", 0), ("x", 1)] = u * one
-            hessian[("f", 0), ("x", 0), ("u", 0)] = x[1] * one
-            hessian[("f", 0), ("x", 1), ("u", 0)] = x[0] * one
+            hessian[("f", 0), ("x", 0), ("x", 1)] = u
+            hessian[("f", 0), ("x", 0), ("u", 0)] = x[1]
+            hessian[("f", 0), ("x", 1), ("u", 0)] = x[0]
             hessian[("f", 0), ("x", 0), ("t", 0)] = 2.0 * t
             hessian[("f", 0), ("t", 0), ("t", 0)] = 2.0 * x[0]
-            hessian[("f", 0), ("s", 0), ("t", 0)] = u * one
+            hessian[("f", 0), ("s", 0), ("t", 0)] = u
             hessian[("f", 0), ("s", 0), ("u", 0)] = t
-            hessian[("f", 0), ("t", 0), ("u", 0)] = s[0] * one
+            hessian[("f", 0), ("t", 0), ("u", 0)] = s[0]
             # f1 = t**3 + s1*x1**2 + u**2*t
             hessian[("f", 1), ("t", 0), ("t", 0)] = 6.0 * t
-            hessian[("f", 1), ("x", 1), ("x", 1)] = 2.0 * s[1] * one
+            hessian[("f", 1), ("x", 1), ("x", 1)] = 2.0 * s[1]
             hessian[("f", 1), ("s", 1), ("x", 1)] = 2.0 * x[1]
             hessian[("f", 1), ("u", 0), ("u", 0)] = 2.0 * t
             hessian[("f", 1), ("u", 0), ("t", 0)] = 2.0 * u
@@ -239,13 +238,13 @@ def kitchen_sink_user_derivatives(problem):
             hessian[("g", 0), ("u", 0), ("t", 0)] = 2.0 * t * x[0]
             hessian[("g", 0), ("t", 0), ("t", 0)] = 2.0 * x[0] * u
             hessian[("g", 0), ("s", 0), ("s", 1)] = t
-            hessian[("g", 0), ("s", 0), ("t", 0)] = s[1] * one
-            hessian[("g", 0), ("s", 1), ("t", 0)] = s[0] * one
+            hessian[("g", 0), ("s", 0), ("t", 0)] = s[1]
+            hessian[("g", 0), ("s", 1), ("t", 0)] = s[0]
             # g1 = x1*u*t + s1**2
             hessian[("g", 1), ("x", 1), ("u", 0)] = t
-            hessian[("g", 1), ("x", 1), ("t", 0)] = u * one
-            hessian[("g", 1), ("u", 0), ("t", 0)] = x[1] * one
-            hessian[("g", 1), ("s", 1), ("s", 1)] = 2.0 * one
+            hessian[("g", 1), ("x", 1), ("t", 0)] = u
+            hessian[("g", 1), ("u", 0), ("t", 0)] = x[1]
+            hessian[("g", 1), ("s", 1), ("s", 1)] = 2.0
             # h0 = t**2*u*s0 + x0**2*t + x1*s1
             hessian[("h", 0), ("t", 0), ("t", 0)] = 2.0 * u * s[0]
             hessian[("h", 0), ("t", 0), ("u", 0)] = 2.0 * t * s[0]
@@ -253,7 +252,7 @@ def kitchen_sink_user_derivatives(problem):
             hessian[("h", 0), ("s", 0), ("u", 0)] = t**2
             hessian[("h", 0), ("x", 0), ("x", 0)] = 2.0 * t
             hessian[("h", 0), ("x", 0), ("t", 0)] = 2.0 * x[0]
-            hessian[("h", 0), ("x", 1), ("s", 1)] = one
+            hessian[("h", 0), ("x", 1), ("s", 1)] = 1.0
 
     def discrete_jacobian(arg):
         phase = arg.phase[0]

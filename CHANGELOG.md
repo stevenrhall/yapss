@@ -56,6 +56,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   nonexistent `casadi.abs` instead of `casadi.fabs`.
 - `yapss.math.trunc` raised `TypeError` under the `"auto"` derivative method; `SXW` defined
   `__floor__` and `__ceil__` but not `__trunc__`.
+- Constant entries in user-supplied continuous Jacobian and Hessian callbacks can be written as
+  scalars, such as `hessian[("f", 0), ("x", 0), ("u", 0)] = 1.0`, for every kind of term. Previously
+  a scalar Hessian entry raised an uninformative `IndexError` unless the term was an integrand or
+  path pair not involving time, and the 0.2.1 → 0.2.2 assembly refactor had removed even that case.
+  Broadcasting a constant over the time grid by hand is no longer necessary anywhere; the user
+  derivative callbacks follow the same scalar convention as the continuous function itself.
 
 ### Changed
 
@@ -66,7 +72,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   read the sign bit, and have no symbolic equivalent. They raise for real arrays as well as
   symbolic ones: a function that works under one derivative method and fails under another would
   let a formulation depend on the derivative method chosen.
-
 ## [0.2.1] - 2026-08-17
 
 ### Fixed
