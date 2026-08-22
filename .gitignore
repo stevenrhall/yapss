@@ -23,3 +23,7 @@ __pycache__/
 /docs/user_guide/scripts/plots/*.txt
 /docs/user_guide/CHANGELOG.md
 /docs/user_guide/CONTRIBUTING.md
+
+# Claude Code working files, local to each developer.
+/CLAUDE.md
+/.claude/

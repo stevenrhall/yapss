@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy  # noqa: ICN001
 from casadi import SX
 
-from yapss.math.wrapper import SXW
+from yapss.math.wrapper import SXW, sx_array
 
 # package imports
 from .types_ import Protected
@@ -504,10 +504,12 @@ class ContinuousPhase(Protected, Generic[T]):
         else:
             raise RuntimeError
 
+        # symbolic time is a single free symbol: the continuous functions are traced
+        # once at a generic node, and the tau -> t chain rule is applied by the NLP
+        # assembly, which keeps the CasADi graph independent of the mesh size
         self.time: NDArray[T]
-        # TODO: This can't be right -- should get the time from the phase
         if dtype == np.object_:
-            self.time = SX.sym("t")
+            self.time = sx_array([SXW(SX.sym("t"))])
         else:
             self.time = numpy.zeros([nt], dtype=dtype)
         self.state: NDArray[Any] = numpy.zeros([problem.nx[q]], dtype=object)
@@ -525,8 +527,7 @@ class ContinuousPhase(Protected, Generic[T]):
         self._jacobian: dict[tuple[CFKey, CVKey], Any] = {}
 
         self._allowed_del_attrs = ()
-        # TODO: "time" should not be in list below but it's a kludge for now
-        self._allowed_attrs = ("dynamics", "integrand", "path", "time")
+        self._allowed_attrs = ("dynamics", "integrand", "path")
 
     @property
     def jacobian(self) -> dict[tuple[CFKey, CVKey], Any]:

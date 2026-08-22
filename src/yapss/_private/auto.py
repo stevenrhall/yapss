@@ -159,9 +159,6 @@ def make_args(
     objective_arg = ObjectiveArg(problem, dv, dtype=np.object_)
     discrete_arg = DiscreteArg(problem, dv, dtype=np.object_)
     continuous_arg = ContinuousArg(problem, dv=dv, dtype=np.object_)
-
-    for p in range(problem.np):
-        continuous_arg.phase[p].time = sx_array([SXW(SX.sym("t"))])
     return objective_arg, discrete_arg, continuous_arg
 
 

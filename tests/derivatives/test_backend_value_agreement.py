@@ -69,7 +69,17 @@ def nonsmooth_mix(arg):
     arg.phase[0].path[:] = [yabs(y) + sign(x) * minimum(v, 3.0) + maximum(x, 0.25)]
 
 
+def time_gate(arg):
+    """A mask on *time*: exercises the symbolic time array's comparison operators."""
+    _, _, v = arg.phase[0].state
+    (u,) = arg.phase[0].control
+    t = arg.phase[0].time
+    arg.phase[0].dynamics[:] = v * cos(u), v * sin(u), G0 * sin(u)
+    arg.phase[0].path[:] = [(t <= 0.3) * v]
+
+
 CALLBACKS = {
+    "time_gate": time_gate,
     "gated_path": gated_path,
     "two_sided_gate": two_sided_gate,
     "negated_gate": negated_gate,

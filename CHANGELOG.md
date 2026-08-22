@@ -48,6 +48,9 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - `yapss.math.mod` and `remainder` took the sign of the dividend rather than the divisor under the
   `"auto"` derivative method, following casadi's truncating `fmod` instead of numpy's convention.
   `yapss.math.fmod` keeps the truncating convention, as numpy does.
+- `arg.phase[p].time` in continuous callbacks is now read-only, like the other attributes the
+  framework sets. It had been left assignable as a workaround for the symbolic time array being
+  patched in after construction, which left a gap in the protection against attribute typos.
 - `yapss.math.exp2` computed `2**log(x)` rather than `2**x` under the `"auto"` derivative method.
 - `yapss.math.cbrt` raised `AttributeError` under the `"auto"` derivative method, calling the
   nonexistent `casadi.abs` instead of `casadi.fabs`.
