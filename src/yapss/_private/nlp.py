@@ -28,6 +28,8 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 from scipy.sparse import csr_matrix
 
+from .hessian import make_nlp_hessian
+
 # package imports
 from .input_args import (
     ContinuousArg,
@@ -36,12 +38,10 @@ from .input_args import (
     ContinuousJacobianArg,
     DiscreteArg,
     DiscreteFunctionFloat,
-    DiscreteHessianArg,
     DiscreteJacobianArg,
     ObjectiveArg,
     ObjectiveFunctionFloat,
     ObjectiveGradientArg,
-    ObjectiveHessianArg,
     ProblemFunctions,
 )
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     import yapss
 
     from .mesh import Mesh
-    from .types_ import DHS, OHS, CHSTerm, CJSTerm, DHSTerm, DJSTerm, DVKey, OHSTerm
+    from .types_ import DJSTerm, DVKey
 
     FloatArray = NDArray[np.float64]
     Intermediate = Callable[
@@ -114,8 +114,12 @@ class NLP:
         self.intermediate: Intermediate | None = None
         self._hessian: Callable[[FloatArray, FloatArray, np.float64], FloatArray]
         if problem.derivatives.order == "second":
-            self.nlp_hessian_structure = get_nlp_hessian_structure(nlp)
-            self._hessian = make_nlp_hessian(nlp)
+            # the structure and the evaluator come from one assembly plan, so their
+            # entries correspond by construction; see the hessian module
+            self.nlp_hessian_structure, self._hessian = make_nlp_hessian(
+                nlp,
+                make_eval_continuous(nlp),
+            )
             simplify_hessian(nlp)
         self.eval_continuous = make_eval_continuous(self)
 
@@ -603,241 +607,6 @@ def make_nlp_constraint_jacobian(nlp: NLP) -> Callable[[FloatArray], FloatArray]
     return eval_nlp_jacobian
 
 
-def make_nlp_hessian(nlp: NLP) -> Callable[[FloatArray, FloatArray, np.float64], FloatArray]:
-    """Construct the Hessian of the Lagrangian of the NLP.
-
-    Parameters
-    ----------
-    nlp : NLP
-
-    Returns
-    -------
-    Callable[[FloatArray, FloatArray, float], FloatArray]
-        The :meth:`hessian` function
-    """
-    problem = nlp.problem
-    spectral_method = problem.spectral_method
-    mesh = nlp.mesh
-    dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, float)
-    objective_input = ObjectiveHessianArg(problem, dv)
-    discrete_input = DiscreteHessianArg(problem, dv)
-
-    row, _ = nlp.nlp_hessian_structure
-    nnzh = len(row)
-    hessian: FloatArray
-    hessian = np.zeros([nnzh], dtype=np.float64)
-    cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, np.float64)
-    lambda_: CFStructure[np.float64] = get_nlp_cf_structure(problem, np.float64)
-    eval_continuous = make_eval_continuous(nlp)
-
-    # begin callback function
-
-    def eval_nlp_hessian(
-        z: FloatArray,
-        lam: FloatArray,
-        objective_factor: np.float64,
-    ) -> FloatArray:
-        # typing
-        chs_term: CHSTerm
-        cjs_term: CJSTerm
-        ohs_term: OHSTerm
-        dhs_term: DHSTerm
-
-        rhs: FloatArray
-
-        hessian[:] = 0.0
-        # The phase endpoint views used below belong to this local decision-variable
-        # structure, not to the structure synchronized by ``eval_continuous``.
-        # Copy the current NLP point before using its t0 and tf values.
-        dv.z[:] = z
-
-        continuous_jacobian_structure = nlp.functions.continuous_jacobian_structure
-        lambda_.c[:] = lam
-        if problem.np > 0:
-            c_output1_ = eval_continuous(z, 2)
-            if c_output1_ is not None:
-                c_output1: ContinuousArg[np.float64] = c_output1_
-            else:
-                msg = "Internal error: continuous output is None"  # type: ignore[unreachable]
-                raise RuntimeError(msg)
-        ih = 0
-        for p in range(problem.np):
-            tau = mesh.tau_u[p]
-            t0 = dv.phase[p].t0[0]
-            tf = dv.phase[p].tf[0]
-
-            # get mesh structure
-            col_points = problem.mesh.phase[p].collocation_points
-            nc = sum(col_points)
-            if spectral_method == "lgl":
-                nw = nc - len(col_points) + 1
-                defect_index = cf.phase[p].defect_index
-            else:
-                nw = nc
-                defect_index = list(range(nc))
-
-            for chs_term in nlp.functions.continuous_hessian_structure[p]:
-                (cf_name, i), (cv_name1, _), (cv_name2, _) = chs_term
-                if cf_name == "f":
-                    n = nc
-                    index = defect_index
-                else:
-                    n = nw
-                    index = list(range(n))
-
-                if cv_name1 == "t" and cv_name2 == "t":
-                    term: FloatArray = c_output1.phase[p].hessian[chs_term][index]
-                    if cf_name == "f":
-                        term *= 0.125 * (tf - t0) * lambda_.phase[p].defect[i]
-                    elif cf_name == "g":
-                        term *= mesh.w[p] * 0.125 * (tf - t0) * lambda_.phase[p].integral[i]
-                    elif cf_name == "h":
-                        term *= 0.25 * lambda_.phase[p].path[i]
-                    else:  # pragma: no cover
-                        msg = f"Invalid continuous Hessian structure term {chs_term} in phase {p}"
-                        raise ValueError(msg)
-                    hessian[ih] += ((1 - tau[index]) ** 2 * term).sum()
-                    ih += 1
-                    hessian[ih] += ((1 - tau[index] ** 2) * term).sum()
-                    ih += 1
-                    hessian[ih] += ((1 + tau[index]) ** 2 * term).sum()
-                    ih += 1
-
-                elif cv_name1 == "t" or cv_name2 == "t":
-                    term = c_output1.phase[p].hessian[chs_term][index]
-                    if cf_name == "f":
-                        term *= 0.25 * (tf - t0) * lambda_.phase[p].defect[i]
-                    elif cf_name == "g":
-                        term *= lambda_.phase[p].integral[i]
-                        term *= 0.25 * (tf - t0) * mesh.w[p]
-                    elif cf_name == "h":
-                        term *= 0.5 * lambda_.phase[p].path[i]
-                    else:  # pragma: no cover
-                        msg = f"Invalid continuous Hessian structure term {chs_term} in phase {p}"
-                        raise ValueError(msg)
-                    hessian[ih : ih + n] += (1 - tau[index]) * term
-                    ih += n
-                    hessian[ih : ih + n] += (1 + tau[index]) * term
-                    ih += n
-
-                else:
-                    term = c_output1.phase[p].hessian[chs_term]
-                    if cf_name == "f":
-                        term = 0.5 * (tf - t0) * lambda_.phase[p].defect[i] * term[index]
-                    elif cf_name == "g":
-                        term *= lambda_.phase[p].integral[i] * (0.5 * (tf - t0)) * mesh.w[p]
-                    elif cf_name == "h":
-                        term = lambda_.phase[p].path[i] * term
-                    else:  # pragma: no cover
-                        msg = f"Invalid continuous Hessian structure term {chs_term} in phase {p}"
-                        raise ValueError(msg)
-
-                    hessian[ih : ih + n] += term
-                    ih += n
-
-            # defect and integral jacobian terms
-            for cjs_term in continuous_jacobian_structure[p]:
-                (cf_name, jj), (cv_name, _) = cjs_term
-
-                if cf_name in ("f", "g"):
-                    if cf_name == "f":
-                        index = defect_index
-                        n = nc
-                    else:
-                        n = nw
-                        index = list(range(n))
-
-                    if cv_name == "t":
-                        if cf_name == "f":
-                            term = (
-                                lambda_.phase[p].defect[jj]
-                                * c_output1.phase[p].jacobian[cjs_term][index]
-                            )
-                        elif cf_name == "g":
-                            term = (
-                                lambda_.phase[p].integral[jj]
-                                * c_output1.phase[p].jacobian[cjs_term]
-                                * mesh.w[p]
-                            )
-                        else:  # pragma: no cover
-                            msg = (
-                                f"Invalid continuous Jacobian structure term {cjs_term} "
-                                f"in phase {p}"
-                            )
-                            raise ValueError(msg)
-
-                        hessian[ih] += -0.5 * ((1 - tau[index]) * term).sum()  # t0, t0
-                        ih += 1
-                        hessian[ih] += -0.5 * (tau[index] * term).sum()  # t0, tf
-                        ih += 1
-                        hessian[ih] += 0.5 * ((1 + tau[index]) * term).sum()  # tf, tf
-                        ih += 1
-
-                    else:
-                        rhs = np.zeros([nw], dtype=float)
-                        rhs[:] = 0.5 * c_output1.phase[p].jacobian[cjs_term]
-                        rhs = rhs[index]
-
-                        if cf_name == "f":
-                            rhs *= lambda_.phase[p].defect[jj]
-                        else:  # cf_name == "g"
-                            rhs *= mesh.w[p] * lambda_.phase[p].integral[jj]
-
-                        if cv_name in ("x", "u", "s"):
-                            hessian[ih : ih + n] = -rhs
-                            ih += n
-                            hessian[ih : ih + n] = +rhs
-                            ih += n
-                        else:  # pragma: no cover
-                            msg = (
-                                f"Invalid continuous Jacobian structure term {cjs_term} "
-                                f"in phase {p}"
-                            )
-                            raise ValueError(msg)
-
-                elif cf_name == "h":
-                    pass
-
-                else:  # pragma: no cover
-                    msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
-                    raise ValueError(msg)
-
-        objective_input.hessian.clear()
-        nlp.functions.objective_hessian(objective_input)
-
-        ohs = nlp.functions.objective_hessian_structure
-        objective_hessian = np.zeros(len(ohs))
-        for i, ohs_term in enumerate(ohs):
-            objective_hessian[i] = objective_input.hessian[ohs_term]
-
-        nc = len(ohs)
-        hessian[ih : ih + nc] = objective_hessian * objective_factor
-        ih += nc
-
-        if problem.nd > 0:
-            dv.z[:] = z
-            discrete_input.hessian.clear()
-            nlp.functions.discrete_hessian(discrete_input)
-
-            dhs = nlp.functions.discrete_hessian_structure
-            discrete_hessian = np.zeros(len(dhs))
-
-            for ii, dhs_term in enumerate(dhs):
-                discrete_hessian[ii] += (
-                    discrete_input.hessian[dhs_term] * lambda_.discrete[dhs_term[0]]
-                )
-
-            nc = len(dhs)
-            hessian[ih : ih + nc] = discrete_hessian
-            ih += nc
-
-        return hessian
-
-    # end callback function
-
-    return eval_nlp_hessian
-
-
 def make_eval_continuous(nlp: NLP) -> Callable[[FloatArray, int], ContinuousArg[np.float64]]:
     """Make callback function to evaluate the problem continuous functions.
 
@@ -1150,186 +919,3 @@ def get_nlp_jacobian_structure(
     nlp.nj = nj
 
     return irow, jcol, jconst, nj
-
-
-def get_nlp_hessian_structure(nlp: NLP) -> tuple[tuple[int, ...], tuple[int, ...]]:
-    """Find the Hessian structure for the Lagrangian of the NLP.
-
-    Parameters
-    ----------
-    nlp : NLP
-
-    Returns
-    -------
-    tuple[tuple[int, ...], tuple[int, ...]]
-        Row and column indices of the nonzero elements of the Hessian.
-    """
-    # typing
-    dv_key1: DVKey
-    dv_key2: DVKey
-    chs_term: CHSTerm
-    cjs_term: CJSTerm
-    dhs_term: DHSTerm
-    ohs_term: OHSTerm
-    ohs: OHS
-    dhs: DHS
-
-    ohs = nlp.functions.objective_hessian_structure
-    dhs = nlp.functions.discrete_hessian_structure
-
-    problem = nlp.problem
-    spectral_method = problem.spectral_method
-    if spectral_method not in ("lg", "lgr", "lgl"):
-        raise RuntimeError
-
-    # index structure of nlp problem
-    dv: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
-    dv.z[:] = list(range(len(dv.z)))
-    cf: CFStructure[np.int_] = get_nlp_cf_structure(problem, int)
-    cf.c[:] = list(range(len(cf.c)))
-
-    # continuous jacobian and hessian structures
-    cjs = nlp.functions.continuous_jacobian_structure
-    chs = nlp.functions.continuous_hessian_structure
-
-    row2: list[int] = []
-    col2: list[int] = []
-    defect_index: list[int] = []
-
-    for p in range(problem.np):
-        dv_phase = dv.phase[p]
-
-        cf_phase = cf.phase[p]
-        if spectral_method == "lgl":
-            defect_index = cf_phase.defect_index
-        col_points = problem.mesh.phase[p].collocation_points
-        nc = sum(col_points)
-
-        for chs_term in chs[p]:
-            (cf_name, _), (cv_name1, j), (cv_name2, k) = chs_term
-
-            # determine number of elements n in hessian
-            if spectral_method == "lgl":
-                if cf_name == "f":
-                    n = nc
-                    index = defect_index
-                else:
-                    n = nc - len(col_points) + 1
-                    index = list(range(n))
-            else:
-                n = nc
-                index = list(range(nc))
-
-            # t,t derivative terms
-            if cv_name1 == "t" and cv_name2 == "t":
-                i_t0, i_tf = dv_phase.t0[0], dv_phase.tf[0]
-                row2 += [i_t0, i_t0, i_tf]
-                col2 += [i_t0, i_tf, i_tf]
-
-            # {x|u|s},t derivative terms
-            elif cv_name1 == "t" or cv_name2 == "t":
-                # swap keys so that key3 is not "t"
-                if cv_name2 == "t":
-                    cv_name2, k = cv_name1, j
-
-                # x, u, and s cases
-                # `.tolist()` rather than `list(...)`: the latter yields numpy
-                # scalars, and `np.int_` is not a subclass of `int`, so it cannot
-                # go into these `list[int]` index lists. `.tolist()` converts to
-                # native ints, which is what was meant all along.
-                if cv_name2 == "x":
-                    row2 += 2 * dv_phase.x[k][index].tolist()
-                elif cv_name2 == "u":
-                    row2 += 2 * dv_phase.u[k][index].tolist()
-                elif cv_name1 == "s":
-                    row2 += 2 * n * [dv.s[j]]
-                else:  # pragma: no cover
-                    msg = f"Invalid continuous Hessian structure term {chs_term} in phase {p}"
-                    raise ValueError(msg)
-                col2 += n * [dv_phase.t0[0]]
-                col2 += n * [dv_phase.tf[0]]
-
-            # {x|u|s},{x|u|s} derivative terms
-            else:
-                if cv_name1 == "x":
-                    row2 += list(dv_phase.x[j][index])
-                elif cv_name1 == "u":
-                    row2 += list(dv_phase.u[j][index])
-                elif cv_name1 == "s":
-                    row2 += n * [dv.s[j]]
-                else:  # pragma: no cover
-                    msg = f"Invalid continuous Hessian structure term {chs_term} in phase {p}"
-                    raise ValueError(msg)
-
-                if cv_name2 == "x":
-                    col2 += list(dv_phase.x[k][index])
-                elif cv_name2 == "u":
-                    col2 += list(dv_phase.u[k][index])
-                elif cv_name2 == "s":
-                    col2 += n * [dv.s[k]]
-                else:  # pragma: no cover
-                    msg = f"Invalid continuous Hessian structure term {chs_term} in phase {p}"
-                    raise ValueError(msg)
-
-        # defect and integral jacobian terms
-        for cjs_term in cjs[p]:
-            (cf_name, _), (cv_name, j) = cjs_term
-
-            if spectral_method == "lgl":
-                if cf_name == "f":
-                    n = nc
-                    index = defect_index
-                else:
-                    n = nc - len(col_points) + 1
-                    index = list(range(n))
-            else:
-                n = nc
-                index = list(range(nc))
-
-            # t derivative terms
-            if cv_name == "t":
-                if cf_name in ("f", "g"):
-                    i_t0, i_tf = dv_phase.t0[0], dv_phase.tf[0]
-                    row2 += [i_t0, i_t0, i_tf]
-                    col2 += [i_t0, i_tf, i_tf]
-                elif cf_name == "h":
-                    pass
-                else:  # pragma: no cover
-                    msg = f"Invalid Jacobian continuous structure term {cjs_term} in phase {p}"
-                    raise ValueError(msg)
-
-            elif cf_name in ("f", "g"):
-                if cv_name == "x":
-                    col2 += 2 * dv_phase.x[j][index].tolist()
-                elif cv_name == "u":
-                    col2 += 2 * dv_phase.u[j][index].tolist()
-                elif cv_name == "s":
-                    col2 += 2 * n * [dv.s[j]]
-                else:  # pragma: no cover
-                    msg = f"Invalid  continuous Jacobian structure term {cf_name} in phase {p}"
-                    raise ValueError(msg)
-                row2 += n * [dv_phase.t0[0]]
-                row2 += n * [dv_phase.tf[0]]
-
-            elif cf_name == "h":
-                pass
-
-            else:  # pragma: no cover
-                msg = f"Invalid  continuous Jacobian structure term {cf_name} in phase {p}"
-                raise ValueError(msg)
-
-    row = row2
-    col = col2
-
-    for ohs_term in ohs:
-        dv_key1, dv_key2 = ohs_term
-        row.append(dv.var_dict[dv_key1][0])
-        col.append(dv.var_dict[dv_key2][0])
-
-    if problem.nd > 0:
-        for dhs_term in dhs:
-            _, dv_key1, dv_key2 = dhs_term
-            row.append(dv.var_dict[dv_key1][0])
-            col.append(dv.var_dict[dv_key2][0])
-
-    return tuple(row), tuple(col)
