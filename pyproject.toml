@@ -111,6 +111,10 @@ version_scheme = "guess-next-dev"
 local_scheme = "no-local-version"
 
 [tool.hatch.build.targets.sdist]
+# .gitignore is always present in the sdist and cannot be excluded: hatchling uses VCS
+# ignore files to select what to include, and ships the file so that a build from the
+# sdist selects the same set. An `exclude` entry for it is a no-op -- verified against
+# the published 0.2.1 sdist, which contains it despite having had one.
 include = ["src/", "tests/", "examples/", "README.md", "CHANGELOG.md"]
 
 [tool.hatch.build.targets.wheel]

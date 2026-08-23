@@ -64,8 +64,10 @@ content.
 - [ ] One `broken` result is expected at this point in every release: the
       `CHANGELOG.md` link definition for the version being released points at a
       GitHub compare against its tag, and that tag is not pushed until section 8.
-      It returns 404 here and in the Read the Docs build of section 5, and
-      resolves once the tag exists. Confirm the 404 is that link and no other.
+      It is reported broken by `make linkcheck` only; Read the Docs builds HTML
+      and does not check links, so the sole effect there is a dead link on the
+      rendered changelog until the tag exists. Confirm the 404 is that link and
+      no other.
 - [ ] Push the release branch, then view `README.md` on the branch's GitHub
       code page and confirm that it renders correctly. Relative links must
       resolve to repository-page targets rather than documentation-page
