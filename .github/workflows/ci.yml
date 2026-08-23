@@ -203,8 +203,12 @@ jobs:
       - name: Run sync/pinning checks and full test suite
         run: python -m pytest tests/
 
+      # Sphinx is called directly rather than through `tox -e docs`: the point of this
+      # job is that the conda dev environment can build the docs itself, and tox would
+      # build in a pip-installed environment of its own instead. The output path matches
+      # the `docs` tox env so there is one documented location for a built site.
       - name: Build docs
-        run: python -m sphinx -b html docs/user_guide docs/build -W
+        run: python -m sphinx -b html docs/user_guide docs/build/html -W
 
   # ------------------------------------------------------------- coverage ---
   report:

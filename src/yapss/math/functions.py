@@ -178,6 +178,14 @@ floor_divide = vectorized_two_arg_func(np.floor_divide, lambda x, y: ca.floor(x 
 
 # Aliases of functions that already dispatch correctly.
 
+# fmax and fmin are synonyms for maximum and minimum, not for numpy's NaN-ignoring
+# np.fmax and np.fmin. That is deliberate: the central-difference methods find the
+# sparsity structure by setting one variable to NaN and recording which outputs come back
+# NaN (finite_difference.get_continuous_jacobian_structure_nan), so a NaN-absorbing fmax
+# would swallow the probe and hide a real dependency, yielding a silently incomplete
+# Jacobian. The cost is that fmax disagrees with np.fmax on NaN input. Note also that
+# ca.fmax ignores NaN, so under "auto" all four of these return the other operand instead
+# of propagating the NaN; a callback should not be producing NaN in the first place.
 fmax = maximum
 fmin = minimum
 float_power = power

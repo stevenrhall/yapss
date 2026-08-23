@@ -105,13 +105,13 @@ In previous versions of YAPSS, users were advised instead to either negate the
 objective in the objective callback function, or to set ``problem.scale.objective``
 to ``-1`` (or generally, to a negative number). Neither is recommended now, for
 different reasons. Negating the objective yourself gives the right primal solution,
-but the dual solution -- the Lagrange multipliers and phase costates returned as part
-of the :doc:`solution` object -- comes back with the wrong sign, and
+but the dual solution --- the Lagrange multipliers and phase costates returned as part
+of the :doc:`solution` object --- comes back with the wrong sign, and
 ``solution.objective`` itself reports the negative of the objective you actually
 care about, since it is simply whatever the callback returned. Setting
 ``problem.scale.objective`` to a negative number avoids both of those problems --
 Ipopt reports the correct primal solution, correctly-signed multipliers and costates
-(:math:`\mu = dJ/dc`), and the correct objective value -- but it conflates the sign
+(:math:`\mu = dJ/dc`), and the correct objective value --- but it conflates the sign
 of the objective with a number that is otherwise purely about conditioning the
 problem for Ipopt (see :doc:`scaling`), which is confusing to read and impossible to
 validate.
@@ -303,8 +303,7 @@ under automatic differentiation, not just under central differences.
 
 .. note::
     ``yapss.math`` imported ``as np`` is unrelated to the ``Problem.np`` attribute (the
-    number of phases in a problem). Same three letters, different object -- easy to
-    conflate at a glance if you're skimming.
+    number of phases in a problem).
 
 Here’s a usage example for the ``arctan2`` function within a continuous callback function:
 
@@ -318,11 +317,19 @@ Here’s a usage example for the ``arctan2`` function within a continuous callba
 The Rule ``yapss.math`` Enforces
 ................................
 
-Every function ``yapss.math`` provides must give the **same result under every differentiation
-method**. A function that quietly computed something different under automatic differentiation
-than under central differences would mean the solver was handed a different optimal control
-problem depending on a setting that is supposed to affect only how derivatives are obtained --
-and nothing would raise.
+Every function ``yapss.math`` provides gives the **same result under every differentiation
+method**. This ensures that a problem formulated using only the functions in ``yapss.math``
+and standard mathematical operators represents the same optimal control problem, no matter
+the method you choose to calculate derivatives.
+
+However, not every problem can be formulated using only ``yapss.math`` functions. A callback
+that interpolates tabular data, or that calls into external compiled code, cannot be traced
+symbolically at all, so ``"auto"`` is unavailable and the question of agreement never arises.
+The :ref:`minimum time to climb problem </notebooks/minimum_time_to_climb.ipynb>` is such an
+example: its aerodynamic and thrust data are irregular tables wrapped in SciPy interpolators,
+it uses ``numpy`` directly rather than ``yapss.math``, and it selects ``"central-difference"``.
+Such a problem is solved with one of the other methods --- ``"central-difference"``,
+``"central-difference-full"``, or ``"user"``.
 
 So each NumPy `ufunc` falls into exactly one of three categories:
 
@@ -338,9 +345,11 @@ So each NumPy `ufunc` falls into exactly one of three categories:
     ``left_shift``), and multiple-output functions (``frexp``, ``modf``). These are not
     elementwise scalar operations, so the question does not arise.
 
-Note that "supported" is not the same as "smooth". ``abs``, ``sign``, ``floor``, ``maximum``,
-and the comparisons are all supported and all non-differentiable somewhere. They are legitimate
-modelling tools, but see the caution in `Comparisons and Gated Expressions`_.
+Note that "supported" is not the same as "smooth" or even "advisable". ``abs``, ``sign``,
+``floor``, ``maximum``, and the comparisons are all supported and all non-differentiable
+somewhere. They are legitimate modelling tools, but a solver that assumes smoothness may
+struggle with them. Others, such as ``equal``, are likely not advisable under any
+circumstance.
 
 Available Functions
 ...................
@@ -391,6 +400,14 @@ Available Functions
 **Extrema**
     - ``maximum``, ``minimum``, ``fmax``, ``fmin``
 
+    ``fmax`` and ``fmin`` are synonyms for ``maximum`` and ``minimum``, rather than NumPy's
+    NaN-ignoring versions of them. The sparsity structure for the central-difference methods is
+    found by setting one variable to NaN and recording which outputs come back NaN, so a
+    NaN-absorbing ``fmax`` would hide a genuine dependency. All four therefore return NaN if
+    either operand is NaN. Under ``"auto"`` they return the other operand instead, following
+    CasADi, which has no NaN-propagating maximum. A callback should not be producing NaN in the
+    first place; if one does, the effect on the solution is unpredictable.
+
 **Comparison functions**
     - ``equal``, ``not_equal``, ``less``, ``less_equal``, ``greater``, ``greater_equal``
 
@@ -400,50 +417,23 @@ Available Functions
 **Step function**
     - ``heaviside``
 
-Comparisons and Gated Expressions
-.................................
+Comparisons
+...........
 
-Comparisons are supported, and so are the corresponding **operators**. This matters because a
-gate is normally written with operators rather than function calls:
-
->>> import numpy as np
->>> from yapss.math import abs as yabs
->>> y = np.array([-2.0, -0.5, 0.5, 2.0])
->>> (yabs(y) <= 1) * 3.0
-array([0., 3., 3., 0.])
-
-The idiom above -- multiplying an expression by a comparison -- lets a path constraint apply over
-a finite interval instead of the whole phase. A constraint that should hold only while a state
-lies in some range can be written:
-
-.. code-block:: python
-
-    def continuous(arg):
-        x, y, v = arg.phase[0].state
-        (u,) = arg.phase[0].control
-        arg.phase[0].dynamics[:] = ...
-        # constrain v only where |y| <= 1; elsewhere the row evaluates to 0
-        arg.phase[0].path[:] = [(yabs(y) <= 1) * v]
-
-Because Python cannot overload ``and``, ``or``, and ``not``, combine masks with ``&``, ``|``, and
-``~`` instead:
+Comparisons are supported, and so are the corresponding **operators** --- a comparison in a
+callback is evaluated exactly under every differentiation method. Because Python cannot overload
+``and``, ``or``, and ``not``, combine conditions with ``&``, ``|``, and ``~``:
 
 .. code-block:: python
 
     inside = (y >= -1) & (y <= 1)
     outside = ~inside
 
-.. caution::
-    A gate is not differentiable at its edges, and the two differentiation methods do not
-    disagree about the gate's *value* but do disagree about its *derivative* there. CasADi
-    differentiates a comparison to zero almost everywhere, while central differencing straddles
-    the discontinuity and sees a large finite difference.
-
-    In practice this means Ipopt may behave differently under the two methods on a gated
-    problem, and may converge to different points. A gate often works well near a solution and
-    can cause trouble far from one. If a gate is giving the solver difficulty, a smooth
-    approximation -- a ``tanh`` gate with a sharpness parameter, tightened over successive
-    solves -- trades the kink for a well-behaved gradient.
+Comparisons are not differentiable, and multiplying an expression by one to switch it on and off
+makes the discretized problem depend on where the collocation points fall relative to the
+switch. Piecewise behavior is normally better expressed with phases, which is what the
+multi-phase machinery is for: put the switch at a phase boundary, where it becomes an endpoint
+condition rather than a discontinuity inside a phase.
 
 Unsupported Functions
 .....................
@@ -467,22 +457,15 @@ and have no symbolic equivalent. YAPSS declines to support these:
    * - ``spacing``
      - Returns the distance to the adjacent floating-point value.
 
-Given a symbolic value -- that is, under the ``"auto"`` derivative method -- they raise
+Given a symbolic value (that is, when using the ``"auto"`` derivative method), they raise
 ``yapss.math.UnsupportedMathFunctionError``, a subclass of the built-in ``TypeError``, which is
-what NumPy itself raised for them before YAPSS 0.2.2:
-
->>> import casadi as ca
->>> from yapss.math import spacing
->>> from yapss.math.wrapper import SXW
->>> spacing(SXW(ca.SX.sym("x")))
-Traceback (most recent call last):
-    ...
-yapss.math.functions.UnsupportedMathFunctionError: 'spacing' is not supported in YAPSS callback functions...
+what NumPy itself raised for them before YAPSS 0.2.2.
 
 Given a real value, they emit ``yapss.math.UnsupportedMathFunctionWarning`` and evaluate as NumPy
 does:
 
 >>> import warnings
+>>> from yapss.math import spacing
 >>> with warnings.catch_warnings(record=True) as caught:
 ...     warnings.simplefilter("always")
 ...     spacing(1.0)
@@ -499,8 +482,7 @@ under automatic differentiation, a formulation can come to depend on the differe
 which is exactly what ``yapss.math`` exists to prevent. The real path is only still open because
 it worked through 0.2.1, and a patch release does not take away working code.
 
-If you have a reason to use one anyway, call it through ``numpy`` directly -- ``yapss.math``
-declines to offer it, but does not prevent it.
+If you have a reason to use one anyway (you shouldn't!), call it directly through ``numpy``.
 
 ``ContinuousArg`` Class Reference
 ----------------------------------

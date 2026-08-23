@@ -15,53 +15,18 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - Users can pin to a specific minor version (e.g., yapss>=0.3.0,<0.4.0) to avoid unexpected
   changes, but should expect significant updates when upgrading to a new minor version.
 
-## [Unreleased]
+## [0.2.2] - 2026-08-23
 
-### Fixed
+### Changed
 
-- Comparison and logical operations on symbolic values no longer silently collapse to `True` under
-  the `"auto"` derivative method. numpy's object-dtype loop coerces each elementwise result to
-  `bool`, and `SXW` defines no `__bool__`, so Python's default made every comparison true. A gated
-  expression such as `(abs(y) <= 1) * x` — enforcing a constraint only over a finite interval —
-  therefore evaluated correctly under the finite-difference derivative methods and lost its mask
-  entirely under `"auto"`, silently enforcing the constraint over the whole domain. CasADi
-  represents comparisons exactly, so the two paths now agree.
-
-  This is fixed at two levels. `yapss.math.equal`, `not_equal`, `less`, `less_equal`, `greater`,
-  `greater_equal`, `logical_and`, `logical_or`, and `logical_not` are now dispatched explicitly, as
-  `maximum` and `minimum` already were. The operator forms (`<=`, `&`, `~`, and so on) cannot be
-  intercepted by `yapss.math` at all, since they go straight to `numpy.ndarray`; the symbolic
-  state, control, and time arrays are now instances of a new `SXArray` subclass that overrides the
-  comparison and mask-combination operators.
-
-  Formulations that unknowingly relied on the mask being dropped will now produce different
-  results. Note also that agreement of *values* does not imply agreement of *derivatives*: CasADi
-  differentiates a comparison node to zero almost everywhere, while central differencing straddles
-  the discontinuity, so the two backends may still converge to different points on a gated problem.
-
-- The following `yapss.math` functions raised `TypeError` under the `"auto"` derivative method and
-  now work: `copysign`, `float_power`, `floor_divide`, `fmod`, `heaviside`, `logaddexp`,
-  `logaddexp2`, and `logical_xor`. `logaddexp` and `logaddexp2` are computed in a form that does
-  not overflow for large arguments, matching numpy.
-- `yapss.math.fmax` and `fmin` returned their first argument rather than the larger or smaller of
-  the two under the `"auto"` derivative method.
-- `yapss.math.mod` and `remainder` took the sign of the dividend rather than the divisor under the
-  `"auto"` derivative method, following casadi's truncating `fmod` instead of numpy's convention.
-  `yapss.math.fmod` keeps the truncating convention, as numpy does.
-- `arg.phase[p].time` in continuous callbacks is now read-only, like the other attributes the
-  framework sets. It had been left assignable as a workaround for the symbolic time array being
-  patched in after construction, which left a gap in the protection against attribute typos.
-- `yapss.math.exp2` computed `2**log(x)` rather than `2**x` under the `"auto"` derivative method.
-- `yapss.math.cbrt` raised `AttributeError` under the `"auto"` derivative method, calling the
-  nonexistent `casadi.abs` instead of `casadi.fabs`.
-- `yapss.math.trunc` raised `TypeError` under the `"auto"` derivative method; `SXW` defined
-  `__floor__` and `__ceil__` but not `__trunc__`.
-- Constant entries in user-supplied continuous Jacobian and Hessian callbacks can be written as
-  scalars, such as `hessian[("f", 0), ("x", 0), ("u", 0)] = 1.0`, for every kind of term. Previously
-  a scalar Hessian entry raised an uninformative `IndexError` unless the term was an integrand or
-  path pair not involving time, and the 0.2.1 → 0.2.2 assembly refactor had removed even that case.
-  Broadcasting a constant over the time grid by hand is no longer necessary anywhere; the user
-  derivative callbacks follow the same scalar convention as the continuous function itself.
+- The NLP Jacobian and Hessian are now assembled from single plans: a sequence of blocks that each
+  own their index pairs together with the closure producing the matching values, rather than a
+  structure builder and an evaluator kept in step by hand. The structure fold moved inside the
+  plans, so nothing mutates the NLP's derivative surface after construction. There is no
+  user-visible change in behavior. Hessian evaluation is about 10% faster, and the module that
+  had held both halves shrank from 1335 lines to 505. The assembly is pinned by golden tests
+  generated from the pre-refactor implementation, covering every arm of the assembler across all
+  four derivative methods.
 
 ### Deprecated
 
@@ -88,6 +53,53 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   lets a formulation depend on the derivative method chosen. The real path stays open through
   0.2.x because it worked in 0.2.1. The warning is a `FutureWarning`, for the reason given
   under 0.2.0.
+
+### Fixed
+
+- Comparison and logical operations on symbolic values no longer silently collapse to `True` under
+  the `"auto"` derivative method. numpy's object-dtype loop coerces each elementwise result to
+  `bool`, and the symbolic values YAPSS passes to a callback define no `__bool__`, so Python's
+  default made every comparison true. A gated
+  expression such as `(abs(y) <= 1) * x` — enforcing a constraint only over a finite interval —
+  therefore evaluated correctly under the finite-difference derivative methods and lost its mask
+  entirely under `"auto"`, silently enforcing the constraint over the whole domain. CasADi
+  represents comparisons exactly, so the two paths now agree.
+
+  This is fixed at two levels. `yapss.math.equal`, `not_equal`, `less`, `less_equal`, `greater`,
+  `greater_equal`, `logical_and`, `logical_or`, and `logical_not` are now dispatched explicitly, as
+  `maximum` and `minimum` already were. The operator forms (`<=`, `&`, `~`, and so on) cannot be
+  intercepted by `yapss.math` at all, since they go straight to `numpy.ndarray`; the symbolic
+  state, control, and time arrays now override the comparison and mask-combination operators
+  themselves.
+
+  Formulations that unknowingly relied on the mask being dropped will now produce different
+  results. Note also that agreement of *values* does not imply agreement of *derivatives*: CasADi
+  differentiates a comparison node to zero almost everywhere, while central differencing straddles
+  the discontinuity, so the two backends may still converge to different points on a gated problem.
+
+- The following `yapss.math` functions raised `TypeError` under the `"auto"` derivative method and
+  now work: `copysign`, `float_power`, `floor_divide`, `fmod`, `heaviside`, `logaddexp`,
+  `logaddexp2`, and `logical_xor`. `logaddexp` and `logaddexp2` are computed in a form that does
+  not overflow for large arguments, matching numpy.
+- `yapss.math.fmax` and `fmin` returned their first argument rather than the larger or smaller of
+  the two under the `"auto"` derivative method.
+- `yapss.math.mod` and `remainder` took the sign of the dividend rather than the divisor under the
+  `"auto"` derivative method, following casadi's truncating `fmod` instead of numpy's convention.
+  `yapss.math.fmod` keeps the truncating convention, as numpy does.
+- `arg.phase[p].time` in continuous callbacks is now read-only, like the other attributes the
+  framework sets. It had been left assignable as a workaround for the symbolic time array being
+  patched in after construction, which left a gap in the protection against attribute typos.
+- `yapss.math.exp2` computed `2**log(x)` rather than `2**x` under the `"auto"` derivative method.
+- `yapss.math.cbrt` raised `AttributeError` under the `"auto"` derivative method, calling the
+  nonexistent `casadi.abs` instead of `casadi.fabs`.
+- `yapss.math.trunc` raised `TypeError` under the `"auto"` derivative method; the symbolic values
+  defined `__floor__` and `__ceil__` but not `__trunc__`.
+- Constant entries in user-supplied continuous Jacobian and Hessian callbacks can be written as
+  scalars, such as `hessian[("f", 0), ("x", 0), ("u", 0)] = 1.0`, for every kind of term. Previously
+  a scalar Hessian entry raised an uninformative `IndexError` unless the term was an integrand or
+  path pair not involving time, and the 0.2.1 → 0.2.2 assembly refactor had removed even that case.
+  Broadcasting a constant over the time grid by hand is no longer necessary anywhere; the user
+  derivative callbacks follow the same scalar convention as the continuous function itself.
 
 ## [0.2.1] - 2026-08-17
 
@@ -267,16 +279,7 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   purely by an integral cost). Validation behavior is unchanged; only the message text
   was wrong.
 
----
-
-## 0.1.1 - 2026-08-02
-
-### Removed
-
-- Stopped publishing documentation to GitHub Pages. The Pages copy was unreferenced by the
-  README, package metadata, and PyPI listing (all of which already pointed at
-  [readthedocs.io](https://yapss.readthedocs.io/)), so it had gone stale without anyone noticing.
-  The `gh-pages` branch now redirects to Read the Docs instead of serving old content.
+## [0.1.1] - 2026-08-02
 
 ### Changed
 
@@ -286,6 +289,13 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - The `notebook` extra no longer installs `black`, `isort`, or `jupyterlab_code_formatter` by
   default. These remain available via the `dev` extra for contributors; installing `yapss[notebook]`
   no longer forces an opinionated formatting setup on end users.
+
+### Removed
+
+- Stopped publishing documentation to GitHub Pages. The Pages copy was unreferenced by the
+  README, package metadata, and PyPI listing (all of which already pointed at
+  [readthedocs.io](https://yapss.readthedocs.io/)), so it had gone stale without anyone noticing.
+  The `gh-pages` branch now redirects to Read the Docs instead of serving old content.
 
 ### Fixed
 
@@ -304,7 +314,7 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   `brachistochrone_minimal`, and `newton` example scripts. `axis("equal")` can silently override
   explicitly set axis limits; switched to `axis("scaled")`, which respects them.
 
-## 0.1.0 - 2024-12-28
+## [0.1.0] - 2024-12-28
 
 ### Added
 
@@ -323,3 +333,9 @@ Initial release of the software package. Features include:
 - Documentation covering installation, setup, and example usage.
 - Examples available as both Python scripts and Jupyter notebooks.
 - Nearly complete test coverage for all modules.
+
+[0.2.2]: https://github.com/stevenrhall/yapss/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/stevenrhall/yapss/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/stevenrhall/yapss/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/stevenrhall/yapss/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/stevenrhall/yapss/releases/tag/v0.1.0

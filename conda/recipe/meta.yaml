@@ -24,7 +24,13 @@ requirements:
   run:
     - python>=3.10,<3.15
     - numpy
-    - casadi>=3.6.0,<=3.7.2
+    # No CasADi ceiling here, unlike pyproject.toml. That ceiling guards the pip
+    # backend, which binds to the Ipopt library vendored inside the CasADi wheel by a
+    # path that is not a public interface; the conda build does not use it, linking
+    # conda-forge's own Ipopt through cyipopt instead. Should some future CasADi break
+    # YAPSS on conda another way, constrain it in the feedstock recipe and bump the
+    # build number -- that ships without a YAPSS release.
+    - casadi>=3.6.0
     - scipy
     - mpmath
     - matplotlib
@@ -43,7 +49,8 @@ outputs:
       run:
         - python>=3.10,<3.15
         - numpy
-        - casadi>=3.6.0,<=3.7.2
+        # No CasADi ceiling; see the `run:` section of the top-level requirements.
+        - casadi>=3.6.0
         - scipy
         - mpmath
         - matplotlib
@@ -84,7 +91,8 @@ outputs:
         # yapss dependencies
         - python>=3.10,<3.15
         - numpy
-        - casadi>=3.6.0,<=3.7.2
+        # No CasADi ceiling; see the `run:` section of the top-level requirements.
+        - casadi>=3.6.0
         - scipy
         - mpmath
         - matplotlib

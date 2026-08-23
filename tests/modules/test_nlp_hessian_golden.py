@@ -71,12 +71,15 @@ GOLDEN_PATH = Path(__file__).parent / "data" / "nlp_golden.json"
 def kitchen_sink_setup():
     """A deliberately non-autonomous problem exercising every assembler arm.
 
-    Every example problem is autonomous, so none of them reaches the time-derivative
-    branches of the Hessian assembly (the ``t,t``, ``{x|u|s},t``, and chain-rule
-    Jacobian ``t`` terms). This problem makes the dynamics, integrands, and path
-    constraint depend explicitly on time, crossed with every variable kind, and its
-    objective and discrete constraints touch every discrete variable. The coverage
-    check in ``test_golden_cases_reach_every_assembler_branch`` fails if an arm of the
+    Of the example problems, only ``orbit_raising`` is non-autonomous, and it reaches
+    just the time-derivative branches of its dynamics (``t,t`` and ``u,t``, through a
+    mass that falls linearly with time): it declares no parameters and no integrals,
+    and its path constraint does not involve time. This problem makes the dynamics,
+    integrands, and path constraint depend explicitly on time, crossed with every
+    variable kind, so the remaining time arms of the Hessian assembly and the
+    chain-rule Jacobian ``t`` terms are reached; its objective and discrete
+    constraints touch every discrete variable. The coverage check in
+    ``test_golden_cases_reach_every_assembler_branch`` fails if an arm of the
     assembler stops being exercised.
     """
     import yapss
