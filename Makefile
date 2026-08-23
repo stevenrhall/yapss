@@ -60,7 +60,12 @@ clean-notebooks: ## Clear output cells of notebooks in the examples/notebooks di
 
 .PHONY: docs
 docs: readme ## Generate user guide documentation.
-	cd $(USER_GUIDE_DIR) && $(MAKE) html SPHINXOPTS="-W"
+	@# Delegated to tox rather than calling sphinx here, so that this target, CI, and
+	@# `view-docs` are one build in one pinned environment writing to one output tree.
+	@# Calling sphinx directly picks it up from PATH, which fails outside an activated
+	@# virtualenv and silently builds against whatever is installed inside one. Note
+	@# that this runs the doctests too, because the `docs` env does.
+	tox -e docs
 
 .PHONY: dev-docs
 dev-docs: ## Generate development documentation.
@@ -79,13 +84,13 @@ linkcheck: ## Check links in the user guide documentation, including external UR
 .PHONY: view-docs
 view-docs: readme ## Generate user guide documentation and open it in a browser.
 	@# Same mechanism and same output location as `docs`, deliberately, so there is one
-	@# build tree rather than two that cannot be told apart. The difference is that
-	@# SPHINXOPTS is left empty: warnings do not abort the build, so a page can still be
-	@# viewed while something on it is being debugged. Nothing is lost by that -- `docs`
-	@# and CI both build with -W, and RTD sets fail_on_warning, so a warning still has to
-	@# be fixed before it can ship.
+	@# build tree rather than two that cannot be told apart. The difference is that the
+	@# `docs-view` tox env drops -W: warnings do not abort the build, so a page can still
+	@# be viewed while something on it is being debugged. Nothing is lost by that --
+	@# `docs` and CI both build with -W, and RTD sets fail_on_warning, so a warning still
+	@# has to be fixed before it can ship.
 	rm -rf docs/build
-	cd $(USER_GUIDE_DIR) && $(MAKE) html
+	tox -e docs-view
 	$(OPEN) docs/build/html/index.html
 
 .PHONY: doctest

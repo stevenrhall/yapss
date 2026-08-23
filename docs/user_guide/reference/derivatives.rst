@@ -10,7 +10,19 @@ The ``derivatives.method`` Attribute
 
 The ``derivatives.method`` option can take on one of four values:
 
-*  "auto" (default), for automatic differentiation using the CasADi package.
+*  "auto" (default), for automatic differentiation using the CasADi package. With this method,
+   YAPSS calls each callback function a single time, passing symbolic placeholders in place of
+   the problem variables it reads --- states, controls, times, integrals, and parameters --- and
+   records the expressions the callback builds from them. A placeholder stands for any value the
+   variable might take, so it cannot answer a yes-or-no question. A Python ``if`` that tests any
+   of them therefore takes one branch and records only that branch's expression; the other is
+   silently discarded, and the solver is given a problem that no longer contains it. The
+   central-difference methods, which pass ordinary numbers, do not behave the same way. In the
+   objective and discrete callbacks, where each value is a single number, they branch on the
+   value itself, so the two methods can end up solving different problems. In the continuous
+   callback, where the values arrive for every collocation point at once, the same ``if`` instead
+   raises ``ValueError``, no one branch being right for the whole phase. Write the choice as an
+   expression, or place it at a phase boundary.
 
 *  "central-difference" or "central-difference-full", for derivatives calculated using central-
    difference techniques. For the "central-difference" method, the sparsity pattern of the

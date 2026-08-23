@@ -105,13 +105,13 @@ In previous versions of YAPSS, users were advised instead to either negate the
 objective in the objective callback function, or to set ``problem.scale.objective``
 to ``-1`` (or generally, to a negative number). Neither is recommended now, for
 different reasons. Negating the objective yourself gives the right primal solution,
-but the dual solution -- the Lagrange multipliers and phase costates returned as part
-of the :doc:`solution` object -- comes back with the wrong sign, and
+but the dual solution --- the Lagrange multipliers and phase costates returned as part
+of the :doc:`solution` object --- comes back with the wrong sign, and
 ``solution.objective`` itself reports the negative of the objective you actually
 care about, since it is simply whatever the callback returned. Setting
 ``problem.scale.objective`` to a negative number avoids both of those problems --
 Ipopt reports the correct primal solution, correctly-signed multipliers and costates
-(:math:`\mu = dJ/dc`), and the correct objective value -- but it conflates the sign
+(:math:`\mu = dJ/dc`), and the correct objective value --- but it conflates the sign
 of the objective with a number that is otherwise purely about conditioning the
 problem for Ipopt (see :doc:`scaling`), which is confusing to read and impossible to
 validate.
@@ -303,8 +303,7 @@ under automatic differentiation, not just under central differences.
 
 .. note::
     ``yapss.math`` imported ``as np`` is unrelated to the ``Problem.np`` attribute (the
-    number of phases in a problem). Same three letters, different object -- easy to
-    conflate at a glance if you're skimming.
+    number of phases in a problem).
 
 Here’s a usage example for the ``arctan2`` function within a continuous callback function:
 
@@ -315,11 +314,45 @@ Here’s a usage example for the ``arctan2`` function within a continuous callba
 ...     x1_dot = arctan2(x2, x3)
 ...     # more code here
 
+The Rule ``yapss.math`` Enforces
+................................
+
+Every function ``yapss.math`` provides gives the **same result under every differentiation
+method**. This ensures that a problem formulated using only the functions in ``yapss.math``
+and standard mathematical operators represents the same optimal control problem, no matter
+the method you choose to calculate derivatives.
+
+However, not every problem can be formulated using only ``yapss.math`` functions. A callback
+that interpolates tabular data, or that calls into external compiled code, cannot be traced
+symbolically at all, so ``"auto"`` is unavailable and the question of agreement never arises.
+The :ref:`minimum time to climb problem </notebooks/minimum_time_to_climb.ipynb>` is such an
+example: its aerodynamic and thrust data are irregular tables wrapped in SciPy interpolators,
+it uses ``numpy`` directly rather than ``yapss.math``, and it selects ``"central-difference"``.
+Such a problem is solved with one of the other methods --- ``"central-difference"``,
+``"central-difference-full"``, or ``"user"``.
+
+So each NumPy `ufunc` falls into exactly one of three categories:
+
+**Supported**
+    Listed below. Checked against NumPy on both paths by the package's test suite.
+
+**Unsupported**
+    Raises ``yapss.math.UnsupportedMathFunctionError`` on a symbolic value, and warns on a real
+    one until 0.3.0. See `Unsupported Functions`_.
+
+**Not applicable**
+    Array-level functions (``sum``, ``clip``, ``matmul``), integer-domain functions (``gcd``,
+    ``left_shift``), and multiple-output functions (``frexp``, ``modf``). These are not
+    elementwise scalar operations, so the question does not arise.
+
+Note that "supported" is not the same as "smooth" or even "advisable". ``abs``, ``sign``,
+``floor``, ``maximum``, and the comparisons are all supported and all non-differentiable
+somewhere. They are legitimate modelling tools, but a solver that assumes smoothness may
+struggle with them. Others, such as ``equal``, are likely not advisable under any
+circumstance.
+
 Available Functions
 ...................
-
-Essentially all NumPy `ufuncs` that are likely to be used in callback functions are available in
-``yapss.math``. Here are some of the most commonly used functions:
 
 **Trigonometric functions**
     - ``cos``, ``sin``, ``tan``
@@ -337,13 +370,119 @@ Essentially all NumPy `ufuncs` that are likely to be used in callback functions 
     - ``degrees``, ``radians``, ``deg2rad``, ``rad2deg``
 
 **Exponentials and logarithms**
-    - ``exp``, ``exp2``, ``log``, ``log2``, ``log10``
+    - ``exp``, ``exp2``, ``expm1``, ``log``, ``log1p``, ``log2``, ``log10``, ``logaddexp``,
+      ``logaddexp2``
+
+**Powers and roots**
+    - ``cbrt``, ``float_power``, ``hypot``, ``pow``, ``power``, ``reciprocal``, ``sqrt``,
+      ``square``
+
+**Arithmetic**
+    - ``add``, ``subtract``, ``multiply``, ``divide``, ``true_divide``
+
+**Modular arithmetic**
+    - ``mod``, ``remainder``, ``fmod``, ``floor_divide``
+
+    ``mod`` and ``remainder`` take the sign of the divisor; ``fmod`` truncates and takes the sign
+    of the dividend. This follows NumPy, and the two conventions differ whenever the operands
+    have opposite signs.
+
+**Sign and magnitude**
+    - ``abs``, ``absolute``, ``fabs``, ``copysign``, ``negative``, ``positive``, ``sign``,
+      ``conj``, ``conjugate``
+
+    ``copysign`` differs from NumPy at ``y == -0.0``: NumPy reads the floating-point sign bit,
+    which a symbolic expression cannot represent, so negative zero is treated as positive.
+
+**Rounding**
+    - ``ceil``, ``floor``, ``trunc``
+
+**Extrema**
+    - ``maximum``, ``minimum``, ``fmax``, ``fmin``
+
+    ``fmax`` and ``fmin`` are synonyms for ``maximum`` and ``minimum``, rather than NumPy's
+    NaN-ignoring versions of them. The sparsity structure for the central-difference methods is
+    found by setting one variable to NaN and recording which outputs come back NaN, so a
+    NaN-absorbing ``fmax`` would hide a genuine dependency. All four therefore return NaN if
+    either operand is NaN. Under ``"auto"`` they return the other operand instead, following
+    CasADi, which has no NaN-propagating maximum. A callback should not be producing NaN in the
+    first place; if one does, the effect on the solution is unpredictable.
 
 **Comparison functions**
-    - ``maximum``, ``minimum``
+    - ``equal``, ``not_equal``, ``less``, ``less_equal``, ``greater``, ``greater_equal``
 
-**Miscellaneous functions**
-    - ``abs``, ``cbrt``, ``hypot``, ``power``, ``sign``, ``reciprocal``, ``square``, ``sqrt``
+**Logical functions**
+    - ``logical_and``, ``logical_or``, ``logical_not``, ``logical_xor``
+
+**Step function**
+    - ``heaviside``
+
+Comparisons
+...........
+
+Comparisons are supported, and so are the corresponding **operators** --- a comparison in a
+callback is evaluated exactly under every differentiation method. Because Python cannot overload
+``and``, ``or``, and ``not``, combine conditions with ``&``, ``|``, and ``~``:
+
+.. code-block:: python
+
+    inside = (y >= -1) & (y <= 1)
+    outside = ~inside
+
+Comparisons are not differentiable, and multiplying an expression by one to switch it on and off
+makes the discretized problem depend on where the collocation points fall relative to the
+switch. Piecewise behavior is normally better expressed with phases, which is what the
+multi-phase machinery is for: put the switch at a phase boundary, where it becomes an endpoint
+condition rather than a discontinuity inside a phase.
+
+Unsupported Functions
+.....................
+
+A few NumPy `ufuncs` inspect the floating-point representation of a number rather than its value,
+and have no symbolic equivalent. YAPSS declines to support these:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
+
+   * - Function
+     - Reason
+   * - ``nextafter``
+     - Steps between adjacent floating-point values.
+   * - ``rint``
+     - Rounds half to even, which CasADi cannot reproduce. ``floor(x + 0.5)`` rounds half away
+       from zero and would silently disagree with NumPy.
+   * - ``signbit``
+     - Reads the floating-point sign bit, including the sign of negative zero.
+   * - ``spacing``
+     - Returns the distance to the adjacent floating-point value.
+
+Given a symbolic value (that is, when using the ``"auto"`` derivative method), they raise
+``yapss.math.UnsupportedMathFunctionError``, a subclass of the built-in ``TypeError``, which is
+what NumPy itself raised for them before YAPSS 0.2.2.
+
+Given a real value, they emit ``yapss.math.UnsupportedMathFunctionWarning`` and evaluate as NumPy
+does:
+
+>>> import warnings
+>>> from yapss.math import spacing
+>>> with warnings.catch_warnings(record=True) as caught:
+...     warnings.simplefilter("always")
+...     spacing(1.0)
+...     print(caught[0].category.__name__)
+np.float64(2.220446049250313e-16)
+UnsupportedMathFunctionWarning
+
+.. deprecated:: 0.2.2
+    Calling one of these on a real value will raise ``UnsupportedMathFunctionError`` in 0.3.0,
+    as a symbolic value already does.
+
+Rejecting on both paths is the goal. If one of these works under central differences and fails
+under automatic differentiation, a formulation can come to depend on the differentiation method,
+which is exactly what ``yapss.math`` exists to prevent. The real path is only still open because
+it worked through 0.2.1, and a patch release does not take away working code.
+
+If you have a reason to use one anyway (you shouldn't!), call it directly through ``numpy``.
 
 ``ContinuousArg`` Class Reference
 ----------------------------------

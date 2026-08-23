@@ -84,6 +84,14 @@ Each entry is a partial derivative with respect to a decision variable. The deci
 - ``("s", i)``: Parameter vector element ``i``.
 - ``("t", 0)``: Time variable.
 
+The values follow the same convention as the continuous function itself: write each
+derivative as an expression in the states, controls, parameters, and time, treating them
+as scalars. A derivative that happens to be constant is simply a number -- for a dynamics
+element ``x * u``, the entries are ``jacobian[("f", 0), ("x", 0)] = u`` and
+``jacobian[("f", 0), ("u", 0)] = x``, and the mixed second derivative is
+``hessian[("f", 0), ("x", 0), ("u", 0)] = 1.0``. An array over the time grid is accepted
+wherever a scalar is, but it is never required.
+
 The Hessian of the continuous functions is defined similarly:
 
 .. testcode:: group1
@@ -102,10 +110,14 @@ The Hessian of the continuous functions is defined similarly:
    ocp.functions.continuous_hessian = continuous_hessian
 
 The main difference with the Hessian is that each entry represents a second partial derivative,
-so two keys corresponding to decision variables are required for each partial derivative. Note that
-for mixed partial derivatives, the order of the keys is unimportant. For example, if you set
-``hessian[("f", 0), ("x", 2), ("u", 0)]``, ``hessian[("f", 0), ("u", 0), ("x", 2)]`` should not be set,
-since both keys refer to the same second derivative and setting both would be redundant.
+so two keys corresponding to decision variables are required for each partial derivative. For a
+mixed partial derivative the two variable keys may be given in either order, but each unordered
+pair must be supplied **exactly once**: ``hessian[("f", 0), ("x", 2), ("u", 0)]`` and
+``hessian[("f", 0), ("u", 0), ("x", 2)]`` name the same second derivative, and only one of them
+may be set. Do not split one derivative across the two orders, and do not supply both triangles
+of a symmetric Hessian. Setting both orders of a pair emits
+:class:`~yapss.MirroredHessianPairWarning` and will raise ``ValueError`` in version 0.3.0. The
+same rule applies to the objective and discrete Hessians below.
 
 The Objective Gradient and Hessian
 ----------------------------------
@@ -164,3 +176,8 @@ where ``k`` is the discrete function index, and ``p``, ``var``, and ``i`` are as
 the objective derivative functions. Finally, the ``arg.hessian`` keys have the form
 
    ``(k, (p1, var1, i1), (p2, var2, i2))``
+
+``MirroredHessianPairWarning`` Class Reference
+----------------------------------------------
+
+.. autoexception:: yapss.MirroredHessianPairWarning

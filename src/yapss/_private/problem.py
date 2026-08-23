@@ -584,8 +584,15 @@ class Scale(Protected):
             raise ValueError(msg)
         self._objective = float(value)
 
-    def __getitem__(self, item: tuple[int, str, int]) -> float:  # TODO: not correct
-        """Get the scale value for a given item."""
+    def __getitem__(self, item: tuple[int, str, int]) -> float:
+        """Return the characteristic magnitude of one decision variable.
+
+        Convenience accessor used by the finite-difference derivative methods to size
+        their perturbation steps. It relies on the scaling model having one scale per
+        state and one per phase time: ``x``, ``x0``, and ``xf`` share the state scale,
+        and ``t``, ``t0``, and ``tf`` share the time scale. If separate endpoint scales
+        are ever introduced, this mapping must be split accordingly.
+        """
         p, v, i = item
         if v == "s":
             return float(self._parameter[i])
@@ -594,7 +601,7 @@ class Scale(Protected):
         if v == "u":
             return float(self.phase[p].control[i])
         if v in ("t", "t0", "tf"):
-            return self.phase[p].time
+            return float(self.phase[p].time)
         if v == "q":
             return float(self.phase[p].integral[i])
         raise RuntimeError

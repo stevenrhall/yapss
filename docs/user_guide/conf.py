@@ -217,9 +217,19 @@ def run_makefiles(app):
 
     root_dir = os.path.abspath(os.path.dirname(__file__))  # docs/user_guide
 
+    # Both sub-Makefiles regenerate content by running Python: nbconvert executes the
+    # example notebooks, and make_plots.py imports yapss to produce the figures and the
+    # printed output in the user guide. Left to find `python` on PATH they would use
+    # whatever comes first there, which is the interpreter running this build only if a
+    # venv is active. The loud failure -- an interpreter with no nbconvert -- is
+    # harmless. The quiet one is not: an interpreter that can import *some* yapss
+    # regenerates the whole user guide against a different installation than the one
+    # being documented, and the build succeeds, so the docs describe the wrong version.
+    # Passing PYTHON pins both Makefiles to this interpreter.
     def run_command(command, cwd):
+        env = {**os.environ, "PYTHON": sys.executable}
         try:
-            subprocess.run(command, cwd=cwd, check=True)
+            subprocess.run(command, cwd=cwd, check=True, env=env)
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Makefile execution failed in {cwd} with error:\n{e}") from e
 

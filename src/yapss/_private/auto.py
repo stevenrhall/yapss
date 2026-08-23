@@ -21,7 +21,7 @@ from casadi import hessian as cd_hessian
 from casadi import jacobian as cd_jacobian
 from casadi import tril, vertcat
 
-from yapss.math.wrapper import SXW
+from yapss.math.wrapper import SXW, sx_array
 
 from .input_args import (
     ContinuousArg,
@@ -139,38 +139,26 @@ def make_args(
     dv.phase = []
     dv.discrete = np.zeros([problem.nd], dtype=object)
     dv.auxdata = problem.auxdata
-    dv.parameter = np.array([SXW(SX.sym(f"s_{i}")) for i in range(problem.ns)])
+    dv.parameter = sx_array([SXW(SX.sym(f"s_{i}")) for i in range(problem.ns)])
     dv.z = np.zeros([], dtype=object)
 
     for p in range(problem.np):
         phase: DVPhase[np.object_] = DVPhase()
         dv.phase.append(phase)
 
-        phase.x0 = np.array(
-            [SXW(SX.sym(f"x0_{p}_{i}")) for i in range(problem.nx[p])],
-            dtype=object,
-        )
-        phase.xf = np.array(
-            [SXW(SX.sym(f"xf_{p}_{i}")) for i in range(problem.nx[p])],
-            dtype=object,
-        )
-        phase.q = np.array(
-            [SXW(SX.sym(f"q_{p}_{i}")) for i in range(problem.nq[p])],
-            dtype=object,
-        )
-        phase.t0 = np.array([SXW(SX.sym(f"t0_{p}"))], dtype=object)
-        phase.tf = np.array([SXW(SX.sym(f"tf_{p}"))], dtype=object)
-        phase.xc = [np.array([SXW(SX.sym(f"x_{i}"))]) for i in range(problem.nx[p])]
-        phase.u = [np.array([SXW(SX.sym(f"u_{i}"))]) for i in range(problem.nu[p])]
+        phase.x0 = sx_array([SXW(SX.sym(f"x0_{p}_{i}")) for i in range(problem.nx[p])])
+        phase.xf = sx_array([SXW(SX.sym(f"xf_{p}_{i}")) for i in range(problem.nx[p])])
+        phase.q = sx_array([SXW(SX.sym(f"q_{p}_{i}")) for i in range(problem.nq[p])])
+        phase.t0 = sx_array([SXW(SX.sym(f"t0_{p}"))])
+        phase.tf = sx_array([SXW(SX.sym(f"tf_{p}"))])
+        phase.xc = [sx_array([SXW(SX.sym(f"x_{i}"))]) for i in range(problem.nx[p])]
+        phase.u = [sx_array([SXW(SX.sym(f"u_{i}"))]) for i in range(problem.nu[p])]
 
-    dv.s = np.array(dv.parameter, dtype=object)
+    dv.s = sx_array(dv.parameter)
 
     objective_arg = ObjectiveArg(problem, dv, dtype=np.object_)
     discrete_arg = DiscreteArg(problem, dv, dtype=np.object_)
     continuous_arg = ContinuousArg(problem, dv=dv, dtype=np.object_)
-
-    for p in range(problem.np):
-        continuous_arg.phase[p].time = np.array([SXW(SX.sym("t"))])
     return objective_arg, discrete_arg, continuous_arg
 
 

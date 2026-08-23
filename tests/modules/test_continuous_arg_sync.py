@@ -57,3 +57,35 @@ def test_nan_structure_discovery_uses_initial_guess_time() -> None:
     structure = get_continuous_jacobian_structure_nan(problem, dv.z.copy(), mesh.tau_u)
 
     assert structure == (((("f", 0), ("x", 0)),),)
+
+
+def test_time_is_not_assignable() -> None:
+    """``phase.time`` is set by the framework; user code cannot overwrite it.
+
+    It used to be listed among the assignable attributes as a workaround for the
+    symbolic time array being patched in after construction; that left a hole in the
+    typo protection for exactly the attribute a callback is most likely to touch.
+    """
+    problem = Problem(name="time", nx=[1], nu=[1])
+    problem.mesh.phase[0].collocation_points = [3]
+    problem.mesh.phase[0].fraction = [1.0]
+    mesh = Mesh(problem.mesh.phase)
+    mesh.set_matrices(problem.spectral_method)
+    dv = get_nlp_dv_structure(problem, np.float64)
+    arg = ContinuousArg(problem, dv, dtype=np.float64, tau_u=mesh.tau_u)
+    with pytest.raises(AttributeError, match="time"):
+        arg.phase[0].time = np.zeros(3)
+
+
+def test_symbolic_time_is_built_in_place() -> None:
+    """The symbolic time array is an SXArray from construction, so time gates work."""
+    from yapss._private.auto import make_args
+    from yapss.math.wrapper import SXArray
+
+    problem = Problem(name="time", nx=[1], nu=[1])
+    problem.mesh.phase[0].collocation_points = [3]
+    problem.mesh.phase[0].fraction = [1.0]
+    _, _, continuous_arg = make_args(problem)
+    time = continuous_arg.phase[0].time
+    assert isinstance(time, SXArray)
+    assert isinstance(time <= 0.5, SXArray), "comparison on symbolic time must stay symbolic"
