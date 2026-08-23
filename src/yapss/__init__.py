@@ -17,6 +17,10 @@ from ._private.problem import Problem
 from ._private.solution import IpoptConvergenceWarning, Solution
 from ._private.user import MirroredHessianPairWarning
 
+# re-exported so that every warning and error category YAPSS can raise is discoverable
+# from the top-level package; yapss.math remains their defining module
+from .math.functions import UnsupportedMathFunctionError, UnsupportedMathFunctionWarning
+
 __all__ = [
     "ContinuousArg",
     "ContinuousHessianArg",
@@ -31,6 +35,8 @@ __all__ = [
     "ObjectiveHessianArg",
     "Problem",
     "Solution",
+    "UnsupportedMathFunctionError",
+    "UnsupportedMathFunctionWarning",
     "__version__",
 ]
 
