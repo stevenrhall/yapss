@@ -4,6 +4,7 @@ Provides a set of functions that are compatible with both NumPy and CasADi.
 
 """
 
+import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -14,6 +15,7 @@ from .wrapper import SXW
 
 __all__ = [
     "UnsupportedMathFunctionError",
+    "UnsupportedMathFunctionWarning",
     "arctan2",
     "copysign",
     "equal",
@@ -225,11 +227,23 @@ class UnsupportedMathFunctionError(TypeError):
     """
 
 
-# Functions with no meaning on a symbolic value. Each raises unconditionally rather than
-# only under automatic differentiation: a function that works under one derivative
-# method and fails under another lets a formulation depend on the derivative method,
-# which is the class of defect this module exists to prevent. Use numpy directly if one
-# of these is needed outside a callback.
+class UnsupportedMathFunctionWarning(FutureWarning):
+    """An unsupported function was called on real arguments; it will raise from 0.3.0.
+
+    These functions have no symbolic equivalent, so they already fail under the
+    ``"auto"`` derivative method. On real arguments they still evaluate, which lets a
+    formulation depend on the derivative method chosen; from 0.3.0 they raise
+    `UnsupportedMathFunctionError` on both paths.
+    """
+
+
+# Functions with no meaning on a symbolic value. A symbolic argument raises, as it
+# already did before 0.2.2 -- numpy itself raised TypeError -- and a real argument warns
+# and evaluates. Rejecting both paths is the goal: a function that works under one
+# derivative method and fails under another lets a formulation depend on the derivative
+# method, which is the class of defect this module exists to prevent. But the real path
+# worked through 0.2.1, so it may not be taken away in a patch release; the warning says
+# so and 0.3.0 raises. Use numpy directly if one of these is needed outside a callback.
 _REJECTED = {
     "nextafter": "steps between adjacent floating-point values",
     "rint": (
@@ -242,20 +256,37 @@ _REJECTED = {
 
 
 def _make_rejected(name: str, reason: str) -> Callable[..., Any]:
-    """Build a stub that explains why `name` is unsupported in a YAPSS callback."""
+    """Build a stub that rejects `name`, which is unsupported in a YAPSS callback."""
+    numpy_func = getattr(np, name)
 
-    def rejected(*_args: Any, **_kwargs: Any) -> Any:
+    def rejected(*args: Any, **kwargs: Any) -> Any:
         msg = (
             f"'{name}' is not supported in YAPSS callback functions because it {reason}, "
             f"which has no symbolic equivalent. Callback functions must give the same "
             f"result under every derivative method. Use 'numpy.{name}' directly if you "
             f"need it outside a callback."
         )
-        raise UnsupportedMathFunctionError(msg)
+        try:
+            for arg in args:
+                np.array(arg, dtype=np.float64)
+        except TypeError:
+            # A symbolic argument. This raised before 0.2.2 as well.
+            raise UnsupportedMathFunctionError(msg) from None
+        warnings.warn(
+            f"{msg} It still evaluates on real arguments, but will raise "
+            f"UnsupportedMathFunctionError in 0.3.0.",
+            UnsupportedMathFunctionWarning,
+            stacklevel=2,
+        )
+        return numpy_func(*args, **kwargs)
 
     rejected.__name__ = name
     rejected.__qualname__ = name
-    rejected.__doc__ = f"Raise :class:`UnsupportedMathFunctionError`; {name} {reason}."
+    rejected.__doc__ = (
+        f"Raise :class:`UnsupportedMathFunctionError` on a symbolic argument, or warn "
+        f"with :class:`UnsupportedMathFunctionWarning` and evaluate on a real one; "
+        f"{name} {reason}."
+    )
     return rejected
 
 

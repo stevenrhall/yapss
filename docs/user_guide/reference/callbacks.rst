@@ -330,7 +330,8 @@ So each NumPy `ufunc` falls into exactly one of three categories:
     Listed below. Checked against NumPy on both paths by the package's test suite.
 
 **Unsupported**
-    Raises ``yapss.math.UnsupportedMathFunctionError``. See `Unsupported Functions`_.
+    Raises ``yapss.math.UnsupportedMathFunctionError`` on a symbolic value, and warns on a real
+    one until 0.3.0. See `Unsupported Functions`_.
 
 **Not applicable**
     Array-level functions (``sum``, ``clip``, ``matmul``), integer-domain functions (``gcd``,
@@ -448,8 +449,7 @@ Unsupported Functions
 .....................
 
 A few NumPy `ufuncs` inspect the floating-point representation of a number rather than its value,
-and have no symbolic equivalent. These raise
-``yapss.math.UnsupportedMathFunctionError``, a subclass of the built-in ``TypeError``:
+and have no symbolic equivalent. YAPSS declines to support these:
 
 .. list-table::
    :header-rows: 1
@@ -467,17 +467,37 @@ and have no symbolic equivalent. These raise
    * - ``spacing``
      - Returns the distance to the adjacent floating-point value.
 
-These raise for real arrays as well as symbolic ones:
+Given a symbolic value -- that is, under the ``"auto"`` derivative method -- they raise
+``yapss.math.UnsupportedMathFunctionError``, a subclass of the built-in ``TypeError``, which is
+what NumPy itself raised for them before YAPSS 0.2.2:
 
+>>> import casadi as ca
 >>> from yapss.math import spacing
->>> spacing(1.0)
+>>> from yapss.math.wrapper import SXW
+>>> spacing(SXW(ca.SX.sym("x")))
 Traceback (most recent call last):
     ...
 yapss.math.functions.UnsupportedMathFunctionError: 'spacing' is not supported in YAPSS callback functions...
 
-Rejecting on both paths is deliberate. If one of these worked under central differences and
-failed under automatic differentiation, a formulation could come to depend on the differentiation
-method, which is exactly what ``yapss.math`` exists to prevent.
+Given a real value, they emit ``yapss.math.UnsupportedMathFunctionWarning`` and evaluate as NumPy
+does:
+
+>>> import warnings
+>>> with warnings.catch_warnings(record=True) as caught:
+...     warnings.simplefilter("always")
+...     spacing(1.0)
+...     print(caught[0].category.__name__)
+np.float64(2.220446049250313e-16)
+UnsupportedMathFunctionWarning
+
+.. deprecated:: 0.2.2
+    Calling one of these on a real value will raise ``UnsupportedMathFunctionError`` in 0.3.0,
+    as a symbolic value already does.
+
+Rejecting on both paths is the goal. If one of these works under central differences and fails
+under automatic differentiation, a formulation can come to depend on the differentiation method,
+which is exactly what ``yapss.math`` exists to prevent. The real path is only still open because
+it worked through 0.2.1, and a patch release does not take away working code.
 
 If you have a reason to use one anyway, call it through ``numpy`` directly -- ``yapss.math``
 declines to offer it, but does not prevent it.

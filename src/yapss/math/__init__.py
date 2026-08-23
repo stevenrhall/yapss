@@ -238,3 +238,4 @@ globals()["rint"] = functions.rint
 globals()["signbit"] = functions.signbit
 globals()["spacing"] = functions.spacing
 globals()["UnsupportedMathFunctionError"] = functions.UnsupportedMathFunctionError
+globals()["UnsupportedMathFunctionWarning"] = functions.UnsupportedMathFunctionWarning

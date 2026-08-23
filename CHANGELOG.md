@@ -77,15 +77,18 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   `Problem.ipopt_source` on the list of 0.3.0 removals. The warning is a `FutureWarning` for
   the reason given under 0.2.0: `DeprecationWarning` is suppressed by default outside `__main__`.
 
-### Changed
+- `yapss.math.nextafter`, `rint`, `signbit`, and `spacing` now emit
+  `yapss.math.UnsupportedMathFunctionWarning` on real arguments and will raise
+  `yapss.math.UnsupportedMathFunctionError` **in 0.3.0**. These step between adjacent
+  floating-point values, round half to even, or read the sign bit, and have no symbolic
+  equivalent, so they already failed under the `"auto"` derivative method — with a bare numpy
+  `TypeError` before 0.2.2, and now with `UnsupportedMathFunctionError`, a subclass of
+  `TypeError` whose message names the function and suggests `numpy` directly. Rejecting both
+  paths is the goal: a function that works under one derivative method and fails under another
+  lets a formulation depend on the derivative method chosen. The real path stays open through
+  0.2.x because it worked in 0.2.1. The warning is a `FutureWarning`, for the reason given
+  under 0.2.0.
 
-- `yapss.math.nextafter`, `rint`, `signbit`, and `spacing` now raise
-  `yapss.math.UnsupportedMathFunctionError` — a subclass of `TypeError`, which is what numpy
-  already raised for them under the `"auto"` derivative method — with a message naming the
-  function and suggesting `numpy` directly. These step between adjacent floating-point values or
-  read the sign bit, and have no symbolic equivalent. They raise for real arrays as well as
-  symbolic ones: a function that works under one derivative method and fails under another would
-  let a formulation depend on the derivative method chosen.
 ## [0.2.1] - 2026-08-17
 
 ### Fixed

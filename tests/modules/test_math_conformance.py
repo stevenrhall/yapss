@@ -83,9 +83,9 @@ OUT_OF_SCOPE = {
 }
 
 # Exported names that YAPSS deliberately refuses in a callback, because they have no
-# symbolic equivalent. These raise UnsupportedMathFunctionError unconditionally -- see
-# test_rejected_names_raise -- rather than only under automatic differentiation, so a
-# formulation cannot come to depend on the derivative method.
+# symbolic equivalent. A symbolic argument raises UnsupportedMathFunctionError, as it did
+# before 0.2.2; a real argument warns and evaluates until 0.3.0, when it raises too -- see
+# test_rejected_names_warn_on_real_input, which is the test to flip then.
 REJECTED = ("nextafter", "rint", "signbit", "spacing")
 
 # Exported names that do not round-trip through SXW. Entries are xfail(strict=True), so
@@ -224,14 +224,14 @@ def test_known_broken_names_are_all_exported():
 
 
 @pytest.mark.parametrize("name", REJECTED)
-def test_rejected_names_raise(name):
-    """A rejected name must raise, naming itself and pointing at numpy."""
+def test_rejected_names_raise_on_symbolic_input(name):
+    """A rejected name must raise on a symbolic argument, naming itself and numpy."""
     function = getattr(math, name)
     nin = getattr(np, name).nin
-    arguments = (np.array([1.0, 2.0]),) * nin
+    symbolic = np.array([SXW(ca.SX.sym("v"))], dtype=object)
 
     with pytest.raises(math.UnsupportedMathFunctionError) as excinfo:
-        function(*arguments)
+        function(*(symbolic,) * nin)
 
     message = str(excinfo.value)
     assert name in message
@@ -239,23 +239,31 @@ def test_rejected_names_raise(name):
 
 
 @pytest.mark.parametrize("name", REJECTED)
-def test_rejected_names_raise_on_every_path(name):
-    """Rejection must not depend on the derivative method.
+def test_rejected_names_warn_on_real_input(name):
+    """Real arguments warn and still evaluate; flip this to raise in 0.3.0.
 
-    A function that works on float arrays and fails on symbolic ones would let a
-    formulation depend on which derivative method is selected -- the defect class this
-    module exists to prevent -- so these raise for float input too.
+    These worked on real arrays through 0.2.1, so a patch release may not take them
+    away. The end state is rejection on both paths, so that a formulation cannot come
+    to depend on which derivative method is selected.
     """
     function = getattr(math, name)
-    nin = getattr(np, name).nin
-    symbolic = np.array([SXW(ca.SX.sym("v"))], dtype=object)
+    numpy_function = getattr(np, name)
+    arguments = (np.array([1.0, 2.0]),) * numpy_function.nin
 
-    with pytest.raises(math.UnsupportedMathFunctionError):
-        function(*(symbolic,) * nin)
-    with pytest.raises(math.UnsupportedMathFunctionError):
-        function(*(np.array([1.0]),) * nin)
+    with pytest.warns(math.UnsupportedMathFunctionWarning) as record:
+        result = function(*arguments)
+
+    assert np.array_equal(result, numpy_function(*arguments))
+    message = str(record[0].message)
+    assert name in message
+    assert "0.3.0" in message
 
 
 def test_unsupported_error_is_a_type_error():
     """numpy raises TypeError for these today; keep that catchable."""
     assert issubclass(math.UnsupportedMathFunctionError, TypeError)
+
+
+def test_unsupported_warning_is_a_future_warning():
+    """DeprecationWarning is suppressed by default outside __main__; this must not be."""
+    assert issubclass(math.UnsupportedMathFunctionWarning, FutureWarning)
