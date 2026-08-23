@@ -63,6 +63,20 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   Broadcasting a constant over the time grid by hand is no longer necessary anywhere; the user
   derivative callbacks follow the same scalar convention as the continuous function itself.
 
+### Deprecated
+
+- Setting both orders of one variable pair in a user-defined Hessian callback — for example both
+  `hessian[("f", 0), ("x", 2), ("u", 0)]` and `hessian[("f", 0), ("u", 0), ("x", 2)]` — now emits
+  `yapss.MirroredHessianPairWarning` and will raise `ValueError` **in 0.3.0**. The two keys name
+  the same second partial derivative. They currently assemble as two entries that are summed,
+  which is right for a formulation that splits one derivative across the two orders and wrong
+  (doubled) for one that supplies both triangles of a symmetric Hessian; since nothing downstream
+  can tell which was meant, the ambiguity is refused. The behavior is unchanged in 0.2.x so that
+  the former formulations keep working through a patch release; the warning's message says which
+  case the entries look like. Supply each pair once, in either order. This joins
+  `Problem.ipopt_source` on the list of 0.3.0 removals. The warning is a `FutureWarning` for
+  the reason given under 0.2.0: `DeprecationWarning` is suppressed by default outside `__main__`.
+
 ### Changed
 
 - `yapss.math.nextafter`, `rint`, `signbit`, and `spacing` now raise
