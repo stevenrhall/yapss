@@ -26,7 +26,7 @@ import numpy as np
 import pytest
 
 from yapss import math
-from yapss.math.wrapper import SXW
+from yapss.math.wrapper import SXW, SXArray, sx_array
 
 # Number of sample points per function.
 N = 9
@@ -63,13 +63,14 @@ DOMAIN = {
 # on a symbolic state.
 OUT_OF_SCOPE = {
     "pi": "not a function",
-    "all": "array reduction, not elementwise",
-    "any": "array reduction, not elementwise",
-    "max": "array reduction, not elementwise",
-    "min": "array reduction, not elementwise",
+    "all": "array reduction; symbolic fold tested in test_sxw_scrub.py",
+    "any": "array reduction; symbolic fold tested in test_sxw_scrub.py",
+    "max": "array reduction; symbolic fold tested in test_sxw_scrub.py",
+    "min": "array reduction; symbolic fold tested in test_sxw_scrub.py",
     "sum": "array reduction, not elementwise",
-    "clip": "array function, not a ufunc",
-    "round": "array function, not a ufunc",
+    "round": "takes a decimals parameter; tested at the halves in test_sxw_scrub.py",
+    "clip": "three arguments; symbolic dispatch tested in test_sxw_scrub.py",
+    "where": "three arguments; symbolic dispatch tested in test_sxw_scrub.py",
     "matmul": "not elementwise",
     "gcd": "integer domain",
     "lcm": "integer domain",
@@ -86,7 +87,7 @@ OUT_OF_SCOPE = {
 # symbolic equivalent. A symbolic argument raises UnsupportedMathFunctionError, as it did
 # before 0.2.2; a real argument warns and evaluates until 0.3.0, when it raises too -- see
 # test_rejected_names_warn_on_real_input, which is the test to flip then.
-REJECTED = ("nextafter", "rint", "signbit", "spacing")
+REJECTED = ("nextafter", "signbit", "spacing")
 
 # Exported names that do not round-trip through SXW. Entries are xfail(strict=True), so
 # fixing one fails the suite until it is removed from this list. Empty is the goal
@@ -165,33 +166,46 @@ def sample_points(name, nin):
     return points
 
 
-def evaluate_symbolically(name, points):
-    """Evaluate ``yapss.math.<name>`` on SXW symbols and return the numeric result.
+# The three ways a symbol reaches yapss.math, each with its own dispatch path:
+#   scalar  -- a bare SXW, as final_time, parameter[0], or state[0][0] is. Goes through
+#              SXW.__array_ufunc__.
+#   objarr  -- a plain object ndarray of SXW, which numpy hands to the element methods
+#              SXW.__getattr__ supplies.
+#   sxarr   -- an SXArray, as state[i], control[i], and final_state are. Same as objarr,
+#              plus the comparison overrides.
+# Before 0.2.3 only objarr was tested here, and sixteen names failed on scalar.
+INPUT_KINDS = ("scalar", "objarr", "sxarr")
 
-    Uses object arrays of SXW, which is how ``state[i]`` and ``control[i]`` are built in
-    ``input_args.ContinuousPhase`` -- i.e. the dispatch path user callbacks actually hit.
-    """
+
+def evaluate_symbolically(name, points, kind="objarr"):
+    """Evaluate ``yapss.math.<name>`` on SXW symbols of one input kind; return floats."""
     n = len(points[0])
     symbols = [ca.SX.sym(f"v{k}", n) for k in range(len(points))]
-    arrays = [
-        np.array([SXW(symbols[k][i]) for i in range(n)], dtype=object) for k in range(len(points))
-    ]
-    result = np.atleast_1d(getattr(math, name)(*arrays))
+    function = getattr(math, name)
+    if kind == "scalar":
+        result = [function(*[SXW(symbols[k][i]) for k in range(len(points))]) for i in range(n)]
+    else:
+        build = sx_array if kind == "sxarr" else (lambda items: np.array(items, dtype=object))
+        arrays = [build([SXW(symbols[k][i]) for i in range(n)]) for k in range(len(points))]
+        result = np.atleast_1d(function(*arrays))
+        if kind == "sxarr":
+            assert isinstance(result, SXArray), f"{name} on an SXArray returned {type(result)}"
     expression = ca.vertcat(*[SXW(item)._value for item in result])
-    function = ca.Function("f", symbols, [expression])
-    return np.asarray(function(*points)).flatten().astype(float)
+    casadi_function = ca.Function("f", symbols, [expression])
+    return np.asarray(casadi_function(*points)).flatten().astype(float)
 
 
+@pytest.mark.parametrize("kind", INPUT_KINDS)
 @pytest.mark.parametrize("name", elementwise_ufunc_names())
-def test_agrees_with_numpy(name, request):
+def test_agrees_with_numpy(name, kind, request):
     """Check that the SXW path computes the same value as numpy on floats."""
     if name in KNOWN_BROKEN:
         request.node.add_marker(pytest.mark.xfail(strict=True, reason=KNOWN_BROKEN[name]))
 
-    nin = getattr(np, name).nin
+    nin = getattr(getattr(np, name), "nin", 1)  # round is not a ufunc
     points = sample_points(name, nin)
     expected = np.asarray(getattr(np, name)(*points), dtype=float)
-    actual = evaluate_symbolically(name, points)
+    actual = evaluate_symbolically(name, points, kind)
 
     assert np.allclose(actual, expected, rtol=1e-12, atol=1e-12, equal_nan=True), (
         f"yapss.math.{name} disagrees with numpy:\n"
@@ -227,7 +241,7 @@ def test_known_broken_names_are_all_exported():
 def test_rejected_names_raise_on_symbolic_input(name):
     """A rejected name must raise on a symbolic argument, naming itself and numpy."""
     function = getattr(math, name)
-    nin = getattr(np, name).nin
+    nin = getattr(getattr(np, name), "nin", 1)  # round is not a ufunc
     symbolic = np.array([SXW(ca.SX.sym("v"))], dtype=object)
 
     with pytest.raises(math.UnsupportedMathFunctionError) as excinfo:
@@ -248,7 +262,7 @@ def test_rejected_names_warn_on_real_input(name):
     """
     function = getattr(math, name)
     numpy_function = getattr(np, name)
-    arguments = (np.array([1.0, 2.0]),) * numpy_function.nin
+    arguments = (np.array([1.0, 2.0]),) * getattr(numpy_function, "nin", 1)
 
     with pytest.warns(math.UnsupportedMathFunctionWarning) as record:
         result = function(*arguments)

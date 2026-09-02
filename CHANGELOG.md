@@ -15,6 +15,72 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - Users can pin to a specific minor version (e.g., yapss>=0.3.0,<0.4.0) to avoid unexpected
   changes, but should expect significant updates when upgrading to a new minor version.
 
+## [Unreleased]
+
+### Fixed
+
+- `yapss.math` now gives the same answer under every derivative method for the functions that
+  numpy evaluates by taking a truth value. Before this release, `clip`, `where`, `all`, `any`,
+  and the `max`/`min` reductions silently returned their first argument on a symbolic value —
+  numpy's object-dtype loops compare and then call `bool()`, and a symbol had no `bool()` to
+  refuse — so a callback using any of them transcribed a different problem under `"auto"` than
+  under the finite-difference methods, and nothing raised. Each is now implemented symbolically
+  (`clip` as `minimum(maximum(x, lo), hi)`, `where` as CasADi's `if_else`, the reductions as
+  folds), and the transcription is pinned to agree between `"auto"` and `"central-difference"`
+  for every one of them. `where` is newly exported.
+- A symbolic value now refuses to give a truth value, as CasADi's own `SX` does. A Python `if`,
+  `and`, `or`, or `not` on a callback argument, the builtins `max`, `min`, and `sorted`, and the
+  `in` operator all raise `TypeError` under `"auto"`, with a message naming the symbolic
+  spellings. This was scheduled for 0.3.0 as a behavior change; it ships now as a fix, because
+  the behavior it replaces was a silently wrong answer — `x if x > 2 else -x` transcribed to
+  `+x` under `"auto"` and `-x` under central differences.
+- Sixteen exported functions raised `TypeError` on a *scalar* symbolic argument (a phase's
+  `final_time`, a `parameter[i]`, an `integral[i]`) while working on an array (`state[i]`):
+  `abs`, `absolute`, `cbrt`, `conj`, `conjugate`, `deg2rad`, `degrees`, `exp2`, `log2`,
+  `negative`, `positive`, `rad2deg`, `radians`, `reciprocal`, `square`, and `trunc`. The two
+  paths dispatched differently, and only the array path had YAPSS's own implementations; the
+  scalar path handed the raw symbol to numpy, which on casadi 3.7.2 has none of these. Both
+  paths now resolve through one table of CasADi implementations.
+- A scalar symbolic value times an array — `final_time * final_state`, `parameter[0] *
+  initial_state` — no longer collapses into a single wrapper holding a CasADi matrix, which
+  failed three layers later inside CasADi's derivative code with an unhelpful message when
+  assigned to a discrete constraint. The result is an ordinary symbolic array, in either
+  operand order, for float arrays and 2-D arrays too, and augmented assignment on a symbolic
+  array (`array += w`) writes each element in place.
+- Reductions of a symbolic array (`sum`, `mean`, `linalg.norm`, `dot`) return a symbolic scalar
+  rather than a 0-d array, and `sum` of a symbolic scalar works.
+- `rint` and `round` are supported, exactly. 0.2.2 refused `rint` on the belief that numpy's
+  half-to-even tie rule could not be reproduced symbolically; it can, from `floor` and the
+  fractional part (which are exact in double precision) and a conditional, without the
+  `floor(x + 0.5)` addition that every simpler scheme gets wrong half an ulp below a tie. Both
+  are checked bit-for-bit against numpy at every half-integer in a range, at its floating-point
+  neighbors, and for `round` at the classic `decimals` cases (`round(2.675, 2)` is `2.68`, as
+  numpy has it, not the `2.67` of Python's builtin, which rounds the exact decimal value; for
+  that reason the builtin `round(x, n)` on a symbol is refused, while `round(x)` works). On
+  casadi 3.8.0,
+  `round` had previously gone through to CasADi's own rounding, which is half-away-from-zero
+  and disagreed with numpy at every tie. `nextafter`, `signbit`, and `spacing` remain refused;
+  those really do read the bit pattern.
+
+- In-place arithmetic on a symbolic value under the `"auto"` derivative method — a user callback
+  that accumulates a term at a time, such as `d = 0.0` followed by `d += ...` in a loop — no
+  longer risks unbounded recursion. `NDArrayOperatorsMixin` spells every augmented assignment as
+  `ufunc(self, other, out=(self,))`, so the internal `SXW` wrapper reached its `__array_ufunc__`
+  with an `SXW` in `out=` even though nothing in the callback mentions it. Only the positional
+  inputs were unwrapped, so the untouched `out=` was forwarded to the ufunc, and because numpy's
+  dispatch considers `out` operands as well as inputs, that re-entered the same method with
+  identical arguments. The chain terminated only while CasADi handled the inner
+  call and ignored `out=`; whenever CasADi returned `NotImplemented` instead, numpy fell through
+  to the same override again and recursed without bound. That was reachable on the currently
+  pinned `casadi<=3.7.2` — `np.negative`, `np.absolute`, `np.square` and `np.reciprocal` with an
+  explicit `out=` all raised `RecursionError` there — and, under CasADi 3.8's opt-in
+  `GlobalOptions.setNumpyMode(1)`, for every ufunc including the augmented-assignment form. An
+  `SXW` wraps an immutable CasADi value and can never be an output buffer, so `out=` is now
+  dropped rather than forwarded, and passing it can no longer change the outcome of a call. No
+  correct program was previously made wrong: the calls that recursed already raised `TypeError`
+  without `out=`, and they now raise that same `TypeError`. The pre-existing rule that an explicit
+  `out=` is accepted and ignored is unchanged.
+
 ## [0.2.2] - 2026-08-23
 
 ### Changed
