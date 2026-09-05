@@ -1,0 +1,54 @@
+# Citation metadata for YAPSS. GitHub renders this as "Cite this repository", and
+# Zenodo reads it for the metadata of each archived release. See
+# https://citation-file-format.github.io/ for the schema.
+#
+# Update `version` and `date-released` at each release (the release checklist
+# has the step). The DOI is the Zenodo *concept* DOI, which always resolves to
+# the latest archived version; the per-version DOI is on the Zenodo record.
+cff-version: 1.2.0
+message: >-
+  If you use YAPSS in published work, please cite it using the metadata in this
+  file, giving the version you used.
+type: software
+title: "YAPSS: Yet Another Pseudo-Spectral Solver"
+abstract: >-
+  A Python library that transcribes multi-phase optimal control problems into
+  nonlinear programs by pseudospectral collocation (Legendre-Gauss,
+  Legendre-Gauss-Radau, Legendre-Gauss-Lobatto) and solves them with Ipopt. The
+  Legendre-Gauss-Radau transcription follows Patterson and Rao (2014); the
+  Legendre-Gauss and Legendre-Gauss-Lobatto transcriptions extend their approach.
+authors:
+  - family-names: Hall
+    given-names: Steven R.
+    email: steve@steven-hall.net
+    orcid: "https://orcid.org/0000-0002-9414-849X"
+    affiliation: Massachusetts Institute of Technology
+license: MIT
+repository-code: "https://github.com/stevenrhall/yapss"
+url: "https://yapss.readthedocs.io/"
+keywords:
+  - optimal control
+  - pseudospectral methods
+  - collocation
+  - trajectory optimization
+  - Ipopt
+  - Python
+version: 0.2.3
+date-released: "2026-09-05"
+doi: 10.5281/zenodo.22402223
+references:
+  - type: article
+    title: >-
+      GPOPS-II: A MATLAB software for solving multiple-phase optimal control
+      problems using hp-adaptive Gaussian quadrature collocation methods and
+      sparse nonlinear programming
+    authors:
+      - family-names: Patterson
+        given-names: Michael A.
+      - family-names: Rao
+        given-names: Anil V.
+    journal: ACM Transactions on Mathematical Software
+    volume: 41
+    issue: 1
+    year: 2014
+    doi: 10.1145/2558904

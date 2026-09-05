@@ -26,6 +26,10 @@ the recurring process.
 ## 2. Changelog
 
 - [ ] Update `CHANGELOG.md` with an entry for the new version, dated.
+- [ ] Update `version` and `date-released` in `CITATION.cff`, and the version in
+      the citation shown under "Citing YAPSS" in `docs/user_guide/index.md`.
+      Zenodo reads `CITATION.cff` at the release commit for the archive's
+      metadata, so it has to be right before tagging.
 - [ ] Document any user-visible differences between the pip and conda builds,
       such as the solver backend or supported Python range.
 
@@ -199,6 +203,15 @@ commands are not used.
 - [ ] Approve the `pypi` deployment in the Actions UI to run the final job.
 - [ ] Confirm that the new version appears on pypi.org and that the production
       wheel and sdist SHA-256 values match the artifacts tested on TestPyPI.
+- [ ] Create the GitHub Release for the tag, with notes drawn from the
+      changelog entry:
+      ```
+      gh release create vX.Y.Z --title "vX.Y.Z" --notes-file <notes>
+      ```
+      A tag push alone does not archive anything: Zenodo's GitHub integration
+      acts on *published releases*. Zenodo then mints the version DOI under the
+      project's concept DOI (the one in `CITATION.cff`) within a few minutes;
+      confirm the new version appears on the Zenodo record.
 - [ ] If this release supersedes a release with serious installation,
       correctness, crash, or security defects, review whether the affected
       release should be yanked. Prefer yanking with a clear reason to deleting

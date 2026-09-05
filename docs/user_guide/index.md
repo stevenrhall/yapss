@@ -68,6 +68,21 @@ The value of the final digits of the objective may vary between platforms and so
 - **Want to contribute?** Contributions are welcome! Read
   [Contributing to YAPSS](CONTRIBUTING.md).
 
+## Citing YAPSS
+
+If you use YAPSS in published work, please cite it, giving the version you used. Each
+release is archived on Zenodo; the DOI below always resolves to the latest version, and
+the record for each version has its own DOI.
+
+> Hall, S. R. (2026). *YAPSS: Yet Another Pseudo-Spectral Solver* (Version 0.2.3)
+> [Computer software]. https://doi.org/10.5281/zenodo.22402223
+
+The repository's `CITATION.cff` carries the same metadata in machine-readable form;
+GitHub's "Cite this repository" button renders it as BibTeX or APA. The
+Legendre-Gauss-Radau transcription follows Patterson and Rao (2014), cited at the top
+of this page, which you may wish to cite as well; the Legendre-Gauss and
+Legendre-Gauss-Lobatto transcriptions extend their approach.
+
 ## License
 
 YAPSS is licensed under the MIT License. See the 
