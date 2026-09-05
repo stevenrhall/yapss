@@ -17,7 +17,8 @@ required by Ipopt. The Jacobian and Hessian callbacks and their structures are b
 by the `jacobian` and `hessian` modules from single assembly plans; this module holds
 the class, the value-level callbacks (objective, gradient, constraints), and the
 evaluators for the user's continuous and discrete functions that the plan modules
-consume.
+consume. `ContinuousEvaluator` is shared by the constraint, Jacobian, and Hessian
+callbacks so that the user's continuous functions are evaluated once per point.
 
 """
 
@@ -97,15 +98,22 @@ class NLP:
         self.mesh = mesh
 
         nlp = self
+
+        # One evaluator of the user's continuous functions, shared by the constraint,
+        # Jacobian, and Hessian callbacks. Ipopt asks for all three at each iterate,
+        # and the Hessian needs the function and Jacobian values too (the chain-rule
+        # terms through t0 and tf); sharing means each is computed once per point.
+        self.eval_continuous = ContinuousEvaluator(nlp)
+
         self._objective = make_nlp_objective(nlp)
-        self._constraints = make_nlp_constraints(nlp)
+        self._constraints = make_nlp_constraints(nlp, self.eval_continuous)
         self._gradient = make_nlp_objective_gradient(nlp)
 
         # constraint jacobian: structure and evaluator come from one assembly plan,
         # so their entries correspond by construction; see the jacobian module
         (self.irow, self.jcol), self._jacobian = make_nlp_jacobian(
             nlp,
-            make_eval_continuous(nlp),
+            self.eval_continuous,
             make_eval_discrete_jacobian(nlp),
         )
 
@@ -118,9 +126,8 @@ class NLP:
             # entries correspond by construction; see the hessian module
             self.nlp_hessian_structure, self._hessian = make_nlp_hessian(
                 nlp,
-                make_eval_continuous(nlp),
+                self.eval_continuous,
             )
-        self.eval_continuous = make_eval_continuous(self)
 
     def objective(self, z: FloatArray) -> float:
         """Evaluate NLP objective function.
@@ -256,12 +263,17 @@ def make_nlp_objective(nlp: NLP) -> Callable[[FloatArray], float]:
     return eval_nlp_objective
 
 
-def make_nlp_constraints(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
+def make_nlp_constraints(
+    nlp: NLP,
+    eval_continuous: ContinuousEvaluator,
+) -> Callable[[FloatArray], FloatArray]:
     """Construct the NLP constraint function from the optimal control problem definition.
 
     Parameters
     ----------
     nlp : NLP
+    eval_continuous : ContinuousEvaluator
+        The shared evaluator of the continuous functions.
 
     Returns
     -------
@@ -270,18 +282,12 @@ def make_nlp_constraints(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
     """
     problem = nlp.problem
     mesh: Mesh = nlp.mesh
-    dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
-    ci: ContinuousArg[np.float64] = ContinuousArg(
-        problem,
-        dv,
-        dtype=np.float64,
-        tau_u=mesh.tau_u,
-    )
+    # the evaluator owns the decision-variable structure that its argument reads
+    # from; the defect terms below read the same one, so they see the same z
+    dv: DVStructure[np.float64] = eval_continuous.dv
     di: DiscreteArg[np.float64] = DiscreteArg(problem, dv, np.float64)
     cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, np.float64)
 
-    if problem.np > 0:
-        continuous_function = cast(ContinuousFunctionFloat, nlp.functions.continuous)
     if problem.nd > 0:
         discrete_function = cast(DiscreteFunctionFloat, nlp.functions.discrete)
 
@@ -302,11 +308,9 @@ def make_nlp_constraints(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
         FloatArray
             NLP constraint functions values
         """
-        ci._sync(z)
-
-        # call the user-defined continuous function
-        if problem.np > 0:
-            continuous_function(ci)
+        # evaluates the user-defined continuous function, or returns the values
+        # already computed at this z by an earlier callback
+        ci = eval_continuous(z, 0)
 
         cf.c[:] = 0.0
 
@@ -393,66 +397,93 @@ def make_nlp_objective_gradient(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
     return eval_nlp_objective_gradient
 
 
-def make_eval_continuous(nlp: NLP) -> Callable[[FloatArray, int], ContinuousArg[np.float64]]:
-    """Make callback function to evaluate the problem continuous functions.
+class ContinuousEvaluator:
+    """Evaluate the continuous functions at a point, once per point.
 
-    Make callback function that returns the results of calling the continuous function,
-    and optionally the continuous_jacobian and continuous_hessian functions. Consumed
-    by the Jacobian and Hessian assembly plans.
+    Returns the continuous function values and, on request, the continuous Jacobian
+    and Hessian, in one `ContinuousArg` shared by the constraint, Jacobian, and Hessian
+    callbacks. Ipopt asks for all three at each iterate, and the Hessian's chain-rule
+    terms through ``t0`` and ``tf`` need the function and Jacobian values as well, so
+    without sharing the user's function ran three times per iterate and its Jacobian
+    twice -- under central differences, two full perturbation stencils.
+
+    The cache is keyed on the value of ``z``. Ipopt's ``new_x`` flag is deliberately
+    not used: cyipopt does not pass it through, it is set by vector identity rather
+    than value, and the compare it would save costs a few microseconds against user
+    functions that cost far more. A value compare can only ever cause a needless
+    re-evaluation; a trusted flag that was wrong would serve derivatives from the
+    wrong point silently.
+
+    Orders are cumulative: order 1 adds the Jacobian to the function values, order 2
+    adds the Hessian. A request for a higher order at the cached point evaluates only
+    what is missing, and each order is recorded as done only after its evaluation
+    returns, so an exception in a user callback leaves nothing marked as computed.
+    The central-difference derivatives restore the function values after their
+    stencils (pinned by ``test_central_difference_derivatives_restore_continuous_values``),
+    which is what lets a lower order be served after a higher one.
 
     Parameters
     ----------
     nlp : NLP
-
-    Returns
-    -------
-    Callable[[NDArray, int], ContinuousArg]
-        Callback function
     """
-    problem = nlp.problem
-    mesh = nlp.mesh
 
-    dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
-    ci: ContinuousArg[np.float64] = ContinuousArg(
-        problem,
-        dv,
-        dtype=np.float64,
-        tau_u=mesh.tau_u,
-    )
-    if problem.np > 0:
-        continuous_function = cast(ContinuousFunctionFloat, nlp.functions.continuous)
+    def __init__(self, nlp: NLP) -> None:
+        problem = nlp.problem
+        self._functions = nlp.functions
+        self._np = problem.np
+        self.dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
+        self.arg: ContinuousArg[np.float64] = ContinuousArg(
+            problem,
+            self.dv,
+            dtype=np.float64,
+            tau_u=nlp.mesh.tau_u,
+        )
+        self._z: FloatArray | None = None
+        self._order_done = -1
 
-    # begin callback function
+    def __call__(self, z: FloatArray, order: int = 0) -> ContinuousArg[np.float64]:
+        """Return the continuous argument evaluated at ``z`` through ``order``.
 
-    def eval_continuous(z: FloatArray, order: int = 0) -> ContinuousArg[np.float64]:
-        # distribute nlp decision variables passed from pyipopt to x0, xf, q, t0, tf
-        # (for each phase) and s
-        ci._sync(z)
+        Parameters
+        ----------
+        z : NDArray
+            The NLP decision variable array
+        order : int
+            0 for the function values, 1 to add the Jacobian, 2 to add the Hessian.
 
-        # call the user-defined continuous constraint function
-        ci._phase_list = tuple(range(problem.np))
-        continuous_function(ci)
+        Returns
+        -------
+        ContinuousArg
+            The shared argument. Valid until the next call at a different point.
+        """
+        arg = self.arg
+        if self._z is None or not np.array_equal(z, self._z):
+            # a new point: nothing computed here is valid until order 0 completes
+            self._z = None
+            self._order_done = -1
+            arg._sync(z)
+            self._z = np.array(z, dtype=np.float64, copy=True)
 
-        if order == 0:
-            return ci
+        if self._order_done < 0:
+            arg._phase_list = tuple(range(self._np))
+            if self._np > 0:
+                cast(ContinuousFunctionFloat, self._functions.continuous)(arg)
+            self._order_done = 0
 
-        ci._phase_list = tuple(range(problem.np))
-        for p in range(problem.np):
-            ci.phase[p].jacobian.clear()
-        nlp.functions.continuous_jacobian(cast(ContinuousJacobianArg, ci))
+        if order >= 1 and self._order_done < 1:
+            arg._phase_list = tuple(range(self._np))
+            for p in range(self._np):
+                arg.phase[p].jacobian.clear()
+            self._functions.continuous_jacobian(cast(ContinuousJacobianArg, arg))
+            self._order_done = 1
 
-        if order == 1:
-            return ci
+        if order >= 2 and self._order_done < 2:  # noqa: PLR2004
+            for p in range(self._np):
+                arg.phase[p].hessian.clear()
+            self._functions.continuous_hessian(cast(ContinuousHessianArg, arg))
+            self._order_done = 2
 
-        for p in range(problem.np):
-            ci.phase[p].hessian.clear()
-        nlp.functions.continuous_hessian(cast(ContinuousHessianArg, ci))
-
-        return ci
-
-    # end callback function
-
-    return eval_continuous
+        return arg
 
 
 def make_eval_discrete_jacobian(nlp: NLP) -> Callable[[FloatArray], Sequence[np.float64 | float]]:

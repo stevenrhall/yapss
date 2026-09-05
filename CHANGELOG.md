@@ -17,6 +17,15 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ## [Unreleased]
 
+### Changed
+
+- The user's continuous functions are evaluated once per Ipopt iterate. The constraint,
+  Jacobian, and Hessian callbacks previously each evaluated them independently at the same
+  point, so the function ran three times per iterate and its Jacobian twice; they now share
+  one evaluator. No change in results; the golden tests pin every callback value. The
+  example suite runs about 6% faster, and central-difference solves save one Jacobian stencil
+  per iterate (Delta III: 6.2 s to 5.8 s).
+
 ### Fixed
 
 - `yapss.math` now gives the same answer under every derivative method for the functions that

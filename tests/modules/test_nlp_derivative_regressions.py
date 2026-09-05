@@ -50,11 +50,17 @@ def _continuous_values(nlp: NLP, x: np.ndarray, order: int) -> tuple[np.ndarray,
 
 @pytest.mark.parametrize("order", [1, 2])
 def test_central_difference_derivatives_restore_continuous_values(order: int) -> None:
-    """Derivative scratch evaluations must not leak into rolled-up chain-rule terms."""
+    """Derivative scratch evaluations must not leak into rolled-up chain-rule terms.
+
+    The shared evaluator serves the function values to the constraint callback from
+    the same argument the derivative stencils perturbed, so the unperturbed values are
+    taken first -- a later order-0 request at the same point is a cache hit and would
+    not re-evaluate -- and the argument is compared after the derivatives ran on it.
+    """
     nlp, x = _make_orbit_raising_nlp("central-difference")
 
-    after_derivatives = _continuous_values(nlp, x, order)
     unperturbed = _continuous_values(nlp, x, 0)
+    after_derivatives = _continuous_values(nlp, x, order)
 
     for actual, expected in zip(after_derivatives, unperturbed, strict=True):
         np.testing.assert_array_equal(actual, expected)

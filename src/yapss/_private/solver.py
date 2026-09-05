@@ -567,6 +567,11 @@ class _CyipoptProblemAdapter:
         raise exception.with_traceback(traceback)
 
 
+# The ``new_x`` argument Ipopt passes to each callback is deliberately unused. The NLP
+# evaluates the continuous functions once per point through a value-keyed cache
+# (``nlp.ContinuousEvaluator``), which works identically under cyipopt, where the
+# flag is not passed through at all, and which cannot serve a stale value the way a
+# misread flag could.
 def _objective_callback(function: Callable[..., Any]) -> Callable[..., bool]:
     @functools.wraps(function)
     def callback(
