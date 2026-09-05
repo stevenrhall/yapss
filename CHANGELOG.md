@@ -61,7 +61,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   `round` had previously gone through to CasADi's own rounding, which is half-away-from-zero
   and disagreed with numpy at every tie. `nextafter`, `signbit`, and `spacing` remain refused;
   those really do read the bit pattern.
-
 - In-place arithmetic on a symbolic value under the `"auto"` derivative method — a user callback
   that accumulates a term at a time, such as `d = 0.0` followed by `d += ...` in a loop — no
   longer risks unbounded recursion. `NDArrayOperatorsMixin` spells every augmented assignment as
@@ -80,6 +79,13 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   correct program was previously made wrong: the calls that recursed already raised `TypeError`
   without `out=`, and they now raise that same `TypeError`. The pre-existing rule that an explicit
   `out=` is accepted and ignored is unchanged.
+- `Problem.validate()` now rejects initial-state or final-state bounds that do not overlap the
+  state bounds. The NLP bound on a boundary state is the intersection of the two (the larger of
+  the lower bounds and the smaller of the upper bounds), so a pair that was each consistent on
+  its own, such as `state` in `[5, 10]` and `initial_state` in `[-1, 0]`, passed validation and
+  reached Ipopt as a lower bound above the upper bound, with no diagnostic pointing at the
+  cause. The message names the phase, the offending bound, and the indices. Bounds that touch
+  at a single point (a fixed boundary state inside the state bounds) remain valid.
 
 ## [0.2.2] - 2026-08-23
 

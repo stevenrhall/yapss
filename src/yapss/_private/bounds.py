@@ -244,6 +244,21 @@ class PhaseBounds:
         self.path.validate()
         self._zero_mode.validate()
 
+        # The NLP bounds on the boundary states are the intersection of the state bounds
+        # with the initial (final) state bounds, so each pair must overlap even when both
+        # are individually consistent.
+        p = self.initial_time._p
+        for boundary in (self.initial_state, self.final_state):
+            lower = np.maximum(boundary.lower, self.state.lower)
+            upper = np.minimum(boundary.upper, self.state.upper)
+            indices = np.where(upper < lower)[0]
+            if len(indices) > 0:
+                overlap_msg = (
+                    "bounds.phase[{p}].{name} and bounds.phase[{p}].state do not overlap "
+                    "for indices i in {indices}"
+                )
+                raise ValueError(overlap_msg.format(p=p, name=boundary._name, indices=indices))
+
         # check that time bounds are feasible
         msg = None
         if self.final_time.upper - self.initial_time.lower < self.duration.lower:
@@ -259,7 +274,6 @@ class PhaseBounds:
                 "bounds.phase[{}].initial_time.upper > bounds.phase[{}].duration.upper."
             )
         if msg is not None:
-            p = self.initial_time._p
             msg = msg.format(p, p, p)
             raise ValueError(msg)
 
@@ -363,9 +377,6 @@ class Bounds(Protected):
             phase.validate()
         self.discrete.validate()
         self.parameter.validate()
-
-
-# TODO: validate consistency of x, x0, xf
 
 
 def get_nlp_decision_variable_bounds(problem: yapss.Problem) -> tuple[FloatArray, FloatArray]:

@@ -115,6 +115,38 @@ def test_change_bounds_shape():
         ocp.bounds.validate()
 
 
+def test_boundary_state_bounds_must_overlap_state_bounds():
+    """Individually consistent state and boundary-state bounds must still intersect.
+
+    The NLP bounds on the boundary states are the intersection of the state bounds with
+    the initial (final) state bounds, so a disjoint pair would reach Ipopt as an
+    infeasible lower > upper bound with no diagnostic.
+    """
+    ocp = goddard_problem_3_phase.setup()
+    ocp.bounds.phase[0].state.lower = [5, 0, 0]
+    ocp.bounds.phase[0].state.upper = [10, 1, 1]
+    ocp.bounds.phase[0].initial_state.lower = [-1, 0, 0]
+    ocp.bounds.phase[0].initial_state.upper = [0, 1, 1]
+    msg = "bounds.phase[0].initial_state and bounds.phase[0].state do not overlap for indices i in [0]"
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        ocp.bounds.validate()
+
+    ocp.bounds.reset()
+    ocp.bounds.phase[2].state.lower = [0, 0, 0]
+    ocp.bounds.phase[2].state.upper = [1, 1, 1]
+    ocp.bounds.phase[2].final_state.lower = [0, 2, 3]
+    msg = "bounds.phase[2].final_state and bounds.phase[2].state do not overlap for indices i in [1 2]"
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        ocp.bounds.validate()
+
+    # touching at a single point is a valid (fixed) boundary state
+    ocp.bounds.reset()
+    ocp.bounds.phase[2].state.lower = [0, 0, 0]
+    ocp.bounds.phase[2].final_state.lower = [0, 0, 0]
+    ocp.bounds.phase[2].final_state.upper = [0, 0, 0]
+    ocp.bounds.validate()
+
+
 def test_duration_bound_errors():
     """Test that errors are raised when duration bounds are infeasible."""
     # duration.lower > duration.upper
