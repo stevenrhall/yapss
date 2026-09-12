@@ -28,6 +28,14 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- The initial guess for the Legendre-Gauss method was written into the NLP in time
+  order, but the LG state layout is collocation points first, then segment-start and final
+  values, so every LG solve started from a scrambled state guess: the initial-state slot
+  received a mid-trajectory value, and warm-starting from a previous solution did not
+  reproduce it. The guess now goes through the same index map the solution reads back
+  through. LGR and LGL were unaffected. The golden NLP pins for the LG cases were
+  regenerated, since they are taken at a point derived from the guess; the independent
+  finite-difference check passes at the new point, and the LGR/LGL pins are untouched.
 - `yapss.math` now gives the same answer under every derivative method for the functions that
   numpy evaluates by taking a truth value. Before this release, `clip`, `where`, `all`, `any`,
   and the `max`/`min` reductions silently returned their first argument on a symbolic value —

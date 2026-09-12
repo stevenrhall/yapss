@@ -342,12 +342,14 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
         # interpolate state and control variables
         state = guess.phase[p].state
         for i in range(problem.nx[p]):
+            f = interp1d(time, state[i], fill_value="extrapolate")
             if problem.spectral_method != "lg":
-                f = interp1d(time, state[i], fill_value="extrapolate")
                 phase.x[i][:] = f(t_x)
             else:
-                f = interp1d(time, state[i], fill_value="extrapolate")
-                phase.xa[i][:] = f(t_x)
+                # tau_x is in time order, but the LG state layout is collocation points
+                # first, then segment-start and final values; lg_index maps time order
+                # to layout order, the same permutation solution.py inverts on read.
+                phase.xa[i][mesh.lg_index[p]] = f(t_x)
 
             if problem.spectral_method == "lgl":
                 phase.xs[i][:] = 0.0

@@ -309,3 +309,36 @@ def test_from_solution_zero_controls():
     problem.guess.validate()
 
     assert problem.guess.phase[0].control.shape == (0, len(time))
+
+
+@pytest.mark.parametrize("spectral_method", ["lg", "lgr", "lgl"])
+def test_initial_guess_nlp_state_is_in_time_order(spectral_method):
+    """The NLP state guess, read back the way solution.py reads it, is the interpolant.
+
+    For LG the state layout is collocation points first, then segment-start and final
+    values, so the write must go through ``mesh.lg_index`` just as the read does.
+    """
+    from yapss._private.guess import make_initial_guess_nlp
+    from yapss._private.mesh import Mesh
+    from yapss._private.structure import get_nlp_dv_structure
+
+    problem = Problem(name="Test", nx=[1], nu=[0])
+    problem.spectral_method = spectral_method
+    problem.mesh.phase[0].collocation_points = (4, 3)
+    problem.mesh.phase[0].fraction = (0.5, 0.5)
+    problem.guess.phase[0].time = np.array([0.0, 1.0])
+    problem.guess.phase[0].state = np.array([[0.0, 1.0]])
+    problem.guess.validate()
+
+    mesh = Mesh(problem.mesh.phase)
+    mesh.set_matrices(spectral_method)
+    z0 = make_initial_guess_nlp(problem, mesh)
+    dv = get_nlp_dv_structure(problem, np.float64)
+    dv.z[:] = z0
+
+    phase = dv.phase[0]
+    x = phase.xa[0][mesh.lg_index[0]] if spectral_method == "lg" else phase.x[0]
+    t_x = (mesh.tau_x[0] + 1) / 2
+    np.testing.assert_allclose(x, t_x, atol=1e-14)
+    assert phase.x0[0] == 0.0
+    assert phase.xf[0] == 1.0
