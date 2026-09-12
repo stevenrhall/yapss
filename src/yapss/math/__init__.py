@@ -15,6 +15,8 @@ __all__ = [  # noqa: RUF022
     "absolute",
     "add",
     "all",
+    "amax",
+    "amin",
     "any",
     "arccos",
     "arccosh",
@@ -118,6 +120,8 @@ from numpy import sum  # noqa: A004
 from numpy import (
     absolute,
     add,
+    amax,
+    amin,
     arccos,
     arccosh,
     arcsin,

@@ -67,6 +67,8 @@ OUT_OF_SCOPE = {
     "any": "array reduction; symbolic fold tested in test_sxw_scrub.py",
     "max": "array reduction; symbolic fold tested in test_sxw_scrub.py",
     "min": "array reduction; symbolic fold tested in test_sxw_scrub.py",
+    "amax": "array reduction; alias of max",
+    "amin": "array reduction; alias of min",
     "sum": "array reduction, not elementwise",
     "round": "takes a decimals parameter; tested at the halves in test_sxw_scrub.py",
     "clip": "three arguments; symbolic dispatch tested in test_sxw_scrub.py",
