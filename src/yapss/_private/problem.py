@@ -102,6 +102,11 @@ class Problem(Protected):
         The auxiliary data for the problem.
     bounds : Bounds
         The bounds object structure for the problem.
+    catch_keyboard_interrupt : bool
+        Whether ``solve()`` installs a SIGINT handler so that Ctrl-C asks Ipopt to stop
+        at the next iteration and return the current iterate, rather than interrupting
+        Python inside the solver. Defaults to ``True``. The handler can only be installed
+        on the main thread; on any other thread the solve runs without it.
     derivatives : Derivatives
         The derivative options for the problem. Attributes: `method`, `order`.
     functions : UserFunctions

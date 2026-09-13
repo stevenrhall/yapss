@@ -31,6 +31,11 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- `solve()` works from a thread other than the main thread. It installed a SIGINT handler
+  whenever `catch_keyboard_interrupt` was true, the default, and Python permits that only
+  on the main thread, so a solve from a worker thread raised after all NLP setup with no
+  mention of the flag. Off the main thread the handler is simply not installed: a worker
+  thread never receives the keyboard interrupt, so there is nothing to catch.
 - A guess no longer aliases the array it was set from. The state, control, time, and
   parameter setters stored the caller's array itself when its dtype already matched, so
   after `problem.guess(solution)` an in-place edit of the guess changed the solution, and

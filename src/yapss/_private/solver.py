@@ -16,6 +16,7 @@ import os
 import signal
 import sys
 import textwrap
+import threading
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -402,7 +403,14 @@ def solve(problem: yapss.Problem) -> Solution:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", warning_message)
 
-            if problem.catch_keyboard_interrupt:
+            # signal.signal is allowed only on the main thread. A worker thread never
+            # receives the keyboard interrupt anyway, so there is nothing to catch there
+            # and the solve simply runs without the handler.
+            catch_interrupt = (
+                problem.catch_keyboard_interrupt
+                and threading.current_thread() is threading.main_thread()
+            )
+            if catch_interrupt:
                 original_handler = signal.signal(signal.SIGINT, problem._signal_handler)
                 try:
                     z, nlp_info = _solve_ipopt_problem(
