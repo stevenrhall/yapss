@@ -17,6 +17,29 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ## [Unreleased]
 
+This release is a patch under the versioning policy above, but it deserves a closer read
+than most. A whole-package review found several defects that produced wrong results
+with no warning, and fixing them changes what some programs see:
+
+- Every solve with the Legendre-Gauss method started from a scrambled state guess. LG
+  solutions that converged are still correct; LG solves that were flaky or converged to
+  a poor local optimum are worth re-running.
+- Under the central-difference methods, a dependency that passed through the branch of
+  `yapss.math.where` that the condition selected away was missing from the Jacobian, so
+  the outcome of the optimization was unpredictable: it could fail to converge, or
+  converge, perhaps slowly, to the correct answer or to an incorrect one. Problems that
+  use `where` under central differences are worth re-running.
+- `control_multiplier` and `path_multiplier` were mis-scaled on any phase whose duration
+  was not 2. Code that consumes them sees different numbers; the costate and the
+  Hamiltonian were already right.
+- A few things that were accepted silently and then ignored, or that crashed later with
+  no diagnostic, now raise at the offending line: a zero, negative, or NaN scale factor;
+  an Ipopt option value of the wrong kind. Correct programs are unaffected. Raising where
+  the old behavior was silently wrong is treated as a fix, not a break, as it was for
+  `SXW.__bool__` below.
+
+The deprecations scheduled for 0.3.0 are unchanged and still warn.
+
 ### Changed
 
 - The central-difference Jacobian runs its stencil on a private argument, as the Hessian
@@ -54,77 +77,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
-- `isinstance(arg, yapss.ContinuousArg)` works, and likewise for `DiscreteArg` and
-  `ObjectiveArg`. The three were re-exported as subscripted generics, which `isinstance`
-  refuses with a `TypeError`, while the other six argument types are plain classes. They
-  are now the classes at runtime and the float64 specialization for a type checker.
-- `IpoptOptionSettingWarning` is exported from the root package, so every warning category
-  YAPSS can raise is filterable from one import.
-- numpy's own functions now work on a symbolic array as they already did on a symbolic
-  scalar. `np.arctan2`, `np.hypot`, `np.maximum`, and the other two-argument ufuncs raised
-  on the arrays a callback receives under `"auto"` (numpy's object loop looks for an
-  element method of that name, which only the one-argument functions had), and `np.max`,
-  `np.min`, `np.all`, and `np.any` on such an array hit the truth-value guard. `SXArray`
-  now implements the array-ufunc protocol and routes every ufunc through the same table
-  `yapss.math` uses. `yapss.math` remains the documented spelling: under the
-  central-difference methods the sparsity probe still needs its `where`, `fmax`, and
-  `fmin`.
-- A scalar bound (`initial_time`, `final_time`, `duration`) accepts any real number,
-  NumPy scalars included, as the array bounds already did; `np.float32(10.0)` or
-  `np.int64(10)` used to raise `TypeError`. `bool` is refused. The error message had an
-  unbalanced quote.
-- `solve()` works from a thread other than the main thread. It installed a SIGINT handler
-  whenever `catch_keyboard_interrupt` was true, the default, and Python permits that only
-  on the main thread, so a solve from a worker thread raised after all NLP setup with no
-  mention of the flag. Off the main thread the handler is simply not installed: a worker
-  thread never receives the keyboard interrupt, so there is nothing to catch.
-- A guess no longer aliases the array it was set from. The state, control, time, and
-  parameter setters stored the caller's array itself when its dtype already matched, so
-  after `problem.guess(solution)` an in-place edit of the guess changed the solution, and
-  a user array passed as a guess kept changing the guess when edited afterwards.
-- Ipopt option values are checked against the option's kind when assigned, and converted to
-  the Python type Ipopt's registry expects. The backend used to choose Ipopt's Integer, Number,
-  or String registry from the Python type of the value, so `max_wall_time = 60` (an `int` for a
-  Number option) was refused by Ipopt and a NumPy integer such as `max_iter = np.int64(50)` was
-  refused outright; both were demoted to a warning at solve time and the option was silently
-  dropped, so the solve ran with no time limit or with the default iteration limit. A value of
-  the wrong kind now raises `TypeError` at the assignment, following the same reasoning as
-  the `SXW.__bool__` change: the behavior it replaces was a silently ignored setting.
-- An unset state or control guess is now an array of zeros of whatever shape the time
-  array currently implies, supplied on read. `validate()` used to store the zeros at the
-  length the time array had then, and since `solve()` validates, a later change to the time
-  array alone made the next solve reject a state or control array the user never set.
-- The `"user"` derivative method no longer demands `continuous_jacobian` and
-  `continuous_hessian` on a problem with no phases. `Problem.validate()` requires them only
-  when there are phases, but the method's setup required them regardless, so a
-  parameter-only problem passed validation and then failed in `solve()`.
-- In a phase with no controls, `solution.phase[p].control` and `control_multiplier` had
-  shape `(0,)` rather than `(0, n)`, and likewise `state` and `costate` in a phase with no
-  states, so `problem.guess(solution)` raised on any solution with a coast phase or a
-  parameter-only phase. All per-point arrays now keep their point count when empty.
-- Every scale factor is now checked to be finite and positive when it is set, as
-  `scale.objective` already was. A zero, negative, or NaN scale on a state, control,
-  integral, dynamics, path, parameter, discrete, or phase-time scale was accepted, and
-  reached the NLP as an infinite or reversed scaling; a NaN reached Ipopt's scaling arrays
-  and crashed the process with no Python traceback. A NaN `scale.objective` also passed,
-  since NaN compares false against zero.
-- The `"auto"` derivative method no longer writes two of its CasADi objects into
-  `problem.auxdata`, the user's namespace. Nothing read them; they clobbered any user
-  attribute named `objective_function` (a second `solve()` then failed inside the symbolic
-  trace) and were deep-copied into every `Solution`.
-- `control_multiplier` and `path_multiplier` are now densities in time, like the costate.
-  `control_multiplier` was multiplied by the phase half-duration where it should have been
-  divided, and `path_multiplier` was not divided at all, so on any phase whose duration was
-  not 2 the two disagreed with the costate, with each other, and with the multiplier one
-  finds by hand. On a zero-duration phase both are NaN: the constraint holds on a set of
-  measure zero and no density exists.
-- `yapss.math.where` now returns NaN wherever either branch is NaN, whichever branch the
-  condition selects. The central-difference methods find the sparsity structure by setting
-  one variable to NaN and recording which outputs come back NaN, and numpy's `where`
-  discards the unselected branch, NaN included, so a dependency such as
-  `where(u > 0, u, 0.0)` at a point where `u <= 0` was silently missing from the Jacobian
-  and Ipopt converged to a wrong answer. `fmax` and `fmin` already followed this rule; it
-  is now the rule for every `yapss.math` function: NaN contaminates every path it touches.
 - The initial guess for the Legendre-Gauss method was written into the NLP in time
   order, but the LG state layout is collocation points first, then segment-start and final
   values, so every LG solve started from a scrambled state guess: the initial-state slot
@@ -133,6 +85,23 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   through. LGR and LGL were unaffected. The golden NLP pins for the LG cases were
   regenerated, since they are taken at a point derived from the guess; the independent
   finite-difference check passes at the new point, and the LGR/LGL pins are untouched.
+- `yapss.math.where` now returns NaN wherever either branch is NaN, whichever branch the
+  condition selects. The central-difference methods find the sparsity structure by setting
+  one variable to NaN and recording which outputs come back NaN, and numpy's `where`
+  discards the unselected branch, NaN included, so a dependency such as
+  `where(u > 0, u, 0.0)` at a point where `u <= 0` was silently missing from the Jacobian
+  and Ipopt converged to a wrong answer. `fmax` and `fmin` already followed this rule; it
+  is now the rule for every `yapss.math` function: NaN contaminates every path it touches.
+- `control_multiplier` and `path_multiplier` are now densities in time, like the costate.
+  `control_multiplier` was multiplied by the phase half-duration where it should have been
+  divided, and `path_multiplier` was not divided at all, so on any phase whose duration was
+  not 2 the two disagreed with the costate, with each other, and with the multiplier one
+  finds by hand. On a zero-duration phase both are NaN: the constraint holds on a set of
+  measure zero and no density exists.
+- The `"auto"` derivative method no longer writes two of its CasADi objects into
+  `problem.auxdata`, the user's namespace. Nothing read them; they clobbered any user
+  attribute named `objective_function` (a second `solve()` then failed inside the symbolic
+  trace) and were deep-copied into every `Solution`.
 - `yapss.math` now gives the same answer under every derivative method for the functions that
   numpy evaluates by taking a truth value. Before this release, `clip`, `where`, `all`, `any`,
   and the `max`/`min` reductions silently returned their first argument on a symbolic value —
@@ -193,6 +162,20 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   correct program was previously made wrong: the calls that recursed already raised `TypeError`
   without `out=`, and they now raise that same `TypeError`. The pre-existing rule that an explicit
   `out=` is accepted and ignored is unchanged.
+- Every scale factor is now checked to be finite and positive when it is set, as
+  `scale.objective` already was. A zero, negative, or NaN scale on a state, control,
+  integral, dynamics, path, parameter, discrete, or phase-time scale was accepted, and
+  reached the NLP as an infinite or reversed scaling; a NaN reached Ipopt's scaling arrays
+  and crashed the process with no Python traceback. A NaN `scale.objective` also passed,
+  since NaN compares false against zero.
+- Ipopt option values are checked against the option's kind when assigned, and converted to
+  the Python type Ipopt's registry expects. The backend used to choose Ipopt's Integer, Number,
+  or String registry from the Python type of the value, so `max_wall_time = 60` (an `int` for a
+  Number option) was refused by Ipopt and a NumPy integer such as `max_iter = np.int64(50)` was
+  refused outright; both were demoted to a warning at solve time and the option was silently
+  dropped, so the solve ran with no time limit or with the default iteration limit. A value of
+  the wrong kind now raises `TypeError` at the assignment, following the same reasoning as
+  the `SXW.__bool__` change: the behavior it replaces was a silently ignored setting.
 - `Problem.validate()` now rejects initial-state or final-state bounds that do not overlap the
   state bounds. The NLP bound on a boundary state is the intersection of the two (the larger of
   the lower bounds and the smaller of the upper bounds), so a pair that was each consistent on
@@ -201,6 +184,46 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   cause. The message names the phase, the offending bound, and the indices. Bounds that touch
   at a single point (a fixed boundary state inside the state bounds) remain valid.
 
+- In a phase with no controls, `solution.phase[p].control` and `control_multiplier` had
+  shape `(0,)` rather than `(0, n)`, and likewise `state` and `costate` in a phase with no
+  states, so `problem.guess(solution)` raised on any solution with a coast phase or a
+  parameter-only phase. All per-point arrays now keep their point count when empty.
+- The `"user"` derivative method no longer demands `continuous_jacobian` and
+  `continuous_hessian` on a problem with no phases. `Problem.validate()` requires them only
+  when there are phases, but the method's setup required them regardless, so a
+  parameter-only problem passed validation and then failed in `solve()`.
+- An unset state or control guess is now an array of zeros of whatever shape the time
+  array currently implies, supplied on read. `validate()` used to store the zeros at the
+  length the time array had then, and since `solve()` validates, a later change to the time
+  array alone made the next solve reject a state or control array the user never set.
+- A guess no longer aliases the array it was set from. The state, control, time, and
+  parameter setters stored the caller's array itself when its dtype already matched, so
+  after `problem.guess(solution)` an in-place edit of the guess changed the solution, and
+  a user array passed as a guess kept changing the guess when edited afterwards.
+- `solve()` works from a thread other than the main thread. It installed a SIGINT handler
+  whenever `catch_keyboard_interrupt` was true, the default, and Python permits that only
+  on the main thread, so a solve from a worker thread raised after all NLP setup with no
+  mention of the flag. Off the main thread the handler is simply not installed: a worker
+  thread never receives the keyboard interrupt, so there is nothing to catch.
+- A scalar bound (`initial_time`, `final_time`, `duration`) accepts any real number,
+  NumPy scalars included, as the array bounds already did; `np.float32(10.0)` or
+  `np.int64(10)` used to raise `TypeError`. `bool` is refused. The error message had an
+  unbalanced quote.
+- numpy's own functions now work on a symbolic array as they already did on a symbolic
+  scalar. `np.arctan2`, `np.hypot`, `np.maximum`, and the other two-argument ufuncs raised
+  on the arrays a callback receives under `"auto"` (numpy's object loop looks for an
+  element method of that name, which only the one-argument functions had), and `np.max`,
+  `np.min`, `np.all`, and `np.any` on such an array hit the truth-value guard. `SXArray`
+  now implements the array-ufunc protocol and routes every ufunc through the same table
+  `yapss.math` uses. `yapss.math` remains the documented spelling: under the
+  central-difference methods the sparsity probe still needs its `where`, `fmax`, and
+  `fmin`.
+- `isinstance(arg, yapss.ContinuousArg)` works, and likewise for `DiscreteArg` and
+  `ObjectiveArg`. The three were re-exported as subscripted generics, which `isinstance`
+  refuses with a `TypeError`, while the other six argument types are plain classes. They
+  are now the classes at runtime and the float64 specialization for a type checker.
+- `IpoptOptionSettingWarning` is exported from the root package, so every warning category
+  YAPSS can raise is filterable from one import.
 ## [0.2.2] - 2026-08-23
 
 ### Changed
