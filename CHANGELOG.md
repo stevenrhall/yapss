@@ -110,7 +110,9 @@ The deprecations scheduled for 0.3.0 are unchanged and still warn.
   under the finite-difference methods, and nothing raised. Each is now implemented symbolically
   (`clip` as `minimum(maximum(x, lo), hi)`, `where` as CasADi's `if_else`, the reductions as
   folds), and the transcription is pinned to agree between `"auto"` and `"central-difference"`
-  for every one of them. `where` is newly exported.
+  for every one of them. `where` is newly exported, and `amax` and `amin` are listed in
+  `yapss.math.__all__` so that `from yapss.math import *` exposes the symbolic versions rather
+  than leaving numpy's in scope.
 - A symbolic value now refuses to give a truth value, as CasADi's own `SX` does. A Python `if`,
   `and`, `or`, or `not` on a callback argument, the builtins `max`, `min`, and `sorted`, and the
   `in` operator all raise `TypeError` under `"auto"`, with a message naming the symbolic
