@@ -44,19 +44,30 @@ class PhaseArrayGuess:
         self.private_name = "_" + name
         self.len_name = "_n_" + name
 
-    def __get__(self, instance: PhaseGuess, owner: type) -> Array | None:
-        """Get the value of the guess.
+    def __get__(self, instance: PhaseGuess, owner: type) -> Array:
+        """Get the value of the guess, creating the all-zeros default on first read.
 
-        Unset, the guess is ``None`` until the phase's time array is set, and after that
-        an array of zeros of the right shape -- a fresh one on every read, so the default
-        follows the time array rather than freezing at the length it had when first
-        read (validate() used to store it, and a later change to the time array alone
-        then failed validation). Assign an array to set a guess.
+        The phase's time array fixes the shape, so it must be set first; reading before
+        that raises. The default is stored, so indexing and slicing assign into it as
+        expected (``state[0, :] = ...``). An array that is still all zeros is treated as
+        the default when the time array changes length and is regenerated at the new
+        length (see ``TimeGuess.__set__``); through 0.2.2 the stored default froze at the
+        length it was created with and a later change to the time array alone then
+        failed validation.
         """
+        if instance._nt is None:
+            msg = (
+                f"guess.phase[{instance._p}].{self.name} cannot be read before "
+                f"guess.phase[{instance._p}].time is set: the time array's length fixes "
+                f"the array's shape ({getattr(instance, self.len_name)} rows by the number "
+                f"of time points)."
+            )
+            raise ValueError(msg)
         value = getattr(instance, self.private_name)
-        if value is None and instance._nt is not None:
-            return np.zeros([getattr(instance, self.len_name), instance._nt], dtype=float)
-        assert value is None or isinstance(value, np.ndarray)
+        if value is None:
+            value = np.zeros([getattr(instance, self.len_name), instance._nt], dtype=float)
+            setattr(instance, self.private_name, value)
+        assert isinstance(value, np.ndarray)
         return value
 
     def __set__(
@@ -237,6 +248,15 @@ class TimeGuess(Protected):
             raise ValueError(msg)
         setattr(instance, "_" + self.name, t)
         instance._nt = len(t)
+        # A stored state or control guess that is still all zeros is the default,
+        # whether created on read or assigned as zeros; if its length no longer matches,
+        # drop it so it is regenerated at the new length on the next read. An array with
+        # values in it is kept: validate() reports the mismatch, since its values cannot
+        # be resized on the user's behalf.
+        for name in ("_state", "_control"):
+            stored = getattr(instance, name)
+            if stored is not None and stored.shape[1] != len(t) and not np.any(stored):
+                setattr(instance, name, None)
 
 
 class PhaseGuess(Protected):
@@ -349,7 +369,6 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
 
         # interpolate state and control variables
         state = guess.phase[p].state
-        assert state is not None  # time is set, so an unset guess reads as zeros
         for i in range(problem.nx[p]):
             f = interp1d(time, state[i], fill_value="extrapolate")
             if problem.spectral_method != "lg":
@@ -364,7 +383,6 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
                 phase.xs[i][:] = 0.0
 
         control = guess.phase[p].control
-        assert control is not None
         for i in range(problem.nu[p]):
             f = interp1d(time, control[i], fill_value="extrapolate")
             phase.u[i][:] = f(t_u)

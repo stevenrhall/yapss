@@ -192,10 +192,14 @@ The deprecations scheduled for 0.3.0 are unchanged and still warn.
   `continuous_hessian` on a problem with no phases. `Problem.validate()` requires them only
   when there are phases, but the method's setup required them regardless, so a
   parameter-only problem passed validation and then failed in `solve()`.
-- An unset state or control guess is now an array of zeros of whatever shape the time
-  array currently implies, supplied on read. `validate()` used to store the zeros at the
-  length the time array had then, and since `solve()` validates, a later change to the time
-  array alone made the next solve reject a state or control array the user never set.
+- An unset state or control guess is an array of zeros that follows the time array.
+  `validate()` used to store the zeros at the length the time array had then, and since
+  `solve()` validates, a later change to the time array alone made the next solve reject a
+  state or control array the user never set. Now the default is created on first read and
+  stored, so indexing and slicing assign into it (`guess.phase[p].state[0, :] = ...`), and
+  a guess that is still all zeros is regenerated at the new length when the time array
+  changes. Reading `state` or `control` before the time array is set raises `ValueError`
+  naming what to set, rather than returning `None`.
 - A guess no longer aliases the array it was set from. The state, control, time, and
   parameter setters stored the caller's array itself when its dtype already matched, so
   after `problem.guess(solution)` an in-place edit of the guess changed the solution, and

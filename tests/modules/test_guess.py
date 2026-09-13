@@ -352,7 +352,10 @@ def test_unset_guess_follows_the_time_array():
     """
     problem = Problem(name="Test", nx=[2], nu=[1])
     phase = problem.guess.phase[0]
-    assert phase.state is None and phase.control is None
+    with pytest.raises(ValueError, match=re.escape("cannot be read before guess.phase[0].time")):
+        phase.state
+    with pytest.raises(ValueError, match="time is set"):
+        phase.control[0, :] = 1.0
 
     phase.time = [0.0, 1.0]
     assert np.array_equal(phase.state, np.zeros((2, 2)))
@@ -364,8 +367,8 @@ def test_unset_guess_follows_the_time_array():
     assert np.array_equal(phase.state, np.zeros((2, 5)))
     assert np.array_equal(phase.control, np.zeros((1, 5)))
 
-    # a set guess is still checked against the time array
-    phase.state = np.zeros((2, 5))
+    # a guess with values in it is kept and checked against the new time array
+    phase.state = np.ones((2, 5))
     phase.time = [0.0, 1.0, 2.0]
     with pytest.raises(ValueError, match=re.escape("shape (2, 3)")):
         problem.guess.validate()
@@ -404,3 +407,29 @@ def test_guess_copies_what_it_is_set_from():
     guess_phase.state = user_state
     user_state[0, 1] = 5.0
     assert guess_phase.state[0, 1] == 0.0
+
+
+def test_slice_assignment_into_the_default_guess_sticks():
+    """Indexing and slicing assign into the stored default, so a guess can be built up."""
+    problem = Problem(name="Test", nx=[2], nu=[1])
+    phase = problem.guess.phase[0]
+    phase.time = np.linspace(0.0, 1.0, 4)
+
+    phase.state[0, :] = [1.0, 2.0, 3.0, 4.0]  # slice
+    phase.state[1][2] = 9.0  # a view of a row, then an element
+    phase.control += 0.5  # in-place operator on the whole array
+    np.testing.assert_array_equal(phase.state, [[1.0, 2.0, 3.0, 4.0], [0.0, 0.0, 9.0, 0.0]])
+    np.testing.assert_array_equal(phase.control, [[0.5, 0.5, 0.5, 0.5]])
+    problem.guess.validate()
+
+    # a written guess is kept across a time change and validate() reports the mismatch
+    phase.time = [0.0, 1.0]
+    assert phase.state.shape == (2, 4)
+    with pytest.raises(ValueError, match=re.escape("shape (2, 2)")):
+        problem.guess.validate()
+    # an all-zero guess, assigned or default, follows the new length
+    phase.state = np.zeros((2, 4))
+    phase.control = np.zeros((1, 4))
+    phase.time = [0.0, 0.5, 1.0]
+    assert phase.state.shape == (2, 3) and phase.control.shape == (1, 3)
+    problem.guess.validate()
