@@ -342,3 +342,30 @@ def test_initial_guess_nlp_state_is_in_time_order(spectral_method):
     np.testing.assert_allclose(x, t_x, atol=1e-14)
     assert phase.x0[0] == 0.0
     assert phase.xf[0] == 1.0
+
+
+def test_unset_guess_follows_the_time_array():
+    """An unset state/control guess is zeros at the current time length, never stored.
+
+    Through 0.2.2 validate() stored the zeros, so after one solve a change to the time
+    array alone made the next validate() reject a state array the user never set.
+    """
+    problem = Problem(name="Test", nx=[2], nu=[1])
+    phase = problem.guess.phase[0]
+    assert phase.state is None and phase.control is None
+
+    phase.time = [0.0, 1.0]
+    assert np.array_equal(phase.state, np.zeros((2, 2)))
+    problem.guess.validate()
+
+    # refine only the time grid: the default must follow it
+    phase.time = np.linspace(0.0, 1.0, 5)
+    problem.guess.validate()
+    assert np.array_equal(phase.state, np.zeros((2, 5)))
+    assert np.array_equal(phase.control, np.zeros((1, 5)))
+
+    # a set guess is still checked against the time array
+    phase.state = np.zeros((2, 5))
+    phase.time = [0.0, 1.0, 2.0]
+    with pytest.raises(ValueError, match=re.escape("shape (2, 3)")):
+        problem.guess.validate()

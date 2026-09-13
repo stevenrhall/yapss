@@ -81,9 +81,10 @@ If the time array for phase ``p`` contains ``k`` elements, the initial guesses f
 control histories should be two-dimensional array-like objects, with shapes ``(nx[p], k)`` and ``(nu[p],
 k)``, respectively.
 
-The ``guess.phase[p].state`` and ``guess.phase[p].control`` attributes default to ``None`` until an
-array is assigned. Therefore, indexing or slicing cannot be used for assignment until an array is
-explicitly provided.
+The ``guess.phase[p].state`` and ``guess.phase[p].control`` attributes read as ``None`` until the
+phase's time array is set, and after that as an array of zeros of the right shape until an array
+is assigned. The zeros are a fresh array on every read, so indexing or slicing cannot be used for
+assignment until an array is explicitly provided.
 
 If no initial guess is assigned to the time array, an exception will be raised when the ``solve()``
 method is called. An exception is also raised if the shapes of the arrays assigned to
@@ -91,7 +92,8 @@ method is called. An exception is also raised if the shapes of the arrays assign
 respectively, where ``k`` is the length of the time array for phase ``p``.
 
 If no array is assigned to ``guess.phase[p].state`` or ``guess.phase[p].control``, the default
-initial guess is an array of zeros.
+initial guess is an array of zeros, whatever the length of the time array at the time of the
+solve.
 
 Below is an example from the Dynamic Soaring problem:
 

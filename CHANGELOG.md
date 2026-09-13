@@ -28,6 +28,10 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- An unset state or control guess is now an array of zeros of whatever shape the time
+  array currently implies, supplied on read. `validate()` used to store the zeros at the
+  length the time array had then, and since `solve()` validates, a later change to the time
+  array alone made the next solve reject a state or control array the user never set.
 - The `"user"` derivative method no longer demands `continuous_jacobian` and
   `continuous_hessian` on a problem with no phases. `Problem.validate()` requires them only
   when there are phases, but the method's setup required them regardless, so a

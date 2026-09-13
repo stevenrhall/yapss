@@ -44,10 +44,19 @@ class PhaseArrayGuess:
         self.private_name = "_" + name
         self.len_name = "_n_" + name
 
-    def __get__(self, instance: PhaseGuess, owner: type) -> Array:
-        """Get the value of the guess."""
+    def __get__(self, instance: PhaseGuess, owner: type) -> Array | None:
+        """Get the value of the guess.
+
+        Unset, the guess is ``None`` until the phase's time array is set, and after that
+        an array of zeros of the right shape -- a fresh one on every read, so the default
+        follows the time array rather than freezing at the length it had when first
+        read (validate() used to store it, and a later change to the time array alone
+        then failed validation). Assign an array to set a guess.
+        """
         value = getattr(instance, self.private_name)
-        assert isinstance(value, np.ndarray)
+        if value is None and instance._nt is not None:
+            return np.zeros([getattr(instance, self.len_name), instance._nt], dtype=float)
+        assert value is None or isinstance(value, np.ndarray)
         return value
 
     def __set__(
@@ -289,17 +298,15 @@ class PhaseGuess(Protected):
             msg = f"guess.phase[{p}].time has not been set."
             raise ValueError(msg)
         assert isinstance(self._nt, int)
-        if self._state is None:
-            self._state = np.zeros([self._n_state, self._nt], dtype=float)
-        if self._control is None:
-            self._control = np.zeros([self._n_control, self._nt], dtype=float)
-        if self._state.shape != (self._n_state, self._nt):
+        # an unset state or control guess is zeros, supplied on read; only a set one
+        # can disagree with the time array
+        if self._state is not None and self._state.shape != (self._n_state, self._nt):
             msg = (
                 f"guess.phase[{p}].state must be a 2-dimensional array of "
                 f"shape ({self._n_state}, {self._nt})."
             )
             raise ValueError(msg)
-        if self._control.shape != (self._n_control, self._nt):
+        if self._control is not None and self._control.shape != (self._n_control, self._nt):
             msg = (
                 f"guess.phase[{p}].control must be a 2-dimensional array of "
                 f"shape ({self._n_control}, {self._nt})."
@@ -341,6 +348,7 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
 
         # interpolate state and control variables
         state = guess.phase[p].state
+        assert state is not None  # time is set, so an unset guess reads as zeros
         for i in range(problem.nx[p]):
             f = interp1d(time, state[i], fill_value="extrapolate")
             if problem.spectral_method != "lg":
@@ -355,6 +363,7 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
                 phase.xs[i][:] = 0.0
 
         control = guess.phase[p].control
+        assert control is not None
         for i in range(problem.nu[p]):
             f = interp1d(time, control[i], fill_value="extrapolate")
             phase.u[i][:] = f(t_u)
