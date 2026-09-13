@@ -540,9 +540,11 @@ def make_continuous_derivatives(
         sxut_ = make_sxut(problem, continuous_arg)
 
         for q in continuous_arg.phase_list:
-            jac = jacobian_functions[q](sxut_[q])
+            # one dense conversion per phase, then row views: a per-term DM slice and
+            # full() cost more than the CasADi evaluation itself
+            jac = jacobian_functions[q](sxut_[q]).full()
             for i, key in enumerate(cjs[q]):
-                continuous_arg.phase[q].jacobian[key] = jac[i, :].full()[0]
+                continuous_arg.phase[q].jacobian[key] = jac[i]
 
     if problem.derivatives.order == "second":
 
@@ -551,9 +553,9 @@ def make_continuous_derivatives(
             sxut_ = make_sxut(problem, continuous_arg)
 
             for q in continuous_arg.phase_list:
-                hessian = hessian_functions[q](sxut_[q])
+                hessian = hessian_functions[q](sxut_[q]).full()
                 for i, key in enumerate(chs[q]):
-                    continuous_arg.phase[q].hessian[key] = hessian[i, :].full()[0]
+                    continuous_arg.phase[q].hessian[key] = hessian[i]
 
     return (
         continuous,

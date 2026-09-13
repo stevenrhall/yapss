@@ -19,6 +19,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- The `"auto"` Jacobian and Hessian callbacks convert each phase's CasADi result to a
+  dense array once and hand out row views, instead of slicing and converting the result
+  once per structure term. The per-term conversions cost more than the CasADi evaluation
+  itself. Values are unchanged (the golden tests pin them); on Delta III the Hessian
+  callback goes from 6.2 ms to 2.5 ms and the Jacobian from 1.8 ms to 0.9 ms, on orbit
+  raising from 0.72 ms to 0.47 ms and 0.42 ms to 0.29 ms.
 - `IpoptOptionSettingWarning` now says that the refused option was not applied and that
   the solve proceeds with Ipopt's default, and it is attributed to the line that called
   `solve()` rather than to a line inside YAPSS, so `warnings.filterwarnings` by module works.
