@@ -207,7 +207,7 @@ class Problem(Protected):
         self.functions = UserFunctions()
         self.guess = Guess(self)
         self.ipopt_options = IpoptOptions()
-        self.scale = self._init_scale()
+        self.scale = Scale(self)
         self.mesh = Mesh(self)
 
         self.__dict__["_ipopt_source"] = "default"
@@ -398,36 +398,6 @@ class Problem(Protected):
             raise TypeError(msg)
         if self.nd < 0:
             raise ValueError(msg)
-
-    def _init_scale(self) -> Scale:
-        """Initialize the scaling object."""
-
-        def make_scale(n: int) -> SimpleNamespace:
-            scale_shift = SimpleNamespace()
-            scale_shift.scale = np.ones(n, dtype=float64)
-            return scale_shift
-
-        scales = SimpleNamespace()
-        scales.parameter = make_scale(self.ns)
-        scales.discrete = make_scale(self.nd)
-        scales.objective = SimpleNamespace()
-        scales.objective.scale = 1.0
-
-        scales.phase = self.np * [None]
-        p: int
-        scales.phase = []
-        for p in range(self.np):
-            phase = SimpleNamespace()
-            phase.state = make_scale(self.nx[p])
-            phase.control = make_scale(self.nu[p])
-            phase.dynamics = make_scale(self.nx[p])
-            phase.integral = make_scale(self.nq[p])
-            phase.path = make_scale(self.nh[p])
-            phase.initial_time = make_scale(1)
-            phase.final_time = make_scale(1)
-            scales.phase.append(phase)
-
-        return Scale(self)
 
     def _signal_handler(self, signum: int, frame: FrameType | None) -> None:  # noqa: ARG002
         self._abort = True
