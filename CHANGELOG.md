@@ -28,6 +28,10 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- The `"user"` derivative method no longer demands `continuous_jacobian` and
+  `continuous_hessian` on a problem with no phases. `Problem.validate()` requires them only
+  when there are phases, but the method's setup required them regardless, so a
+  parameter-only problem passed validation and then failed in `solve()`.
 - In a phase with no controls, `solution.phase[p].control` and `control_multiplier` had
   shape `(0,)` rather than `(0, n)`, and likewise `state` and `costate` in a phase with no
   states, so `problem.guess(solution)` raised on any solution with a coast phase or a

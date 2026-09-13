@@ -35,6 +35,8 @@ if TYPE_CHECKING:
     # package imports
     import yapss
 
+    from .types_ import CHS, CJS
+
 
 class MirroredHessianPairWarning(FutureWarning):
     """A user-defined Hessian callback set both orders of one variable pair.
@@ -153,26 +155,29 @@ def make_user_functions(
     else:
         discrete_jacobian_structure = None
 
-    # continuous Jacobian
-    continuous_jacobian_arg = ContinuousJacobianArg(
-        problem,
-        dv=dv,
-        dtype=np.float64,
-        tau_u=tau_u,
-    )
-    continuous_jacobian_arg._sync(z0)
-    if problem.functions.continuous_jacobian is not None:
-        problem.functions.continuous_jacobian(continuous_jacobian_arg)
-    else:
-        msg = "'functions.continuous_jacobian' function is required for 'user' method."
-        raise ValueError(msg)
-    # Extract the jacobian structure from the result
-    cjs = [tuple(continuous_jacobian_arg.phase[p].jacobian.keys()) for p in range(problem.np)]
-    continuous_jacobian_structure = tuple(cjs)
+    # continuous Jacobian: required only when there are phases, as Problem.validate()
+    # promises; a parameter-only problem has no continuous function to differentiate.
+    continuous_jacobian_structure: CJS = ()
+    if problem.np > 0:
+        continuous_jacobian_arg = ContinuousJacobianArg(
+            problem,
+            dv=dv,
+            dtype=np.float64,
+            tau_u=tau_u,
+        )
+        continuous_jacobian_arg._sync(z0)
+        if problem.functions.continuous_jacobian is not None:
+            problem.functions.continuous_jacobian(continuous_jacobian_arg)
+        else:
+            msg = "'functions.continuous_jacobian' function is required for 'user' method."
+            raise ValueError(msg)
+        # Extract the jacobian structure from the result
+        cjs = [tuple(continuous_jacobian_arg.phase[p].jacobian.keys()) for p in range(problem.np)]
+        continuous_jacobian_structure = tuple(cjs)
 
     objective_hessian_structure = None
     discrete_hessian_structure = None
-    continuous_hessian_structure = None
+    continuous_hessian_structure: CHS | None = None
 
     if problem.derivatives.order == "second":
         # objective hessian
@@ -204,30 +209,32 @@ def make_user_functions(
         else:
             discrete_hessian_structure = None
 
-        # continuous hessian
-        continuous_hessian_arg = ContinuousHessianArg(
-            problem,
-            dv=dv,
-            dtype=np.float64,
-            tau_u=tau_u,
-        )
-        continuous_hessian_arg._sync(z0)
-        if problem.functions.continuous_hessian is not None:
-            problem.functions.continuous_hessian(continuous_hessian_arg)
-        else:
-            msg = (
-                "'functions.continuous_hessian' function is required for 'user' method when "
-                "'derivatives.order' option is set to 'second'."
+        # continuous hessian, again only when there are phases
+        continuous_hessian_structure = ()
+        if problem.np > 0:
+            continuous_hessian_arg = ContinuousHessianArg(
+                problem,
+                dv=dv,
+                dtype=np.float64,
+                tau_u=tau_u,
             )
-            raise ValueError(msg)
-        for p in range(problem.np):
-            _warn_mirrored_pairs(
-                continuous_hessian_arg.phase[p].hessian,
-                f"continuous Hessian of phase {p}",
-                context=True,
-            )
-        chs = [tuple(continuous_hessian_arg.phase[p].hessian) for p in range(problem.np)]
-        continuous_hessian_structure = tuple(chs)
+            continuous_hessian_arg._sync(z0)
+            if problem.functions.continuous_hessian is not None:
+                problem.functions.continuous_hessian(continuous_hessian_arg)
+            else:
+                msg = (
+                    "'functions.continuous_hessian' function is required for 'user' method "
+                    "when 'derivatives.order' option is set to 'second'."
+                )
+                raise ValueError(msg)
+            for p in range(problem.np):
+                _warn_mirrored_pairs(
+                    continuous_hessian_arg.phase[p].hessian,
+                    f"continuous Hessian of phase {p}",
+                    context=True,
+                )
+            chs = [tuple(continuous_hessian_arg.phase[p].hessian) for p in range(problem.np)]
+            continuous_hessian_structure = tuple(chs)
 
     return ProblemFunctions(
         objective=problem.functions.objective,

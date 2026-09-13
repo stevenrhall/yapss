@@ -190,3 +190,63 @@ def test_mirrored_pair_behavior_is_unchanged():
     assert not np.allclose(twice, once)
     mask = ~np.isclose(twice, once)
     np.testing.assert_allclose(twice[mask], 2.0 * once[mask])
+
+
+@pytest.mark.parametrize("order", ["first", "second"])
+def test_user_method_needs_no_continuous_derivatives_without_phases(order):
+    """A parameter-only problem under "user" needs only the objective derivatives.
+
+    ``Problem.validate()`` requires ``continuous_jacobian``/``continuous_hessian`` only
+    when there are phases; through 0.2.2 ``make_user_functions`` demanded them anyway,
+    so validate() passed and solve() raised for the same problem.
+    """
+    problem = Problem(name="parameter-only", nx=[], ns=2)
+
+    def objective(arg):
+        s = arg.parameter
+        arg.objective = (s[0] - 1.0) ** 2 + (s[1] - 2.0) ** 2
+
+    def objective_gradient(arg):
+        s = arg.parameter
+        arg.gradient[0, "s", 0] = 2 * (s[0] - 1.0)
+        arg.gradient[0, "s", 1] = 2 * (s[1] - 2.0)
+
+    def objective_hessian(arg):
+        arg.hessian[(0, "s", 0), (0, "s", 0)] = 2.0
+        arg.hessian[(0, "s", 1), (0, "s", 1)] = 2.0
+
+    problem.functions.objective = objective
+    problem.functions.objective_gradient = objective_gradient
+    problem.functions.objective_hessian = objective_hessian
+    problem.derivatives.method = "user"
+    problem.derivatives.order = order
+    problem.guess.parameter = [0.0, 0.0]
+    problem.ipopt_options.print_level = 0
+
+    problem.validate()
+    solution = problem.solve()
+    assert solution.nlp_info.ipopt_status == 0
+    np.testing.assert_allclose(solution.parameter, [1.0, 2.0], atol=1e-6)
+
+
+def test_user_method_still_requires_continuous_jacobian_with_phases():
+    problem = Problem(name="has-phase", nx=[1], nu=[1])
+
+    def objective(arg):
+        arg.objective = arg.phase[0].final_state[0]
+
+    def objective_gradient(arg):
+        arg.gradient[0, "xf", 0] = 1.0
+
+    def continuous(arg):
+        for p in arg.phase_list:
+            arg.phase[p].dynamics[:] = (arg.phase[p].control[0],)
+
+    problem.functions.objective = objective
+    problem.functions.objective_gradient = objective_gradient
+    problem.functions.continuous = continuous
+    problem.derivatives.method = "user"
+    problem.derivatives.order = "first"
+    problem.guess.phase[0].time = [0.0, 1.0]
+    with pytest.raises(ValueError, match="continuous_jacobian"):
+        problem.solve()
