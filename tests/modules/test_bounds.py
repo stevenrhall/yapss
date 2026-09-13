@@ -191,7 +191,7 @@ def test_duration_bound_errors():
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.bounds.validate()
     # duration is a float
-    msg = "attribute 'upper must be a float, not <class 'str'>"
+    msg = "attribute 'upper' must be a float, not <class 'str'>"
     with pytest.raises(TypeError, match=re.escape(msg)):
         ocp.bounds.phase[1].duration.upper = "string"
 
@@ -248,3 +248,21 @@ def test_duration_bounds():
     factor = -1.0
     solution = problem.solve()
     assert solution.objective == pytest.approx(-2.0)
+
+
+def test_scalar_bounds_accept_numpy_scalars():
+    """A scalar bound takes any real number, NumPy scalars included, as array bounds do.
+
+    Through 0.2.2 only Python int and float were accepted (np.float64 by subclassing), so
+    an element pulled from a float32 or integer array raised TypeError.
+    """
+    ocp = Problem(name="Test", nx=[1])
+    bounds = ocp.bounds.phase[0]
+    bounds.final_time.upper = np.float32(10.0)
+    bounds.final_time.lower = np.int64(2)
+    bounds.duration.upper = np.float64(8.0)
+    assert bounds.final_time.upper == 10.0
+    assert bounds.final_time.lower == 2.0
+    assert isinstance(bounds.final_time.lower, float)
+    with pytest.raises(TypeError, match="must be a float"):
+        bounds.final_time.upper = True

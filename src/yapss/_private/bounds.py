@@ -14,7 +14,7 @@ from __future__ import annotations
 
 # standard library imports
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # third party imports
 import numpy as np
@@ -124,10 +124,15 @@ class ScalarBound:
         msg = "can't delete attribute"
         raise AttributeError(msg)
 
-    def __set__(self, obj: ScalarBounds, value: float) -> None:
+    def __set__(self, obj: ScalarBounds, value: float | np.floating[Any] | np.integer[Any]) -> None:
         """Set the value of the attribute."""
-        if not isinstance(value, (int, float)):
-            msg = f"attribute '{self._name} must be a float, not {type(value)}"  # type: ignore[unreachable]
+        # NumPy scalars (np.float32, np.int64, ...) are accepted as ArrayBound already
+        # accepts them through np.asarray; bool is excluded, a bound of True is a mistake.
+        # The tuple names the hint's types rather than numbers.Real: mypy does not know
+        # NumPy registers its scalars with the numbers ABCs, and would call the
+        # success path unreachable.
+        if isinstance(value, bool) or not isinstance(value, (int, float, np.integer, np.floating)):
+            msg = f"attribute '{self._name}' must be a float, not {type(value)}"
             raise TypeError(msg)
         setattr(obj, "_" + self._name, float(value))
 

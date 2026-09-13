@@ -31,6 +31,10 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- A scalar bound (`initial_time`, `final_time`, `duration`) accepts any real number,
+  NumPy scalars included, as the array bounds already did; `np.float32(10.0)` or
+  `np.int64(10)` used to raise `TypeError`. `bool` is refused. The error message had an
+  unbalanced quote.
 - `solve()` works from a thread other than the main thread. It installed a SIGINT handler
   whenever `catch_keyboard_interrupt` was true, the default, and Python permits that only
   on the main thread, so a solve from a worker thread raised after all NLP setup with no
