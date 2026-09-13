@@ -22,7 +22,7 @@ def test_ipopt_options():
     # Test with a non-existent option
     ocp = setup()
     ocp.ipopt_options.not_a_real_option = 1
-    msg = r"^Failed to set option 'not_a_real_option' with value '1'"
+    msg = r"^Ipopt refused option 'not_a_real_option' with value 1: .*not applied"
     with pytest.warns(IpoptOptionSettingWarning, match=msg):
         ocp.solve()
 
@@ -30,7 +30,7 @@ def test_ipopt_options():
     # unknown option can only be judged by Ipopt, so a refused value there still warns
     ocp = setup()
     ocp.ipopt_options.not_a_real_option = "not_a_float"
-    msg = r"^Failed to set option 'not_a_real_option' with value 'not_a_float'"
+    msg = r"^Ipopt refused option 'not_a_real_option' with value 'not_a_float'"
     with pytest.warns(IpoptOptionSettingWarning, match=msg):
         ocp.solve()
 
@@ -111,3 +111,18 @@ def test_int_valued_number_option_does_not_warn():
     with warnings.catch_warnings():
         warnings.simplefilter("error", IpoptOptionSettingWarning)
         ocp.solve()
+
+
+def test_refused_option_warning_points_at_the_caller():
+    """The warning is attributed to the line that called solve(), not to YAPSS."""
+    ocp = setup()
+    ocp.ipopt_options.print_level = 0
+    ocp.ipopt_options.max_iter = -5  # valid kind, out of Ipopt's range
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        ocp.solve()
+    refused = [w for w in caught if issubclass(w.category, IpoptOptionSettingWarning)]
+    assert len(refused) == 1
+    assert refused[0].filename == __file__
+    assert "max_iter" in str(refused[0].message)
+    assert "not applied" in str(refused[0].message)

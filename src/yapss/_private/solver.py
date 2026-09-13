@@ -86,7 +86,14 @@ if TYPE_CHECKING:
 
 # Define a custom warning class
 class IpoptOptionSettingWarning(Warning):
-    """Custom warning for issues in setting Ipopt options."""
+    """Ipopt refused an option value; the option was not applied.
+
+    Ipopt validates every option when it is set (the name exists, an Integer or Number
+    value is in range, a String value is one of the allowed settings) and prints what it
+    accepts to its console. YAPSS reports the refusal here and solves with Ipopt's default
+    for that option. It is a warning rather than an error because the option set varies
+    with the Ipopt build, so a script written for one build can still run on another.
+    """
 
 
 _env_deprecation_warned = False
@@ -319,10 +326,14 @@ def solve(problem: yapss.Problem) -> Solution:
         # try/except in a loop is unavoidable here, and not a performance issue
         except (ValueError, TypeError) as e:  # noqa: PERF203 (try-except-in-loop)
             msg = (
-                f"Failed to set option '{name}' with value '{value}': {e}. "
-                f"See Ipopt console output for more details."
+                f"Ipopt refused option '{name}' with value {value!r}: {e}. The option was "
+                f"not applied and the solve proceeds with Ipopt's default. Ipopt's console "
+                f"output above explains what it accepts (an unknown name, a value out of "
+                f"range, or an invalid setting)."
             )
-            warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=2)
+            # stacklevel 3: warn -> solver.solve -> Problem.solve -> the user's call,
+            # as warn_if_not_converged does
+            warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=3)
 
     if "timing_statistics" not in problem.ipopt_options.get_options():
         with contextlib.suppress(ValueError, TypeError):

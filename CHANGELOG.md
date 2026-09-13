@@ -19,6 +19,9 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- `IpoptOptionSettingWarning` now says that the refused option was not applied and that
+  the solve proceeds with Ipopt's default, and it is attributed to the line that called
+  `solve()` rather than to a line inside YAPSS, so `warnings.filterwarnings` by module works.
 - The user's continuous functions are evaluated once per Ipopt iterate. The constraint,
   Jacobian, and Hessian callbacks previously each evaluated them independently at the same
   point, so the function ran three times per iterate and its Jacobian twice; they now share
