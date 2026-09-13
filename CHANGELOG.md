@@ -31,6 +31,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- `isinstance(arg, yapss.ContinuousArg)` works, and likewise for `DiscreteArg` and
+  `ObjectiveArg`. The three were re-exported as subscripted generics, which `isinstance`
+  refuses with a `TypeError`, while the other six argument types are plain classes. They
+  are now the classes at runtime and the float64 specialization for a type checker.
+- `IpoptOptionSettingWarning` is exported from the root package, so every warning category
+  YAPSS can raise is filterable from one import.
 - numpy's own functions now work on a symbolic array as they already did on a symbolic
   scalar. `np.arctan2`, `np.hypot`, `np.maximum`, and the other two-argument ufuncs raised
   on the arrays a callback receives under `"auto"` (numpy's object loop looks for an

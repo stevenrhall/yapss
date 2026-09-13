@@ -9,9 +9,8 @@ import warnings
 import numpy as np
 import pytest
 
-from yapss import IpoptConvergenceWarning
+from yapss import IpoptConvergenceWarning, IpoptOptionSettingWarning
 from yapss._private.ipopt_options import IpoptOptions
-from yapss._private.solver import IpoptOptionSettingWarning
 from yapss.examples.rosenbrock import setup
 
 
