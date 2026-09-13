@@ -28,6 +28,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- Every scale factor is now checked to be finite and positive when it is set, as
+  `scale.objective` already was. A zero, negative, or NaN scale on a state, control,
+  integral, dynamics, path, parameter, discrete, or phase-time scale was accepted, and
+  reached the NLP as an infinite or reversed scaling; a NaN reached Ipopt's scaling arrays
+  and crashed the process with no Python traceback. A NaN `scale.objective` also passed,
+  since NaN compares false against zero.
 - The `"auto"` derivative method no longer writes two of its CasADi objects into
   `problem.auxdata`, the user's namespace. Nothing read them; they clobbered any user
   attribute named `objective_function` (a second `solve()` then failed inside the symbolic

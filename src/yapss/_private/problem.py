@@ -438,6 +438,25 @@ class Auxdata(SimpleNamespace):
     """Auxiliary problem data, which can be anything."""
 
 
+def _check_scale(name: str, value: Array | float) -> None:
+    """Raise unless every scale factor is finite and positive.
+
+    A scale factor is a characteristic magnitude: the NLP divides by it, and the
+    finite-difference methods size their steps with it. Zero divides by zero, and a NaN
+    passes through Ipopt's user scaling unchecked and crashes the process (``not value >
+    0`` catches NaN; ``value <= 0`` does not). A negative factor is rejected because Ipopt
+    cannot honor the sign: it scales the bound vectors x_L, x_U, d_L, and d_U elementwise
+    without swapping them (``OrigIpoptNLP::InitializeStructures`` via
+    ``StandardScalingBase::apply_vector_scaling_x``, Ipopt 3.14), so a negative variable
+    scale inverts the variable's bounds, and a negative constraint scale inverts the bounds
+    of an inequality. The sign would have no effect on conditioning anyway: the scaled KKT
+    matrix is a congruence of the unscaled one. The objective's sign is ``Problem.sense``.
+    """
+    if not np.all(np.isfinite(value)) or not np.all(np.asarray(value) > 0):
+        msg = f"{name} must be finite and positive, got {value!r}."
+        raise ValueError(msg)
+
+
 class ScaleArray(Protected):
     """Scale array."""
 
@@ -466,15 +485,14 @@ class ScaleArray(Protected):
         """Set the value of the scale array."""
         scale = np.array(value, dtype=float64)
         shape = getattr(instance, "_" + self.name).shape
+        if hasattr(instance, "_p"):
+            label = f"Scale '{self.name}' in phase {instance._p}"
+        else:
+            label = f"Scale '{self.name}'"
         if scale.shape != shape:
-            if hasattr(instance, "_p"):
-                msg = (
-                    f"Scale '{self.name}' in phase {instance._p} must be an array of length "
-                    f"{shape[0]}."
-                )
-            else:
-                msg = f"Scale '{self.name}' must be an array of length {shape[0]}."
+            msg = f"{label} must be an array of length {shape[0]}."
             raise ValueError(msg)
+        _check_scale(label, scale)
         setattr(instance, "_" + self.name, scale)
 
 
@@ -503,6 +521,7 @@ class ScalePhase(Protected):
         "_integral",
         "_dynamics",
         "_path",
+        "_time",
         "_p",
         "p",
     )
@@ -531,13 +550,24 @@ class ScalePhase(Protected):
         p : int
             The phase index.
         """
-        self.time = 1.0
         self._p: int = p
+        self.time = 1.0
         self._state: Array = np.ones([problem.nx[p]], dtype=float)
         self._control: Array = np.ones([problem.nu[p]], dtype=float)
         self._integral: Array = np.ones([problem.nq[p]], dtype=float)
         self._dynamics: Array = np.ones([problem.nx[p]], dtype=float)
         self._path: Array = np.ones([problem.nh[p]], dtype=float)
+
+    @property
+    def time(self) -> float:
+        """Time scale factor for the phase, shared by ``t``, ``t0``, and ``tf``."""
+        return self._time
+
+    @time.setter
+    def time(self, value: float) -> None:
+        scale = float(value)
+        _check_scale(f"Scale 'time' in phase {self._p}", scale)
+        self._time = scale
 
 
 class Scale(Protected):
@@ -575,7 +605,7 @@ class Scale(Protected):
 
     @objective.setter
     def objective(self, value: float) -> None:
-        if value <= 0:
+        if not np.isfinite(value) or not value > 0:
             msg = (
                 f"'scale.objective' must be positive, got {value!r}. "
                 "Use 'problem.sense = \"maximize\"' to maximize the objective instead "

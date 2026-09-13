@@ -103,7 +103,9 @@ of the sensitivity of the constraint to the variables.
 YAPSS Scaling
 -------------
 
-YAPSS provides scaling through the ``scale`` attribute of ``Problem`` instances. The
+YAPSS provides scaling through the ``scale`` attribute of ``Problem`` instances. Every
+scale factor is a characteristic magnitude and must be finite and strictly positive; an
+assignment that is not raises ``ValueError`` and leaves the previous value in place. The
 attributes that can be set are:
 
 -    ``scale.objective`` (`float`): Objective function scale. Must be strictly positive --

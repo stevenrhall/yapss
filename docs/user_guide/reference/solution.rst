@@ -111,7 +111,7 @@ Incomplete and Unverified Multipliers
     active development, and Lagrange multipliers are the least exercised part of it.
     ``control_multiplier`` was wrong in every release through 0.1.1, and ``control_multiplier``
     and ``path_multiplier`` were scaled wrongly on any phase whose duration was not 2 through
-    0.2.3; both were caught by inspection. Since 0.2.4 a test checks them against the costate
+    0.2.2; both were caught by inspection. Since 0.2.3 a test checks them against the costate
     on a problem with a known solution. Treat multiplier values as provisional until you have
     checked them against a known solution for your problem.
 
