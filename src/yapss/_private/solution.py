@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from warnings import warn
 
 # third party imports
@@ -130,6 +130,18 @@ def warn_if_not_converged(solution: Solution, stacklevel: int = 2) -> None:
     )
 
 
+def _rows(rows: list[Any], n_points: int) -> NDArray[np.float64]:
+    """Stack per-variable rows into a ``(n_rows, n_points)`` array, ``n_rows == 0`` included.
+
+    ``np.array([])`` has shape ``(0,)``, which loses the point count and breaks every
+    consumer that indexes axis 1, ``Guess.from_solution`` among them. A phase with no
+    controls or no states is legitimate (a coast phase, a parameter-only phase).
+    """
+    if not rows:
+        return np.empty((0, n_points), dtype=np.float64)
+    return np.array(rows, dtype=np.float64)
+
+
 def make_solution_object(
     problem: yapss.Problem,
     mesh: Mesh,
@@ -177,7 +189,7 @@ def make_solution_object(
     if isinstance(mult_g_, np.ndarray):
         mult_g = mult_g_
     else:
-        msg = f"Expected 'mult_g' to be np.ndarray, got type{type(mult_g_)}"
+        msg = f"Expected 'mult_g' to be np.ndarray, got type {type(mult_g_)}"
         raise TypeError(msg)
 
     if isinstance(mult_x_l_, np.ndarray):
@@ -195,7 +207,7 @@ def make_solution_object(
     if isinstance(status_, int):
         status = status_
     else:
-        msg = "Expected int, got {type(status_)}"
+        msg = f"Expected int, got {type(status_)}"
         raise TypeError(msg)
 
     status_message: str = ipopt_status_messages.get(status, "Unknown status code")
@@ -231,10 +243,10 @@ def make_solution_object(
                 state_list.append(z_phase.xa[i][mesh.lg_index[p]])
             else:
                 state_list.append(z_phase.x[i])
-        state = np.array(state_list, dtype=np.float64)
+        state = _rows(state_list, len(time))
 
         # control
-        control = np.array(dv.phase[p].u, dtype=np.float64)
+        control = _rows(list(dv.phase[p].u), len(time_c))
 
         # costate
         c_phase = cf_multiplier.phase[p]
@@ -249,21 +261,28 @@ def make_solution_object(
         nx = problem.nx[p]
         nh = problem.nh[p]
 
-        # continuous multipliers
-
-        control_multiplier = np.array(
-            [dv_multiplier.phase[p].u[i] / mesh.w[p] for i in range(problem.nu[p])],
-            dtype=np.float64,
-        )
-        control_multiplier *= (tf - t0) / 2
-        costate = np.array(
-            [(mat * c_phase.defect[i]) / mesh.w[p] for i in range(nx)],
-            dtype=np.float64,
-        )
-        path_multiplier = np.array(
-            [c_phase.path[i] / mesh.w[p] for i in range(nh)],
-            dtype=np.float64,
-        )
+        # continuous multipliers, in the time domain. A time integral is transcribed as
+        # sum_k h w_k (.)_k with h = (tf - t0) / 2, so a multiplier on a per-point row or
+        # bound that carries no h of its own (a control bound, a path row) is a density
+        # in tau and must be divided by h w_k to be a density in t. The defect rows carry
+        # h already (D x - h f = 0), so the costate needs only w_k. On a zero-duration
+        # phase the continuous multipliers are undefined: the constraint holds on a set
+        # of measure zero, and NaN is the honest value.
+        half_duration = (tf - t0) / 2
+        n_points = len(mesh.w[p])
+        with np.errstate(divide="ignore", invalid="ignore"):
+            control_multiplier = _rows(
+                [
+                    dv_multiplier.phase[p].u[i] / (half_duration * mesh.w[p])
+                    for i in range(problem.nu[p])
+                ],
+                n_points,
+            )
+            path_multiplier = _rows(
+                [c_phase.path[i] / (half_duration * mesh.w[p]) for i in range(nh)],
+                n_points,
+            )
+        costate = _rows([(mat * c_phase.defect[i]) / mesh.w[p] for i in range(nx)], n_points)
         integral_multiplier = np.array(
             [c_phase.integral[i] for i in range(problem.nq[p])],
             dtype=np.float64,

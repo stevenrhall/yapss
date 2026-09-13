@@ -115,6 +115,38 @@ def test_change_bounds_shape():
         ocp.bounds.validate()
 
 
+def test_boundary_state_bounds_must_overlap_state_bounds():
+    """Individually consistent state and boundary-state bounds must still intersect.
+
+    The NLP bounds on the boundary states are the intersection of the state bounds with
+    the initial (final) state bounds, so a disjoint pair would reach Ipopt as an
+    infeasible lower > upper bound with no diagnostic.
+    """
+    ocp = goddard_problem_3_phase.setup()
+    ocp.bounds.phase[0].state.lower = [5, 0, 0]
+    ocp.bounds.phase[0].state.upper = [10, 1, 1]
+    ocp.bounds.phase[0].initial_state.lower = [-1, 0, 0]
+    ocp.bounds.phase[0].initial_state.upper = [0, 1, 1]
+    msg = "bounds.phase[0].initial_state and bounds.phase[0].state do not overlap for indices i in [0]"
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        ocp.bounds.validate()
+
+    ocp.bounds.reset()
+    ocp.bounds.phase[2].state.lower = [0, 0, 0]
+    ocp.bounds.phase[2].state.upper = [1, 1, 1]
+    ocp.bounds.phase[2].final_state.lower = [0, 2, 3]
+    msg = "bounds.phase[2].final_state and bounds.phase[2].state do not overlap for indices i in [1 2]"
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        ocp.bounds.validate()
+
+    # touching at a single point is a valid (fixed) boundary state
+    ocp.bounds.reset()
+    ocp.bounds.phase[2].state.lower = [0, 0, 0]
+    ocp.bounds.phase[2].final_state.lower = [0, 0, 0]
+    ocp.bounds.phase[2].final_state.upper = [0, 0, 0]
+    ocp.bounds.validate()
+
+
 def test_duration_bound_errors():
     """Test that errors are raised when duration bounds are infeasible."""
     # duration.lower > duration.upper
@@ -159,7 +191,7 @@ def test_duration_bound_errors():
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.bounds.validate()
     # duration is a float
-    msg = "attribute 'upper must be a float, not <class 'str'>"
+    msg = "attribute 'upper' must be a float, not <class 'str'>"
     with pytest.raises(TypeError, match=re.escape(msg)):
         ocp.bounds.phase[1].duration.upper = "string"
 
@@ -216,3 +248,21 @@ def test_duration_bounds():
     factor = -1.0
     solution = problem.solve()
     assert solution.objective == pytest.approx(-2.0)
+
+
+def test_scalar_bounds_accept_numpy_scalars():
+    """A scalar bound takes any real number, NumPy scalars included, as array bounds do.
+
+    Through 0.2.2 only Python int and float were accepted (np.float64 by subclassing), so
+    an element pulled from a float32 or integer array raised TypeError.
+    """
+    ocp = Problem(name="Test", nx=[1])
+    bounds = ocp.bounds.phase[0]
+    bounds.final_time.upper = np.float32(10.0)
+    bounds.final_time.lower = np.int64(2)
+    bounds.duration.upper = np.float64(8.0)
+    assert bounds.final_time.upper == 10.0
+    assert bounds.final_time.lower == 2.0
+    assert isinstance(bounds.final_time.lower, float)
+    with pytest.raises(TypeError, match="must be a float"):
+        bounds.final_time.upper = True

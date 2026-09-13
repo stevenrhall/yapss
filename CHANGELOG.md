@@ -15,6 +15,225 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - Users can pin to a specific minor version (e.g., yapss>=0.3.0,<0.4.0) to avoid unexpected
   changes, but should expect significant updates when upgrading to a new minor version.
 
+## [0.2.3] - 2026-09-13
+
+This release is a patch under the versioning policy above, but it deserves a closer read
+than most. A whole-package review found several defects that produced wrong results
+with no warning, and fixing them changes what some programs see:
+
+- Every solve with the Legendre-Gauss method started from a scrambled state guess. LG
+  solutions that converged are still correct; LG solves that were flaky or converged to
+  a poor local optimum are worth re-running.
+- Under the central-difference methods, a dependency that passed through the branch of
+  `yapss.math.where` that the condition selected away was missing from the Jacobian, so
+  the outcome of the optimization was unpredictable: it could fail to converge, or
+  converge, perhaps slowly, to the correct answer or to an incorrect one. Problems that
+  use `where` under central differences are worth re-running.
+- `control_multiplier` and `path_multiplier` were mis-scaled on any phase whose duration
+  was not 2. Code that consumes them sees different numbers; the costate and the
+  Hamiltonian were already right.
+- A few things that were accepted silently and then ignored, or that crashed later with
+  no diagnostic, now raise at the offending line: a zero, negative, or NaN scale factor;
+  an Ipopt option value of the wrong kind. Correct programs are unaffected. Raising where
+  the old behavior was silently wrong is treated as a fix, not a break, as it was for
+  `SXW.__bool__` below.
+
+The deprecations scheduled for 0.3.0 are unchanged and still warn.
+
+### Changed
+
+- The central-difference Jacobian runs its stencil on a private argument, as the Hessian
+  already did, so the caller's function values are never perturbed. It used to perturb
+  the shared argument and re-evaluate the user function once more at the end to restore
+  them: one extra evaluation per Jacobian call, and a cache-correctness convention the
+  shared evaluator had to rely on. Values are unchanged.
+- The central-difference Hessians evaluate a diagonal pair (the second derivative with
+  respect to one variable) with three points instead of four. The four-point stencil's
+  mixed legs both land on the unperturbed point, which is now evaluated once per phase (or
+  once per callback for the objective and discrete Hessians) rather than twice per pair.
+  The values change at the roundoff level only, within the golden tolerances; a
+  central-difference iterate is 8% to 14% faster (orbit raising 1.89 ms to 1.74 ms,
+  three-phase Goddard 3.06 ms to 2.64 ms).
+- Assigning a callback's output rows (`dynamics[:] = (...)`, `integrand`, `path`)
+  broadcasts each element into its row directly. It used to build a full-size array per
+  element and then copy the lot, on the float path of every user-function evaluation, so
+  every row was copied twice. Values are unchanged; a central-difference iterate is about
+  10% faster (orbit raising 2.12 ms to 1.85 ms, three-phase Goddard 3.36 ms to 3.04 ms).
+- The `"auto"` Jacobian and Hessian callbacks convert each phase's CasADi result to a
+  dense array once and hand out row views, instead of slicing and converting the result
+  once per structure term. The per-term conversions cost more than the CasADi evaluation
+  itself. Values are unchanged (the golden tests pin them); on Delta III the Hessian
+  callback goes from 6.2 ms to 2.5 ms and the Jacobian from 1.8 ms to 0.9 ms, on orbit
+  raising from 0.72 ms to 0.47 ms and 0.42 ms to 0.29 ms.
+- `IpoptOptionSettingWarning` now says that the refused option was not applied and that
+  the solve proceeds with Ipopt's default, and it is attributed to the line that called
+  `solve()` rather than to a line inside YAPSS, so `warnings.filterwarnings` by module works.
+- The user's continuous functions are evaluated once per Ipopt iterate. The constraint,
+  Jacobian, and Hessian callbacks previously each evaluated them independently at the same
+  point, so the function ran three times per iterate and its Jacobian twice; they now share
+  one evaluator. No change in results; the golden tests pin every callback value. The
+  example suite runs about 6% faster, and central-difference solves save one Jacobian stencil
+  per iterate (Delta III: 6.2 s to 5.8 s).
+
+### Fixed
+
+- The initial guess for the Legendre-Gauss method was written into the NLP in time
+  order, but the LG state layout is collocation points first, then segment-start and final
+  values, so every LG solve started from a scrambled state guess: the initial-state slot
+  received a mid-trajectory value, and warm-starting from a previous solution did not
+  reproduce it. The guess now goes through the same index map the solution reads back
+  through. LGR and LGL were unaffected. The golden NLP pins for the LG cases were
+  regenerated, since they are taken at a point derived from the guess; the independent
+  finite-difference check passes at the new point, and the LGR/LGL pins are untouched.
+- `yapss.math.where` now returns NaN wherever either branch is NaN, whichever branch the
+  condition selects. The central-difference methods find the sparsity structure by setting
+  one variable to NaN and recording which outputs come back NaN, and numpy's `where`
+  discards the unselected branch, NaN included, so a dependency such as
+  `where(u > 0, u, 0.0)` at a point where `u <= 0` was silently missing from the Jacobian
+  and Ipopt converged to a wrong answer. `fmax` and `fmin` already followed this rule; it
+  is now the rule for every `yapss.math` function: NaN contaminates every path it touches.
+- `control_multiplier` and `path_multiplier` are now densities in time, like the costate.
+  `control_multiplier` was multiplied by the phase half-duration where it should have been
+  divided, and `path_multiplier` was not divided at all, so on any phase whose duration was
+  not 2 the two disagreed with the costate, with each other, and with the multiplier one
+  finds by hand. On a zero-duration phase both are NaN: the constraint holds on a set of
+  measure zero and no density exists.
+- The `"auto"` derivative method no longer writes two of its CasADi objects into
+  `problem.auxdata`, the user's namespace. Nothing read them; they clobbered any user
+  attribute named `objective_function` (a second `solve()` then failed inside the symbolic
+  trace) and were deep-copied into every `Solution`.
+- `yapss.math` now gives the same answer under every derivative method for the functions that
+  numpy evaluates by taking a truth value. Before this release, `clip`, `where`, `all`, `any`,
+  and the `max`/`min` reductions silently returned their first argument on a symbolic value —
+  numpy's object-dtype loops compare and then call `bool()`, and a symbol had no `bool()` to
+  refuse — so a callback using any of them transcribed a different problem under `"auto"` than
+  under the finite-difference methods, and nothing raised. Each is now implemented symbolically
+  (`clip` as `minimum(maximum(x, lo), hi)`, `where` as CasADi's `if_else`, the reductions as
+  folds), and the transcription is pinned to agree between `"auto"` and `"central-difference"`
+  for every one of them. `where` is newly exported, and `amax` and `amin` are listed in
+  `yapss.math.__all__` so that `from yapss.math import *` exposes the symbolic versions rather
+  than leaving numpy's in scope.
+- A symbolic value now refuses to give a truth value, as CasADi's own `SX` does. A Python `if`,
+  `and`, `or`, or `not` on a callback argument, the builtins `max`, `min`, and `sorted`, and the
+  `in` operator all raise `TypeError` under `"auto"`, with a message naming the symbolic
+  spellings. This was scheduled for 0.3.0 as a behavior change; it ships now as a fix, because
+  the behavior it replaces was a silently wrong answer — `x if x > 2 else -x` transcribed to
+  `+x` under `"auto"` and `-x` under central differences.
+- Sixteen exported functions raised `TypeError` on a *scalar* symbolic argument (a phase's
+  `final_time`, a `parameter[i]`, an `integral[i]`) while working on an array (`state[i]`):
+  `abs`, `absolute`, `cbrt`, `conj`, `conjugate`, `deg2rad`, `degrees`, `exp2`, `log2`,
+  `negative`, `positive`, `rad2deg`, `radians`, `reciprocal`, `square`, and `trunc`. The two
+  paths dispatched differently, and only the array path had YAPSS's own implementations; the
+  scalar path handed the raw symbol to numpy, which on casadi 3.7.2 has none of these. Both
+  paths now resolve through one table of CasADi implementations.
+- A scalar symbolic value times an array — `final_time * final_state`, `parameter[0] *
+  initial_state` — no longer collapses into a single wrapper holding a CasADi matrix, which
+  failed three layers later inside CasADi's derivative code with an unhelpful message when
+  assigned to a discrete constraint. The result is an ordinary symbolic array, in either
+  operand order, for float arrays and 2-D arrays too, and augmented assignment on a symbolic
+  array (`array += w`) writes each element in place.
+- Reductions of a symbolic array (`sum`, `mean`, `linalg.norm`, `dot`) return a symbolic scalar
+  rather than a 0-d array, and `sum` of a symbolic scalar works.
+- `rint` and `round` are supported, exactly. 0.2.2 refused `rint` on the belief that numpy's
+  half-to-even tie rule could not be reproduced symbolically; it can, from `floor` and the
+  fractional part (which are exact in double precision) and a conditional, without the
+  `floor(x + 0.5)` addition that every simpler scheme gets wrong half an ulp below a tie. Both
+  are checked bit-for-bit against numpy at every half-integer in a range, at its floating-point
+  neighbors, and for `round` at the classic `decimals` cases (`round(2.675, 2)` is `2.68`, as
+  numpy has it, not the `2.67` of Python's builtin, which rounds the exact decimal value; for
+  that reason the builtin `round(x, n)` on a symbol is refused, while `round(x)` works). On
+  casadi 3.8.0,
+  `round` had previously gone through to CasADi's own rounding, which is half-away-from-zero
+  and disagreed with numpy at every tie. `nextafter`, `signbit`, and `spacing` remain refused;
+  those really do read the bit pattern.
+- In-place arithmetic on a symbolic value under the `"auto"` derivative method — a user callback
+  that accumulates a term at a time, such as `d = 0.0` followed by `d += ...` in a loop — no
+  longer risks unbounded recursion. `NDArrayOperatorsMixin` spells every augmented assignment as
+  `ufunc(self, other, out=(self,))`, so the internal `SXW` wrapper reached its `__array_ufunc__`
+  with an `SXW` in `out=` even though nothing in the callback mentions it. Only the positional
+  inputs were unwrapped, so the untouched `out=` was forwarded to the ufunc, and because numpy's
+  dispatch considers `out` operands as well as inputs, that re-entered the same method with
+  identical arguments. The chain terminated only while CasADi handled the inner
+  call and ignored `out=`; whenever CasADi returned `NotImplemented` instead, numpy fell through
+  to the same override again and recursed without bound. That was reachable on the currently
+  pinned `casadi<=3.7.2` — `np.negative`, `np.absolute`, `np.square` and `np.reciprocal` with an
+  explicit `out=` all raised `RecursionError` there — and, under CasADi 3.8's opt-in
+  `GlobalOptions.setNumpyMode(1)`, for every ufunc including the augmented-assignment form. An
+  `SXW` wraps an immutable CasADi value and can never be an output buffer, so `out=` is now
+  dropped rather than forwarded, and passing it can no longer change the outcome of a call. No
+  correct program was previously made wrong: the calls that recursed already raised `TypeError`
+  without `out=`, and they now raise that same `TypeError`. The pre-existing rule that an explicit
+  `out=` is accepted and ignored is unchanged.
+- Every scale factor is now checked to be finite and positive when it is set, as
+  `scale.objective` already was. A zero, negative, or NaN scale on a state, control,
+  integral, dynamics, path, parameter, discrete, or phase-time scale was accepted, and
+  reached the NLP as an infinite or reversed scaling; a NaN reached Ipopt's scaling arrays
+  and crashed the process with no Python traceback. A NaN `scale.objective` also passed,
+  since NaN compares false against zero.
+- Ipopt option values are checked against the option's kind when assigned, and converted to
+  the Python type Ipopt's registry expects. The backend used to choose Ipopt's Integer, Number,
+  or String registry from the Python type of the value, so `max_wall_time = 60` (an `int` for a
+  Number option) was refused by Ipopt and a NumPy integer such as `max_iter = np.int64(50)` was
+  refused outright; both were demoted to a warning at solve time and the option was silently
+  dropped, so the solve ran with no time limit or with the default iteration limit. A value of
+  the wrong kind now raises `TypeError` at the assignment, following the same reasoning as
+  the `SXW.__bool__` change: the behavior it replaces was a silently ignored setting.
+- `Problem.validate()` now rejects initial-state or final-state bounds that do not overlap the
+  state bounds. The NLP bound on a boundary state is the intersection of the two (the larger of
+  the lower bounds and the smaller of the upper bounds), so a pair that was each consistent on
+  its own, such as `state` in `[5, 10]` and `initial_state` in `[-1, 0]`, passed validation and
+  reached Ipopt as a lower bound above the upper bound, with no diagnostic pointing at the
+  cause. The message names the phase, the offending bound, and the indices. Bounds that touch
+  at a single point (a fixed boundary state inside the state bounds) remain valid.
+
+- In a phase with no controls, `solution.phase[p].control` and `control_multiplier` had
+  shape `(0,)` rather than `(0, n)`, and likewise `state` and `costate` in a phase with no
+  states, so `problem.guess(solution)` raised on any solution with a coast phase or a
+  parameter-only phase. All per-point arrays now keep their point count when empty.
+- The `"user"` derivative method no longer demands `continuous_jacobian` and
+  `continuous_hessian` on a problem with no phases. `Problem.validate()` requires them only
+  when there are phases, but the method's setup required them regardless, so a
+  parameter-only problem passed validation and then failed in `solve()`.
+- An unset state or control guess is an array of zeros that follows the time array.
+  `validate()` used to store the zeros at the length the time array had then, and since
+  `solve()` validates, a later change to the time array alone made the next solve reject a
+  state or control array the user never set. Now the default is created on first read and
+  stored, so indexing and slicing assign into it (`guess.phase[p].state[0, :] = ...`), and
+  a guess that is still all zeros is regenerated at the new length when the time array
+  changes. Reading `state` or `control` before the time array is set raises `ValueError`
+  naming what to set, rather than returning `None`.
+- A guess no longer aliases the array it was set from. The state, control, time, and
+  parameter setters stored the caller's array itself when its dtype already matched, so
+  after `problem.guess(solution)` an in-place edit of the guess changed the solution, and
+  a user array passed as a guess kept changing the guess when edited afterwards.
+- `solve()` works from a thread other than the main thread. It installed a SIGINT handler
+  whenever `catch_keyboard_interrupt` was true, the default, and Python permits that only
+  on the main thread, so a solve from a worker thread raised after all NLP setup with no
+  mention of the flag. Off the main thread the handler is simply not installed: a worker
+  thread never receives the keyboard interrupt, so there is nothing to catch.
+- A scalar bound (`initial_time`, `final_time`, `duration`) accepts any real number,
+  NumPy scalars included, as the array bounds already did; `np.float32(10.0)` or
+  `np.int64(10)` used to raise `TypeError`. `bool` is refused. The error message had an
+  unbalanced quote.
+- numpy's own functions now work on a symbolic array as they already did on a symbolic
+  scalar. `np.arctan2`, `np.hypot`, `np.maximum`, and the other two-argument ufuncs raised
+  on the arrays a callback receives under `"auto"` (numpy's object loop looks for an
+  element method of that name, which only the one-argument functions had), and `np.max`,
+  `np.min`, `np.all`, and `np.any` on such an array hit the truth-value guard. `SXArray`
+  now implements the array-ufunc protocol and routes every ufunc through the same table
+  `yapss.math` uses. `yapss.math` remains the documented spelling: under the
+  central-difference methods the sparsity probe still needs its `where`, `fmax`, and
+  `fmin`. A side effect: the spurious `RuntimeWarning: invalid value encountered in
+  divide` that arithmetic on a symbolic array could raise with a large constant (numpy
+  issue 21416: an object-dtype ufunc loop reports a stale floating-point flag) no longer
+  occurs, because numpy no longer runs that loop. The Delta III example's warning filter
+  and the note in its notebook are removed.
+- `isinstance(arg, yapss.ContinuousArg)` works, and likewise for `DiscreteArg` and
+  `ObjectiveArg`. The three were re-exported as subscripted generics, which `isinstance`
+  refuses with a `TypeError`, while the other six argument types are plain classes. They
+  are now the classes at runtime and the float64 specialization for a type checker.
+- `IpoptOptionSettingWarning` is exported from the root package, so every warning category
+  YAPSS can raise is filterable from one import.
 ## [0.2.2] - 2026-08-23
 
 ### Changed
@@ -334,6 +553,7 @@ Initial release of the software package. Features include:
 - Examples available as both Python scripts and Jupyter notebooks.
 - Nearly complete test coverage for all modules.
 
+[0.2.3]: https://github.com/stevenrhall/yapss/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/stevenrhall/yapss/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/stevenrhall/yapss/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/stevenrhall/yapss/compare/v0.1.1...v0.2.0

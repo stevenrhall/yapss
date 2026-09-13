@@ -15,6 +15,8 @@ __all__ = [  # noqa: RUF022
     "absolute",
     "add",
     "all",
+    "amax",
+    "amin",
     "any",
     "arccos",
     "arccosh",
@@ -103,6 +105,7 @@ __all__ = [  # noqa: RUF022
     "tanh",
     "true_divide",
     "trunc",
+    "where",
 ]
 
 from numpy import *  # noqa: F403
@@ -117,6 +120,8 @@ from numpy import sum  # noqa: A004
 from numpy import (
     absolute,
     add,
+    amax,
+    amin,
     arccos,
     arccosh,
     arcsin,
@@ -198,6 +203,7 @@ from numpy import (
     tanh,
     true_divide,
     trunc,
+    where,
 )
 
 # Dynamically re-export all other attributes from numpy
@@ -237,5 +243,14 @@ globals()["nextafter"] = functions.nextafter
 globals()["rint"] = functions.rint
 globals()["signbit"] = functions.signbit
 globals()["spacing"] = functions.spacing
+globals()["round"] = functions.round
+globals()["clip"] = functions.clip
+globals()["where"] = functions.where
+globals()["max"] = functions.max
+globals()["min"] = functions.min
+globals()["amax"] = functions.amax
+globals()["amin"] = functions.amin
+globals()["all"] = functions.all
+globals()["any"] = functions.any
 globals()["UnsupportedMathFunctionError"] = functions.UnsupportedMathFunctionError
 globals()["UnsupportedMathFunctionWarning"] = functions.UnsupportedMathFunctionWarning

@@ -102,6 +102,11 @@ class Problem(Protected):
         The auxiliary data for the problem.
     bounds : Bounds
         The bounds object structure for the problem.
+    catch_keyboard_interrupt : bool
+        Whether ``solve()`` installs a SIGINT handler so that Ctrl-C asks Ipopt to stop
+        at the next iteration and return the current iterate, rather than interrupting
+        Python inside the solver. Defaults to ``True``. The handler can only be installed
+        on the main thread; on any other thread the solve runs without it.
     derivatives : Derivatives
         The derivative options for the problem. Attributes: `method`, `order`.
     functions : UserFunctions
@@ -202,7 +207,7 @@ class Problem(Protected):
         self.functions = UserFunctions()
         self.guess = Guess(self)
         self.ipopt_options = IpoptOptions()
-        self.scale = self._init_scale()
+        self.scale = Scale(self)
         self.mesh = Mesh(self)
 
         self.__dict__["_ipopt_source"] = "default"
@@ -394,36 +399,6 @@ class Problem(Protected):
         if self.nd < 0:
             raise ValueError(msg)
 
-    def _init_scale(self) -> Scale:
-        """Initialize the scaling object."""
-
-        def make_scale(n: int) -> SimpleNamespace:
-            scale_shift = SimpleNamespace()
-            scale_shift.scale = np.ones(n, dtype=float64)
-            return scale_shift
-
-        scales = SimpleNamespace()
-        scales.parameter = make_scale(self.ns)
-        scales.discrete = make_scale(self.nd)
-        scales.objective = SimpleNamespace()
-        scales.objective.scale = 1.0
-
-        scales.phase = self.np * [None]
-        p: int
-        scales.phase = []
-        for p in range(self.np):
-            phase = SimpleNamespace()
-            phase.state = make_scale(self.nx[p])
-            phase.control = make_scale(self.nu[p])
-            phase.dynamics = make_scale(self.nx[p])
-            phase.integral = make_scale(self.nq[p])
-            phase.path = make_scale(self.nh[p])
-            phase.initial_time = make_scale(1)
-            phase.final_time = make_scale(1)
-            scales.phase.append(phase)
-
-        return Scale(self)
-
     def _signal_handler(self, signum: int, frame: FrameType | None) -> None:  # noqa: ARG002
         self._abort = True
 
@@ -436,6 +411,25 @@ class Problem(Protected):
 
 class Auxdata(SimpleNamespace):
     """Auxiliary problem data, which can be anything."""
+
+
+def _check_scale(name: str, value: Array | float) -> None:
+    """Raise unless every scale factor is finite and positive.
+
+    A scale factor is a characteristic magnitude: the NLP divides by it, and the
+    finite-difference methods size their steps with it. Zero divides by zero, and a NaN
+    passes through Ipopt's user scaling unchecked and crashes the process (``not value >
+    0`` catches NaN; ``value <= 0`` does not). A negative factor is rejected because Ipopt
+    cannot honor the sign: it scales the bound vectors x_L, x_U, d_L, and d_U elementwise
+    without swapping them (``OrigIpoptNLP::InitializeStructures`` via
+    ``StandardScalingBase::apply_vector_scaling_x``, Ipopt 3.14), so a negative variable
+    scale inverts the variable's bounds, and a negative constraint scale inverts the bounds
+    of an inequality. The sign would have no effect on conditioning anyway: the scaled KKT
+    matrix is a congruence of the unscaled one. The objective's sign is ``Problem.sense``.
+    """
+    if not np.all(np.isfinite(value)) or not np.all(np.asarray(value) > 0):
+        msg = f"{name} must be finite and positive, got {value!r}."
+        raise ValueError(msg)
 
 
 class ScaleArray(Protected):
@@ -466,15 +460,14 @@ class ScaleArray(Protected):
         """Set the value of the scale array."""
         scale = np.array(value, dtype=float64)
         shape = getattr(instance, "_" + self.name).shape
+        if hasattr(instance, "_p"):
+            label = f"Scale '{self.name}' in phase {instance._p}"
+        else:
+            label = f"Scale '{self.name}'"
         if scale.shape != shape:
-            if hasattr(instance, "_p"):
-                msg = (
-                    f"Scale '{self.name}' in phase {instance._p} must be an array of length "
-                    f"{shape[0]}."
-                )
-            else:
-                msg = f"Scale '{self.name}' must be an array of length {shape[0]}."
+            msg = f"{label} must be an array of length {shape[0]}."
             raise ValueError(msg)
+        _check_scale(label, scale)
         setattr(instance, "_" + self.name, scale)
 
 
@@ -503,6 +496,7 @@ class ScalePhase(Protected):
         "_integral",
         "_dynamics",
         "_path",
+        "_time",
         "_p",
         "p",
     )
@@ -531,13 +525,24 @@ class ScalePhase(Protected):
         p : int
             The phase index.
         """
-        self.time = 1.0
         self._p: int = p
+        self.time = 1.0
         self._state: Array = np.ones([problem.nx[p]], dtype=float)
         self._control: Array = np.ones([problem.nu[p]], dtype=float)
         self._integral: Array = np.ones([problem.nq[p]], dtype=float)
         self._dynamics: Array = np.ones([problem.nx[p]], dtype=float)
         self._path: Array = np.ones([problem.nh[p]], dtype=float)
+
+    @property
+    def time(self) -> float:
+        """Time scale factor for the phase, shared by ``t``, ``t0``, and ``tf``."""
+        return self._time
+
+    @time.setter
+    def time(self, value: float) -> None:
+        scale = float(value)
+        _check_scale(f"Scale 'time' in phase {self._p}", scale)
+        self._time = scale
 
 
 class Scale(Protected):
@@ -575,7 +580,7 @@ class Scale(Protected):
 
     @objective.setter
     def objective(self, value: float) -> None:
-        if value <= 0:
+        if not np.isfinite(value) or not value > 0:
             msg = (
                 f"'scale.objective' must be positive, got {value!r}. "
                 "Use 'problem.sense = \"maximize\"' to maximize the objective instead "

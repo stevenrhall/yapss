@@ -309,3 +309,127 @@ def test_from_solution_zero_controls():
     problem.guess.validate()
 
     assert problem.guess.phase[0].control.shape == (0, len(time))
+
+
+@pytest.mark.parametrize("spectral_method", ["lg", "lgr", "lgl"])
+def test_initial_guess_nlp_state_is_in_time_order(spectral_method):
+    """The NLP state guess, read back the way solution.py reads it, is the interpolant.
+
+    For LG the state layout is collocation points first, then segment-start and final
+    values, so the write must go through ``mesh.lg_index`` just as the read does.
+    """
+    from yapss._private.guess import make_initial_guess_nlp
+    from yapss._private.mesh import Mesh
+    from yapss._private.structure import get_nlp_dv_structure
+
+    problem = Problem(name="Test", nx=[1], nu=[0])
+    problem.spectral_method = spectral_method
+    problem.mesh.phase[0].collocation_points = (4, 3)
+    problem.mesh.phase[0].fraction = (0.5, 0.5)
+    problem.guess.phase[0].time = np.array([0.0, 1.0])
+    problem.guess.phase[0].state = np.array([[0.0, 1.0]])
+    problem.guess.validate()
+
+    mesh = Mesh(problem.mesh.phase)
+    mesh.set_matrices(spectral_method)
+    z0 = make_initial_guess_nlp(problem, mesh)
+    dv = get_nlp_dv_structure(problem, np.float64)
+    dv.z[:] = z0
+
+    phase = dv.phase[0]
+    x = phase.xa[0][mesh.lg_index[0]] if spectral_method == "lg" else phase.x[0]
+    t_x = (mesh.tau_x[0] + 1) / 2
+    np.testing.assert_allclose(x, t_x, atol=1e-14)
+    assert phase.x0[0] == 0.0
+    assert phase.xf[0] == 1.0
+
+
+def test_unset_guess_follows_the_time_array():
+    """An unset state/control guess is zeros at the current time length, never stored.
+
+    Through 0.2.2 validate() stored the zeros, so after one solve a change to the time
+    array alone made the next validate() reject a state array the user never set.
+    """
+    problem = Problem(name="Test", nx=[2], nu=[1])
+    phase = problem.guess.phase[0]
+    with pytest.raises(ValueError, match=re.escape("cannot be read before guess.phase[0].time")):
+        phase.state
+    with pytest.raises(ValueError, match="time is set"):
+        phase.control[0, :] = 1.0
+
+    phase.time = [0.0, 1.0]
+    assert np.array_equal(phase.state, np.zeros((2, 2)))
+    problem.guess.validate()
+
+    # refine only the time grid: the default must follow it
+    phase.time = np.linspace(0.0, 1.0, 5)
+    problem.guess.validate()
+    assert np.array_equal(phase.state, np.zeros((2, 5)))
+    assert np.array_equal(phase.control, np.zeros((1, 5)))
+
+    # a guess with values in it is kept and checked against the new time array
+    phase.state = np.ones((2, 5))
+    phase.time = [0.0, 1.0, 2.0]
+    with pytest.raises(ValueError, match=re.escape("shape (2, 3)")):
+        problem.guess.validate()
+
+
+def test_guess_copies_what_it_is_set_from():
+    """The guess owns its arrays: editing it in place touches neither a Solution nor a user array.
+
+    Through 0.2.2 the setters used np.asarray, which returns the caller's array unchanged
+    when the dtype already matches, so problem.guess(solution) aliased the solution.
+    """
+    problem = Problem(name="Test", nx=[1], nu=[1], nq=[1], ns=1)
+    time = np.array([0.0, 1.0, 2.0])
+    state = np.array([[0.0, 1.0, 2.0]])
+    control = np.array([[1.0, 1.0, 1.0]])
+    phase = _make_solution_phase(
+        time=time, time_c=time, state=state, control=control, integral=[0.5]
+    )
+    parameter = np.array([3.0])
+    solution = SimpleNamespace(phase=[phase], parameter=parameter)
+
+    problem.guess.from_solution(solution)
+    guess_phase = problem.guess.phase[0]
+    assert not np.shares_memory(guess_phase.state, state)
+    assert not np.shares_memory(guess_phase.control, control)
+    assert not np.shares_memory(guess_phase.time, time)
+    assert not np.shares_memory(problem.guess.parameter, parameter)
+
+    guess_phase.state[0, 0] = 99.0
+    guess_phase.time[0] = -1.0
+    problem.guess.parameter[0] = 99.0
+    assert state[0, 0] == 0.0 and time[0] == 0.0 and parameter[0] == 3.0
+
+    # and the other direction: a user array edited after assignment
+    user_state = np.zeros((1, 3))
+    guess_phase.state = user_state
+    user_state[0, 1] = 5.0
+    assert guess_phase.state[0, 1] == 0.0
+
+
+def test_slice_assignment_into_the_default_guess_sticks():
+    """Indexing and slicing assign into the stored default, so a guess can be built up."""
+    problem = Problem(name="Test", nx=[2], nu=[1])
+    phase = problem.guess.phase[0]
+    phase.time = np.linspace(0.0, 1.0, 4)
+
+    phase.state[0, :] = [1.0, 2.0, 3.0, 4.0]  # slice
+    phase.state[1][2] = 9.0  # a view of a row, then an element
+    phase.control += 0.5  # in-place operator on the whole array
+    np.testing.assert_array_equal(phase.state, [[1.0, 2.0, 3.0, 4.0], [0.0, 0.0, 9.0, 0.0]])
+    np.testing.assert_array_equal(phase.control, [[0.5, 0.5, 0.5, 0.5]])
+    problem.guess.validate()
+
+    # a written guess is kept across a time change and validate() reports the mismatch
+    phase.time = [0.0, 1.0]
+    assert phase.state.shape == (2, 4)
+    with pytest.raises(ValueError, match=re.escape("shape (2, 2)")):
+        problem.guess.validate()
+    # an all-zero guess, assigned or default, follows the new length
+    phase.state = np.zeros((2, 4))
+    phase.control = np.zeros((1, 4))
+    phase.time = [0.0, 0.5, 1.0]
+    assert phase.state.shape == (2, 3) and phase.control.shape == (1, 3)
+    problem.guess.validate()

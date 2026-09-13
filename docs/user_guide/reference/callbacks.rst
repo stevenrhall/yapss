@@ -341,9 +341,14 @@ So each NumPy `ufunc` falls into exactly one of three categories:
     one until 0.3.0. See `Unsupported Functions`_.
 
 **Not applicable**
-    Array-level functions (``sum``, ``clip``, ``matmul``), integer-domain functions (``gcd``,
-    ``left_shift``), and multiple-output functions (``frexp``, ``modf``). These are not
-    elementwise scalar operations, so the question does not arise.
+    Integer-domain functions (``gcd``, ``left_shift``) and multiple-output functions
+    (``frexp``, ``modf``). These are not elementwise scalar operations, so the question does
+    not arise.
+
+Array-level functions are supported where they have a symbolic meaning: ``sum``, ``prod``,
+``mean``, ``dot``, ``matmul``, and ``linalg.norm`` work through ordinary arithmetic, and
+``clip``, ``where``, ``max``, ``min``, ``all``, and ``any`` are implemented symbolically (see
+`Conditionals and Bounds`_ below).
 
 Note that "supported" is not the same as "smooth" or even "advisable". ``abs``, ``sign``,
 ``floor``, ``maximum``, and the comparisons are all supported and all non-differentiable
@@ -395,18 +400,41 @@ Available Functions
     which a symbolic expression cannot represent, so negative zero is treated as positive.
 
 **Rounding**
-    - ``ceil``, ``floor``, ``trunc``
+    - ``ceil``, ``floor``, ``trunc``, ``rint``, ``round``
+
+    ``rint`` and ``round`` round half to even, exactly as NumPy does, including at the ties and
+    their floating-point neighbors; ``round`` accepts ``decimals``. Python's builtin
+    ``round(x, n)`` is a different function --- it rounds the exact decimal value of the float,
+    so ``round(2.675, 2)`` is ``2.67`` where ``numpy.round`` gives ``2.68`` --- and is refused on
+    a symbol; ``round(x)`` without ``n`` is fine. Like ``floor``, all of these are piecewise
+    constant: zero derivative everywhere and a jump at each switch.
 
 **Extrema**
     - ``maximum``, ``minimum``, ``fmax``, ``fmin``
 
     ``fmax`` and ``fmin`` are synonyms for ``maximum`` and ``minimum``, rather than NumPy's
-    NaN-ignoring versions of them. The sparsity structure for the central-difference methods is
-    found by setting one variable to NaN and recording which outputs come back NaN, so a
-    NaN-absorbing ``fmax`` would hide a genuine dependency. All four therefore return NaN if
-    either operand is NaN. Under ``"auto"`` they return the other operand instead, following
-    CasADi, which has no NaN-propagating maximum. A callback should not be producing NaN in the
-    first place; if one does, the effect on the solution is unpredictable.
+    NaN-ignoring versions of them. See *NaN* below.
+
+**Conditionals and bounds**
+    - ``clip``, ``where``
+
+    ``where`` returns NaN wherever either branch is NaN, whichever branch the condition
+    selects, unlike NumPy's ``where``, which discards the unselected branch. See *NaN* below.
+
+**NaN**
+    In ``yapss.math``, NaN contaminates every path it touches: no function absorbs or
+    selects away a NaN in any of its arguments. Most NumPy functions already behave this
+    way; ``fmax``, ``fmin``, and ``where`` do not, and ``yapss.math`` overrides them so that
+    they do. The reason is the sparsity structure of the central-difference methods, which
+    is found by setting one variable to NaN and recording which outputs come back NaN. A
+    function that could drop the NaN would hide a genuine dependency --- ``where(u > 0, u,
+    0.0)`` at a point where ``u <= 0`` selects the constant branch, and so does the probe ---
+    and the Jacobian would be silently incomplete. A callback should not be producing NaN
+    in the first place; if it does, write the guard so the invalid branch is never
+    evaluated (``sqrt(maximum(x, 0.0))`` rather than ``where(x > 0, sqrt(x), 0.0)``, which
+    evaluates ``sqrt`` at every point either way). Under ``"auto"`` the structure is exact
+    and none of this applies; there ``fmax`` and ``fmin`` return the other operand,
+    following CasADi, which has no NaN-propagating maximum.
 
 **Comparison functions**
     - ``equal``, ``not_equal``, ``less``, ``less_equal``, ``greater``, ``greater_equal``
@@ -416,6 +444,12 @@ Available Functions
 
 **Step function**
     - ``heaviside``
+
+**Reductions**
+    - ``max``, ``min``, ``amax``, ``amin``, ``all``, ``any``, ``sum``, ``prod``
+
+    On a symbolic argument the reductions fold over every element (``max`` is a chain of
+    ``maximum``); the ``axis`` argument is not supported there.
 
 Comparisons
 ...........
@@ -435,11 +469,37 @@ switch. Piecewise behavior is normally better expressed with phases, which is wh
 multi-phase machinery is for: put the switch at a phase boundary, where it becomes an endpoint
 condition rather than a discontinuity inside a phase.
 
+Conditionals and Bounds
+.......................
+
+A symbolic value has no truth value. A Python ``if``, ``and``, ``or``, or ``not`` on one, the
+builtins ``max``, ``min``, and ``sorted``, and the ``in`` operator all ask for one, and all raise
+``TypeError`` under ``"auto"`` --- exactly as CasADi's own symbols do. This is deliberate: before
+YAPSS 0.2.3 each of them silently took the ``True`` branch under ``"auto"`` while evaluating the
+real condition under the finite-difference methods, so the same callback transcribed two
+different problems. Write the condition as an expression instead:
+
+.. code-block:: python
+
+    from yapss.math import clip, where, maximum
+
+    thrust = clip(u, 0.0, t_max)          # not: max(0.0, min(u, t_max))
+    drag = where(v > 0, k * v**2, 0.0)    # not: k * v**2 if v > 0 else 0.0
+    speed = maximum(v, v_min)
+
+``clip`` is ``minimum(maximum(x, lo), hi)`` and ``where`` is CasADi's ``if_else``; both are
+evaluated exactly under every derivative method. Like the comparisons they are built from,
+neither is differentiable at the switch. Under the finite-difference methods ``where`` also
+returns NaN from a NaN in either branch, so that the sparsity probe sees a dependency the
+condition has selected away; see *NaN* above.
+
 Unsupported Functions
 .....................
 
 A few NumPy `ufuncs` inspect the floating-point representation of a number rather than its value,
-and have no symbolic equivalent. YAPSS declines to support these:
+and have no symbolic equivalent. YAPSS declines to support these (``rint``, refused in 0.2.2 on
+the belief that half-to-even rounding could not be reproduced symbolically, is supported from
+0.2.3):
 
 .. list-table::
    :header-rows: 1
@@ -449,9 +509,6 @@ and have no symbolic equivalent. YAPSS declines to support these:
      - Reason
    * - ``nextafter``
      - Steps between adjacent floating-point values.
-   * - ``rint``
-     - Rounds half to even, which CasADi cannot reproduce. ``floor(x + 0.5)`` rounds half away
-       from zero and would silently disagree with NumPy.
    * - ``signbit``
      - Reads the floating-point sign bit, including the sign of negative zero.
    * - ``spacing``

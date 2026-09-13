@@ -12,7 +12,6 @@ from __future__ import annotations
 
 __all__ = ["main", "plot_solution", "setup"]
 
-import warnings
 
 # standard library imports
 from typing import TYPE_CHECKING, Any
@@ -33,13 +32,6 @@ if TYPE_CHECKING:
     # package imports
     from yapss import Solution
 
-
-# Suppress only the specific RuntimeWarning message
-warnings.filterwarnings(
-    "ignore",
-    message="invalid value encountered in divide",
-    category=RuntimeWarning,
-)
 
 # Dynamic Model Parameters
 mu = 3.986012e14  # earth gravity parameter

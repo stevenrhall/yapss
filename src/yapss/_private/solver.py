@@ -16,6 +16,7 @@ import os
 import signal
 import sys
 import textwrap
+import threading
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -86,7 +87,14 @@ if TYPE_CHECKING:
 
 # Define a custom warning class
 class IpoptOptionSettingWarning(Warning):
-    """Custom warning for issues in setting Ipopt options."""
+    """Ipopt refused an option value; the option was not applied.
+
+    Ipopt validates every option when it is set (the name exists, an Integer or Number
+    value is in range, a String value is one of the allowed settings) and prints what it
+    accepts to its console. YAPSS reports the refusal here and solves with Ipopt's default
+    for that option. It is a warning rather than an error because the option set varies
+    with the Ipopt build, so a script written for one build can still run on another.
+    """
 
 
 _env_deprecation_warned = False
@@ -319,10 +327,14 @@ def solve(problem: yapss.Problem) -> Solution:
         # try/except in a loop is unavoidable here, and not a performance issue
         except (ValueError, TypeError) as e:  # noqa: PERF203 (try-except-in-loop)
             msg = (
-                f"Failed to set option '{name}' with value '{value}': {e}. "
-                f"See Ipopt console output for more details."
+                f"Ipopt refused option '{name}' with value {value!r}: {e}. The option was "
+                f"not applied and the solve proceeds with Ipopt's default. Ipopt's console "
+                f"output above explains what it accepts (an unknown name, a value out of "
+                f"range, or an invalid setting)."
             )
-            warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=2)
+            # stacklevel 3: warn -> solver.solve -> Problem.solve -> the user's call,
+            # as warn_if_not_converged does
+            warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=3)
 
     if "timing_statistics" not in problem.ipopt_options.get_options():
         with contextlib.suppress(ValueError, TypeError):
@@ -391,7 +403,14 @@ def solve(problem: yapss.Problem) -> Solution:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", warning_message)
 
-            if problem.catch_keyboard_interrupt:
+            # signal.signal is allowed only on the main thread. A worker thread never
+            # receives the keyboard interrupt anyway, so there is nothing to catch there
+            # and the solve simply runs without the handler.
+            catch_interrupt = (
+                problem.catch_keyboard_interrupt
+                and threading.current_thread() is threading.main_thread()
+            )
+            if catch_interrupt:
                 original_handler = signal.signal(signal.SIGINT, problem._signal_handler)
                 try:
                     z, nlp_info = _solve_ipopt_problem(
@@ -567,6 +586,11 @@ class _CyipoptProblemAdapter:
         raise exception.with_traceback(traceback)
 
 
+# The ``new_x`` argument Ipopt passes to each callback is deliberately unused. The NLP
+# evaluates the continuous functions once per point through a value-keyed cache
+# (``nlp.ContinuousEvaluator``), which works identically under cyipopt, where the
+# flag is not passed through at all, and which cannot serve a stale value the way a
+# misread flag could.
 def _objective_callback(function: Callable[..., Any]) -> Callable[..., bool]:
     @functools.wraps(function)
     def callback(

@@ -147,7 +147,7 @@ def make_nlp_hessian(
     nlp : NLP
     eval_continuous : Callable
         Evaluator returning the continuous functions and their derivatives at a point,
-        as built by ``nlp.make_eval_continuous``.
+        the NLP's shared ``nlp.ContinuousEvaluator``.
 
     Returns
     -------
