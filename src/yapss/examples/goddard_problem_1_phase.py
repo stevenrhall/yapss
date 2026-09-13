@@ -80,12 +80,12 @@ def setup() -> Problem:
         D = D_div_v * v
 
         jacobian = arg.phase[0].jacobian
-        jacobian[("f", 0), ("x", 1)] = 1 + 0 * v
+        jacobian[("f", 0), ("x", 1)] = 1
         jacobian[("f", 1), ("x", 0)] = D / (h0 * m)
         jacobian[("f", 1), ("x", 1)] = -2 * D_div_v / m
         jacobian[("f", 1), ("x", 2)] = -(T - D) / m**2
         jacobian[("f", 1), ("u", 0)] = 1 / m
-        jacobian[("f", 2), ("u", 0)] = -1 / c + 0 * v
+        jacobian[("f", 2), ("u", 0)] = -1 / c
 
     # Optional second derivative functions
 
