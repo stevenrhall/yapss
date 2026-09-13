@@ -28,6 +28,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- `control_multiplier` and `path_multiplier` are now densities in time, like the costate.
+  `control_multiplier` was multiplied by the phase half-duration where it should have been
+  divided, and `path_multiplier` was not divided at all, so on any phase whose duration was
+  not 2 the two disagreed with the costate, with each other, and with the multiplier one
+  finds by hand. On a zero-duration phase both are NaN: the constraint holds on a set of
+  measure zero and no density exists.
 - `yapss.math.where` now returns NaN wherever either branch is NaN, whichever branch the
   condition selects. The central-difference methods find the sparsity structure by setting
   one variable to NaN and recording which outputs come back NaN, and numpy's `where`

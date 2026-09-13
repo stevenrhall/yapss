@@ -107,11 +107,25 @@ Incomplete and Unverified Multipliers
     instead. Working out that logic is planned for a future release. See :doc:`bounds`
     for the related discussion of state bounds used as path constraints.
 
-    **The multipliers YAPSS does return have no test coverage verifying their correctness.** This is
-    a research code in active development, and Lagrange multipliers are the least exercised part of
-    it. Due to a bug, ``control_multiplier`` was wrong in every release through 0.1.1 and was only
-    caught by inspection, not by a test. Treat multiplier values as provisional until you have
+    **The multipliers YAPSS returns have limited test coverage.** This is a research code in
+    active development, and Lagrange multipliers are the least exercised part of it.
+    ``control_multiplier`` was wrong in every release through 0.1.1, and ``control_multiplier``
+    and ``path_multiplier`` were scaled wrongly on any phase whose duration was not 2 through
+    0.2.3; both were caught by inspection. Since 0.2.4 a test checks them against the costate
+    on a problem with a known solution. Treat multiplier values as provisional until you have
     checked them against a known solution for your problem.
+
+Multiplier and Costate Scaling
+------------------------------
+
+The costate, ``control_multiplier``, and ``path_multiplier`` are approximations to the
+continuous-time multipliers of the optimal control problem: densities in time, so that
+the Hamiltonian is :math:`H = \lambda^T f + \mu_q^T g` and stationarity in the control
+reads :math:`\partial H / \partial u + \mu_u = 0` with :math:`\mu_u` the control-bound
+multiplier. The raw Ipopt multipliers are on the discrete rows and bounds; YAPSS divides
+out the quadrature weight and the phase half-duration :math:`(t_f - t_0)/2` to report
+them per unit time. On a phase of zero duration these densities are undefined, and
+``control_multiplier`` and ``path_multiplier`` are NaN there.
 
 Multiplier and Costate Sign
 ----------------------------
@@ -182,7 +196,8 @@ control problem. Each `SolutionPhase` object includes:
 -  **initial_state**, **final_state** (*np.ndarray*): Initial and final state of the phase,
    `state[:, 0]` and `state[:, -1]`.
 -  **control** (*np.ndarray*): Optimal control values at collocation points.
--  **control_multiplier** (*np.ndarray*): Lagrange multipliers for control bounds.
+-  **control_multiplier** (*np.ndarray*): Lagrange multipliers for control bounds, as a
+   density in time (see below).
 
 Results of user-defined functions (dynamics, path, etc.) are stored in each `SolutionPhase`:
 
@@ -196,7 +211,8 @@ Results of user-defined functions (dynamics, path, etc.) are stored in each `Sol
 Lagrange multipliers for constraints are also stored:
 
 -  **costate** (*np.ndarray*): Optimal costate values at collocation points.
--  **path_multiplier** (*np.ndarray*): Lagrange multipliers for the path constraint function.
+-  **path_multiplier** (*np.ndarray*): Lagrange multipliers for the path constraint function,
+   as a density in time (see below).
 -  **duration_multiplier** (*float*): Lagrange multiplier associated with the duration constraint.
 -  **integral_multiplier** (*np.ndarray*): Lagrange multipliers associated with the integral
    constraints, enforcing equality of integrals over each phase.

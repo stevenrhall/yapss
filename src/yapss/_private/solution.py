@@ -249,19 +249,28 @@ def make_solution_object(
         nx = problem.nx[p]
         nh = problem.nh[p]
 
-        # continuous multipliers
-
-        control_multiplier = np.array(
-            [dv_multiplier.phase[p].u[i] / mesh.w[p] for i in range(problem.nu[p])],
-            dtype=np.float64,
-        )
-        control_multiplier *= (tf - t0) / 2
+        # continuous multipliers, in the time domain. A time integral is transcribed as
+        # sum_k h w_k (.)_k with h = (tf - t0) / 2, so a multiplier on a per-point row or
+        # bound that carries no h of its own (a control bound, a path row) is a density
+        # in tau and must be divided by h w_k to be a density in t. The defect rows carry
+        # h already (D x - h f = 0), so the costate needs only w_k. On a zero-duration
+        # phase the continuous multipliers are undefined: the constraint holds on a set
+        # of measure zero, and NaN is the honest value.
+        half_duration = (tf - t0) / 2
+        with np.errstate(divide="ignore", invalid="ignore"):
+            control_multiplier = np.array(
+                [
+                    dv_multiplier.phase[p].u[i] / (half_duration * mesh.w[p])
+                    for i in range(problem.nu[p])
+                ],
+                dtype=np.float64,
+            )
+            path_multiplier = np.array(
+                [c_phase.path[i] / (half_duration * mesh.w[p]) for i in range(nh)],
+                dtype=np.float64,
+            )
         costate = np.array(
             [(mat * c_phase.defect[i]) / mesh.w[p] for i in range(nx)],
-            dtype=np.float64,
-        )
-        path_multiplier = np.array(
-            [c_phase.path[i] / mesh.w[p] for i in range(nh)],
             dtype=np.float64,
         )
         integral_multiplier = np.array(
