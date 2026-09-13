@@ -189,7 +189,7 @@ def make_solution_object(
     if isinstance(mult_g_, np.ndarray):
         mult_g = mult_g_
     else:
-        msg = f"Expected 'mult_g' to be np.ndarray, got type{type(mult_g_)}"
+        msg = f"Expected 'mult_g' to be np.ndarray, got type {type(mult_g_)}"
         raise TypeError(msg)
 
     if isinstance(mult_x_l_, np.ndarray):

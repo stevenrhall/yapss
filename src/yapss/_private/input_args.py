@@ -451,7 +451,7 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         elif letter == "s":
             value = self.parameter[i : i + 1]
         else:
-            msg = "Invalid item key '{letter}' in ContinuousArg.__getitem__."
+            msg = f"Invalid item key '{letter}' in ContinuousArg.__getitem__."
             raise RuntimeError(msg)
 
         return cast(NDArray[T], value)
