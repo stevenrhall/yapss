@@ -65,7 +65,8 @@ class PhaseArrayGuess:
         value: Sequence[Sequence[float | int]] | Sequence[Array] | Array,
     ) -> None:
         """Set the value of the guess."""
-        value = np.asarray(value, dtype=float)
+        # copy: the guess must not alias the caller's array (a Solution's, typically)
+        value = np.array(value, dtype=float)
         shape = value.shape
         array_dimensions = 2
         if len(shape) != array_dimensions:
@@ -116,7 +117,7 @@ class Parameter(Protected):
     def __set__(self, instance: Guess, value: ArrayLike) -> None:
         """Set the value of the parameter array."""
         private_name = f"_attr_{self.name}"
-        array_value = np.asarray(value, dtype=np.float64)
+        array_value = np.array(value, dtype=np.float64)  # copy, never alias the caller's
 
         # Check array shape
         if array_value.shape != (instance._ns,):
@@ -222,7 +223,7 @@ class TimeGuess(Protected):
         """Set the value of the time array."""
         min_length = 2
         p = instance._p
-        t: Array = np.asarray(value, dtype=float)
+        t: Array = np.array(value, dtype=float)  # copy, never alias the caller's
         shape = t.shape
         base_msg = (
             f"Expected 'guess.phase[{p}].time' to be a strictly increasing, 1-dimensional array "

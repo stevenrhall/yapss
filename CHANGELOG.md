@@ -31,6 +31,10 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- A guess no longer aliases the array it was set from. The state, control, time, and
+  parameter setters stored the caller's array itself when its dtype already matched, so
+  after `problem.guess(solution)` an in-place edit of the guess changed the solution, and
+  a user array passed as a guess kept changing the guess when edited afterwards.
 - Ipopt option values are checked against the option's kind when assigned, and converted to
   the Python type Ipopt's registry expects. The backend used to choose Ipopt's Integer, Number,
   or String registry from the Python type of the value, so `max_wall_time = 60` (an `int` for a

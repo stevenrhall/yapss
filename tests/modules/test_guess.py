@@ -369,3 +369,38 @@ def test_unset_guess_follows_the_time_array():
     phase.time = [0.0, 1.0, 2.0]
     with pytest.raises(ValueError, match=re.escape("shape (2, 3)")):
         problem.guess.validate()
+
+
+def test_guess_copies_what_it_is_set_from():
+    """The guess owns its arrays: editing it in place touches neither a Solution nor a user array.
+
+    Through 0.2.2 the setters used np.asarray, which returns the caller's array unchanged
+    when the dtype already matches, so problem.guess(solution) aliased the solution.
+    """
+    problem = Problem(name="Test", nx=[1], nu=[1], nq=[1], ns=1)
+    time = np.array([0.0, 1.0, 2.0])
+    state = np.array([[0.0, 1.0, 2.0]])
+    control = np.array([[1.0, 1.0, 1.0]])
+    phase = _make_solution_phase(
+        time=time, time_c=time, state=state, control=control, integral=[0.5]
+    )
+    parameter = np.array([3.0])
+    solution = SimpleNamespace(phase=[phase], parameter=parameter)
+
+    problem.guess.from_solution(solution)
+    guess_phase = problem.guess.phase[0]
+    assert not np.shares_memory(guess_phase.state, state)
+    assert not np.shares_memory(guess_phase.control, control)
+    assert not np.shares_memory(guess_phase.time, time)
+    assert not np.shares_memory(problem.guess.parameter, parameter)
+
+    guess_phase.state[0, 0] = 99.0
+    guess_phase.time[0] = -1.0
+    problem.guess.parameter[0] = 99.0
+    assert state[0, 0] == 0.0 and time[0] == 0.0 and parameter[0] == 3.0
+
+    # and the other direction: a user array edited after assignment
+    user_state = np.zeros((1, 3))
+    guess_phase.state = user_state
+    user_state[0, 1] = 5.0
+    assert guess_phase.state[0, 1] == 0.0
