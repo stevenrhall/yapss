@@ -10,6 +10,9 @@ PyCharm to provide type hints and autocompletions.
 
 from __future__ import annotations
 
+from numbers import Integral, Real
+from typing import Any
+
 __all__ = ["IpoptOptions"]
 
 DEFAULT_IPOPT_OPTIONS = {
@@ -37,6 +40,53 @@ RESERVED_IPOPT_OPTIONS = {
 """Ipopt options YAPSS configures itself; setting them directly is disallowed."""
 
 
+_KIND_NAMES = {"int": "Integer", "float": "Number", "str": "String"}
+
+
+def _coerce_option(name: str, value: Any) -> str | int | float:
+    """Check `value` against the kind of Ipopt option `name`, and return it as a Python type.
+
+    Ipopt keeps three option registries -- Integer, Number, and String -- and refuses a value
+    sent to the wrong one, so the value must reach the backend as the Python type that maps
+    to the option's registry. The annotations on ``IpoptOptions`` record the kind of every
+    documented option. An Integer option takes any integer, a Number option any integer or
+    real, a String option a string; NumPy scalars are converted to the Python type. ``bool``
+    is refused everywhere: Python makes it an integer, but no Ipopt option is boolean (the
+    yes/no options are strings). An option the annotations do not know is checked only for
+    being one of the three kinds.
+    """
+    kind = IpoptOptions.__annotations__.get(name)
+    label = f"{_KIND_NAMES[kind]} option" if kind in _KIND_NAMES else "option"
+    got = f"got {value!r} of type {type(value).__name__}"
+    if isinstance(value, bool):
+        msg = f"Ipopt {label} '{name}' does not take a bool ({got}); yes/no options take a str."
+        raise TypeError(msg)
+    if kind == "int":
+        if isinstance(value, Integral):
+            return int(value)
+        msg = f"Ipopt Integer option '{name}' takes an int, {got}."
+        raise TypeError(msg)
+    if kind == "float":
+        if isinstance(value, Real):
+            return float(value)
+        msg = f"Ipopt Number option '{name}' takes a float or int, {got}."
+        raise TypeError(msg)
+    if kind == "str":
+        if isinstance(value, str):
+            return value
+        msg = f"Ipopt String option '{name}' takes a str, {got}."
+        raise TypeError(msg)
+    # not annotated: the kind is unknown, so accept any of the three and let Ipopt judge
+    if isinstance(value, Integral):
+        return int(value)
+    if isinstance(value, Real):
+        return float(value)
+    if isinstance(value, str):
+        return value
+    msg = f"Ipopt option '{name}' takes an int, float, or str, {got}."
+    raise TypeError(msg)
+
+
 class IpoptOptions:
     """Container for Ipopt options.
 
@@ -61,7 +111,15 @@ class IpoptOptions:
         self.reset()
 
     def __setattr__(self, name: str, value: str | float | None) -> None:
-        """Set an option value, or delete the option if value is None."""
+        """Set an option value, or delete the option if value is None.
+
+        Raises
+        ------
+        ValueError
+            If the option is one YAPSS manages itself.
+        TypeError
+            If the value is not of the option's kind (Integer, Number, or String).
+        """
         if name in RESERVED_IPOPT_OPTIONS:
             msg = (
                 f"'{name}' is managed by YAPSS and cannot be set directly. "
@@ -72,7 +130,7 @@ class IpoptOptions:
             if hasattr(self, name):
                 delattr(self, name)
         else:
-            super().__setattr__(name, value)
+            super().__setattr__(name, _coerce_option(name, value))
 
     def reset(self) -> None:
         """Reset all options to their default values."""

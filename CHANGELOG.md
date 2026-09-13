@@ -28,6 +28,14 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- Ipopt option values are checked against the option's kind when assigned, and converted to
+  the Python type Ipopt's registry expects. The backend used to choose Ipopt's Integer, Number,
+  or String registry from the Python type of the value, so `max_wall_time = 60` (an `int` for a
+  Number option) was refused by Ipopt and a NumPy integer such as `max_iter = np.int64(50)` was
+  refused outright; both were demoted to a warning at solve time and the option was silently
+  dropped, so the solve ran with no time limit or with the default iteration limit. A value of
+  the wrong kind now raises `TypeError` at the assignment, following the same reasoning as
+  the `SXW.__bool__` change: the behavior it replaces was a silently ignored setting.
 - An unset state or control guess is now an array of zeros of whatever shape the time
   array currently implies, supplied on read. `validate()` used to store the zeros at the
   length the time array had then, and since `solve()` validates, a later change to the time

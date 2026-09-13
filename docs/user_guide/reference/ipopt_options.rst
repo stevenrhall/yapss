@@ -29,6 +29,14 @@ environment such as the PyCharm IDE. For example, in the PyCharm IDE, typing
 ``problem.ipopt_options.tol`` will show a list of available options including "tol" as part of
 the option name. (There are more than 30 such options!)
 
+Each option is of one of Ipopt's three kinds, and the value is checked against the kind when it
+is assigned: an Integer option takes an ``int`` (a NumPy integer is accepted and converted), a
+Number option takes a ``float`` or an ``int``, and a String option takes a ``str``. A ``bool`` is
+refused everywhere, since no Ipopt option is boolean; the yes/no options take the strings
+``"yes"`` and ``"no"``. A value of the wrong kind raises ``TypeError`` at the assignment. Options
+YAPSS does not know about are checked only for being one of the three kinds; Ipopt judges the
+rest when the problem is solved, and a value it refuses is reported with a warning.
+
 A complete description of the Ipopt options is available in the `Ipopt options documentation
 <https://coin-or.github.io/Ipopt/OPTIONS.html>`_. For most problems, the default Ipopt options will
 be sufficient. The most common options that users may want to change are:
