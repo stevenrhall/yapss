@@ -5,6 +5,7 @@ Test the yapss._private.auto module.
 """
 
 # third party imports
+import numpy as np
 import pytest
 
 # package imports
@@ -47,3 +48,30 @@ def test_no_dynamics():
     problem.derivatives.method = "auto"
     solution = problem.solve()
     assert pytest.approx(solution.objective) == 0.5
+
+
+def test_auto_leaves_auxdata_alone():
+    """The trace writes nothing into the user's namespace, so a re-solve sees it intact.
+
+    Through 0.2.3 the objective trace stored an SXW and a casadi Function in
+    ``auxdata.objective_out`` and ``auxdata.objective_function``; a user helper of the
+    latter name was replaced after the first solve, and the second solve then called the
+    casadi Function with the user's arguments.
+    """
+    problem = Problem(name="auxdata", nx=[], ns=1)
+    problem.auxdata.objective_function = lambda s: (s - 3.0) ** 2
+    problem.auxdata.marker = "mine"
+
+    def objective(arg):
+        arg.objective = arg.auxdata.objective_function(arg.parameter[0])
+
+    problem.functions.objective = objective
+    problem.derivatives.method = "auto"
+    problem.guess.parameter = [0.0]
+    problem.ipopt_options.print_level = 0
+
+    first = problem.solve()
+    assert vars(problem.auxdata).keys() == {"objective_function", "marker"}
+    second = problem.solve()
+    np.testing.assert_allclose(first.parameter, [3.0], atol=1e-6)
+    np.testing.assert_allclose(second.parameter, [3.0], atol=1e-6)

@@ -28,6 +28,10 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- The `"auto"` derivative method no longer writes two of its CasADi objects into
+  `problem.auxdata`, the user's namespace. Nothing read them; they clobbered any user
+  attribute named `objective_function` (a second `solve()` then failed inside the symbolic
+  trace) and were deep-copied into every `Solution`.
 - `control_multiplier` and `path_multiplier` are now densities in time, like the costate.
   `control_multiplier` was multiplied by the phase half-duration where it should have been
   divided, and `path_multiplier` was not divided at all, so on any phase whose duration was

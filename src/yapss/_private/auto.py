@@ -244,8 +244,6 @@ def make_discrete_derivatives(
         [vertcat(*[item._value for item in sxqt])],
         [objective_out._value],
     )
-    problem.auxdata.objective_out = objective_out
-    problem.auxdata.objective_function = objective_function
 
     # objective gradient
     gradient = cd_jacobian(objective_out._value, vertcat(*[item._value for item in sxqt]))
