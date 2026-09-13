@@ -75,7 +75,7 @@ release is archived on Zenodo; the DOI below always resolves to the latest versi
 the record for each version has its own DOI.
 
 > Hall, S. R. (2026). *YAPSS: Yet Another Pseudo-Spectral Solver* (Version 0.2.3)
-> [Computer software]. https://doi.org/10.5281/zenodo.22402223
+> [Computer software]. <https://doi.org/10.5281/zenodo.22402223>
 
 The repository's `CITATION.cff` carries the same metadata in machine-readable form;
 GitHub's "Cite this repository" button renders it as BibTeX or APA. The
