@@ -659,12 +659,14 @@ class SXArray(np.ndarray[Any, np.dtype[Any]]):
             # keepdims=False, initial=<no value>, where=True): drop the defaults, and let
             # reduce_symbolic refuse anything else (an axis, most likely) with its message
             # (np.all and np.any pass dtype=bool instead; a symbolic fold has no dtype)
+            # (numpy's <no value> sentinel is a private attribute the 2.2 stubs omit, so
+            # it is recognized by its type's name)
             kwargs = {
                 k: v
                 for k, v in kwargs.items()
                 if not (
                     v is None
-                    or v is np._NoValue
+                    or type(v).__name__ == "_NoValueType"
                     or k == "dtype"
                     or (k == "keepdims" and v is False)
                     or (k == "where" and v is True)
