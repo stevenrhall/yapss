@@ -31,6 +31,15 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- numpy's own functions now work on a symbolic array as they already did on a symbolic
+  scalar. `np.arctan2`, `np.hypot`, `np.maximum`, and the other two-argument ufuncs raised
+  on the arrays a callback receives under `"auto"` (numpy's object loop looks for an
+  element method of that name, which only the one-argument functions had), and `np.max`,
+  `np.min`, `np.all`, and `np.any` on such an array hit the truth-value guard. `SXArray`
+  now implements the array-ufunc protocol and routes every ufunc through the same table
+  `yapss.math` uses. `yapss.math` remains the documented spelling: under the
+  central-difference methods the sparsity probe still needs its `where`, `fmax`, and
+  `fmin`.
 - A scalar bound (`initial_time`, `final_time`, `duration`) accepts any real number,
   NumPy scalars included, as the array bounds already did; `np.float32(10.0)` or
   `np.int64(10)` used to raise `TypeError`. `bool` is refused. The error message had an

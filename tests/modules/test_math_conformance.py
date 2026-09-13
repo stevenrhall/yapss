@@ -175,22 +175,29 @@ def sample_points(name, nin):
 #              SXW.__getattr__ supplies.
 #   sxarr   -- an SXArray, as state[i], control[i], and final_state are. Same as objarr,
 #              plus the comparison overrides.
+#   numpy   -- numpy's own function on an SXArray, which goes through
+#              SXArray.__array_ufunc__ rather than yapss.math at all. Before 0.2.3 the
+#              two-argument ufuncs raised here.
 # Before 0.2.3 only objarr was tested here, and sixteen names failed on scalar.
-INPUT_KINDS = ("scalar", "objarr", "sxarr")
+INPUT_KINDS = ("scalar", "objarr", "sxarr", "numpy")
 
 
 def evaluate_symbolically(name, points, kind="objarr"):
     """Evaluate ``yapss.math.<name>`` on SXW symbols of one input kind; return floats."""
     n = len(points[0])
     symbols = [ca.SX.sym(f"v{k}", n) for k in range(len(points))]
-    function = getattr(math, name)
+    function = getattr(np if kind == "numpy" else math, name)
     if kind == "scalar":
         result = [function(*[SXW(symbols[k][i]) for k in range(len(points))]) for i in range(n)]
     else:
-        build = sx_array if kind == "sxarr" else (lambda items: np.array(items, dtype=object))
+        build = (
+            sx_array
+            if kind in ("sxarr", "numpy")
+            else (lambda items: np.array(items, dtype=object))
+        )
         arrays = [build([SXW(symbols[k][i]) for i in range(n)]) for k in range(len(points))]
         result = np.atleast_1d(function(*arrays))
-        if kind == "sxarr":
+        if kind in ("sxarr", "numpy"):
             assert isinstance(result, SXArray), f"{name} on an SXArray returned {type(result)}"
     expression = ca.vertcat(*[SXW(item)._value for item in result])
     casadi_function = ca.Function("f", symbols, [expression])

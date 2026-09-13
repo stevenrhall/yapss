@@ -286,6 +286,19 @@ REDUCTIONS: dict[str, Callable[[SX, SX], SX]] = {
 }
 
 
+# ufuncs with no table entry that numpy's object-dtype loop computes from the operators
+# SXW supports, so SXArray.__array_ufunc__ leaves them to numpy
+_OBJECT_LOOP_UFUNCS = frozenset({"matmul"})
+
+# the ufuncs numpy reduces with when asked for np.max, np.min, np.all, np.any on an array
+_REDUCE_UFUNCS = {
+    "maximum": "max",
+    "minimum": "min",
+    "logical_and": "all",
+    "logical_or": "any",
+}
+
+
 # ====================================================================================
 # dispatch
 # ====================================================================================
@@ -601,6 +614,72 @@ class SXArray(np.ndarray[Any, np.dtype[Any]]):
 
     # ensure the subclass wins reflected operations against plain ndarrays
     __array_priority__ = 20.0
+
+    def __array_ufunc__(
+        self,
+        ufunc: Any,
+        method: str,
+        *inputs: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """Route every ufunc on a symbolic array through :data:`UFUNCS`, as SXW does.
+
+        Without this hook numpy's object-dtype loops ran the ufunc: they call
+        ``element.sqrt()`` for a unary ufunc, which :meth:`SXW.__getattr__` serves, but for
+        a binary one they call ``element.arctan2(other)``, which nothing served, and for
+        ``maximum`` they compare and take a truth value, which a symbol refuses. So
+        ``np.arctan2``, ``np.hypot``, and ``np.maximum`` raised on a symbolic array while
+        working on a symbolic scalar. Now an array and a scalar reach the same table.
+
+        A reduction whose fold is symbolic (``max``, ``min``, ``all``, ``any``, which is
+        how ``np.max(array)`` and ``np.all(mask)`` arrive) goes to :func:`reduce_symbolic`;
+        every other method (``add.reduce`` for ``np.sum``, ``accumulate``, ``outer``) is left
+        to numpy's object loop on a plain view, whose elementwise operators SXW supports.
+        """
+        if method == "__call__" and ufunc.__name__ not in _OBJECT_LOOP_UFUNCS:
+            out = kwargs.pop("out", None)
+            if out is not None and any(isinstance(item, SXW) for item in out):
+                out = None  # an SXW can never be an output buffer; see SXW.__array_ufunc__
+            if not any(is_symbolic(item) for item in inputs):
+                return ufunc(*inputs, **({"out": out} if out is not None else {}), **kwargs)
+            if kwargs:
+                msg = (
+                    f"numpy.{ufunc.__name__}: keyword arguments ({', '.join(kwargs)}) are "
+                    f"not supported on a symbolic value."
+                )
+                raise TypeError(msg)
+            result = _elementwise(ufunc.__name__, inputs)
+            if out is None:
+                return result
+            (buffer,) = out
+            buffer[...] = result
+            return buffer
+        if method == "reduce" and ufunc.__name__ in _REDUCE_UFUNCS:
+            # np.max(a) arrives as maximum.reduce(a, axis=None, dtype=None, out=None,
+            # keepdims=False, initial=<no value>, where=True): drop the defaults, and let
+            # reduce_symbolic refuse anything else (an axis, most likely) with its message
+            # (np.all and np.any pass dtype=bool instead; a symbolic fold has no dtype)
+            kwargs = {
+                k: v
+                for k, v in kwargs.items()
+                if not (
+                    v is None
+                    or v is np._NoValue
+                    or k == "dtype"
+                    or (k == "keepdims" and v is False)
+                    or (k == "where" and v is True)
+                )
+            }
+            return reduce_symbolic(_REDUCE_UFUNCS[ufunc.__name__], inputs[0], **kwargs)
+        # Everything else -- matmul, which numpy's object loop computes with * and +, and
+        # the other methods: add.reduce for np.sum, accumulate, outer -- goes to numpy's
+        # object loop on a plain view, so that what worked before this hook still works.
+        # (A ufunc the table lacks, frexp say, took the __call__ branch above and raised
+        # UnsupportedMathFunctionError from the table, as it does for a scalar.)
+        plain = [
+            np.asarray(item, dtype=object) if isinstance(item, SXArray) else item for item in inputs
+        ]
+        return self.__array_wrap__(np.asarray(getattr(ufunc, method)(*plain, **kwargs)))
 
     def __array_wrap__(
         self,

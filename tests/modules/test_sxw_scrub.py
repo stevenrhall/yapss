@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 
 import yapss
+from yapss import UnsupportedMathFunctionError
 from yapss import math as ym
 from yapss._private.auto import make_auto_functions
 from yapss._private.central_difference import make_cd_functions
@@ -453,3 +454,62 @@ def test_python_if_on_a_symbol_fails_loudly_in_the_pipeline():
     assert discrete_constraints(problem, "central-difference").shape == (1,)
     with pytest.raises(TypeError, match="truth value of a symbolic value"):
         discrete_constraints(make_problem(1, lambda xf, tf: [tf if tf > 2 else -tf]), "auto")
+
+
+# ------------------------------------------------------------------------------------
+# numpy's own functions on a symbolic array (SXArray.__array_ufunc__)
+#
+# The scalar SXW always implemented the array-ufunc protocol; the array did not, and
+# numpy's object loop served only the one-argument ufuncs (through element methods), so
+# np.arctan2, np.hypot, np.maximum, np.max, and np.all raised on the arrays a callback
+# receives while working on a scalar taken from them.
+
+
+def _values(expression, symbols, points):
+    """Evaluate a symbolic result at real points, for comparison with numpy."""
+    items = expression if np.ndim(expression) else [expression]
+    function = ca.Function("f", symbols, [ca.vertcat(*[SXW(item)._value for item in items])])
+    return np.asarray(function(*points)).flatten()
+
+
+def test_numpy_binary_ufuncs_on_symbolic_arrays():
+    xs, ys = ca.SX.sym("x", 3), ca.SX.sym("y", 3)
+    a = sx_array([SXW(xs[i]) for i in range(3)])
+    b = sx_array([SXW(ys[i]) for i in range(3)])
+    px, py = np.array([0.5, -1.5, 2.0]), np.array([1.0, 2.0, -0.5])
+    for function in (np.arctan2, np.hypot, np.maximum, np.minimum, np.add, np.power):
+        result = function(a, b)
+        assert isinstance(result, SXArray)
+        np.testing.assert_allclose(_values(result, [xs, ys], [px, py]), function(px, py))
+    # array with a scalar, symbolic and real
+    w = SXW(ca.SX.sym("w"))
+    assert isinstance(np.add(a, w), SXArray) and isinstance(np.hypot(a, 2.0), SXArray)
+
+
+def test_numpy_reductions_on_symbolic_arrays():
+    xs = ca.SX.sym("x", 3)
+    a = sx_array([SXW(xs[i]) for i in range(3)])
+    px = np.array([0.5, -1.5, 2.0])
+    for function in (np.max, np.min, np.sum, np.prod):
+        result = function(a)
+        assert isinstance(result, SXW), function
+        np.testing.assert_allclose(_values(result, [xs], [px]), function(px))
+    np.testing.assert_allclose(_values(np.all(a > 0), [xs], [px]), float(np.all(px > 0)))
+    np.testing.assert_allclose(_values(np.any(a > 0), [xs], [px]), float(np.any(px > 0)))
+    # an axis on a symbolic fold is refused with yapss.math's message
+    with pytest.raises(TypeError, match="only a full reduction"):
+        np.max(sx_array([[a[0], a[1]], [a[1], a[2]]]), axis=0)
+    # add.reduce with an axis goes through numpy's object loop, which SXW's + supports
+    assert np.sum(sx_array([[a[0], a[1]], [a[1], a[2]]]), axis=0).shape == (2,)
+
+
+def test_numpy_on_symbolic_array_refuses_kwargs_and_unsupported_ufuncs():
+    a = sx_array([SXW(ca.SX.sym("x"))])
+    with pytest.raises(TypeError, match="keyword arguments"):
+        np.sqrt(a, where=True)
+    with pytest.raises(UnsupportedMathFunctionError):
+        np.frexp(a)
+    # a real-only call that merely names a symbolic out buffer is numpy's
+    buffer = a.copy()
+    buffer += 1.0
+    assert isinstance(buffer, SXArray)
