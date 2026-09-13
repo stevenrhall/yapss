@@ -19,6 +19,11 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- Assigning a callback's output rows (`dynamics[:] = (...)`, `integrand`, `path`)
+  broadcasts each element into its row directly. It used to build a full-size array per
+  element and then copy the lot, on the float path of every user-function evaluation, so
+  every row was copied twice. Values are unchanged; a central-difference iterate is about
+  10% faster (orbit raising 2.12 ms to 1.85 ms, three-phase Goddard 3.36 ms to 3.04 ms).
 - The `"auto"` Jacobian and Hessian callbacks convert each phase's CasADi result to a
   dense array once and hand out row views, instead of slicing and converting the result
   once per structure term. The per-term conversions cost more than the CasADi evaluation

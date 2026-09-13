@@ -557,12 +557,15 @@ class ContinuousArray(np.ndarray[Any, np.dtype[T]], Generic[T]):
         value: Any,
     ) -> None:
         """Set item in array, expanding scalar values to match the shape if needed."""
-        # If the value is an iterable, expand each element to match the shape
-        if isinstance(value, (list, tuple)):
-            expanded_value = [np.full(self.shape[1:], v, dtype=self.dtype) for v in value]
-        else:
-            expanded_value = value  # Assign directly for scalar values
-        super().__setitem__(item, expanded_value)  # type: ignore[no-untyped-call, unused-ignore]
+        if isinstance(item, slice) and isinstance(value, (list, tuple)):
+            rows = range(*item.indices(self.shape[0]))
+            if len(rows) != len(value):
+                msg = f"expected {len(rows)} rows, got {len(value)}"
+                raise ValueError(msg)
+            for row, element in zip(rows, value, strict=True):
+                super().__setitem__(row, element)  # type: ignore[no-untyped-call, unused-ignore]
+            return
+        super().__setitem__(item, value)  # type: ignore[no-untyped-call, unused-ignore]
 
 
 # Define generically typed ContinuousJacobianArg and ContinuousHessianArg
