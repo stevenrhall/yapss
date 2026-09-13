@@ -7,7 +7,7 @@ H = lambda * u in u gives an active-bound multiplier of magnitude 1 -- for every
 time. The same bound expressed as a path constraint h = u must give the same multiplier.
 
 Durations other than 2 discriminate: at tf - t0 = 2 the half-duration is 1 and any power
-of it is invisible, which is how the scaling of both multipliers went wrong through 0.2.3.
+of it is invisible, which is how the scaling of both multipliers went wrong through 0.2.2.
 """
 
 import numpy as np

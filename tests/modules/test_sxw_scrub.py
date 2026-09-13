@@ -346,7 +346,7 @@ def test_where_propagates_nan_from_either_branch():
 
     The central-difference sparsity probe sets one variable to NaN and looks for NaN on
     the output. numpy's ``where`` discards the unselected branch, NaN included, which
-    hid a dependency through the selected-away branch (0.2.4).
+    hid a dependency through the selected-away branch (0.2.2).
     """
     values = np.array([1.0, -1.0, 2.0])
     poisoned = np.array([1.0, np.nan, 3.0])

@@ -53,7 +53,7 @@ def test_no_dynamics():
 def test_auto_leaves_auxdata_alone():
     """The trace writes nothing into the user's namespace, so a re-solve sees it intact.
 
-    Through 0.2.3 the objective trace stored an SXW and a casadi Function in
+    Through 0.2.2 the objective trace stored an SXW and a casadi Function in
     ``auxdata.objective_out`` and ``auxdata.objective_function``; a user helper of the
     latter name was replaced after the first solve, and the second solve then called the
     casadi Function with the user's arguments.
