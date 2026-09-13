@@ -217,7 +217,11 @@ The deprecations scheduled for 0.3.0 are unchanged and still warn.
   now implements the array-ufunc protocol and routes every ufunc through the same table
   `yapss.math` uses. `yapss.math` remains the documented spelling: under the
   central-difference methods the sparsity probe still needs its `where`, `fmax`, and
-  `fmin`.
+  `fmin`. A side effect: the spurious `RuntimeWarning: invalid value encountered in
+  divide` that arithmetic on a symbolic array could raise with a large constant (numpy
+  issue 21416: an object-dtype ufunc loop reports a stale floating-point flag) no longer
+  occurs, because numpy no longer runs that loop. The Delta III example's warning filter
+  and the note in its notebook are removed.
 - `isinstance(arg, yapss.ContinuousArg)` works, and likewise for `DiscreteArg` and
   `ObjectiveArg`. The three were re-exported as subscripted generics, which `isinstance`
   refuses with a `TypeError`, while the other six argument types are plain classes. They
