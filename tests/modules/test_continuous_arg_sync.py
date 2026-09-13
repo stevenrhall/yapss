@@ -59,6 +59,36 @@ def test_nan_structure_discovery_uses_initial_guess_time() -> None:
     assert structure == (((("f", 0), ("x", 0)),),)
 
 
+def test_nan_probe_sees_dependency_through_where() -> None:
+    """A dependency carried only by the branch ``where`` selects away is still found.
+
+    ``where(u > 0, u, 0.0)`` at u <= 0 selects the constant branch, and a NaN probe on
+    u compares False and selects it too. numpy's ``where`` would drop the NaN and the
+    control column would vanish from the Jacobian; yapss.math.where propagates it.
+    """
+    import yapss.math as ym
+
+    problem = Problem(name="where-structure", nx=[1], nu=[1], nq=[0], nh=[0])
+    problem.spectral_method = "lgr"
+    mesh = Mesh(problem.mesh.phase)
+    mesh.set_matrices(problem.spectral_method)
+
+    def continuous(arg: ContinuousArg[np.float64]) -> None:
+        for p in arg.phase_list:
+            u = arg.phase[p].control[0]
+            arg.phase[p].dynamics[:] = ym.where(u > 0, u, 0.0)
+
+    problem.functions.continuous = continuous
+    dv = get_nlp_dv_structure(problem, np.float64)
+    dv.phase[0].t0[:] = 0.0
+    dv.phase[0].tf[:] = 1.0
+    dv.phase[0].u[0][:] = -1.0  # the constant branch is selected everywhere
+
+    structure = get_continuous_jacobian_structure_nan(problem, dv.z.copy(), mesh.tau_u)
+
+    assert (("f", 0), ("u", 0)) in structure[0]
+
+
 def test_time_is_not_assignable() -> None:
     """``phase.time`` is set by the framework; user code cannot overwrite it.
 

@@ -178,7 +178,28 @@ float_power = power
 # Three-argument functions that numpy evaluates by coercing a comparison to bool, and so
 # silently returned their first argument on a symbol before 0.2.3.
 clip = _ufunc("clip")
-where = _ufunc("where")
+
+
+def where(condition: Any, x: Any, y: Any) -> Any:
+    """``numpy.where`` on real arguments, except that NaN in either branch is returned.
+
+    On real arguments numpy's ``where`` discards the unselected branch, NaN included.
+    Here a NaN in either branch is returned regardless of the condition: the
+    central-difference methods find the sparsity structure by setting one variable to
+    NaN and recording which outputs come back NaN, and a ``where`` that could drop the
+    NaN would hide a genuine dependency, yielding a silently incomplete Jacobian.
+    ``fmax`` and ``fmin`` follow the same rule. On symbolic arguments this is
+    ``casadi.if_else``, elementwise.
+    """
+    # not any(...): this module's ``any`` is the symbolic reduction, not the builtin
+    if is_symbolic(condition) or is_symbolic(x) or is_symbolic(y):
+        return apply_ufunc("where", condition, x, y)
+    result = np.where(condition, x, y)
+    contaminated = np.isnan(x) | np.isnan(y)
+    if np.any(contaminated):
+        result = np.where(contaminated, np.nan, result)
+    return result
+
 
 # Reductions whose numpy loops coerce to bool. sum and prod need nothing: numpy reduces
 # them through __add__ and __mul__.

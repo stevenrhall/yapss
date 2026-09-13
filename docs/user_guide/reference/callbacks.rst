@@ -413,12 +413,28 @@ Available Functions
     - ``maximum``, ``minimum``, ``fmax``, ``fmin``
 
     ``fmax`` and ``fmin`` are synonyms for ``maximum`` and ``minimum``, rather than NumPy's
-    NaN-ignoring versions of them. The sparsity structure for the central-difference methods is
-    found by setting one variable to NaN and recording which outputs come back NaN, so a
-    NaN-absorbing ``fmax`` would hide a genuine dependency. All four therefore return NaN if
-    either operand is NaN. Under ``"auto"`` they return the other operand instead, following
-    CasADi, which has no NaN-propagating maximum. A callback should not be producing NaN in the
-    first place; if one does, the effect on the solution is unpredictable.
+    NaN-ignoring versions of them. See *NaN* below.
+
+**Conditionals and bounds**
+    - ``clip``, ``where``
+
+    ``where`` returns NaN wherever either branch is NaN, whichever branch the condition
+    selects, unlike NumPy's ``where``, which discards the unselected branch. See *NaN* below.
+
+**NaN**
+    In ``yapss.math``, NaN contaminates every path it touches: no function absorbs or
+    selects away a NaN in any of its arguments. Most NumPy functions already behave this
+    way; ``fmax``, ``fmin``, and ``where`` do not, and ``yapss.math`` overrides them so that
+    they do. The reason is the sparsity structure of the central-difference methods, which
+    is found by setting one variable to NaN and recording which outputs come back NaN. A
+    function that could drop the NaN would hide a genuine dependency --- ``where(u > 0, u,
+    0.0)`` at a point where ``u <= 0`` selects the constant branch, and so does the probe ---
+    and the Jacobian would be silently incomplete. A callback should not be producing NaN
+    in the first place; if it does, write the guard so the invalid branch is never
+    evaluated (``sqrt(maximum(x, 0.0))`` rather than ``where(x > 0, sqrt(x), 0.0)``, which
+    evaluates ``sqrt`` at every point either way). Under ``"auto"`` the structure is exact
+    and none of this applies; there ``fmax`` and ``fmin`` return the other operand,
+    following CasADi, which has no NaN-propagating maximum.
 
 **Comparison functions**
     - ``equal``, ``not_equal``, ``less``, ``less_equal``, ``greater``, ``greater_equal``
@@ -428,9 +444,6 @@ Available Functions
 
 **Step function**
     - ``heaviside``
-
-**Conditionals and bounds**
-    - ``clip``, ``where``
 
 **Reductions**
     - ``max``, ``min``, ``amax``, ``amin``, ``all``, ``any``, ``sum``, ``prod``
@@ -476,7 +489,9 @@ different problems. Write the condition as an expression instead:
 
 ``clip`` is ``minimum(maximum(x, lo), hi)`` and ``where`` is CasADi's ``if_else``; both are
 evaluated exactly under every derivative method. Like the comparisons they are built from,
-neither is differentiable at the switch.
+neither is differentiable at the switch. Under the finite-difference methods ``where`` also
+returns NaN from a NaN in either branch, so that the sparsity probe sees a dependency the
+condition has selected away; see *NaN* above.
 
 Unsupported Functions
 .....................

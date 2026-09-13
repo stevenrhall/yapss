@@ -28,6 +28,13 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- `yapss.math.where` now returns NaN wherever either branch is NaN, whichever branch the
+  condition selects. The central-difference methods find the sparsity structure by setting
+  one variable to NaN and recording which outputs come back NaN, and numpy's `where`
+  discards the unselected branch, NaN included, so a dependency such as
+  `where(u > 0, u, 0.0)` at a point where `u <= 0` was silently missing from the Jacobian
+  and Ipopt converged to a wrong answer. `fmax` and `fmin` already followed this rule; it
+  is now the rule for every `yapss.math` function: NaN contaminates every path it touches.
 - The initial guess for the Legendre-Gauss method was written into the NLP in time
   order, but the LG state layout is collocation points first, then segment-start and final
   values, so every LG solve started from a scrambled state guess: the initial-state slot

@@ -341,6 +341,25 @@ def test_reductions_on_real_input_are_numpy():
     assert ym.all(values > 0) == np.all(values > 0)
 
 
+def test_where_propagates_nan_from_either_branch():
+    """NaN in the unselected branch is returned, unlike numpy, so the NaN probe sees it.
+
+    The central-difference sparsity probe sets one variable to NaN and looks for NaN on
+    the output. numpy's ``where`` discards the unselected branch, NaN included, which
+    hid a dependency through the selected-away branch (0.2.4).
+    """
+    values = np.array([1.0, -1.0, 2.0])
+    poisoned = np.array([1.0, np.nan, 3.0])
+    # NaN lands where the condition is False, so numpy would have dropped it
+    result = ym.where(values > 0, poisoned, 0.0)
+    assert np.isnan(result[1]) and result[0] == 1.0 and result[2] == 3.0
+    # scalar branch, NaN in the selected-away branch everywhere
+    assert np.all(np.isnan(ym.where(values > 0, 5.0, np.nan)))
+    # no NaN anywhere: exactly numpy, dtype included
+    clean = ym.where(values > 0, 1, 0)
+    assert np.array_equal(clean, np.where(values > 0, 1, 0)) and clean.dtype == np.int64
+
+
 # ------------------------------------------------------------------------------------
 # through the transcription
 # ------------------------------------------------------------------------------------
