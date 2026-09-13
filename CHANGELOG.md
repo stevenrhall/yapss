@@ -28,6 +28,10 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- In a phase with no controls, `solution.phase[p].control` and `control_multiplier` had
+  shape `(0,)` rather than `(0, n)`, and likewise `state` and `costate` in a phase with no
+  states, so `problem.guess(solution)` raised on any solution with a coast phase or a
+  parameter-only phase. All per-point arrays now keep their point count when empty.
 - Every scale factor is now checked to be finite and positive when it is set, as
   `scale.objective` already was. A zero, negative, or NaN scale on a state, control,
   integral, dynamics, path, parameter, discrete, or phase-time scale was accepted, and
