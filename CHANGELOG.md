@@ -19,6 +19,11 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- The central-difference Jacobian runs its stencil on a private argument, as the Hessian
+  already did, so the caller's function values are never perturbed. It used to perturb
+  the shared argument and re-evaluate the user function once more at the end to restore
+  them: one extra evaluation per Jacobian call, and a cache-correctness convention the
+  shared evaluator had to rely on. Values are unchanged.
 - The central-difference Hessians evaluate a diagonal pair (the second derivative with
   respect to one variable) with three points instead of four. The four-point stencil's
   mixed legs both land on the unperturbed point, which is now evaluated once per phase (or

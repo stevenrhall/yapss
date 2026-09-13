@@ -101,7 +101,7 @@ def make_cd_functions(
     ogs: OGS = cd_functions.objective_gradient_structure
     cjfds: CJFDS = cd_functions.continuous_jacobian_structure_cd
     cd_functions.objective_gradient = make_objective_gradient(problem, ogs)
-    cd_functions.continuous_jacobian = make_continuous_jacobian(problem, cjfds)
+    cd_functions.continuous_jacobian = make_continuous_jacobian(problem, cjfds, tau_u)
     djfds: DJFDS = cd_functions.discrete_jacobian_structure_cd
     cd_functions.discrete_jacobian = make_discrete_jacobian(problem, djfds)
 
@@ -173,7 +173,11 @@ def make_objective_gradient(
     return objective_gradient
 
 
-def make_continuous_jacobian(problem: yapss.Problem, cjfds: CJFDS) -> ContinuousJacobianFunction:
+def make_continuous_jacobian(
+    problem: yapss.Problem,
+    cjfds: CJFDS,
+    tau_u: Sequence[NDArray[np.float64]],
+) -> ContinuousJacobianFunction:
     """Generate continuous Jacobian callback function using finite differences.
 
     Parameters
@@ -182,6 +186,8 @@ def make_continuous_jacobian(problem: yapss.Problem, cjfds: CJFDS) -> Continuous
         The user-defined problem object.
     cjfds : CJFDS
         Finite difference structure for the continuous Jacobian.
+    tau_u : Sequence[NDArray[np.float64]]
+        Non-dimensional collocation time points.
 
     Returns
     -------
@@ -191,6 +197,12 @@ def make_continuous_jacobian(problem: yapss.Problem, cjfds: CJFDS) -> Continuous
     scale: Scale = problem.scale
     if problem.np > 0:
         continuous = cast(ContinuousFunctionFloat, problem.functions.continuous)
+    # The stencil runs on a private argument, as the Hessian's does, so the caller's
+    # function values are never perturbed. Through 0.2.2 it perturbed the caller's
+    # argument and re-evaluated the user function once more at the end to restore
+    # them -- one extra evaluation per Jacobian call.
+    dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, dtype=np.float64)
+    arg2: ContinuousArg[np.float64] = ContinuousArg(problem, dv, dtype=np.float64, tau_u=tau_u)
 
     def continuous_jacobian(arg: ContinuousArg[np.float64]) -> None:
         """Calculate continuous Jacobian using finite differences.
@@ -199,18 +211,16 @@ def make_continuous_jacobian(problem: yapss.Problem, cjfds: CJFDS) -> Continuous
         ----------
         arg : ContinuousJacobianArg
         """
-        phase_list = arg.phase_list
+        arg2._sync(arg._dv.z)
 
-        for p in [PhaseIndex(p) for p in phase_list]:
-            phase = arg.phase[p]
+        for p in [PhaseIndex(p) for p in arg.phase_list]:
             jacobian = arg.phase[p].jacobian
-
-            arg._phase_list = (p,)
-            ne = len(phase.time)
+            arg2._phase_list = (p,)
+            ne = len(arg2.phase[p].time)
 
             for cv_key, cf_keys in cjfds[p]:
                 var2, i1 = cv_key
-                var = arg[p, var2, i1]
+                var = arg2[p, var2, i1]
                 w = var.copy()
                 for cf_key in cf_keys:
                     jacobian[cf_key, cv_key] = np.zeros(ne)
@@ -220,19 +230,13 @@ def make_continuous_jacobian(problem: yapss.Problem, cjfds: CJFDS) -> Continuous
 
                 for j in (-1, 1):
                     var[:] = w + j * d
-                    continuous(arg)
+                    continuous(arg2)
 
                     for cf_key in cf_keys:
                         var1, i = cf_key
-                        jacobian[cf_key, cv_key] += j * arg[p, var1, i] / (2 * d)
+                        jacobian[cf_key, cv_key] += j * arg2[p, var1, i] / (2 * d)
 
                 var[:] = w
-
-        arg._phase_list = phase_list
-        # The function output arrays share ``arg`` with the caller and were left at
-        # the final perturbation above. Restore them at the unperturbed point along
-        # with the original phase list.
-        continuous(arg)
 
         # end of continuous_jacobian callback function
 

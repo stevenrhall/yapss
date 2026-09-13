@@ -418,9 +418,10 @@ class ContinuousEvaluator:
     adds the Hessian. A request for a higher order at the cached point evaluates only
     what is missing, and each order is recorded as done only after its evaluation
     returns, so an exception in a user callback leaves nothing marked as computed.
-    The central-difference derivatives restore the function values after their
-    stencils (pinned by ``test_central_difference_derivatives_restore_continuous_values``),
-    which is what lets a lower order be served after a higher one.
+    The central-difference derivatives run their stencils on a private argument and
+    leave the function values untouched (pinned by
+    ``test_central_difference_derivatives_restore_continuous_values``), which is what
+    lets a lower order be served after a higher one.
 
     Parameters
     ----------
