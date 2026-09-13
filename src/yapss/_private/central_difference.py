@@ -42,7 +42,7 @@ from .input_args import (
     ProblemFunctions,
 )
 from .structure import DVStructure, get_nlp_dv_structure
-from .types_ import PhaseIndex
+from .types_ import CFKey, PhaseIndex
 
 if TYPE_CHECKING:
     # standard imports
@@ -318,6 +318,7 @@ def make_objective_hessian(problem: yapss.Problem, ogs: OGS) -> ObjectiveHessian
         """Evaluate the objective hessian using central differences."""
         dv.z[:] = arg._dv.z
         arg.hessian.clear()
+        f0: float | None = None  # the objective at the unperturbed point, on demand
 
         for i, dv_key1 in enumerate(ogs):
             var1 = dv.var_dict[dv_key1][:1]
@@ -325,6 +326,23 @@ def make_objective_hessian(problem: yapss.Problem, ogs: OGS) -> ObjectiveHessian
             d1 = scale[dv_key1] * DELTA2
 
             for dv_key2 in ogs[i:]:
+                if dv_key2 == dv_key1:
+                    # Diagonal pair: the four-point stencil's (+,-) and (-,+) legs both
+                    # land on the unperturbed point, so it is f(w+2d) - 2 f(w) + f(w-2d)
+                    # over 4 d^2, with f(w) evaluated once for every diagonal pair.
+                    if f0 is None:
+                        objective_function(objective_arg)
+                        f0 = float(objective_arg.objective)
+                    var1[0] = w1 + 2 * d1
+                    objective_function(objective_arg)
+                    fp = float(objective_arg.objective)
+                    var1[0] = w1 - 2 * d1
+                    objective_function(objective_arg)
+                    fm = float(objective_arg.objective)
+                    var1[0] = w1
+                    arg.hessian[dv_key1, dv_key2] = float((fp - 2 * f0 + fm) / (4 * d1 * d1))
+                    continue
+
                 var2 = dv.var_dict[dv_key2][:1]
                 w2 = var2[0]
                 d2 = scale[dv_key2] * DELTA2
@@ -388,6 +406,9 @@ def make_continuous_hessian(
             hessian = arg.phase[p].hessian
             ne = len(arg2.phase[p].time)
             arg2._phase_list = (p,)
+            # the functions at the unperturbed point, snapshotted on the first diagonal
+            # pair and shared by all of them (see below)
+            base: dict[CFKey, Array] | None = None
 
             for key in chfds[p]:
                 # extract from the key the functions whose Hessian will be evaluated,
@@ -397,11 +418,37 @@ def make_continuous_hessian(
                 # extract the variables and store their original values
                 var1 = arg2[p, v1, i1]
                 w1 = var1.copy()
-                var2 = arg2[p, v2, i2]
-                w2 = var2.copy()
 
                 # prepare the perturbation size
                 d1: np.float64 = scale[p, v1, i1] * DELTA2
+
+                if (v1, i1) == (v2, i2):
+                    # Diagonal pair: the four-point stencil's (+,-) and (-,+) legs both
+                    # land on the unperturbed point, so it is f(w+2d) - 2 f(w) + f(w-2d)
+                    # over 4 d^2, with f(w) evaluated once per phase.
+                    if base is None:
+                        continuous(arg2)
+                        base = {
+                            fcn: arg2[p, fcn[0], fcn[1]].copy()
+                            for diag_key in chfds[p]
+                            if diag_key[0][0] == diag_key[0][1]
+                            for fcn in diag_key[1]
+                        }
+                    var1[:] = w1 + 2 * d1
+                    continuous(arg2)
+                    plus = {fcn: arg2[p, fcn[0], fcn[1]].copy() for fcn in fcn_list}
+                    var1[:] = w1 - 2 * d1
+                    continuous(arg2)
+                    den = 4 * d1 * d1
+                    for fcn in fcn_list:
+                        hessian[fcn, (v1, i1), (v2, i2)] = (
+                            plus[fcn] - 2 * base[fcn] + arg2[p, fcn[0], fcn[1]]
+                        ) / den
+                    var1[:] = w1
+                    continue
+
+                var2 = arg2[p, v2, i2]
+                w2 = var2.copy()
                 d2: np.float64 = scale[p, v2, i2] * DELTA2
 
                 # initialize the Hessian to zero
@@ -461,6 +508,7 @@ def make_discrete_hessian(
         dv_key2: DVKey
 
         discrete_arg._dv.z[:] = arg._dv.z
+        g0: Array | None = None  # the constraints at the unperturbed point, on demand
 
         for dv_key1, inner_list in dhfds:
             var1 = discrete_arg._dv.var_dict[dv_key1][:1]
@@ -468,10 +516,27 @@ def make_discrete_hessian(
             d1: np.float64 = scale[dv_key1] * DELTA2
 
             for dv_key2, discrete_index_list in inner_list:
+                h: Array
+                if dv_key2 == dv_key1:
+                    # Diagonal pair: see objective_hessian
+                    if g0 is None:
+                        discrete(discrete_arg)
+                        g0 = discrete_arg._discrete.copy()
+                    var1[0] = w1 + 2 * d1
+                    discrete(discrete_arg)
+                    gp = discrete_arg._discrete.copy()
+                    var1[0] = w1 - 2 * d1
+                    discrete(discrete_arg)
+                    h = (gp - 2 * g0 + discrete_arg._discrete) / (4 * d1 * d1)
+                    var1[0] = w1
+                    for d in discrete_index_list:
+                        arg.hessian[d, dv_key1, dv_key2] = h[d]
+                    continue
+
                 var2 = discrete_arg._dv.var_dict[dv_key2][:1]
                 w2 = var2[0]
                 d2: np.float64 = scale[dv_key2] * DELTA2
-                h: Array = np.zeros([nd], dtype=float)
+                h = np.zeros([nd], dtype=float)
 
                 # central difference
                 for i1, i2 in product((+1, -1), (+1, -1)):

@@ -19,6 +19,13 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- The central-difference Hessians evaluate a diagonal pair (the second derivative with
+  respect to one variable) with three points instead of four. The four-point stencil's
+  mixed legs both land on the unperturbed point, which is now evaluated once per phase (or
+  once per callback for the objective and discrete Hessians) rather than twice per pair.
+  The values change at the roundoff level only, within the golden tolerances; a
+  central-difference iterate is 8% to 14% faster (orbit raising 1.89 ms to 1.74 ms,
+  three-phase Goddard 3.06 ms to 2.64 ms).
 - Assigning a callback's output rows (`dynamics[:] = (...)`, `integrand`, `path`)
   broadcasts each element into its row directly. It used to build a full-size array per
   element and then copy the lot, on the float path of every user-function evaluation, so
