@@ -34,7 +34,7 @@ keywords:
   - Ipopt
   - Python
 version: 0.2.3
-date-released: "2026-09-05"
+date-released: "2026-09-13"
 doi: 10.5281/zenodo.22402223
 references:
   - type: article

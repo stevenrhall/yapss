@@ -15,7 +15,7 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - Users can pin to a specific minor version (e.g., yapss>=0.3.0,<0.4.0) to avoid unexpected
   changes, but should expect significant updates when upgrading to a new minor version.
 
-## [Unreleased]
+## [0.2.3] - 2026-09-13
 
 This release is a patch under the versioning policy above, but it deserves a closer read
 than most. A whole-package review found several defects that produced wrong results
@@ -543,6 +543,7 @@ Initial release of the software package. Features include:
 - Examples available as both Python scripts and Jupyter notebooks.
 - Nearly complete test coverage for all modules.
 
+[0.2.3]: https://github.com/stevenrhall/yapss/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/stevenrhall/yapss/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/stevenrhall/yapss/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/stevenrhall/yapss/compare/v0.1.1...v0.2.0
