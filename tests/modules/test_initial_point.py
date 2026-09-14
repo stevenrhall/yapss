@@ -20,8 +20,10 @@ import re
 import subprocess
 import sys
 import textwrap
+from pathlib import Path
 
 import pytest
+from _ipopt_backend import CYIPOPT_ACTIVE
 
 from yapss import Problem
 from yapss._private import solver
@@ -129,7 +131,7 @@ def test_nan_derivative_check_is_a_yapss_default():
     assert brachistochrone_minimal.setup().ipopt_options.check_derivatives_for_naninf == "yes"
 
 
-@pytest.mark.skipif(solver._IN_CONDA, reason="the crash was observed with the vendored Ipopt")
+@pytest.mark.skipif(CYIPOPT_ACTIVE, reason="the crash was observed with the vendored Ipopt")
 @pytest.mark.isolation
 def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
     """With YAPSS's own check disabled, Ipopt's derivative check still stops the solve.
@@ -139,11 +141,13 @@ def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
     assertion is the status Ipopt returns, -13 (Invalid_Number_Detected), not merely that
     the process survived.
     """
-    script = textwrap.dedent("""
+    script = textwrap.dedent(f"""
+        import sys
         import warnings
         warnings.simplefilter("ignore")
+        sys.path.insert(0, {str(Path(__file__).parent)!r})
         from yapss._private import solver
-        from tests.modules.test_initial_point import _brachistochrone
+        from test_initial_point import _brachistochrone
         solver.check_initial_point = lambda *args: None
         problem = _brachistochrone("central-difference", "nan-value")
         solution = problem.solve()

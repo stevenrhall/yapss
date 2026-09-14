@@ -16,16 +16,16 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from _ipopt_backend import CYIPOPT_ACTIVE
 
-from yapss._private.config import get_conda_prefix
 from yapss._private.mseipopt import bare, library
 
-# On conda YAPSS uses cyipopt and never reaches this module, so tests that
-# actually load IPOPT would be exercising a code path that platform does not
-# use. Parsing and message-formatting tests still run everywhere.
+# When cyipopt is the active backend YAPSS never reaches this module, so tests
+# that actually load IPOPT would exercise a code path that is not in use.
+# Parsing and message-formatting tests still run everywhere.
 requires_mseipopt = pytest.mark.skipif(
-    bool(get_conda_prefix()),
-    reason="conda uses the cyipopt backend; the resolver is not used there",
+    CYIPOPT_ACTIVE,
+    reason="cyipopt is the active backend; these tests exercise mseipopt",
 )
 
 
@@ -228,7 +228,6 @@ def test_casadi_package_discovery_and_glob_fallback(monkeypatch, tmp_path):
     assert library.glob_ipopt_in_casadi() == str(tmp_path / "libipopt.so.3")
     monkeypatch.setattr(library, "casadi_package_dir", lambda: None)
     assert library.glob_ipopt_in_casadi() is None
-    assert library.read_ipopt_header() is None
 
 
 def test_resolver_cache_and_glob_strategy(monkeypatch):
@@ -452,19 +451,51 @@ def test_not_found_error_explains_what_was_searched(monkeypatch):
 @requires_mseipopt
 def test_real_header_is_readable_and_sane():
     """The IPOPT CasADi actually ships must match our declarations."""
-    info = library.read_ipopt_header()
+    info = library.read_ipopt_header(library.resolve_ipopt_library())
     if info is None:
-        pytest.skip("IpoptConfig.h not shipped in this CasADi build")
+        pytest.skip("IpoptConfig.h not shipped next to this IPOPT build")
     assert info.int64 is False
     assert info.single is False
     assert info.version is not None
     library._verify_header_abi(info)  # must not raise
 
 
-def test_header_absent_returns_none_without_raising(monkeypatch, tmp_path):
-    """A missing header degrades to the smoke test; it is not an error."""
-    monkeypatch.setattr(library, "casadi_package_dir", lambda: tmp_path)
-    assert library.read_ipopt_header() is None
+def test_header_absent_returns_none_without_raising(tmp_path):
+    """The reader reports a missing header as None; the initializer decides it is an error."""
+    assert library.read_ipopt_header(str(tmp_path / "lib" / "libipopt.so")) is None
+
+
+@pytest.mark.parametrize(
+    ("library_parts", "header_root_parts"),
+    [
+        (("casadi", "libipopt.3.dylib"), ("casadi",)),  # pip wheel
+        (("prefix", "lib", "libipopt.so.3"), ("prefix",)),  # conda Linux/macOS
+        (("prefix", "Library", "bin", "ipopt-3.dll"), ("prefix", "Library")),  # conda Windows
+    ],
+    ids=["pip-wheel", "conda-unix", "conda-windows"],
+)
+def test_header_is_found_next_to_the_library(tmp_path, library_parts, header_root_parts):
+    """Each known layout's header is found from the library path alone."""
+    root = write_header(
+        tmp_path.joinpath(*header_root_parts),
+        IPOPT_VERSION_MAJOR=3,
+        IPOPT_VERSION_MINOR=14,
+        IPOPT_VERSION_RELEASE=20,
+    )
+    info = library.read_ipopt_header(str(tmp_path.joinpath(*library_parts)))
+    assert info is not None
+    assert info.path == root / "include" / "coin-or" / "IpoptConfig.h"
+    assert info.version == (3, 14, 20)
+
+
+def test_header_beside_the_library_takes_precedence(tmp_path):
+    """The library's own directory is searched before its parent."""
+    write_header(tmp_path, IPOPT_VERSION_MAJOR=3, IPOPT_VERSION_MINOR=14, IPOPT_VERSION_RELEASE=1)
+    write_header(
+        tmp_path / "lib", IPOPT_VERSION_MAJOR=3, IPOPT_VERSION_MINOR=14, IPOPT_VERSION_RELEASE=2
+    )
+    info = library.read_ipopt_header(str(tmp_path / "lib" / "libipopt.so"))
+    assert info.version == (3, 14, 2)
 
 
 def test_header_reports_undefined_flags(monkeypatch, tmp_path):
@@ -477,8 +508,7 @@ def test_header_reports_undefined_flags(monkeypatch, tmp_path):
         IPOPT_INT64=None,
         IPOPT_SINGLE=None,
     )
-    monkeypatch.setattr(library, "casadi_package_dir", lambda: root)
-    info = library.read_ipopt_header()
+    info = library.read_ipopt_header(str(root / "libipopt.so"))
     assert info.version == (3, 14, 11)
     assert info.int64 is False
     assert info.single is False
@@ -500,9 +530,7 @@ def test_incompatible_build_raises(monkeypatch, tmp_path, macro, expected):
         macro: 1,
     }
     root = write_header(tmp_path, **macros)
-    monkeypatch.setattr(library, "casadi_package_dir", lambda: root)
-
-    info = library.read_ipopt_header()
+    info = library.read_ipopt_header(str(root / "libipopt.so"))
     with pytest.raises(library.IpoptAbiError, match=expected):
         library._verify_header_abi(info)
 
@@ -517,8 +545,7 @@ def test_pre_314_header_is_rejected(monkeypatch, tmp_path):
         IPOPT_INT64=None,
         IPOPT_SINGLE=None,
     )
-    monkeypatch.setattr(library, "casadi_package_dir", lambda: root)
-    info = library.read_ipopt_header()
+    info = library.read_ipopt_header(str(root / "libipopt.so"))
     with pytest.raises(library.IpoptAbiError, match="older than the required"):
         library._verify_header_abi(info)
 
@@ -526,8 +553,7 @@ def test_pre_314_header_is_rejected(monkeypatch, tmp_path):
 def test_header_without_version_macros_is_rejected(monkeypatch, tmp_path):
     """A smoke solve cannot prove the callback Bool width."""
     root = write_header(tmp_path, IPOPT_INT64=None, IPOPT_SINGLE=None)
-    monkeypatch.setattr(library, "casadi_package_dir", lambda: root)
-    info = library.read_ipopt_header()
+    info = library.read_ipopt_header(str(root / "libipopt.so"))
     assert info.version is None
     with pytest.raises(library.IpoptAbiError, match="version macros"):
         library._verify_header_abi(info)
@@ -708,7 +734,8 @@ def test_initialize_is_statefully_idempotent(monkeypatch, tmp_path):
     reset_initialization(monkeypatch)
     calls = []
     native = object()
-    monkeypatch.setattr(library, "read_ipopt_header", lambda: compatible_header(tmp_path))
+    monkeypatch.setattr(library, "resolve_ipopt_library", lambda: "/casadi/libipopt")
+    monkeypatch.setattr(library, "read_ipopt_header", lambda path: compatible_header(tmp_path))
     monkeypatch.setattr(library, "load_ipopt", lambda: (native, "/casadi/libipopt"))
     monkeypatch.setattr(bare, "use_library", lambda value: calls.append(("use", value)))
     monkeypatch.setattr(library, "smoke_test", lambda: calls.append(("smoke", None)))
@@ -724,11 +751,12 @@ def test_initialize_latches_failure(monkeypatch):
     failure = library.IpoptAbiError("bad ABI")
     calls = 0
 
-    def fail():
+    def fail(path):
         nonlocal calls
         calls += 1
         raise failure
 
+    monkeypatch.setattr(library, "resolve_ipopt_library", lambda: "/casadi/libipopt")
     monkeypatch.setattr(library, "read_ipopt_header", fail)
     for _ in range(2):
         with pytest.raises(library.IpoptAbiError) as excinfo:
@@ -737,17 +765,22 @@ def test_initialize_latches_failure(monkeypatch):
     assert calls == 1
 
 
-def test_initialize_requires_matching_header(monkeypatch):
+def test_initialize_requires_matching_header(monkeypatch, tmp_path):
     """Verified initialization must fail closed before loading without a header."""
     reset_initialization(monkeypatch)
-    monkeypatch.setattr(library, "read_ipopt_header", lambda: None)
+    lib = tmp_path / "prefix" / "lib" / "libipopt.so"
+    monkeypatch.setattr(library, "resolve_ipopt_library", lambda: str(lib))
 
     def unexpected_load():
         pytest.fail("native library was loaded before its ABI could be verified")
 
     monkeypatch.setattr(library, "load_ipopt", unexpected_load)
-    with pytest.raises(library.IpoptAbiError, match="IpoptConfig.h is required"):
+    with pytest.raises(library.IpoptAbiError, match="IpoptConfig.h is required") as excinfo:
         library.initialize_ipopt()
+    message = str(excinfo.value)
+    assert str(lib) in message
+    assert str(tmp_path / "prefix" / "lib" / "include" / "coin-or" / "IpoptConfig.h") in message
+    assert str(tmp_path / "prefix" / "include" / "coin-or" / "IpoptConfig.h") in message
 
 
 def test_initialize_rejects_recursion(monkeypatch):

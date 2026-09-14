@@ -7,13 +7,13 @@ from typing import Any, get_type_hints
 
 import numpy as np
 import pytest
+from _ipopt_backend import CYIPOPT_ACTIVE
 
-from yapss._private.config import get_conda_prefix
 from yapss._private.mseipopt import bare, bare_np, library
 
 requires_mseipopt = pytest.mark.skipif(
-    bool(get_conda_prefix()),
-    reason="conda uses cyipopt; the vendored CasADi interface is not the active backend",
+    CYIPOPT_ACTIVE,
+    reason="cyipopt is the active backend; these tests exercise mseipopt",
 )
 
 

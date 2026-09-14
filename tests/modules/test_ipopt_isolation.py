@@ -15,8 +15,7 @@ import sys
 from pathlib import Path
 
 import pytest
-
-from yapss._private.config import get_conda_prefix
+from _ipopt_backend import CYIPOPT_ACTIVE
 
 WORKER = Path(__file__).parent / "_ipopt_worker.py"
 
@@ -25,8 +24,8 @@ PASS, FAIL, SKIP = 0, 1, 2
 pytestmark = [
     pytest.mark.isolation,
     pytest.mark.skipif(
-        bool(get_conda_prefix()),
-        reason="conda uses the cyipopt backend; the resolver is not used there",
+        CYIPOPT_ACTIVE,
+        reason="cyipopt is the active backend; these tests exercise mseipopt",
     ),
 ]
 

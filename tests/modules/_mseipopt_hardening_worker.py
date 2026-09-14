@@ -17,10 +17,11 @@ PASS, FAIL, SKIP = 0, 1, 2
 
 def check_memory_boundaries() -> int:
     """Reject unsafe metadata/buffers and retain callbacks through native use."""
-    from yapss._private.config import get_conda_prefix
+    from _ipopt_backend import CYIPOPT_ACTIVE
+
     from yapss._private.mseipopt import bare_np, library
 
-    if get_conda_prefix():
+    if CYIPOPT_ACTIVE:
         return SKIP
     library.initialize_ipopt()
 
@@ -95,10 +96,11 @@ def check_memory_boundaries() -> int:
 
 def check_yapss_sigint() -> int:
     """Self-deliver SIGINT during a real YAPSS solve and verify graceful stop."""
-    from yapss._private.config import get_conda_prefix
+    from _ipopt_backend import CYIPOPT_ACTIVE
+
     from yapss.examples.rosenbrock import setup
 
-    if get_conda_prefix():
+    if CYIPOPT_ACTIVE:
         return SKIP
 
     problem = setup()
@@ -155,10 +157,11 @@ def check_yapss_sigint() -> int:
 
 def check_callback_failures() -> int:
     """Measure each values callback's persistent failure through real Ipopt."""
-    from yapss._private.config import get_conda_prefix
+    from _ipopt_backend import CYIPOPT_ACTIVE
+
     from yapss._private.mseipopt import bare_np, library
 
-    if get_conda_prefix():
+    if CYIPOPT_ACTIVE:
         return SKIP
     library.initialize_ipopt()
 

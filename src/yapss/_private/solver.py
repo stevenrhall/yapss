@@ -173,9 +173,10 @@ def _load_explicit_ipopt(path: str) -> None:
 
     None of the checks that protect the default path can apply here:
 
-    * The ABI header check cannot run. `read_ipopt_header()` reads
-      ``IpoptConfig.h`` from the CasADi package, which describes a *different*
-      library; verifying against it would report a match that means nothing.
+    * The ABI header check cannot run. `read_ipopt_header()` reads the
+      ``IpoptConfig.h`` next to the library CasADi loaded, which describes a
+      *different* library; verifying against it would report a match that means
+      nothing.
       `bare` therefore retains its fixed Ipopt 3.14+ `c_bool` declaration, so
       a pre-3.14 Ipopt silently gets the wrong `Bool` width.
     * The duplicate-copy guard is skipped, because a second copy is precisely

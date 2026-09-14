@@ -60,13 +60,14 @@ from __future__ import annotations
 import types
 
 import pytest
+from _ipopt_backend import CYIPOPT_ACTIVE
 
 from yapss._private import solver
 from yapss.examples.rosenbrock import setup
 
 pytestmark = pytest.mark.skipif(
-    solver._IN_CONDA,
-    reason="the vendored-path defaults do not apply in a Conda environment",
+    CYIPOPT_ACTIVE,
+    reason="cyipopt is the active backend; these tests exercise mseipopt",
 )
 
 
