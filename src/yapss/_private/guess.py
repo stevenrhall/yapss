@@ -139,7 +139,7 @@ class Parameter(Protected):
         setattr(instance, private_name, array_value)
 
 
-class Guess:
+class Guess(Protected):
     """Class that forms the interface to the user guess.
 
     Attributes
@@ -149,6 +149,23 @@ class Guess:
     parameter : NDArray[float]
         The guess for the problem parameters.
     """
+
+    # `Protected` rejects assignment to any other name, so a misspelled attribute such as
+    # `problem.guess.parmeter = ...` raises instead of being stored and ignored. The
+    # private names are the fields set in `__init__` and the `Parameter` descriptor's
+    # backing store.
+    _allowed_attrs = (
+        "parameter",
+        "_attr_parameter",
+        "_ns",
+        "_nx",
+        "_nu",
+        "_nq",
+        "_problem",
+        "_parameter",
+        "_phase",
+    )
+    _allowed_del_attrs = ()
 
     def __init__(self, problem: yapss.Problem) -> None:
         """Initialize the guess object.

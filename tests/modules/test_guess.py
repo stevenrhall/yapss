@@ -433,3 +433,29 @@ def test_slice_assignment_into_the_default_guess_sticks():
     phase.time = [0.0, 0.5, 1.0]
     assert phase.state.shape == (2, 3) and phase.control.shape == (1, 3)
     problem.guess.validate()
+
+
+def test_guess_rejects_misspelled_attribute():
+    """A misspelled attribute raises instead of being stored and silently ignored."""
+    problem = Problem(name="Test", nx=[1], ns=2)
+    with pytest.raises(AttributeError, match="cannot set 'Guess' attribute 'parmeter'"):
+        problem.guess.parmeter = [-2.0, 2.0]
+    with pytest.raises(AttributeError, match="cannot set 'Guess' attribute 'phase'"):
+        problem.guess.phase = ()
+    # the real attribute is unaffected
+    problem.guess.parameter = [-2.0, 2.0]
+    assert np.array_equal(problem.guess.parameter, [-2.0, 2.0])
+
+
+def test_protected_guess_survives_deepcopy():
+    """`Solution` deep-copies the problem; the copy keeps its own guess values."""
+    from copy import deepcopy
+
+    problem = Problem(name="Test", nx=[1], ns=2)
+    problem.guess.parameter = [1.0, 2.0]
+    copy = deepcopy(problem)
+    copy.guess.parameter = [3.0, 4.0]
+    assert np.array_equal(problem.guess.parameter, [1.0, 2.0])
+    assert np.array_equal(copy.guess.parameter, [3.0, 4.0])
+    with pytest.raises(AttributeError, match="cannot set 'Guess' attribute"):
+        copy.guess.parmeter = [0.0, 0.0]

@@ -46,6 +46,13 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   - `check_derivatives_for_naninf` is now `"yes"` by default, so a non-finite Jacobian or
     Hessian at any later iterate stops Ipopt with status -13 instead of reaching the
     linear solver. It can still be set to `"no"`.
+- A misspelled attribute on `problem.guess`, or on `arg.phase[p]` in an objective or
+  discrete callback (and their derivative callbacks), now raises `AttributeError` at the
+  offending line, as it already did on the rest of the problem definition and on the
+  continuous callback's argument. Both used to be stored and ignored: for example,
+  `arg.phase[0].objective = arg.phase[0].final_time` in place of `arg.objective = ...`
+  solved to an objective of 0 with status 0, and `problem.guess.parmeter = ...` left the
+  parameter guess at zero.
 
 ## [0.2.3] - 2026-09-13
 

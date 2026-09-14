@@ -117,7 +117,7 @@ class DiscreteArgBase(BaseArg[T], Generic[T]):
         return self._phase
 
 
-class DiscretePhase(Generic[T]):
+class DiscretePhase(Protected, Generic[T]):
     """Defines the discrete phase object.
 
     This class defines the `phase` attribute of the argument passed to user-defined
@@ -138,7 +138,9 @@ class DiscretePhase(Generic[T]):
         self._initial_time: NDArray[T] = dv_phase.t0
         self._final_time: NDArray[T] = dv_phase.tf
         self._integral: NDArray[T] = dv_phase.q
-        # Attributes to enforce immutability restrictions
+        # `Protected` rejects every other assignment from here on, so a misspelled
+        # attribute such as `arg.phase[0].objective = ...` raises instead of being
+        # stored and ignored. The properties above have no setters.
         self._allowed_del_attrs = ()
         self._allowed_attrs = ()
 
