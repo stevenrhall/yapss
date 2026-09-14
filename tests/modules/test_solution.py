@@ -98,3 +98,45 @@ def test_no_state_phase_arrays_keep_point_count(spectral_method: str) -> None:
     assert problem.guess.phase[0].state.shape == (0, len(phase.time))
     second = problem.solve()
     np.testing.assert_allclose(second.phase[0].control, 1.0, atol=1e-6)
+
+
+@pytest.mark.parametrize("spectral_method", ["lgr", "lg", "lgl"])
+def test_initial_and_final_state_are_the_endpoint_variables(spectral_method: str) -> None:
+    """`initial_state`/`final_state` equal the NLP's own endpoint state variables.
+
+    The mesh is multi-segment and non-uniform so that LG, which stores its endpoint and
+    segment-boundary states after the collocation states, is exercised.
+    """
+    from yapss._private.structure import get_nlp_dv_structure
+    from yapss.examples import goddard_problem_3_phase
+
+    problem = goddard_problem_3_phase.setup()
+    problem.spectral_method = spectral_method
+    problem.ipopt_options.print_level = 0
+    for mesh_phase in problem.mesh.phase:
+        mesh_phase.collocation_points = (5, 6, 4)
+        mesh_phase.fraction = (0.3, 0.3, 0.4)
+    solution = problem.solve()
+
+    dv = get_nlp_dv_structure(solution.problem, float)
+    dv.z[:] = solution.nlp_info.x
+    for p, phase in enumerate(solution.phase):
+        nx = problem.nx[p]
+        assert phase.initial_state.shape == (nx,)
+        assert phase.final_state.shape == (nx,)
+        np.testing.assert_array_equal(phase.initial_state, dv.phase[p].x0)
+        np.testing.assert_array_equal(phase.final_state, dv.phase[p].xf)
+        np.testing.assert_array_equal(phase.initial_state, phase.state[:, 0])
+        np.testing.assert_array_equal(phase.final_state, phase.state[:, -1])
+
+
+def test_initial_and_final_state_are_copies() -> None:
+    from yapss.examples import brachistochrone_minimal
+
+    problem = brachistochrone_minimal.setup()
+    problem.ipopt_options.print_level = 0
+    phase = problem.solve().phase[0]
+    before = phase.state.copy()
+    phase.initial_state[:] = -1.0
+    phase.final_state[:] = -1.0
+    np.testing.assert_array_equal(phase.state, before)

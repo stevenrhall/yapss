@@ -413,6 +413,16 @@ class SolutionPhase:
         if any(attr is None for attr in attributes):
             raise ValueError(_dataclass_msg)
 
+    @property
+    def initial_state(self) -> NDArray[np.float64]:
+        """Initial state of the phase, ``state[:, 0]``, as a copy."""
+        return self.state[:, 0].copy()
+
+    @property
+    def final_state(self) -> NDArray[np.float64]:
+        """Final state of the phase, ``state[:, -1]``, as a copy."""
+        return self.state[:, -1].copy()
+
     def __repr__(self) -> str:
         return f"<{__name__}.SolutionPhase: phase index p = {self.index}>"
 
@@ -464,6 +474,9 @@ class Solution:
             Array of collocation time points for the phase.
         state : numpy.ndarray
             State variable values at the interpolation time points.
+        initial_state, final_state : numpy.ndarray
+            Initial and final state of the phase, ``state[:, 0]`` and ``state[:, -1]``,
+            returned as copies.
         control : numpy.ndarray
             Control variable values at the collocation time points.
         control_multiplier : numpy.ndarray

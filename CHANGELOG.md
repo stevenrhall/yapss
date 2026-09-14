@@ -64,6 +64,9 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   - A negative `duration.lower`. Only a negative `duration.upper` was rejected before;
     a negative lower bound let a phase run backward in time. This rejects a setting that
     was previously accepted.
+- `SolutionPhase.initial_state` and `final_state`, documented as `state[:, 0]` and
+  `state[:, -1]`, did not exist. They are now read-only properties returning copies, under
+  the same names as the objective and discrete callback arguments.
 
 ## [0.2.3] - 2026-09-13
 
