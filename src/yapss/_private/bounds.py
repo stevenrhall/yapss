@@ -92,9 +92,37 @@ class ArrayBounds(Protected):
         self.upper[:] = +np.inf
 
     def validate(self) -> None:
-        """Validate the bounds."""
-        diff = self.upper - self.lower
-        indices = np.where(diff < 0)[0]
+        """Validate the bounds.
+
+        Raises
+        ------
+        ValueError
+            If a bound is NaN, if a lower bound is ``+inf`` or an upper bound is ``-inf``
+            (no value can satisfy it), or if a lower bound is greater than its upper bound.
+        """
+        path = f"bounds.phase[{self._p}].{self._name}" if self._p >= 0 else f"bounds.{self._name}"
+        # NaN first: every comparison below is false for NaN, so a NaN bound would pass them
+        # and reach Ipopt, whose interface rejects it with a message that names no bound.
+        for side, values in (("lower", self.lower), ("upper", self.upper)):
+            indices = np.flatnonzero(np.isnan(values))
+            if len(indices) > 0:
+                msg = f"{path}.{side}[i] is NaN for indices i in {indices}"
+                raise ValueError(msg)
+        # A lower bound of +inf or an upper bound of -inf leaves no feasible value. Equal
+        # infinite bounds are not caught by the comparison below.
+        for side, values, bad, sign, relation in (
+            ("lower", self.lower, np.inf, "+inf", "less than +inf"),
+            ("upper", self.upper, -np.inf, "-inf", "greater than -inf"),
+        ):
+            indices = np.flatnonzero(values == bad)
+            if len(indices) > 0:
+                msg = (
+                    f"{path}.{side}[i] is {sign} for indices i in {indices}; "
+                    f"a{'n' if side == 'upper' else ''} {side} bound must be {relation}"
+                )
+                raise ValueError(msg)
+        # Compare directly rather than subtracting, which warns on inf - inf.
+        indices = np.flatnonzero(self.lower > self.upper)
         if len(indices) > 0:
             if self._p >= 0:
                 msg = (
@@ -171,7 +199,26 @@ class ScalarBounds(Protected):
         self.upper = np.inf
 
     def validate(self) -> None:
-        """Validate the bounds."""
+        """Validate the bounds.
+
+        Raises
+        ------
+        ValueError
+            If a bound is NaN, if the lower bound is ``+inf`` or the upper bound is
+            ``-inf``, if the lower bound is greater than the upper bound, or if a duration
+            bound is negative.
+        """
+        path = f"bounds.phase[{self._p}].{self._name}"
+        for side in ("lower", "upper"):
+            if np.isnan(getattr(self, side)):
+                msg = f"{path}.{side} is NaN"
+                raise ValueError(msg)
+        if self.lower == np.inf:
+            msg = f"{path}.lower is +inf; a lower bound must be less than +inf"
+            raise ValueError(msg)
+        if self.upper == -np.inf:
+            msg = f"{path}.upper is -inf; an upper bound must be greater than -inf"
+            raise ValueError(msg)
         if self.lower > self.upper:
             msg = "bounds.phase[{}].{}.lower is greater than bounds.phase[{}].{}.upper"
             msg = msg.format(self._p, self._name, self._p, self._name)
@@ -179,6 +226,11 @@ class ScalarBounds(Protected):
         if self._name == "duration" and self.upper < 0:
             msg = "bounds.phase[{}].duration.upper cannot be less than zero"
             msg = msg.format(self._p)
+            raise ValueError(msg)
+        # A negative lower bound would let the phase run backward in time, which no part of
+        # YAPSS supports (a guess time array must be increasing, for one).
+        if self._name == "duration" and self.lower < 0:
+            msg = f"{path}.lower cannot be less than zero"
             raise ValueError(msg)
 
 

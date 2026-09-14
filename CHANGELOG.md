@@ -53,6 +53,17 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   `arg.phase[0].objective = arg.phase[0].final_time` in place of `arg.objective = ...`
   solved to an objective of 0 with status 0, and `problem.guess.parmeter = ...` left the
   parameter guess at zero.
+- `Problem.validate()`, which `solve()` runs first, now rejects bounds that could never
+  be satisfied or compared, naming the bound and its indices:
+  - A NaN bound, including one produced by `None` in a list. NaN compares false against
+    everything, so it passed validation and was refused only inside the Ipopt interface,
+    after the NLP was built, by a message that named no bound.
+  - A lower bound of `+inf` or an upper bound of `-inf`, including equal infinite bounds,
+    which were not detected as crossing and ended in Ipopt status -13. The crossing check
+    also no longer emits a NumPy "invalid value encountered in subtract" warning.
+  - A negative `duration.lower`. Only a negative `duration.upper` was rejected before;
+    a negative lower bound let a phase run backward in time. This rejects a setting that
+    was previously accepted.
 
 ## [0.2.3] - 2026-09-13
 
