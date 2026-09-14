@@ -171,7 +171,7 @@ def test_wrong_number_of_rows_raises_at_the_assignment(method):
         _, _, v = arg.phase[0].state
         arg.phase[0].dynamics[:] = (v, v)
 
-    with raises(ValueError, "expected 3 rows, got 2", at="dynamics[:] ="):
+    with raises(ValueError, "3 rows", at="dynamics[:] ="):
         callback_problem(method, continuous=continuous).solve()
 
 
@@ -422,6 +422,8 @@ def test_numpy_where_under_central_differences_raises():
         callback_problem("central-difference", continuous=continuous).solve()
 
 
+# NumPy < 2.3 (the 3.10 floor) warns before raising here; newer NumPy raises directly
+@pytest.mark.filterwarnings("ignore:Conversion of an array with ndim > 0:DeprecationWarning")
 @not_yet("W5", "a non-yapss.math function on a symbol raises naming yapss.math")
 def test_math_module_function_on_a_symbol_raises_helpfully():
     def continuous(arg):

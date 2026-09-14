@@ -1,0 +1,252 @@
+"""Contract: `Problem.solve()`, Ipopt options, status, and warnings.
+
+What a user may do
+    - Solve, re-solve the same problem, and solve from a worker thread.
+    - Maximize with `problem.sense = "maximize"`.
+    - Set any Ipopt option to a value of its kind (NumPy integers included; an int for a
+      Number option), and unset one by assigning `None`.
+    - Rely on `solve()` returning a `Solution` for a run that did not converge, with an
+      `IpoptConvergenceWarning` pointing at the user's `solve()` line, on every such solve.
+    - Filter that warning with "ignore" or turn it into an error with "error".
+
+What a user may get wrong
+    - An Ipopt option value of the wrong kind: `TypeError` at the assignment.
+    - Setting an option YAPSS manages (e.g. `obj_scaling_factor`): `ValueError` at the
+      assignment, naming the YAPSS setting to use instead.
+"""
+
+from __future__ import annotations
+
+import threading
+import warnings
+
+import numpy as np
+import pytest
+
+import yapss
+from yapss import Problem
+
+from ._contract import callback_problem, default_objective, not_yet, raises
+
+
+def unconverged():
+    ocp = callback_problem()
+    ocp.ipopt_options.max_iter = 1
+    return ocp
+
+
+# ---------------------------------------------------------------- what a user may do
+
+
+def test_re_solving_gives_the_same_result():
+    ocp = callback_problem()
+    first = ocp.solve()
+    second = ocp.solve()
+    assert first.objective == second.objective
+    np.testing.assert_array_equal(first.phase[0].state, second.phase[0].state)
+
+
+def test_solve_from_a_worker_thread():
+    result = {}
+
+    def target():
+        result["status"] = callback_problem().solve().nlp_info.ipopt_status
+
+    thread = threading.Thread(target=target)
+    thread.start()
+    thread.join()
+    assert result["status"] == 0
+
+
+def test_maximize_negated_objective_gives_the_negated_optimum():
+    minimize = callback_problem()
+    maximize = callback_problem()
+    maximize.sense = "maximize"
+
+    def negated(arg):
+        default_objective(arg)
+        arg.objective = -arg.objective
+
+    maximize.functions.objective = negated
+    assert maximize.solve().objective == pytest.approx(-minimize.solve().objective, rel=1e-9)
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "stored"),
+    [
+        ("max_iter", 200, 200),
+        ("max_iter", np.int64(200), 200),
+        ("tol", 1e-9, 1e-9),
+        ("tol", 1, 1.0),
+        ("mu_strategy", "monotone", "monotone"),
+    ],
+    ids=["int", "numpy int", "float", "int for a Number option", "str"],
+)
+def test_option_of_the_right_kind_is_accepted(name, value, stored):
+    ocp = callback_problem()
+    setattr(ocp.ipopt_options, name, value)
+    assert getattr(ocp.ipopt_options, name) == stored
+    assert type(getattr(ocp.ipopt_options, name)) is type(stored)
+    assert ocp.solve().nlp_info.ipopt_status == 0
+
+
+def test_option_set_to_none_is_unset():
+    ocp = callback_problem()
+    ocp.ipopt_options.max_iter = 10
+    ocp.ipopt_options.max_iter = None
+    assert "max_iter" not in ocp.ipopt_options.get_options()
+
+
+def test_unconverged_solve_returns_a_solution_and_warns_at_the_users_line():
+    ocp = unconverged()
+    with pytest.warns(yapss.IpoptConvergenceWarning, match=r"Status -1\b") as record:
+        solution = ocp.solve()
+    assert solution.nlp_info.ipopt_status == -1
+    assert record[0].filename == __file__
+
+
+def test_every_unconverged_solve_warns():
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("default", yapss.IpoptConvergenceWarning)
+        for _ in range(3):
+            unconverged().solve()
+    assert sum(issubclass(w.category, yapss.IpoptConvergenceWarning) for w in caught) == 3
+
+
+@pytest.mark.parametrize("action", ["ignore", "error"])
+def test_convergence_warning_obeys_ignore_and_error_filters(action):
+    with warnings.catch_warnings():
+        warnings.simplefilter(action, yapss.IpoptConvergenceWarning)
+        if action == "ignore":
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("ignore", yapss.IpoptConvergenceWarning)
+                unconverged().solve()
+            assert not caught
+        else:
+            with pytest.raises(yapss.IpoptConvergenceWarning):
+                unconverged().solve()
+
+
+def test_converged_solve_does_not_warn():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", yapss.IpoptConvergenceWarning)
+        assert callback_problem().solve().nlp_info.ipopt_status == 0
+
+
+# ---------------------------------------------------------- what a user may get wrong
+
+
+@pytest.mark.parametrize("value", ["100", 1.5, True], ids=["str", "float", "bool"])
+def test_option_of_the_wrong_kind_raises_at_the_assignment(value):
+    ocp = callback_problem()
+    with raises(TypeError, "max_iter", at="max_iter ="):
+        ocp.ipopt_options.max_iter = value
+
+
+@pytest.mark.parametrize(
+    ("name", "knob"),
+    [
+        ("obj_scaling_factor", "problem.scale.objective"),
+        ("nlp_scaling_method", "problem.scale"),
+        ("hessian_approximation", "problem.derivatives.order"),
+    ],
+)
+def test_option_managed_by_yapss_raises_at_the_assignment_naming_the_knob(name, knob):
+    ocp = callback_problem()
+    with raises(ValueError, name, knob, at="setattr"):
+        setattr(ocp.ipopt_options, name, "yes" if name != "obj_scaling_factor" else 2.0)
+
+
+# ----------------------------------------------------------------- not yet met
+
+
+@not_yet("E5", "a misspelled option name raises at the assignment, suggesting the right name")
+def test_misspelled_option_raises_at_the_assignment():
+    ocp = callback_problem()
+    with raises(AttributeError, "max_iter", at="max_iters ="):
+        ocp.ipopt_options.max_iters = 10
+
+
+@not_yet("E5", "an out-of-range option value raises at solve start, naming the option")
+@pytest.mark.filterwarnings("ignore::yapss.IpoptOptionSettingWarning")
+def test_out_of_range_option_raises_at_solve_start():
+    ocp = callback_problem()
+    ocp.ipopt_options.max_iter = -1
+    with raises(ValueError, "max_iter"):
+        ocp.solve()
+
+
+@not_yet("E5", "an invalid choice for a string option raises at solve start")
+@pytest.mark.filterwarnings("ignore::yapss.IpoptOptionSettingWarning")
+def test_invalid_string_choice_raises_at_solve_start():
+    ocp = callback_problem()
+    ocp.ipopt_options.mu_strategy = "adaptiv"
+    with raises(ValueError, "mu_strategy"):
+        ocp.solve()
+
+
+@not_yet("E5", "a NaN value for a Number option raises at the assignment")
+def test_nan_number_option_raises_at_the_assignment():
+    ocp = callback_problem()
+    with raises(ValueError, "tol", at="tol ="):
+        ocp.ipopt_options.tol = float("nan")
+
+
+@not_yet("E5", "IpoptOptions method names cannot be overwritten")
+def test_option_container_methods_are_reserved():
+    ocp = callback_problem()
+    with raises((AttributeError, ValueError), "reset", at="reset ="):
+        ocp.ipopt_options.reset = 5
+
+
+@not_yet("E4", "a status with no iterate (-10, too few degrees of freedom) raises ValueError")
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+def test_status_without_an_iterate_raises():
+    """Two equality constraints on one variable: Ipopt stops before iterating (status -10).
+
+    Deterministic on every build, unlike an unavailable linear solver (status -12).
+    """
+    ocp = Problem(name="too few degrees of freedom", nx=[], ns=1, nd=2)
+    ocp.functions.objective = lambda arg: setattr(arg, "objective", arg.parameter[0] ** 2)
+
+    def discrete(arg):
+        arg.discrete[:] = (arg.parameter[0], 2.0 * arg.parameter[0])
+
+    ocp.functions.discrete = discrete
+    ocp.bounds.discrete.lower = ocp.bounds.discrete.upper = [1.0, 3.0]
+    ocp.ipopt_options.print_level = 0
+    with raises(ValueError, "degrees of freedom"):
+        ocp.solve()
+
+
+@not_yet("E4", "yapss.IpoptStatus is a public IntEnum and solution.status uses it")
+def test_status_enum_and_top_level_status():
+    solution = callback_problem().solve()
+    assert solution.status == yapss.IpoptStatus(0)
+    assert solution.status == 0
+
+
+@not_yet("E4", "solution.converged is true for statuses 0, 1, and 6 and false otherwise")
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+def test_converged_flag():
+    assert callback_problem().solve().converged is True
+    assert unconverged().solve().converged is False
+
+
+@not_yet("E12", "yapss.YapssWarning is the base of every YAPSS warning and subclasses UserWarning")
+def test_yapss_warning_hierarchy():
+    for category in (
+        yapss.IpoptConvergenceWarning,
+        yapss.IpoptOptionSettingWarning,
+        yapss.MirroredHessianPairWarning,
+        yapss.UnsupportedMathFunctionWarning,
+    ):
+        assert issubclass(category, yapss.YapssWarning)
+    assert issubclass(yapss.YapssWarning, UserWarning)
+    assert issubclass(yapss.MirroredHessianPairWarning, FutureWarning)
+
+
+@not_yet("E12", "yapss.YapssError is the base of every YAPSS-raised error")
+def test_yapss_error_hierarchy():
+    assert issubclass(yapss.UnsupportedMathFunctionError, yapss.YapssError)
+    assert issubclass(yapss.UnsupportedMathFunctionError, TypeError)
