@@ -29,7 +29,10 @@ the recurring process.
 - [ ] Update `version` and `date-released` in `CITATION.cff`, and the version in
       the citation shown under "Citing YAPSS" in `docs/user_guide/index.md`.
       Zenodo reads `CITATION.cff` at the release commit for the archive's
-      metadata, so it has to be right before tagging.
+      metadata, so it has to be right before tagging. Because the file is
+      present, the Zenodo record's description is the file's `abstract`, not
+      the GitHub Release body; release notes live on GitHub and in
+      `CHANGELOG.md`, and the archive describes the software.
 - [ ] Document any user-visible differences between the pip and conda builds,
       such as the solver backend or supported Python range.
 
@@ -56,7 +59,13 @@ content.
       depends on `readme`. After editing `docs/user_guide/index.md`, confirm
       that the generated `README.md` contains the expected changes and include
       it in the same commit.
-- [ ] Run `make linkcheck` and review every non-`ok` result. Expected redirects
+- [ ] Run `make linkcheck` with the docs tox environment on the path, since the
+      docs Makefile resolves `sphinx-build` from `PATH` and the development
+      venv does not have it:
+      ```
+      PATH=$PWD/.tox/docs/bin:$PATH make linkcheck
+      ```
+      Review every non-`ok` result. Expected redirects
       include DOI resolvers to publisher pages, GitHub issue-template links to
       a login page for unauthenticated requests, and readthedocs.io to
       `/en/stable/`; confirm that each destination is correct. An `-ignored-`
@@ -206,16 +215,57 @@ commands are not used.
 - [ ] Create the GitHub Release for the tag, with notes drawn from the
       changelog entry:
       ```
-      gh release create vX.Y.Z --title "vX.Y.Z" --notes-file <notes>
+      gh release create vX.Y.Z --title "X.Y.Z" --notes-file <notes>
       ```
+      The title is the bare version, matching the existing releases; the notes
+      follow the form of the previous release: a `# Version X.Y.Z — date`
+      heading, the changelog entry's sections one heading level up, and the
+      installation footer with the pip and conda lines.
       A tag push alone does not archive anything: Zenodo's GitHub integration
       acts on *published releases*. Zenodo then mints the version DOI under the
       project's concept DOI (the one in `CITATION.cff`) within a few minutes;
       confirm the new version appears on the Zenodo record.
+- [ ] If the version does not appear, check the repository's webhook
+      deliveries: GitHub delivers the `release` events once and does not retry
+      a failure (0.2.3's deliveries timed out during a Zenodo outage). Find the
+      failed `release/published` delivery and redeliver it:
+      ```
+      gh api repos/stevenrhall/yapss/hooks                         # hook id
+      gh api repos/stevenrhall/yapss/hooks/<hook>/deliveries       # delivery id
+      gh api -X POST repos/stevenrhall/yapss/hooks/<hook>/deliveries/<id>/attempts
+      ```
+      Read the delivery id from the raw JSON (Python, or `gh --jq` with
+      `tostring` on the field); the 19-digit id exceeds jq's number precision
+      and a rounded id returns 404. Zenodo acts only on the `published` event.
+      The hook URL embeds an access token that delivery listings print in
+      full; redact it before pasting output anywhere.
 - [ ] If this release supersedes a release with serious installation,
       correctness, crash, or security defects, review whether the affected
       release should be yanked. Prefer yanking with a clear reason to deleting
       a release, which breaks exact pins and is irreversible.
+- [ ] A yanked release keeps its GitHub Release page, so that every tag has one,
+      and the page says so: directly under the version heading, a warning block
+      in the form used by 0.1.1 and 0.2.1 --
+      ```
+      ⚠️ **Known issues — do not use this version.** <the PyPI yank reason>.
+      Fixed in X.Y.Z; install `yapss>=X.Y.Z` instead. This release is yanked
+      on PyPI for that reason.
+
+      ---
+      ```
+      -- followed by the unchanged notes. Do not archive a yanked release on
+      Zenodo: a yank says "do not use", a DOI says "cite this", and a Zenodo
+      record cannot be deleted. Zenodo holds exactly the unyanked releases. To
+      create or edit a release page for a yanked version without triggering
+      an archive, deactivate the Zenodo webhook first and reactivate it after:
+      ```
+      gh api -X PATCH repos/stevenrhall/yapss/hooks/<hook> -F active=false
+      gh release create vX.Y.Z --title "X.Y.Z" --notes-file <notes>
+      gh api -X PATCH repos/stevenrhall/yapss/hooks/<hook> -F active=true
+      ```
+      GitHub marks the most recently created release as Latest regardless of
+      version, so after creating a page for an older version restore the badge
+      with `gh release edit v<current> --latest`.
 
 ## 9. Post-publish docs checks
 
