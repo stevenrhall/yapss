@@ -33,7 +33,7 @@ import numpy as np
 import pytest
 
 import yapss.math as ym
-from yapss.examples import brachistochrone
+from yapss.examples import brachistochrone, goddard_problem_3_phase
 
 from ._contract import (
     G0,
@@ -552,16 +552,138 @@ def test_mirrored_hessian_pair_raises():
 # ------------------------------------------------------------------ not yet met: targets
 
 
-@not_yet("E7c target", "the continuous callback's argument has no derivative outputs")
-def test_continuous_argument_has_no_jacobian():
+# ------------------------------------------------- callback arguments keep outputs apart
+#
+# Each callback's argument exposes the outputs that callback produces. Writing another
+# callback's output raises `AttributeError` at the line. The objective and discrete
+# families meet this already. The continuous family does not: one object carrying every
+# output goes to `continuous`, `continuous_jacobian`, and `continuous_hessian` (E7c). A
+# derivative entry written from `continuous` is silently ignored; worse, a dynamics row
+# written from `continuous_jacobian` overwrites the constraint values the shared evaluator
+# has cached on that object, and the solve silently goes wrong (measured 2026-09-14: status
+# -1, objective 0.312455 against 0.312480). E7c's target (option A) removes
+# the foreign outputs entirely; its accepted fallback (option C) keeps them visible but
+# refuses writes. The write clause is required under either; absence is the target only.
+
+
+def _user_problem(example):
+    ocp = example.setup()
+    ocp.derivatives.method = "user"
+    ocp.ipopt_options.print_level = 0
+    return ocp
+
+
+def _run_statement_in(ocp, callback, statement):
+    """Wrap `callback` so it executes `statement` before doing its own work, then solve."""
+    original = getattr(ocp.functions, callback)
+
+    def wrapped(arg):
+        exec(statement, {"arg": arg})  # noqa: S102 -- one parametrized statement per case
+        original(arg)
+
+    setattr(ocp.functions, callback, wrapped)
+    ocp.solve()
+
+
+def _visible_outputs(ocp, callback, names, where):
+    """Return which of `names` are attributes of `arg` (or `arg.phase[0]`) in `callback`."""
+    original = getattr(ocp.functions, callback)
     seen = {}
 
-    def continuous(arg):
-        default_continuous(arg)
-        seen["has jacobian"] = hasattr(arg.phase[0], "jacobian")
+    def wrapped(arg):
+        owner = arg.phase[0] if where == "phase" else arg
+        seen.update({name: hasattr(owner, name) for name in names})
+        original(arg)
 
-    callback_problem("central-difference", continuous=continuous).solve()
-    assert seen["has jacobian"] is False
+    setattr(ocp.functions, callback, wrapped)
+    ocp.solve()
+    return seen
+
+
+OBJECTIVE_AND_DISCRETE_OUTPUTS = {
+    "objective": ("objective", ["gradient", "hessian", "discrete", "jacobian"]),
+    "objective_gradient": ("gradient", ["objective", "hessian"]),
+    "objective_hessian": ("hessian", ["objective", "gradient"]),
+    "discrete": ("discrete", ["objective", "jacobian", "hessian"]),
+    "discrete_jacobian": ("jacobian", ["discrete", "hessian", "objective"]),
+    "discrete_hessian": ("hessian", ["discrete", "jacobian", "objective"]),
+}
+CONTINUOUS_OUTPUTS = {
+    "continuous": ["dynamics", "path", "integrand"],
+    "continuous_jacobian": ["jacobian"],
+    "continuous_hessian": ["hessian"],
+}
+CONTINUOUS_ALL = ["dynamics", "path", "integrand", "jacobian", "hessian"]
+CONTINUOUS_FOREIGN_WRITES = {
+    "continuous": {
+        "jacobian": 'arg.phase[0].jacobian[("f", 0), ("x", 2)] = 0.0',
+        "hessian": 'arg.phase[0].hessian[("f", 0), ("x", 2), ("u", 0)] = 0.0',
+    },
+    "continuous_jacobian": {
+        "dynamics": "arg.phase[0].dynamics[0] = 0.0",
+        "hessian": 'arg.phase[0].hessian[("f", 0), ("x", 2), ("u", 0)] = 0.0',
+    },
+    "continuous_hessian": {
+        "dynamics": "arg.phase[0].dynamics[0] = 0.0",
+        "jacobian": 'arg.phase[0].jacobian[("f", 0), ("x", 2)] = 0.0',
+    },
+}
+
+
+@pytest.mark.parametrize("callback", OBJECTIVE_AND_DISCRETE_OUTPUTS)
+def test_objective_and_discrete_arguments_expose_only_their_own_output(callback):
+    own, foreign = OBJECTIVE_AND_DISCRETE_OUTPUTS[callback]
+    seen = _visible_outputs(
+        _user_problem(goddard_problem_3_phase), callback, [own, *foreign], "arg"
+    )
+    assert seen == {own: True, **{name: False for name in foreign}}
+
+
+@pytest.mark.parametrize(
+    ("callback", "foreign"),
+    [
+        (callback, name)
+        for callback, (_, names) in OBJECTIVE_AND_DISCRETE_OUTPUTS.items()
+        for name in names
+    ],
+)
+def test_writing_another_callbacks_output_raises_in_objective_and_discrete_callbacks(
+    callback, foreign
+):
+    value = "0.0" if foreign == "objective" else "(0.0,)" if foreign == "discrete" else "{}"
+    with raises(AttributeError, foreign, at="exec"):
+        _run_statement_in(
+            _user_problem(goddard_problem_3_phase), callback, f"arg.{foreign} = {value}"
+        )
+
+
+@pytest.mark.parametrize("callback", CONTINUOUS_OUTPUTS)
+def test_continuous_family_arguments_expose_their_own_outputs(callback):
+    own = CONTINUOUS_OUTPUTS[callback]
+    seen = _visible_outputs(_user_problem(brachistochrone), callback, own, "phase")
+    assert all(seen.values()), seen
+
+
+@not_yet(
+    "E7c", "writing another continuous-family callback's output raises AttributeError at the line"
+)
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+@pytest.mark.parametrize(
+    ("callback", "foreign"),
+    [(callback, name) for callback, writes in CONTINUOUS_FOREIGN_WRITES.items() for name in writes],
+)
+def test_writing_another_callbacks_output_raises_in_continuous_callbacks(callback, foreign):
+    statement = CONTINUOUS_FOREIGN_WRITES[callback][foreign]
+    with raises(AttributeError, foreign, at="exec"):
+        _run_statement_in(_user_problem(brachistochrone), callback, statement)
+
+
+@not_yet("E7c target (option A)", "a continuous-family argument has no other callback's outputs")
+@pytest.mark.parametrize("callback", CONTINUOUS_OUTPUTS)
+def test_continuous_family_arguments_have_no_foreign_outputs(callback):
+    foreign = [name for name in CONTINUOUS_ALL if name not in CONTINUOUS_OUTPUTS[callback]]
+    seen = _visible_outputs(_user_problem(brachistochrone), callback, foreign, "phase")
+    assert not any(seen.values()), seen
 
 
 @not_yet("F7 target", "every callback argument reports why it is called in arg.evaluation")
