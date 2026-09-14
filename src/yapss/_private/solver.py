@@ -226,11 +226,15 @@ def solve(problem: yapss.Problem) -> Solution:
     currently the only caller and does so.
 
     The check belongs at the public boundary rather than here for two reasons. Only
-    there can `stacklevel` point at user code -- and `stacklevel` also determines the
-    location Python's default warning filter dedupes on, so warning from in here would
-    collapse every unconverged solve in a program to a single registry entry and
-    silence all but the first. Second, an internal caller (adaptive mesh refinement,
-    say, which solves repeatedly) may need to solve without warning each time.
+    there can `stacklevel` point at user code. Second, an internal caller (adaptive mesh
+    refinement, say, which solves repeatedly) may need to solve without warning each
+    time.
+
+    Every unconverged solve warns, even when repeated from the same line: the
+    `warnings.catch_warnings()` block around the Ipopt call below invalidates Python's
+    per-location warning registry on exit, so the "default" and "once" filter actions
+    do not deduplicate across solves ("ignore" and "error" are unaffected). The same
+    invalidation applies to every other warning in the process.
 
     Any new public entry point that returns a `Solution` should call
     `warn_if_not_converged` itself.

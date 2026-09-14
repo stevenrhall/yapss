@@ -325,7 +325,7 @@ class Problem(Protected):
                     raise ValueError(msg)
 
     def __str__(self) -> str:
-        """Return repr(self)."""
+        """Return a short summary of the problem."""
         return (
             f"Problem(\n"
             f"    name='{self.name}',\n"

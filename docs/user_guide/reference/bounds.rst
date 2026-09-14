@@ -72,7 +72,7 @@ No bound may be NaN, no lower bound may be ``+inf``, and no upper bound may be `
 - ``bounds.phase[p].final_state.upper``, ``bounds.phase[p].final_state.lower``
 - ``bounds.phase[p].state.upper``, ``bounds.phase[p].state.lower``
 
-These bounds should be consistent across phases. For example:
+These bounds should be consistent within each phase. For example:
 
     ``final_state.lower`` ≤ ``state.upper``
 
@@ -214,9 +214,12 @@ Input Validation
 ----------------
 
 Setting bounds correctly can be error-prone, so YAPSS helps reduce errors by validating
-bounds configurations. Errors are caught when assigning values, with helpful feedback. For
-example, trying to assign a scalar instead of a sequence for path constraints raises an
-error:
+bounds configurations in two steps. An assignment of the wrong shape or type raises at the
+assignment. Conflicts between bounds -- a lower bound above its upper bound, boundary-state
+bounds that do not overlap the state bounds, infeasible time bounds, and NaN or wrong-side
+infinite values -- are reported by ``validate()``, which ``problem.solve()`` runs before
+building the problem, because they depend on more than one assignment. For example, trying
+to assign a scalar instead of a sequence for path constraints raises an error immediately:
 
 .. doctest:: group2
 
@@ -225,7 +228,7 @@ error:
         ...
     ValueError: ArrayBound must be a sequence of floats of length 1.
 
-Similarly, trying to set conflicting control bounds results in an error:
+Conflicting control bounds are reported when the bounds are validated:
 
 .. doctest:: group2
 

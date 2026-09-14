@@ -89,3 +89,24 @@ def test_warning_is_public():
     """The category is importable from the public namespace, so it can be filtered."""
     assert yapss.IpoptConvergenceWarning.__name__ in yapss.__all__
     assert issubclass(yapss.IpoptConvergenceWarning, Warning)
+
+
+@pytest.mark.parametrize("action", ["default", "once"])
+def test_every_unconverged_solve_warns_even_from_one_line(action):
+    """Repeated unconverged solves from the same line each warn.
+
+    Pins the behavior `solution.rst` documents. Python's "default" and "once" actions
+    would normally report a warning from one location only once, but the
+    `warnings.catch_warnings()` block around the Ipopt call invalidates the registry on
+    each solve. If that block is ever removed or narrowed, this test fails and the
+    documentation must change with it.
+    """
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter(action, yapss.IpoptConvergenceWarning)
+        for _ in range(3):
+            ocp = setup()
+            ocp.ipopt_options.max_iter = 1
+            ocp.ipopt_options.print_level = 0
+            ocp.solve()
+    convergence = [w for w in caught if issubclass(w.category, yapss.IpoptConvergenceWarning)]
+    assert len(convergence) == 3

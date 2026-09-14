@@ -444,6 +444,8 @@ class Solution:
         settings, parameters, and configurations for the NLP problem.
     objective : float
         The optimal value of the objective function after solving the optimal control problem.
+    discrete : numpy.ndarray
+        An array of the discrete constraint function values.
     discrete_multiplier : numpy.ndarray
         An array of Lagrange multipliers associated with the discrete constraints.
     parameter : numpy.ndarray
@@ -509,11 +511,12 @@ class Solution:
         ipopt_status_message : str
             A human-readable message corresponding to the status code. In most cases, it's
             the same message as that printed in the console by Ipopt.
-        objective : float
-            The optimal value of the objective function after solving the optimal control
-            problem.
+        obj_val : float
+            The value of the NLP objective function at the returned point.
         x : numpy.ndarray
             The optimal values of the NLP decision variables.
+        g : numpy.ndarray
+            The values of the NLP constraint functions at the returned point.
         mult_x_L : numpy.ndarray
             Lagrange multipliers associated with the lower bounds of the decision variables.
         mult_x_U : numpy.ndarray

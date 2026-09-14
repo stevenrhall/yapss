@@ -67,14 +67,14 @@ The warning class is public, so it can be silenced or escalated in the usual way
 Projects that run their test suites with ``-W error`` will newly see failures on
 unconverged solves.
 
-.. warning::
+.. note::
 
-    **In a loop, you will see** ``IpoptConvergenceWarning`` **only once**, or more precisely
-    only once for each line of code where the warning occurs. Python's default warning filter
-    suppresses repeats of the same warning from the same line. If you are solving repeatedly
-    and want a warning for every occurrence, you can use::
-
-        warnings.simplefilter("always", yapss.IpoptConvergenceWarning)
+    **Every unconverged solve warns**, including repeated solves from the same line in a
+    loop. Python normally reports a repeated warning from one line only once, but that
+    deduplication does not carry over from one ``solve()`` to the next, so the ``"default"``
+    and ``"once"`` filter actions do not reduce the count. The ``"ignore"`` and ``"error"``
+    actions shown above work as usual. To act on only some failures, branch on the status
+    instead, as described below.
 
 What the warning does not tell you
 ..................................

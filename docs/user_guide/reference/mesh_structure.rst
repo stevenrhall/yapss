@@ -97,8 +97,9 @@ attributes that can be set are:
    number of segments in the phase.
 
 -  ``mesh.phase[k].fraction`` (Sequence[float]): The fraction of the phase duration of
-   each segment. Each element must be greater than 0.0 and less than 1.0, and the sum of
-   the elements must be close to 1.0. The length of the ``fraction`` attribute must be the
+   each segment. Each element must be greater than 0.0, and the sum of the elements must be
+   within 0.01 of 1.0; the fractions are then rescaled to sum to exactly 1.0. A single
+   segment is ``fraction = [1.0]``. The length of the ``fraction`` attribute must be the
    same as the length of the ``collocation_points`` attribute.
 
 The default mesh structure is 10 segments of equal duration, each with 10 collocation

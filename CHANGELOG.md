@@ -67,6 +67,26 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - `SolutionPhase.initial_state` and `final_state`, documented as `state[:, 0]` and
   `state[:, -1]`, did not exist. They are now read-only properties returning copies, under
   the same names as the objective and discrete callback arguments.
+- Corrected documentation that no longer matched the code:
+  - The solution reference said an `IpoptConvergenceWarning` repeated in a loop appears
+    only once per line. Every unconverged solve warns; Python's `"default"` and `"once"`
+    filter actions do not deduplicate it across solves.
+  - The derivatives reference said a Python `if` on a symbolic value under `"auto"`
+    silently takes one branch. It has raised `TypeError` since 0.2.3. The same passage
+    now also says that under `"central-difference"` an `if` in the objective or discrete
+    callback runs but can lose derivatives: sparsity is detected at the initial guess, so
+    a variable used only in a branch not taken there is treated as having no effect. Use
+    `yapss.math.where` and related functions under every method.
+  - The bounds reference said all bound errors are caught at assignment. Shape and type
+    errors are; conflicts between bounds are reported by `validate()`, which `solve()`
+    runs first.
+  - The mesh reference said each `fraction` element must be less than 1.0, which excluded
+    the valid single-segment `fraction = [1.0]`, and did not mention that fractions summing
+    to within 0.01 of 1.0 are rescaled.
+  - The callbacks reference called the objective and discrete callback inputs immutable.
+    Some are copies and `arg.parameter` is the solver's own array; none should be modified.
+  - The `Solution` docstring omitted `discrete` and `nlp_info.g`, and named
+    `nlp_info.obj_val` as `objective`.
 
 ## [0.2.3] - 2026-09-13
 

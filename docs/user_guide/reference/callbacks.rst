@@ -76,7 +76,8 @@ The discrete variables that can be extracted from the ``arg`` object are:
 - ``arg.phase[p].integral``: The integral vector of phase :math:`p`.
 - ``arg.parameter``: The parameter vector of the problem.
 
-All these attributes are immutable.
+Do not modify these attributes. Some are copies, so a change has no effect, and
+``arg.parameter`` is the solver's own array.
 
 The value of the objective function is assigned to the ``arg.objective`` attribute.
 
