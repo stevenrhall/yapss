@@ -282,6 +282,7 @@ class Problem(Protected):
         """
         self.bounds.validate()
         self.guess.validate()
+        self.scale.validate()
         self.mesh.validate()
         self._validate_functions()
 
@@ -432,6 +433,24 @@ def _check_scale(name: str, value: Array | float) -> None:
         raise ValueError(msg)
 
 
+def _check_scale_elements(name: str, value: Array) -> None:
+    """Raise unless every element of a stored scale array is finite and positive.
+
+    The array setters check a whole assignment with `_check_scale`, but the getters return
+    the stored array itself, so an element or slice assignment such as
+    ``problem.scale.phase[0].dynamics[0] = 0`` never passes through a setter. This is the
+    check that catches it, from `Problem.validate`, before the scale reaches the NLP. The
+    message names the first offending element so that it points at the assignment that
+    produced it.
+    """
+    array = np.asarray(value)
+    bad = ~(np.isfinite(array) & (array > 0))
+    if np.any(bad):
+        i = int(np.flatnonzero(bad)[0])
+        msg = f"{name}[{i}] must be finite and positive, got {float(array[i])!r}."
+        raise ValueError(msg)
+
+
 class ScaleArray(Protected):
     """Scale array."""
 
@@ -544,6 +563,19 @@ class ScalePhase(Protected):
         _check_scale(f"Scale 'time' in phase {self._p}", scale)
         self._time = scale
 
+    def validate(self) -> None:
+        """Check every scale factor of the phase, including elements set in place.
+
+        Raises
+        ------
+        ValueError
+            If any scale factor is not finite and positive.
+        """
+        prefix = f"scale.phase[{self._p}]"
+        for name in ("state", "control", "integral", "dynamics", "path"):
+            _check_scale_elements(f"{prefix}.{name}", getattr(self, "_" + name))
+        _check_scale(f"{prefix}.time", self._time)
+
 
 class Scale(Protected):
     """Scaling object."""
@@ -588,6 +620,26 @@ class Scale(Protected):
             )
             raise ValueError(msg)
         self._objective = float(value)
+
+    def validate(self) -> None:
+        """Check every scale factor, including array elements set in place.
+
+        Whole assignments are checked when they are made; an element or slice assignment
+        is not, because the array getters return the stored array. `Problem.validate`
+        calls this so that such a value is reported before it reaches the NLP, where a zero
+        becomes an infinite Ipopt scaling factor and a negative one inverts the bounds of
+        the variable or constraint it scales.
+
+        Raises
+        ------
+        ValueError
+            If any scale factor is not finite and positive.
+        """
+        for phase in self.phase:
+            phase.validate()
+        _check_scale_elements("scale.discrete", self._discrete)
+        _check_scale_elements("scale.parameter", self._parameter)
+        _check_scale("scale.objective", self._objective)
 
     def __getitem__(self, item: tuple[int, str, int]) -> float:
         """Return the characteristic magnitude of one decision variable.

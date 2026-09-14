@@ -135,7 +135,10 @@ scale.
 All the scales described are initialized to 1.0 (or an array of ones), so for problems
 that are nicely scaled, no scaling is necessary.
 
-Note also that each of the array scales can be set elementwise, or using a slice.
+Note also that each of the array scales can be set elementwise, or using a slice. A value
+set that way is not checked at the assignment, but ``problem.validate()``, which
+``problem.solve()`` runs before building the NLP, checks every scale factor and raises
+``ValueError`` naming the offending element.
 
 Example
 -------

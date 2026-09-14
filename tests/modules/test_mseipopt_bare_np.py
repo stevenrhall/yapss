@@ -330,6 +330,40 @@ def test_scaling_validates_shapes_and_native_result(native, monkeypatch):
         problem.set_scaling(1.0, [1.0, 1.0], [1.0])
 
 
+@pytest.mark.parametrize("bad", [0.0, -1.0, float("nan"), float("inf")])
+def test_scaling_rejects_bad_factors_before_native_call(native, monkeypatch, bad):
+    """A factor Ipopt would crash on, or silently invert bounds with, never crosses into C."""
+    problem = make_problem()
+    scaling_calls = []
+    monkeypatch.setattr(
+        bare,
+        "SetIpoptProblemScaling",
+        lambda *args: scaling_calls.append(args) or 1,
+    )
+    with pytest.raises(ValueError, match="x scaling factors must be finite and positive"):
+        problem.set_scaling(1.0, [1.0, bad], [1.0])
+    with pytest.raises(ValueError, match="g scaling factors must be finite and positive"):
+        problem.set_scaling(1.0, [1.0, 1.0], [bad])
+    assert scaling_calls == []
+
+
+@pytest.mark.parametrize("bad", [0.0, float("nan"), float("inf")])
+def test_scaling_rejects_bad_objective_factor(native, monkeypatch, bad):
+    """The objective factor may be negative (maximization) but not zero or non-finite."""
+    problem = make_problem()
+    scaling_calls = []
+    monkeypatch.setattr(
+        bare,
+        "SetIpoptProblemScaling",
+        lambda *args: scaling_calls.append(args) or 1,
+    )
+    with pytest.raises(ValueError, match="objective scaling factor must be finite and nonzero"):
+        problem.set_scaling(bad, [1.0, 1.0], [1.0])
+    assert scaling_calls == []
+    problem.set_scaling(-2.0, [1.0, 1.0], [1.0])
+    assert scaling_calls[0][1] == -2.0
+
+
 def test_scaling_copies_strided_inputs_to_contiguous_native_buffers(native, monkeypatch):
     """Strided scaling views are copied before their pointers cross into C."""
     problem = make_problem(

@@ -13,7 +13,7 @@ import pytest
 # package imports
 from yapss import Problem
 from yapss._private.problem import ScalePhase
-from yapss.examples import dynamic_soaring, rosenbrock
+from yapss.examples import brachistochrone_minimal, dynamic_soaring, rosenbrock
 
 
 def test_derivatives_options():
@@ -132,6 +132,58 @@ def test_mesh_validates():
     ocp.mesh.phase[0].fraction = 4 * [0.25]
     with pytest.raises(ValueError, match=msg):
         ocp.mesh.validate()
+
+
+def _scale_problem() -> Problem:
+    """Return a problem with at least one entry in every scale array."""
+    return Problem(name="scale", nx=[2, 1], nu=[1, 1], nq=[1, 1], nh=[1, 1], ns=1, nd=1)
+
+
+_SCALE_ARRAYS = [
+    (lambda s: s.phase[0].state, "scale.phase[0].state"),
+    (lambda s: s.phase[1].control, "scale.phase[1].control"),
+    (lambda s: s.phase[0].integral, "scale.phase[0].integral"),
+    (lambda s: s.phase[1].dynamics, "scale.phase[1].dynamics"),
+    (lambda s: s.phase[0].path, "scale.phase[0].path"),
+    (lambda s: s.discrete, "scale.discrete"),
+    (lambda s: s.parameter, "scale.parameter"),
+]
+
+
+@pytest.mark.parametrize(("get_array", "name"), _SCALE_ARRAYS)
+@pytest.mark.parametrize("bad", [0.0, -1.0, float("nan"), float("inf")])
+def test_scale_validate_catches_element_assignment(get_array, name, bad):
+    """An element write bypasses the array setter; `Scale.validate` still reports it."""
+    ocp = _scale_problem()
+    ocp.scale.validate()
+    array = get_array(ocp.scale)
+    array[-1] = bad
+    index = len(array) - 1
+    with pytest.raises(ValueError, match=re.escape(f"{name}[{index}] must be finite and positive")):
+        ocp.scale.validate()
+
+
+def test_scale_validate_catches_slice_assignment():
+    ocp = _scale_problem()
+    ocp.scale.phase[0].state[:] = [1.0, 0.0]
+    msg = "scale.phase[0].state[1] must be finite and positive, got 0.0."
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        ocp.scale.validate()
+
+
+def test_problem_validate_checks_scale():
+    """`Problem.validate`, which `solve` runs first, reports an element-set zero scale.
+
+    Before this check, the zero reached Ipopt as an infinite scaling factor and the solve
+    crashed the process with no Python traceback. This test calls `validate` rather than
+    `solve` so that a regression fails the test instead of killing the test process.
+    """
+    ocp = brachistochrone_minimal.setup()
+    ocp.validate()
+    ocp.scale.phase[0].dynamics[0] = 0.0
+    msg = "scale.phase[0].dynamics[0] must be finite and positive, got 0.0."
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        ocp.validate()
 
 
 def test_scale_array():

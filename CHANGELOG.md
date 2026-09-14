@@ -15,6 +15,22 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - Users can pin to a specific minor version (e.g., yapss>=0.3.0,<0.4.0) to avoid unexpected
   changes, but should expect significant updates when upgrading to a new minor version.
 
+## [Unreleased]
+
+### Fixed
+
+- A scale factor set elementwise or by slice, such as `problem.scale.phase[0].dynamics[0] =
+  0`, is now checked. The 0.2.3 check ran only when a whole scale array was assigned,
+  although the entry below says every scale factor is checked when it is set, and the
+  scaling documentation recommends setting elements. A zero element reached Ipopt as an
+  infinite scaling factor and crashed the process with no Python traceback; a negative
+  element inverted the bounds of the variable or constraint it scales, and the solve could
+  converge to the optimum of a different problem with no warning. `Problem.validate()`,
+  which `solve()` runs first, now checks every scale factor and names the offending
+  element. The Ipopt interface also refuses a non-finite or non-positive variable or
+  constraint scaling factor, and a zero or non-finite objective scaling factor, before
+  calling Ipopt.
+
 ## [0.2.3] - 2026-09-13
 
 This release is a patch under the versioning policy above, but it deserves a closer read

@@ -371,6 +371,12 @@ class Problem:
         Variable and constraint arrays must have lengths ``n`` and ``m``;
         accepted inputs are converted to aligned ``float64`` arrays for this
         native call. The Ipopt scaling method is set to ``user-scaling``.
+
+        Ipopt applies these factors without checking them, and a non-finite factor
+        crashes the process inside the solve. Variable and constraint factors must be
+        finite and positive: Ipopt scales bound vectors elementwise without swapping them,
+        so a negative factor silently inverts the bounds it applies to. The objective
+        factor must be finite and nonzero; its sign selects maximization.
         """
         self._require_open()
         x_scaling = np.require(x_scaling, np.double, ["A", "C"])
@@ -380,8 +386,25 @@ class Problem:
             raise ValueError("invalid shape for the x scaling")
         if g_scaling.shape != (self.m,):
             raise ValueError("invalid shape for the g scaling")
+        # Positivity is stricter than Ipopt's documented contract: neither
+        # IpTNLP.hpp (get_scaling_parameters) nor the options reference says
+        # anything about the sign of x_scaling or g_scaling, only that a negative
+        # objective factor maximizes. The requirement comes from Ipopt's behavior
+        # (3.14 source, as read for YAPSS 0.2.3): bound vectors are scaled
+        # elementwise without swapping, so a negative factor inverts the bounds it
+        # applies to, while on an unbounded variable or an equality constraint it
+        # is probably harmless. For YAPSS every factor derives from a positive
+        # problem-level scale, so a negative one can only be a bug. If this binding
+        # is ever published as a standalone package, revisit this check or document
+        # it as stricter than Ipopt.
+        if not np.all(np.isfinite(x_scaling) & (x_scaling > 0)):
+            raise ValueError("x scaling factors must be finite and positive")
+        if not np.all(np.isfinite(g_scaling) & (g_scaling > 0)):
+            raise ValueError("g scaling factors must be finite and positive")
 
         obj_s = float(obj_scaling)
+        if not (np.isfinite(obj_s) and obj_s != 0.0):
+            raise ValueError("objective scaling factor must be finite and nonzero")
         x_s = data_ptr(x_scaling)
         g_s = data_ptr(g_scaling)
         if not bare.SetIpoptProblemScaling(self._problem, obj_s, x_s, g_s):
