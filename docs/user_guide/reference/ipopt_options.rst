@@ -95,13 +95,19 @@ be sufficient. The most common options that users may want to change are:
 ``print_level``
     Output verbosity level. (``print_level``:math:`\ge` 0, default: 5)
 
-YAPSS otherwise tries not to be opinionated about Ipopt options, but makes one exception:
-the default value of ``mu_strategy`` is ``"adaptive"`` rather than Ipopt's own default of
-``"monotone"``. The YAPSS test suite runs about 30% slower using the Ipopt default, and we
-have found that Ipopt sometimes fails to converge on difficult problems with the monotone
-strategy. Unlike the reserved options below, ``mu_strategy`` is a normal option -- it can
-still be set to any value, including back to ``"monotone"``, through
-``problem.ipopt_options.mu_strategy``.
+YAPSS otherwise tries not to be opinionated about Ipopt options, but makes two exceptions.
+First, the default value of ``mu_strategy`` is ``"adaptive"`` rather than Ipopt's own
+default of ``"monotone"``. The YAPSS test suite runs about 30% slower using the Ipopt
+default, and we have found that Ipopt sometimes fails to converge on difficult problems
+with the monotone strategy. Second, the default value of ``check_derivatives_for_naninf``
+is ``"yes"`` rather than ``"no"``. Without the check, Ipopt passes a NaN or infinite
+Jacobian or Hessian entry to its linear solver, which can crash the Python process; with
+it, Ipopt stops with status -13 ("Invalid number in NLP function or derivative
+detected"). The check costs one pass over the derivative values per evaluation.
+Separately, ``problem.solve()`` raises ``ValueError`` before starting Ipopt if the
+objective, constraints, or their first derivatives are not finite at the initial guess,
+naming the quantities involved. Unlike the reserved options below, both are normal
+options and can still be set to any value through ``problem.ipopt_options``.
 
 The following options are reserved: YAPSS determines them from the problem configuration,
 and attempting to set them directly through ``ipopt_options`` raises a ``ValueError``

@@ -17,6 +17,11 @@ __all__ = ["IpoptOptions"]
 
 DEFAULT_IPOPT_OPTIONS = {
     "mu_strategy": "adaptive",
+    # Ipopt otherwise passes a NaN or Inf Jacobian or Hessian to its linear solver, which
+    # can crash the process (MUMPS on some sparsity patterns). With the check on, Ipopt
+    # stops with status -13 (Invalid_Number_Detected) instead. The scan is one pass over
+    # the nonzeros per evaluation, negligible next to a factorization.
+    "check_derivatives_for_naninf": "yes",
 }
 """Default Ipopt options."""
 

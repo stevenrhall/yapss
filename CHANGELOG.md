@@ -30,6 +30,22 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   element. The Ipopt interface also refuses a non-finite or non-positive variable or
   constraint scaling factor, and a zero or non-finite objective scaling factor, before
   calling Ipopt.
+- A problem whose functions are NaN or infinite at the initial guess no longer crashes
+  the process. Ipopt's initialization estimates the starting multipliers from the
+  constraint Jacobian before it checks the constraint values, and its default is not to
+  check derivatives at all, so a NaN Jacobian entry reached the MUMPS linear solver; for
+  some sparsity patterns, observed with the central-difference methods and second
+  derivatives, MUMPS crashed the process with no Python traceback, and otherwise the solve
+  ended with status -13 and a warning. Two changes:
+  - `problem.solve()` now evaluates the objective, constraints, gradient, and constraint
+    Jacobian at the starting point and raises `ValueError` if any of them is not finite,
+    naming each quantity involved, for example `phase 0 dynamics[2] is NaN in 19 of 100
+    entries`, or the derivative of a finite value with respect to a named variable. A
+    solve that used to return a status -13 `Solution` from such a starting point now
+    raises instead.
+  - `check_derivatives_for_naninf` is now `"yes"` by default, so a non-finite Jacobian or
+    Hessian at any later iterate stops Ipopt with status -13 instead of reaching the
+    linear solver. It can still be set to `"no"`.
 
 ## [0.2.3] - 2026-09-13
 

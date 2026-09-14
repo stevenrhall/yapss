@@ -31,6 +31,7 @@ from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variabl
 from .central_difference import make_cd_functions
 from .config import get_conda_prefix, warn_ipopt_source_deprecated
 from .guess import make_initial_guess_nlp
+from .initial_point import check_initial_point
 from .mesh import Mesh
 
 # The backend default is determined by environment: a conda environment gets
@@ -263,6 +264,10 @@ def solve(problem: yapss.Problem) -> Solution:
         raise RuntimeError
     nlp_temp = NLP(problem, functions, mesh)
     nlp_temp.intermediate = problem._intermediate_cb
+
+    # Refuse a starting point where the functions or first derivatives are not finite,
+    # before Ipopt can pass a non-finite Jacobian to its linear solver (see the module).
+    check_initial_point(problem, nlp_temp, z0)
 
     # NLP variable and constraint bounds
     ub, lb = get_nlp_decision_variable_bounds(problem)
