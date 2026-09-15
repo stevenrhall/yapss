@@ -14,7 +14,7 @@ import inspect
 # standard imports
 from collections.abc import Callable, Sequence
 from types import FrameType, SimpleNamespace
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 # third party imports
 import numpy as np
@@ -26,7 +26,7 @@ from .guess import Guess
 from .ipopt_options import IpoptOptions
 from .solution import warn_if_not_converged
 from .solver import solve
-from .types_ import LimitOptions, Protected
+from .types_ import LimitOptions, Protected, set_private
 
 if TYPE_CHECKING:
     # third party imports
@@ -221,16 +221,6 @@ class Problem(Protected):
         self._abort: bool = False
         self.catch_keyboard_interrupt = True
 
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = (
-            "spectral_method",
-            "_spectral_method",
-            "catch_keyboard_interrupt",
-            "_abort",
-            "_catch_keyboard_interrupt",
-            "sense",
-            "_sense",
-        )
         self.spectral_method = DEFAULT_SPECTRAL_METHOD
         self.sense = DEFAULT_SENSE
 
@@ -386,11 +376,11 @@ class Problem(Protected):
             raise ValueError(msg)
 
     def _signal_handler(self, signum: int, frame: FrameType | None) -> None:  # noqa: ARG002
-        self._abort = True
+        set_private(self, "_abort", value=True)
 
     def _intermediate_cb(self, *args: Any) -> bool:  # noqa: ARG002
         if self._abort:
-            self._abort = False
+            set_private(self, "_abort", value=False)
             return False
         return True
 
@@ -436,7 +426,7 @@ def _check_scale_elements(name: str, value: Array) -> None:
         raise ValueError(msg)
 
 
-class ScaleArray(Protected):
+class ScaleArray:
     """Scale array."""
 
     name: str
@@ -472,7 +462,7 @@ class ScaleArray(Protected):
             msg = f"{label} must be an array of length {shape[0]}."
             raise ValueError(msg)
         _check_scale(label, scale)
-        setattr(instance, "_" + self.name, scale)
+        set_private(instance, "_" + self.name, scale)
 
 
 class ScalePhase(Protected):
@@ -488,22 +478,7 @@ class ScalePhase(Protected):
     path : ScaleArray
     """
 
-    _allowed_attrs = (
-        "state",
-        "control",
-        "integral",
-        "dynamics",
-        "path",
-        "time",
-        "_state",
-        "_control",
-        "_integral",
-        "_dynamics",
-        "_path",
-        "_time",
-        "_p",
-        "p",
-    )
+    _time: float
 
     state: ScaleArray = ScaleArray()
     """State scaling array for a single phase."""
@@ -546,7 +521,7 @@ class ScalePhase(Protected):
     def time(self, value: float) -> None:
         scale = float(value)
         _check_scale(f"Scale 'time' in phase {self._p}", scale)
-        self._time = scale
+        set_private(self, "_time", scale)
 
     def validate(self) -> None:
         """Check every scale factor of the phase, including elements set in place.
@@ -565,16 +540,7 @@ class ScalePhase(Protected):
 class Scale(Protected):
     """Scaling object."""
 
-    _allowed_attrs = (
-        "_phase",
-        "_discrete",
-        "_parameter",
-        "objective",
-        "_objective",
-        "phase",
-        "discrete",
-        "parameter",
-    )
+    _objective: float
 
     phase: tuple[ScalePhase, ...]
     discrete: ScaleArray = ScaleArray()
@@ -604,7 +570,7 @@ class Scale(Protected):
                 "of a negative scale factor."
             )
             raise ValueError(msg)
-        self._objective = float(value)
+        set_private(self, "_objective", float(value))
 
     def validate(self) -> None:
         """Check every scale factor, including array elements set in place.
@@ -660,8 +626,6 @@ class Derivatives(Protected):
         Order of derivatives used in search for optimum.
     """
 
-    _allowed_attrs = ("_method", "_order", "method", "order")
-
     order: LimitOptions[str] = LimitOptions(("first", "second"))
     """Order of derivatives used in search for optimum."""
 
@@ -677,7 +641,46 @@ class Derivatives(Protected):
         self._order = DEFAULT_DERIVATIVE_ORDER
 
 
-class UserFunctions:
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+class Callback(Generic[F]):
+    """A `UserFunctions` slot: a callable taking exactly one argument, or None."""
+
+    name: str
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        """Record the attribute name."""
+        self.name = name
+
+    def __get__(self, instance: UserFunctions | None, owner: type) -> F | None:
+        """Return the callback, or None if it has not been set."""
+        if instance is None:
+            return self  # type: ignore[return-value]
+        return cast("F | None", instance.__dict__.get("_" + self.name))
+
+    def __set__(self, instance: UserFunctions, value: F | None) -> None:
+        """Set the callback after checking it can be called with one argument."""
+        if value is not None:
+            msg = f"Value of '{self.name}' must be a callable object with one argument, or None."
+            if not callable(value):
+                raise TypeError(msg)
+            params = inspect.signature(value).parameters
+            positional = (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.POSITIONAL_ONLY,
+            )
+            if len(params) != 1 or not all(p.kind in positional for p in params.values()):
+                raise TypeError(msg)
+        set_private(instance, "_" + self.name, value)
+
+    def __delete__(self, instance: UserFunctions) -> None:
+        """Refuse deletion, saying how to unset a callback."""
+        msg = f"cannot delete 'UserFunctions' attribute '{self.name}'; set to None instead"
+        raise AttributeError(msg)
+
+
+class UserFunctions(Protected):
     """Container for the user-defined callback functions and their derivatives.
 
     The `functions` attribute of a `Problem` instance is an instance of the `UserFunctions`
@@ -708,75 +711,19 @@ class UserFunctions:
     discrete_hessian : DiscreteHessianFunction | None
     """
 
-    def __init__(self) -> None:
-        """Initialize the user functions."""
-        self.objective: ObjectiveFunction | None = None
-        self.objective_gradient: ObjectiveGradientFunction | None = None
-        self.objective_hessian: ObjectiveHessianFunction | None = None
-        self.continuous: ContinuousFunction | None = None
-        self.continuous_jacobian: ContinuousJacobianFunction | None = None
-        self.continuous_hessian: ContinuousHessianFunction | None = None
-        self.discrete: DiscreteFunction | None = None
-        self.discrete_jacobian: DiscreteJacobianFunction | None = None
-        self.discrete_hessian: DiscreteHessianFunction | None = None
-
-    _function_names = (
-        "objective",
-        "objective_gradient",
-        "objective_hessian",
-        "continuous",
-        "continuous_jacobian",
-        "continuous_hessian",
-        "discrete",
-        "discrete_jacobian",
-        "discrete_hessian",
-    )
-
-    def __setattr__(self, key: str, value: Callable[[Any], None] | None) -> None:
-        """Set the value of the attribute."""
-        if key not in self._function_names:
-            msg = f"Cannot set 'UserFunctions' attribute '{key}'"
-            raise AttributeError(msg)
-
-        # None is a valid value
-        if value is None:
-            super().__setattr__(key, value)
-            return
-
-        # Check if the value is a callable object with one argument
-        msg = f"Value of '{key}' must be a callable object with one argument, or None."
-        if not callable(value):
-            raise TypeError(msg)
-        sig = inspect.signature(value)
-        # Count the parameters in the signature
-        params = sig.parameters
-        if len(params) != 1 or not all(
-            p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY)
-            for p in params.values()
-        ):
-            raise TypeError(msg)
-
-        super().__setattr__(key, value)
-
-    def __delattr__(self, key: str) -> None:
-        """Raise an error if the attribute is deleted."""
-        if key not in self._function_names:
-            msg = f"Cannot delete function '{key}'; set to None instead."
-            raise AttributeError(msg)
-        msg = f"Cannot delete 'UserFunctions' attribute '{key}'"
-        raise AttributeError(msg)
+    objective: Callback[ObjectiveFunction] = Callback()
+    objective_gradient: Callback[ObjectiveGradientFunction] = Callback()
+    objective_hessian: Callback[ObjectiveHessianFunction] = Callback()
+    continuous: Callback[ContinuousFunction] = Callback()
+    continuous_jacobian: Callback[ContinuousJacobianFunction] = Callback()
+    continuous_hessian: Callback[ContinuousHessianFunction] = Callback()
+    discrete: Callback[DiscreteFunction] = Callback()
+    discrete_jacobian: Callback[DiscreteJacobianFunction] = Callback()
+    discrete_hessian: Callback[DiscreteHessianFunction] = Callback()
 
 
 class MeshPhase(Protected):
     """MeshPhase instances represent the mesh structure of a phase of the NLP."""
-
-    _allowed_attrs = (
-        "collocation_points",
-        "fraction",
-        "_fraction",
-        "_collocation_points",
-    )
-    _allowed_del_attrs = ()
 
     def __init__(self) -> None:
         self._fraction: Sequence[float] = 10 * (0.1,)
@@ -795,7 +742,7 @@ class MeshPhase(Protected):
         if not np.isclose(s, 1.0, atol=0.01):
             msg = f"Sum of mesh fractions must be close to 1.0. Sum is {s}"
             raise ValueError(msg)
-        self._fraction = tuple(fraction / s for fraction in value)
+        set_private(self, "_fraction", tuple(fraction / s for fraction in value))
 
     @property
     def collocation_points(self) -> Sequence[int]:
@@ -816,7 +763,7 @@ class MeshPhase(Protected):
         if not all(isinstance(i, int) and i >= min_collocation_points for i in value):
             msg = "collocation_points must be a sequence of integers, each at least 2"
             raise ValueError(msg)
-        self._collocation_points = tuple(value)
+        set_private(self, "_collocation_points", tuple(value))
 
 
 class Mesh(Protected):

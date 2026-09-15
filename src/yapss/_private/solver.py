@@ -31,6 +31,7 @@ from .mseipopt import bare_np, initialize_ipopt
 from .nlp import NLP
 from .solution import Solution, make_solution_object
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
+from .types_ import set_private
 from .user import make_user_functions
 
 # In a Conda environment CasADi, and so YAPSS, uses conda-forge's Ipopt package, which
@@ -237,7 +238,7 @@ def solve(problem: yapss.Problem) -> Solution:
                     z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0)
                 finally:
                     signal.signal(signal.SIGINT, original_handler)
-                    problem._abort = False
+                    set_private(problem, "_abort", value=False)
             else:
                 z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0)
     finally:

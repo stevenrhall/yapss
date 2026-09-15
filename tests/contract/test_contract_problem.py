@@ -301,21 +301,18 @@ def test_class_access_to_a_setting():
     assert Problem.sense is not None
 
 
-@not_yet("E9", "a private backing name cannot be used to bypass validation")
 def test_private_backing_names_are_not_writable():
     ocp = callback_problem()
     with raises(AttributeError, "_spectral_method", at="_spectral_method ="):
         ocp._spectral_method = "LGX"
 
 
-@not_yet("E9", "a misspelled attribute message suggests the intended name")
 def test_misspelled_attribute_message_suggests_the_name():
     ocp = callback_problem()
     with raises(AttributeError, "spectral_method"):
         ocp.spectral_metod = "lg"
 
 
-@not_yet("W3 / E9", "Mesh rejects misspelled attributes and mesh.phase cannot be reassigned")
 @pytest.mark.parametrize("attribute", ["phses", "phase"])
 def test_mesh_is_protected(attribute):
     ocp = callback_problem()
@@ -323,7 +320,6 @@ def test_mesh_is_protected(attribute):
         setattr(ocp.mesh, attribute, ())
 
 
-@not_yet("W3", "deleting a real callback says to set it to None; a bogus name is unknown")
 def test_function_deletion_messages():
     ocp = callback_problem()
     with raises(AttributeError, "set to None"):

@@ -42,7 +42,7 @@ from .input_args import (
     ProblemFunctions,
 )
 from .structure import DVStructure, get_nlp_dv_structure
-from .types_ import CFKey, PhaseIndex
+from .types_ import CFKey, PhaseIndex, set_private
 
 if TYPE_CHECKING:
     # standard imports
@@ -215,7 +215,7 @@ def make_continuous_jacobian(
 
         for p in [PhaseIndex(p) for p in arg.phase_list]:
             jacobian = arg.phase[p].jacobian
-            arg2._phase_list = (p,)
+            set_private(arg2, "_phase_list", (p,))
             ne = len(arg2.phase[p].time)
 
             for cv_key, cf_keys in cjfds[p]:
@@ -409,7 +409,7 @@ def make_continuous_hessian(
         for p in [PhaseIndex(p) for p in phase_list]:
             hessian = arg.phase[p].hessian
             ne = len(arg2.phase[p].time)
-            arg2._phase_list = (p,)
+            set_private(arg2, "_phase_list", (p,))
             # the functions at the unperturbed point, snapshotted on the first diagonal
             # pair and shared by all of them (see below)
             base: dict[CFKey, Array] | None = None

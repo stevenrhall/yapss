@@ -250,7 +250,6 @@ def test_scale_reset():
     assert ocp.scale.objective == 1.0
 
 
-@not_yet("W3 (B2 remainder)", "scale.phase cannot be reassigned")
 def test_scale_phase_is_read_only():
     ocp = problem()
     with raises(AttributeError, at="phase ="):

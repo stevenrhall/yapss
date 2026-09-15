@@ -21,7 +21,7 @@ from casadi import SX
 from yapss.math.wrapper import SXW, sx_array
 
 # package imports
-from .types_ import Protected
+from .types_ import Field, Protected
 
 if TYPE_CHECKING:
     from collections.abc import Sequence, MutableSequence
@@ -138,11 +138,6 @@ class DiscretePhase(Protected, Generic[T]):
         self._initial_time: NDArray[T] = dv_phase.t0
         self._final_time: NDArray[T] = dv_phase.tf
         self._integral: NDArray[T] = dv_phase.q
-        # `Protected` rejects every other assignment from here on, so a misspelled
-        # attribute such as `arg.phase[0].objective = ...` raises instead of being
-        # stored and ignored. The properties above have no setters.
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ()
 
     @property
     def initial_time(self) -> T:
@@ -184,6 +179,9 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
     auxdata: Auxdata
     """SimpleNamespace container for user-defined data."""
 
+    objective: Field[T] = Field()
+    """The objective value, set by the callback."""
+
     def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
         # Initialize the DiscreteArgBase with problem and dv
         DiscreteArgBase.__init__(self, problem, dv, dtype)
@@ -195,9 +193,6 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
         else:
             msg = f"Unsupported type for objective: {dtype}"
             raise TypeError(msg)
-        # Immutable attributes enforcement
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ("objective",)
 
 
 class ObjectiveGradientArg(DiscreteArgBase[np.float64], Protected):
@@ -222,9 +217,6 @@ class ObjectiveGradientArg(DiscreteArgBase[np.float64], Protected):
         DiscreteArgBase.__init__(self, problem, dv, np.float64)
         # Initialize the gradient dictionary with the specific type T for values
         self.gradient: dict[DVKey, float | np.floating[Any]] = {}
-        # Attributes to enforce immutability restrictions
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ()
 
 
 class ObjectiveHessianArg(DiscreteArgBase[np.float64], Protected):
@@ -249,9 +241,6 @@ class ObjectiveHessianArg(DiscreteArgBase[np.float64], Protected):
         DiscreteArgBase.__init__(self, problem, dv, np.float64)
         # Initialize hessian as an empty dictionary with values of type T
         self.hessian: dict[OHSTerm, float] = {}
-        # Attributes to enforce immutability restrictions
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ()
 
 
 class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
@@ -277,9 +266,6 @@ class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
         # Initialize the discrete array with the specified dtype
         self._discrete: NDArray[T] = np.zeros([problem.nd], dtype=dtype)
         self._dv = dv
-        # Attributes to enforce immutability restrictions
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ("discrete",)
 
     # Use the Discrete descriptor with generic typing for consistency
 
@@ -318,9 +304,6 @@ class DiscreteJacobianArg(DiscreteArgBase[np.float64], Protected):
         # Initialize jacobian as an empty dictionary with values of type T
         self.jacobian: dict[tuple[DFIndex, DVKey], float] = {}
         self._dv = dv
-        # Attributes to enforce immutability restrictions
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ()
 
 
 class DiscreteHessianArg(DiscreteArgBase[np.float64], Protected):
@@ -347,12 +330,9 @@ class DiscreteHessianArg(DiscreteArgBase[np.float64], Protected):
         # Initialize hessian as an empty dictionary with values of type T
         self.hessian: dict[tuple[DFIndex, DVKey, DVKey], float] = {}
         self._dv = dv
-        # Attributes to enforce immutability restrictions
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ()
 
 
-class ContinuousArrayDescriptor(Generic[T], Protected):
+class ContinuousArrayDescriptor(Generic[T]):
     """Descriptor for continuous array, supporting flexible data types."""
 
     name: str
@@ -405,9 +385,6 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         )
         # Initialize phase list based on problem.np
         self._phase_list: tuple[int, ...] = tuple(range(problem.np))
-        self._allowed_del_attrs = ()
-        # Update allowed attributes to reflect the correct structure
-        self._allowed_attrs = ("_phase_list", "_phase", "_tau_u")
 
     def _sync(self, z: NDArray[np.float64]) -> None:
         """Synchronize numeric continuous inputs with an NLP decision vector."""
@@ -527,9 +504,6 @@ class ContinuousPhase(Protected, Generic[T]):
         self._descriptor_values["path"] = ContinuousArray([nh, nt], dtype=dtype)
         self._hessian: dict[tuple[CFKey, CVKey, CVKey], Any] = {}
         self._jacobian: dict[tuple[CFKey, CVKey], Any] = {}
-
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ("dynamics", "integrand", "path")
 
     @property
     def jacobian(self) -> dict[tuple[CFKey, CVKey], Any]:

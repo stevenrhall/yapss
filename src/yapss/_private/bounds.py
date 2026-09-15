@@ -22,7 +22,7 @@ from numpy import float64
 
 # package imports
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
-from .types_ import Protected
+from .types_ import Protected, set_private
 
 if TYPE_CHECKING:
     # standard library imports
@@ -59,7 +59,7 @@ class ArrayBound:
         if bound.shape != (obj._n,):
             msg = f"ArrayBound must be a sequence of floats of length {obj._n}."
             raise ValueError(msg)
-        setattr(obj, self.private_name, bound)
+        set_private(obj, self.private_name, bound)
 
 
 class ArrayBounds(Protected):
@@ -82,9 +82,6 @@ class ArrayBounds(Protected):
         self._name = name
         self._lower: NDArray[np.float64] = np.array(n * [-np.inf], dtype=float64)
         self._upper: NDArray[np.float64] = np.array(n * [+np.inf], dtype=float64)
-
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ("upper", "lower", "_upper", "_lower")
 
     def reset(self) -> None:
         """Reset the bounds to their default values."""
@@ -162,7 +159,7 @@ class ScalarBound:
         if isinstance(value, bool) or not isinstance(value, (int, float, np.integer, np.floating)):
             msg = f"attribute '{self._name}' must be a float, not {type(value)}"
             raise TypeError(msg)
-        setattr(obj, "_" + self._name, float(value))
+        set_private(obj, "_" + self._name, float(value))
 
 
 class ScalarBounds(Protected):
@@ -176,8 +173,6 @@ class ScalarBounds(Protected):
         Lower bound.
     """
 
-    _allowed_attrs = ("__dict__", "upper", "lower", "_upper", "_lower", "_name", "_p")
-
     upper: ScalarBound = ScalarBound()
     lower: ScalarBound = ScalarBound()
 
@@ -187,8 +182,6 @@ class ScalarBounds(Protected):
         self._lower: float = -float("inf")
         self._name = name
         self._p = phase
-        self.__dict__["lower"] = -float("inf")
-        self.__dict__["upper"] = +float("inf")
 
     def reset(self) -> None:
         """Reset the bounds to their default values."""
@@ -412,8 +405,6 @@ class Bounds(Protected):
         self.phase = tuple(phase_bounds)
         self.discrete = ArrayBounds(-1, "discrete", problem.nd)
         self.parameter = ArrayBounds(-1, "parameter", problem.ns)
-        self._allowed_del_attrs = ()
-        self._allowed_attrs = ()
 
     def reset(self) -> None:
         """Reset all bounds to default values across phases, parameters, and constraints."""

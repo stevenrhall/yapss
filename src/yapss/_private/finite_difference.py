@@ -47,6 +47,7 @@ from .input_args import (
     ProblemFunctions,
 )
 from .structure import DVStructure, get_nlp_dv_structure
+from .types_ import set_private
 
 if TYPE_CHECKING:
     # standard imports
@@ -137,7 +138,7 @@ def get_continuous_jacobian_structure_nan(
 
     for p in range(problem.np):
         continuous = cast(ContinuousFunctionFloat, problem.functions.continuous)
-        arg._phase_list = (p,)
+        set_private(arg, "_phase_list", (p,))
         phase = arg.phase[p]
 
         cjs_phase: list[CJSTerm] = []

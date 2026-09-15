@@ -16,7 +16,7 @@ from scipy.interpolate import interp1d
 
 # package imports
 from .structure import DVStructure, get_nlp_dv_structure
-from .types_ import Protected
+from .types_ import Protected, set_private
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -66,7 +66,7 @@ class PhaseArrayGuess:
         value = getattr(instance, self.private_name)
         if value is None:
             value = np.zeros([getattr(instance, self.len_name), instance._nt], dtype=float)
-            setattr(instance, self.private_name, value)
+            set_private(instance, self.private_name, value)
         assert isinstance(value, np.ndarray)
         return value
 
@@ -92,10 +92,10 @@ class PhaseArrayGuess:
         if shape[1] < array_dimensions:
             msg = f"'guess.phase[{instance._p}].{self.name}' must have at least 2 columns."
             raise ValueError(msg)
-        setattr(instance, self.private_name, value)
+        set_private(instance, self.private_name, value)
 
 
-class Parameter(Protected):
+class Parameter:
     """Parameter descriptor."""
 
     name: str | None
@@ -118,7 +118,7 @@ class Parameter(Protected):
 
         # Initialize _attr_parameter if it doesn't exist
         if not hasattr(instance, private_name):
-            setattr(instance, private_name, np.zeros(instance._ns, dtype=np.float64))
+            set_private(instance, private_name, np.zeros(instance._ns, dtype=np.float64))
 
         # Retrieve and return the attribute value
         value = getattr(instance, private_name)
@@ -136,7 +136,7 @@ class Parameter(Protected):
             raise ValueError(msg)
 
         # Set the parameter array on the instance
-        setattr(instance, private_name, array_value)
+        set_private(instance, private_name, array_value)
 
 
 class Guess(Protected):
@@ -154,18 +154,6 @@ class Guess(Protected):
     # `problem.guess.parmeter = ...` raises instead of being stored and ignored. The
     # private names are the fields set in `__init__` and the `Parameter` descriptor's
     # backing store.
-    _allowed_attrs = (
-        "parameter",
-        "_attr_parameter",
-        "_ns",
-        "_nx",
-        "_nu",
-        "_nq",
-        "_problem",
-        "_parameter",
-        "_phase",
-    )
-    _allowed_del_attrs = ()
 
     def __init__(self, problem: yapss.Problem) -> None:
         """Initialize the guess object.
@@ -234,7 +222,7 @@ class Guess(Protected):
         self.parameter = solution.parameter
 
 
-class TimeGuess(Protected):
+class TimeGuess:
     """Time descriptor."""
 
     name: str
@@ -263,8 +251,8 @@ class TimeGuess(Protected):
         if np.any(np.diff(t) <= 0):
             msg = base_msg + "but the values were not strictly increasing."
             raise ValueError(msg)
-        setattr(instance, "_" + self.name, t)
-        instance._nt = len(t)
+        set_private(instance, "_" + self.name, t)
+        set_private(instance, "_nt", len(t))
         # A stored state or control guess that is still all zeros is the default,
         # whether created on read or assigned as zeros; if its length no longer matches,
         # drop it so it is regenerated at the new length on the next read. An array with
@@ -273,7 +261,7 @@ class TimeGuess(Protected):
         for name in ("_state", "_control"):
             stored = getattr(instance, name)
             if stored is not None and stored.shape[1] != len(t) and not np.any(stored):
-                setattr(instance, name, None)
+                set_private(instance, name, None)
 
 
 class PhaseGuess(Protected):
@@ -292,22 +280,6 @@ class PhaseGuess(Protected):
     state: PhaseArrayGuess = PhaseArrayGuess()
     control: PhaseArrayGuess = PhaseArrayGuess()
     time: TimeGuess = TimeGuess()
-
-    _allowed_attrs = (
-        "_n_state",
-        "_n_control",
-        "_nq",
-        "_p",
-        "_nt",
-        "_time",
-        "_state",
-        "_control",
-        "_integral",
-        "time",
-        "state",
-        "control",
-        "integral",
-    )
 
     def __init__(self, problem: yapss.Problem, p: int) -> None:
         self._p = p

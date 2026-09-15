@@ -17,6 +17,18 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ## [Unreleased]
 
+### Changed
+
+- Every part of the problem definition, and every callback argument, checks assignments
+  the same way. An attribute that cannot be set is refused with a message that says why:
+  a misspelling names the closest attribute (`cannot set 'Problem' attribute
+  'spectral_metod': no such attribute; did you mean 'spectral_method'?`), and an attribute
+  without a setter is read-only (`cannot set 'Mesh' attribute 'phase': it is read-only`).
+  Deleting a callback says to set it to `None` instead.
+- Type checkers such as mypy now flag a misspelled attribute assignment, for example
+  `problem.sence = "maximize"`. They accepted every assignment before, because the
+  protection was visible to them as a general `__setattr__`.
+
 ### Removed
 
 - The cyipopt backend. In a Conda environment YAPSS now calls Ipopt through the same
@@ -35,6 +47,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- `problem.mesh` now rejects misspelled attributes, and `problem.mesh.phase` and
+  `problem.scale.phase` can no longer be reassigned. Reassigning either was accepted and
+  then failed inside `solve()` with an `IndexError` naming no attribute.
+- A private backing attribute, such as `problem._spectral_method`, can no longer be
+  assigned. Assigning one bypassed the check on the public attribute, so an invalid value
+  was stored and failed later inside `solve()`.
 - On a phase of zero duration, `control_multiplier` and `path_multiplier` are now NaN at
   every point, as documented in 0.2.3. They were computed by dividing by the zero duration,
   which gives NaN only where Ipopt's multiplier is exactly zero. Nothing requires it to be

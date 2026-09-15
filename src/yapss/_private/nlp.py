@@ -49,6 +49,7 @@ from .input_args import (
 )
 from .jacobian import make_nlp_jacobian
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
+from .types_ import set_private
 
 if TYPE_CHECKING:
     # standard imports
@@ -465,13 +466,13 @@ class ContinuousEvaluator:
             self._z = np.array(z, dtype=np.float64, copy=True)
 
         if self._order_done < 0:
-            arg._phase_list = tuple(range(self._np))
+            set_private(arg, "_phase_list", tuple(range(self._np)))
             if self._np > 0:
                 cast(ContinuousFunctionFloat, self._functions.continuous)(arg)
             self._order_done = 0
 
         if order >= 1 and self._order_done < 1:
-            arg._phase_list = tuple(range(self._np))
+            set_private(arg, "_phase_list", tuple(range(self._np)))
             for p in range(self._np):
                 arg.phase[p].jacobian.clear()
             self._functions.continuous_jacobian(cast(ContinuousJacobianArg, arg))
