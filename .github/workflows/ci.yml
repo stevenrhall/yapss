@@ -94,6 +94,13 @@ jobs:
             python-version: '3.13'
           - os: macos-latest
             python-version: '3.14'
+          # Linux aarch64, one Python. Ubuntu 22.04 rather than 24.04 because its
+          # older libstdc++ is where a mis-tagged CasADi wheel fails to import
+          # (CasADi 3.8.0's manylinux_2_28 aarch64 wheel did), so a CasADi ceiling
+          # raise is checked here rather than by hand in a container. 3.13 because
+          # CasADi 3.7.2 publishes no cp314 aarch64 wheel.
+          - os: ubuntu-22.04-arm
+            python-version: '3.13'
     steps:
       - uses: actions/checkout@v7
 
@@ -136,7 +143,8 @@ jobs:
   # conda-forge's own IPOPT package rather than the one bundled in its wheel, so
   # mseipopt resolves a different library in a different layout ($PREFIX/lib, or
   # Library\bin on Windows, with the header found relative to it). Nothing else
-  # here exercises that, and the layout differs by OS, hence all three.
+  # here exercises that, and the layout differs by OS, hence all three, plus Linux
+  # aarch64, where conda-forge builds its own CasADi and Ipopt as well.
   test-conda:
     if: >-
       github.event_name == 'pull_request'
@@ -149,6 +157,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - ubuntu-24.04-arm
           - macos-latest
           - windows-latest
     defaults:
