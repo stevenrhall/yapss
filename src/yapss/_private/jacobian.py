@@ -288,7 +288,7 @@ def defect_time_block(i: int, geometry: PhaseGeometry) -> JacobianBlock:
     defect_index = geometry.defect_index
 
     def evaluate(context: JacobianContext) -> FloatArray:
-        dynamics = np.asarray(context.continuous_phase(p).dynamics[i], dtype=np.float64)
+        dynamics = context.continuous_phase(p).dynamics.view(np.ndarray)[i]
         term = dynamics[defect_index]
         return np.concatenate((-0.5 * term, 0.5 * term))
 
@@ -306,7 +306,7 @@ def integral_time_block(i: int, geometry: PhaseGeometry) -> JacobianBlock:
     integral_row = int(geometry.twins.cf.phase[p].integral[i])
 
     def evaluate(context: JacobianContext) -> FloatArray:
-        integrand = np.asarray(context.continuous_phase(p).integrand[i], dtype=np.float64)
+        integrand = context.continuous_phase(p).integrand.view(np.ndarray)[i]
         integral = (w * integrand).sum()
         return np.array([-0.5 * integral, 0.5 * integral])
 

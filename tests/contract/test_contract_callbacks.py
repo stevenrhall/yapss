@@ -1,8 +1,11 @@
 """Contract: the objective, continuous, and discrete callbacks, and user derivatives.
 
 What a user may do
-    - Assign continuous outputs as a tuple or list of rows, row by row, or by slices; each
-      row an expression over the phase's points or a constant scalar.
+    - Assign continuous outputs by whole rows: as a tuple or list of rows, a 2-D array, row by
+      row (negative indices count from the end), or by slices (any step); each row an
+      expression over the phase's points, a list with one value per point, or a constant
+      scalar. A constant scalar may fill several rows. In-place operators (`+=`, `-=`, ...)
+      work on a row and on the whole output.
     - Assign `arg.objective` a scalar expression, and `arg.discrete` whole, by element, or
       by slice.
     - Loop over `arg.phase_list`, read `arg.auxdata`, and use `yapss.math` or NumPy's
@@ -14,7 +17,12 @@ What a user may get wrong
     - An exception raised inside a callback propagates unchanged, with the traceback at the
       raising line, under every derivative method.
     - A tuple of the wrong number of rows, or rows for an output the phase does not have:
-      `ValueError` at the assignment.
+      `ValueError` at the assignment, naming the output, the phase, and the count.
+    - A write below row level (an element, part of a row, a column, a mask, `np.copyto`, a
+      ufunc's `out=`): `TypeError` at the line, showing the whole-row forms. A row value that
+      fits only by broadcasting (a length-1 array over several points, one expression over
+      the points into several rows): `ValueError` at the assignment. A row index out of
+      range: `IndexError` naming the count.
     - A misspelled output, or an assignment to an input: `AttributeError` at the line.
     - A Python `if` on a problem variable: `TypeError` under `"auto"` (pointing to
       `yapss.math.where`), `ValueError` in the continuous callback under the numeric
@@ -82,6 +90,28 @@ def continuous_writing(form):
                 dynamics[2:] = rows[2:]
             elif form == "numpy ufuncs":
                 dynamics[:] = v * np.cos(u), v * np.sin(u), G0 * np.sin(u)
+            elif form == "negative indices":
+                dynamics[-3], dynamics[-2], dynamics[-1] = rows
+            elif form == "stepped slice":
+                dynamics[::2] = rows[0], rows[2]
+                dynamics[1] = rows[1]
+            elif form == "attribute":
+                arg.phase[p].dynamics = rows
+            elif form == "2-D array":
+                dynamics[:] = np.vstack(rows)
+            elif form == "list per point":
+                for i, row in enumerate(rows):
+                    dynamics[i] = [row[k] for k in range(len(row))]
+            elif form == "in-place on rows":
+                dynamics[0] = rows[0] / 2
+                dynamics[0] += rows[0] / 2
+                dynamics[1] = 2 * rows[1]
+                dynamics[1] /= 2
+                dynamics[2] = 0.0
+                dynamics[2] -= -rows[2]
+            elif form == "in-place on the output":
+                arg.phase[p].dynamics = 0.0
+                arg.phase[p].dynamics += rows
             arg.phase[p].path[0] = v
             arg.phase[p].integrand[0] = u**2
 
@@ -96,7 +126,23 @@ def test_every_method_solves_the_same_problem(method, baseline):
     assert solve_objective(callback_problem(method)) == pytest.approx(baseline, rel=1e-9)
 
 
-@pytest.mark.parametrize("form", ["tuple", "list", "row by row", "slices", "numpy ufuncs"])
+@pytest.mark.parametrize(
+    "form",
+    [
+        "tuple",
+        "list",
+        "row by row",
+        "slices",
+        "numpy ufuncs",
+        "negative indices",
+        "stepped slice",
+        "attribute",
+        "2-D array",
+        "list per point",
+        "in-place on rows",
+        "in-place on the output",
+    ],
+)
 @pytest.mark.parametrize("method", METHODS)
 def test_continuous_outputs_accept_every_documented_form(method, form, baseline):
     ocp = callback_problem(method, continuous=continuous_writing(form))
@@ -110,6 +156,23 @@ def test_a_constant_scalar_row_is_broadcast_over_the_points(method):
         arg.phase[0].integrand[:] = (0.25,)
 
     assert callback_problem(method, continuous=continuous).solve().nlp_info.ipopt_status == 0
+
+
+@pytest.mark.parametrize("method", METHODS)
+def test_a_constant_scalar_may_fill_several_rows(method):
+    def continuous(arg):
+        _, _, v = arg.phase[0].state
+        (u,) = arg.phase[0].control
+        arg.phase[0].dynamics[:] = 0.0
+        arg.phase[0].dynamics[0:2] = v * ym.cos(u), v * ym.sin(u)
+        arg.phase[0].dynamics[2] = G0 * ym.sin(u)
+        arg.phase[0].path[:] = (v,)
+        arg.phase[0].integrand[:] = (u**2,)
+
+    assert solve_objective(callback_problem(method, continuous=continuous)) == pytest.approx(
+        solve_objective(callback_problem(method)),
+        rel=1e-9,
+    )
 
 
 @pytest.mark.parametrize("form", ["element", "slice"])
@@ -177,6 +240,81 @@ def test_wrong_number_of_rows_raises_at_the_assignment(method):
         arg.phase[0].dynamics[:] = (v, v)
 
     with raises(ValueError, "3 rows", at="dynamics[:] ="):
+        callback_problem(method, continuous=continuous).solve()
+
+
+BELOW_ROW_LEVEL = {
+    "element": "arg.phase[0].dynamics[0, 1] = 0.0",
+    "column": "arg.phase[0].dynamics[:, 1] = 0.0",
+    "mask": "arg.phase[0].dynamics[[True, False, True]] = 0.0",
+    "part of a row": "arg.phase[0].dynamics[0][:2] = 0.0",
+    "element of a row": "arg.phase[0].dynamics[0][1] = 0.0",
+    "in-place on part of a row": "arg.phase[0].dynamics[0][:2] += 1.0",
+    "np.copyto": "np.copyto(arg.phase[0].dynamics[0], 0.0)",
+    "ufunc out=": "np.multiply(arg.phase[0].dynamics[0], 2.0, out=arg.phase[0].dynamics[0])",
+}
+
+
+@pytest.mark.parametrize("statement", BELOW_ROW_LEVEL.values(), ids=BELOW_ROW_LEVEL.keys())
+@pytest.mark.parametrize("method", METHODS)
+def test_a_write_below_row_level_raises_at_the_line(method, statement):
+    def continuous(arg):
+        default_continuous(arg)
+        exec(statement, {"arg": arg, "np": np})  # noqa: S102 -- one parametrized statement per case
+
+    with raises(TypeError, "arg.phase[0].dynamics", "whole row", at="exec"):
+        callback_problem(method, continuous=continuous).solve()
+
+
+def test_slice_write_to_an_output_with_no_rows_raises():
+    ocp = brachistochrone.setup()
+    ocp.derivatives.method = "central-difference"
+    continuous = ocp.functions.continuous
+
+    def with_path(arg):
+        continuous(arg)
+        arg.phase[0].path[:] = arg.phase[0].state[2]
+
+    ocp.functions.continuous = with_path
+    with raises(ValueError, "nh", at="path[:] ="):
+        ocp.solve()
+
+
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+def test_one_row_broadcast_into_several_rows_raises():
+    def continuous(arg):
+        default_continuous(arg)
+        arg.phase[0].dynamics[:] = arg.phase[0].state[2]
+
+    with raises(ValueError, "dynamics", at="dynamics[:] ="):
+        callback_problem("central-difference", continuous=continuous).solve()
+
+
+def test_length_one_array_row_raises():
+    def continuous(arg):
+        default_continuous(arg)
+        arg.phase[0].integrand[0] = np.atleast_1d(arg.phase[0].control[0])[:1]
+
+    with raises(ValueError, "integrand", at="integrand[0] ="):
+        callback_problem("central-difference", continuous=continuous).solve()
+
+
+def test_row_count_message_names_the_output_and_phase():
+    def continuous(arg):
+        _, _, v = arg.phase[0].state
+        arg.phase[0].dynamics[:] = (v, v)
+
+    with raises(ValueError, "phase 0", "dynamics"):
+        callback_problem(continuous=continuous).solve()
+
+
+@pytest.mark.parametrize("method", METHODS)
+def test_a_row_index_out_of_range_raises_naming_the_count(method):
+    def continuous(arg):
+        default_continuous(arg)
+        arg.phase[0].path[1] = arg.phase[0].state[2]
+
+    with raises(IndexError, "arg.phase[0].path[1]", "nh = 1", at="path[1] ="):
         callback_problem(method, continuous=continuous).solve()
 
 
@@ -496,52 +634,6 @@ def test_output_never_written_warns(output):
 
     with pytest.warns(Warning, match=output):
         callback_problem(continuous=continuous, discrete=discrete).solve()
-
-
-@not_yet("E1", "a slice write to an output with no rows raises, naming the count (e.g. nh)")
-def test_slice_write_to_an_output_with_no_rows_raises():
-    ocp = brachistochrone.setup()
-    ocp.derivatives.method = "central-difference"
-    continuous = ocp.functions.continuous
-
-    def with_path(arg):
-        continuous(arg)
-        arg.phase[0].path[:] = arg.phase[0].state[2]
-
-    ocp.functions.continuous = with_path
-    with raises(ValueError, "nh", at="path[:] ="):
-        ocp.solve()
-
-
-@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
-@not_yet("E1", "one row written into several rows by broadcasting raises")
-def test_one_row_broadcast_into_several_rows_raises():
-    def continuous(arg):
-        default_continuous(arg)
-        arg.phase[0].dynamics[:] = arg.phase[0].state[2]
-
-    with raises(ValueError, "dynamics", at="dynamics[:] ="):
-        callback_problem("central-difference", continuous=continuous).solve()
-
-
-@not_yet("E1", "a row that is a length-1 array (not a scalar or the points' shape) raises")
-def test_length_one_array_row_raises():
-    def continuous(arg):
-        default_continuous(arg)
-        arg.phase[0].integrand[0] = np.atleast_1d(arg.phase[0].control[0])[:1]
-
-    with raises(ValueError, "integrand", at="integrand[0] ="):
-        callback_problem("central-difference", continuous=continuous).solve()
-
-
-@not_yet("W5", "shape errors name the output and phase")
-def test_row_count_message_names_the_output_and_phase():
-    def continuous(arg):
-        _, _, v = arg.phase[0].state
-        arg.phase[0].dynamics[:] = (v, v)
-
-    with raises(ValueError, "phase 0", "dynamics"):
-        callback_problem(continuous=continuous).solve()
 
 
 @not_yet("W5", "a non-scalar objective raises naming arg.objective")

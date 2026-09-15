@@ -321,22 +321,27 @@ def make_nlp_constraints(
             tf = dv.phase[p].tf[0]
             dt2 = (tf - t0) / 2
 
+            # the callback outputs, read as plain arrays
+            dynamics = ci.phase[p].dynamics.view(np.ndarray)
+            integrand = ci.phase[p].integrand.view(np.ndarray)
+            path = ci.phase[p].path.view(np.ndarray)
+
             # state equation defect, and the boundary defect (empty unless LG)
             defect_index = nlp_cf_phase.defect_index
             for i in range(problem.nx[p]):
-                defect = ci.phase[p].dynamics[i][defect_index] * dt2
+                defect = dynamics[i][defect_index] * dt2
                 defect -= mesh.d[p] @ dv.phase[p].xa[i]
                 nlp_cf_phase.defect[i] += defect
                 nlp_cf_phase.lg_defect[i][:] = mesh.b_lg[p] @ dv.phase[p].xa[i]
 
             # integral evaluation defect
             for i in range(problem.nq[p]):
-                nlp_cf_phase.integral[i] += (mesh.w[p] * ci.phase[p].integrand[i]).sum() * dt2
+                nlp_cf_phase.integral[i] += (mesh.w[p] * integrand[i]).sum() * dt2
                 nlp_cf_phase.integral[i] -= dv.phase[p].q[i]
 
             # path
             for i in range(problem.nh[p]):
-                nlp_cf_phase.path[i] += ci.phase[p].path[i]
+                nlp_cf_phase.path[i] += path[i]
 
             # duration
             nlp_cf_phase.duration[:] = tf - t0

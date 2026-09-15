@@ -19,6 +19,22 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- Callback outputs are assigned by whole rows. `arg.phase[p].dynamics`, `integrand`, and
+  `path` accept a whole output, a slice of rows (any step), or one row (negative indices
+  count from the end), with each row a scalar constant, an expression over the points, or a
+  list with one value per point; a constant may fill several rows (`path[:] = 0.0`); and the
+  in-place operators (`+=`, `-=`, ...) work on a row and on the whole output. `arg.discrete`
+  follows the same rule with one value per row: a single constraint takes a number, not an
+  array of one (`arg.discrete[0] = value[0]`, or the slice `arg.discrete[0:1] = value`).
+  Anything else now raises at the line, with a message naming the output and, for a count,
+  the phase and the count (`cannot assign arg.phase[0].dynamics[:]: expected 3 rows, got 2
+  (nx = 3 in phase 0)`): a write into an element, part of a row, or a column (`TypeError`; a
+  point-by-point loop is written `dynamics[0] = [f(x[k]) for k in range(n)]`), `np.copyto`
+  or a function's `out=` into an output (`TypeError`), a row that does not exist
+  (`IndexError`), and a value whose shape fits only by broadcasting (`ValueError`). Before,
+  those writes were accepted: an expression over the points assigned to several rows, or a
+  length-1 array assigned to a row, was silently broadcast, and a write to an output with no
+  rows was silently ignored.
 - Every part of the problem definition, and every callback argument, checks assignments
   the same way. An attribute that cannot be set is refused with a message that says why:
   a misspelling names the closest attribute (`cannot set 'Problem' attribute

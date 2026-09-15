@@ -12,7 +12,7 @@ from __future__ import annotations
 
 # local package imports
 # standard library imports
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 # third-party imports
 import numpy as np
@@ -268,6 +268,7 @@ def make_discrete_derivatives(
             [casadi_objective_hessian],
         )
 
+    discrete_out: NDArray[Any]
     if problem.nd > 0:
         discrete_function_ = cast(DiscreteFunctionObject, problem.functions.discrete)
         discrete_function_(discrete_arg)

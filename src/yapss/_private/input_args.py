@@ -22,10 +22,11 @@ from yapss.math.wrapper import SXW, sx_array
 
 # package imports
 from .layout import problem_layout
+from .outputs import Output, OutputArray
 from .types_ import Field, Protected
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence, MutableSequence
+    from collections.abc import Sequence
 
     # third party imports
     from numpy.typing import NDArray
@@ -264,20 +265,25 @@ class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
 
     def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
         super().__init__(problem, dv, dtype)
-        # Initialize the discrete array with the specified dtype
-        self._discrete: NDArray[T] = np.zeros([problem.nd], dtype=dtype)
+        # the discrete constraint values, assigned by whole rows (one value each)
+        self._discrete: OutputArray[T] = OutputArray.zeros(
+            (problem.nd,),
+            dtype,
+            label="arg.discrete",
+            count=f"nd = {problem.nd}",
+        )
         self._dv = dv
 
     # Use the Discrete descriptor with generic typing for consistency
 
     @property
-    def discrete(self) -> NDArray[T] | MutableSequence[Any]:
-        """Return the discrete array."""
+    def discrete(self) -> OutputArray[T]:
+        """Return the discrete constraint values."""
         return self._discrete
 
     @discrete.setter
-    def discrete(self, value: NDArray[T] | Sequence[Any]) -> None:
-        """Set the discrete array."""
+    def discrete(self, value: OutputArray[T] | Sequence[Any] | NDArray[Any]) -> None:
+        """Assign every discrete constraint value."""
         self._discrete[:] = value
 
 
@@ -331,27 +337,6 @@ class DiscreteHessianArg(DiscreteArgBase[np.float64], Protected):
         # Initialize hessian as an empty dictionary with values of type T
         self.hessian: dict[tuple[DFIndex, DVKey, DVKey], float] = {}
         self._dv = dv
-
-
-class ContinuousArrayDescriptor(Generic[T]):
-    """Descriptor for continuous array, supporting flexible data types."""
-
-    name: str
-
-    def __set_name__(self, owner: type[Any], name: str) -> None:
-        """Set the name of the attribute."""
-        self.name = name
-
-    def __get__(self, instance: ContinuousPhase[T], owner: type[Any]) -> NDArray[T]:
-        """Get the value of the continuous array as an immutable copy."""
-        # Retrieve the value from the dictionary in instance
-        return instance._descriptor_values[self.name]
-
-    # def __set__(self, instance: ContinuousPhase[T], value: NDArray[T]) -> None:
-    def __set__(self, instance: ContinuousPhase[T], value: Sequence[Any]) -> None:
-        """Set the value of the continuous array."""
-        # Store or update the value in the dictionary to maintain structure
-        instance._descriptor_values[self.name][:] = value
 
 
 class ContinuousArg(BaseArg[T], Protected, Generic[T]):
@@ -416,13 +401,14 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         """
         p, letter, i = item
         phase = self.phase[p]
+        # outputs are read as plain arrays: this accessor is on the central-difference hot path
         match letter:
             case "f":
-                value = phase.dynamics[i]
+                value = phase.dynamics.view(numpy.ndarray)[i]
             case "g":
-                value = phase.integrand[i]
+                value = phase.integrand.view(numpy.ndarray)[i]
             case "h":
-                value = phase.path[i]
+                value = phase.path.view(numpy.ndarray)[i]
             case "x":
                 value = phase.state[i]
             case "u":
@@ -450,9 +436,9 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
 class ContinuousPhase(Protected, Generic[T]):
     """Continuous phase."""
 
-    dynamics: ContinuousArrayDescriptor[T] = ContinuousArrayDescriptor()
-    integrand: ContinuousArrayDescriptor[T] = ContinuousArrayDescriptor()
-    path: ContinuousArrayDescriptor[T] = ContinuousArrayDescriptor()
+    dynamics: Output[T] = Output()
+    integrand: Output[T] = Output()
+    path: Output[T] = Output()
 
     def __init__(
         self,
@@ -461,7 +447,7 @@ class ContinuousPhase(Protected, Generic[T]):
         q: int,
         dtype: type[T],
     ) -> None:
-        self._descriptor_values: dict[str, NDArray[T]] = {}
+        self._outputs: dict[str, OutputArray[T]] = {}
         self._p: int = q
         self._nx: int = problem.nx[q]
         self._nq: int = problem.nq[q]
@@ -489,10 +475,15 @@ class ContinuousPhase(Protected, Generic[T]):
         for i in range(problem.nu[q]):
             self.control[i] = dv.phase[q].u[i]
 
-        # initialize input and output arrays
-        self._descriptor_values["dynamics"] = ContinuousArray([nx, nt], dtype=dtype)
-        self._descriptor_values["integrand"] = ContinuousArray([nq, nt], dtype=dtype)
-        self._descriptor_values["path"] = ContinuousArray([nh, nt], dtype=dtype)
+        # outputs, assigned by whole rows
+        outputs = (("dynamics", "nx", nx), ("integrand", "nq", nq), ("path", "nh", nh))
+        for name, count, rows in outputs:
+            self._outputs[name] = OutputArray.zeros(
+                (rows, nt),
+                dtype,
+                label=f"arg.phase[{q}].{name}",
+                count=f"{count} = {rows} in phase {q}",
+            )
         self._hessian: dict[tuple[CFKey, CVKey, CVKey], Any] = {}
         self._jacobian: dict[tuple[CFKey, CVKey], Any] = {}
 
@@ -505,34 +496,6 @@ class ContinuousPhase(Protected, Generic[T]):
     def hessian(self) -> dict[tuple[CFKey, CVKey, CVKey], Any]:
         """Return hessian."""
         return self._hessian
-
-
-class ContinuousArray(np.ndarray[Any, np.dtype[T]], Generic[T]):
-    """Custom continuous array that initializes with zeros and handles assignment."""
-
-    def __new__(cls, shape: list[int], dtype: type[T], **kwargs: Any) -> ContinuousArray[T]:
-        # Create an instance of ContinuousArray with the specified dtype
-        obj = super().__new__(cls, shape, dtype=dtype, **kwargs)
-        obj.fill(0)  # Initialize with zeros or appropriate type
-        return obj
-
-    # Deliberately narrower than ndarray's real overloaded __setitem__ (this
-    # subclass only ever needs slice/int indexing with scalar-expansion below).
-    def __setitem__(  # type: ignore[override]
-        self,
-        item: slice | int,
-        value: Any,
-    ) -> None:
-        """Set item in array, expanding scalar values to match the shape if needed."""
-        if isinstance(item, slice) and isinstance(value, (list, tuple)):
-            rows = range(*item.indices(self.shape[0]))
-            if len(rows) != len(value):
-                msg = f"expected {len(rows)} rows, got {len(value)}"
-                raise ValueError(msg)
-            for row, element in zip(rows, value, strict=True):
-                super().__setitem__(row, element)  # type: ignore[no-untyped-call, unused-ignore]
-            return
-        super().__setitem__(item, value)  # type: ignore[no-untyped-call, unused-ignore]
 
 
 # Define generically typed ContinuousJacobianArg and ContinuousHessianArg

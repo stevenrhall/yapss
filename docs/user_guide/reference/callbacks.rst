@@ -197,11 +197,37 @@ the attributes:
 - ``arg.phase[p].path``
 - ``arg.phase[p].integrand``
 
-When setting the values of one of these attributes, each value must be a sequence whose
-length equals the number of states, path constraints, or integrals, respectively. Each
-element of the sequence must be a scalar, or an array-like object with the same shape as
-the ``time`` attribute of the phase. The values of the dynamics, path constraints, and
-integrand can also be set as slices of the corresponding attributes.
+Each of these outputs is a stack of rows, one for each state, path constraint, or integral,
+with a value at every point in the ``time`` attribute of the phase. The outputs start at
+zero, and are assigned **one whole row at a time**:
+
+.. code-block:: python
+
+    dynamics = arg.phase[p].dynamics
+    dynamics[:] = (h_dot, v_dot, m_dot)   # every row: one value per row
+    dynamics[0:2] = (h_dot, v_dot)        # some rows, by a slice (any step)
+    dynamics[2] = m_dot                   # one row; dynamics[-1] is the last row
+    dynamics[2] += drag_term              # in-place operators assign the whole row
+    arg.phase[p].path[:] = 0.0            # a constant may fill several rows
+
+A row value is a scalar constant, an expression over the points (such as ``v * cos(u)``),
+or a list with one value per point. A row computed point by point is written as a list,
+not by assigning its elements:
+
+.. code-block:: python
+
+    arg.phase[p].dynamics[0] = [f(x[k]) for k in range(len(x))]
+
+Anything else raises at the line: assigning an element or part of a row
+(``dynamics[0][k] = ...``), a column (``dynamics[:, k] = ...``), a value whose shape fits
+only by broadcasting (one expression over the points into several rows, or a length-1 array
+over several points), a row that does not exist, or writing into an output with
+``np.copyto`` or a function's ``out=`` argument. The array itself is read-only.
+
+.. versionchanged:: 0.3.0
+
+    Outputs are assigned by whole rows only; element, partial-row, and column writes, and
+    shapes that fit only by broadcasting, now raise.
 
 .. note::
     Always iterate over `arg.phase_list` instead of, say, `range(3)`. It’s essential to
@@ -255,7 +281,10 @@ The corresponding discrete callback function for this problem is:
 
 The discrete variables that can be extracted from the ``arg`` object are the same as those available in the objective callback function. The value of the discrete function must be assigned to the ``arg.discrete`` attribute, and it should be a one-dimensional array-like object with length equal to the number of discrete variables, as specified by the ``nd`` argument in the :class:`~yapss.Problem` constructor.
 
-Values in the ``arg.discrete`` attribute can also be set as slices. For instance, the example above can be rewritten as:
+Each discrete constraint is one row of ``arg.discrete``, with a single value, and the same
+whole-row rule applies: assign every value at once, one value, or a slice with one value per
+constraint; in-place operators such as ``arg.discrete[0] += c`` work too. For instance, the
+example above can be rewritten as:
 
 .. code-block:: python
 
