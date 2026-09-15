@@ -39,6 +39,17 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 # package imports
+from .assembly import (
+    Block,
+    ContinuousContext,
+    IndexTwins,
+    PhaseGeometry,
+    index_twins,
+    over_points,
+    phase_geometry,
+    plan_layout,
+    split_constants,
+)
 from .fold import fold_structure
 from .input_args import DiscreteHessianArg, ObjectiveHessianArg
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
@@ -58,25 +69,11 @@ if TYPE_CHECKING:
 
     FloatArray = NDArray[np.float64]
 
-__all__ = ["HessianBlock", "make_nlp_hessian"]
-
-
-def over_points(value: Any, n_points: int) -> FloatArray:
-    """Return a derivative entry as an array over the evaluation points.
-
-    User callbacks treat states and controls as scalars, so a derivative that happens
-    to be constant is naturally written as a scalar -- ``hessian[key] = 1.0`` -- and
-    must be accepted wherever an array would be; the Jacobian assembly already does
-    this. Array entries pass through unchanged.
-    """
-    term = np.asarray(value, dtype=np.float64)
-    if term.ndim == 0:
-        return np.full(n_points, float(term))
-    return term
+__all__ = ["make_nlp_hessian"]
 
 
 @dataclass
-class HessianContext:
+class HessianContext(ContinuousContext):
     """Per-evaluation inputs shared by all blocks.
 
     The evaluator fills this once per Hessian call, after synchronizing the decision
@@ -85,52 +82,11 @@ class HessianContext:
     """
 
     objective_factor: float = 0.0
-    continuous: ContinuousArg[np.float64] | None = None
     objective_hessian: dict[Any, Any] = field(default_factory=dict)
     discrete_hessian: dict[Any, Any] = field(default_factory=dict)
 
-    def continuous_phase(self, p: int) -> Any:
-        """Return the continuous output for phase ``p``, which the evaluator has set."""
-        if self.continuous is None:  # pragma: no cover - set whenever phases exist
-            msg = "Internal error: continuous output is None"
-            raise RuntimeError(msg)
-        return self.continuous.phase[p]
 
-
-@dataclass(frozen=True)
-class HessianBlock:
-    """One contiguous run of Hessian entries.
-
-    ``rows`` and ``cols`` are the NLP-space coordinates of the entries, fixed at build
-    time; ``evaluate`` returns exactly ``len(rows)`` values for them. Because both come
-    from the same object, the structure/value correspondence cannot desynchronize.
-    """
-
-    rows: tuple[int, ...]
-    cols: tuple[int, ...]
-    evaluate: Callable[[HessianContext], FloatArray]
-
-
-@dataclass(frozen=True)
-class PhaseGeometry:
-    """Phase-constant inputs to the block builders.
-
-    Everything here is fixed once the mesh and problem dimensions are known: the mesh
-    times and quadrature weights, the NLP indices of the phase endpoints, the live
-    views through which the endpoints are read per evaluation, and the helpers that
-    resolve index spans, multiplier scales, and variable indices for one term.
-    """
-
-    p: int
-    tau: FloatArray
-    w: FloatArray
-    i_t0: int
-    i_tf: int
-    t0_view: FloatArray
-    tf_view: FloatArray
-    span: Callable[[str], tuple[int, NDArray[np.intp]]]
-    multiplier_scale: Callable[[str, int], Callable[[float], FloatArray]]
-    variable_indices: Callable[[str, int, NDArray[np.intp]], tuple[int, ...]]
+HessianBlock = Block[HessianContext]
 
 
 def make_nlp_hessian(
@@ -165,24 +121,20 @@ def make_nlp_hessian(
 
     objective_input = ObjectiveHessianArg(problem, dv)
     discrete_input = DiscreteHessianArg(problem, dv)
+    twins = index_twins(problem)
 
     blocks: list[HessianBlock] = []
     for p in range(problem.np):
-        blocks += build_phase_blocks(nlp, dv, lambda_, p)
-    blocks.append(build_objective_block(nlp))
+        blocks += build_phase_blocks(nlp, phase_geometry(nlp, dv, twins, p), lambda_)
+    blocks.append(build_objective_block(nlp, twins))
     if problem.nd > 0:
-        blocks.append(build_discrete_block(nlp, lambda_))
+        blocks.append(build_discrete_block(nlp, twins, lambda_))
 
-    row: list[int] = []
-    col: list[int] = []
-    slices: list[slice] = []
-    for block in blocks:
-        slices.append(slice(len(row), len(row) + len(block.rows)))
-        row += block.rows
-        col += block.cols
+    row, col, slices = plan_layout(blocks)
     structure = tuple(row), tuple(col)
 
     hessian = np.zeros(len(row), dtype=np.float64)
+    evaluated = split_constants(blocks, slices, hessian)  # the Hessian has no constant blocks
     context = HessianContext()
 
     def eval_nlp_hessian(
@@ -207,8 +159,8 @@ def make_nlp_hessian(
             functions.discrete_hessian(discrete_input)
             context.discrete_hessian = discrete_input.hessian
 
-        for block, block_slice in zip(blocks, slices, strict=True):
-            hessian[block_slice] = block.evaluate(context)
+        for evaluate, block_slice in evaluated:
+            hessian[block_slice] = evaluate(context)
         return hessian
 
     # fold the long structure onto unique coordinates, mirrored to the lower triangle;
@@ -232,98 +184,17 @@ def make_nlp_hessian(
 
 def build_phase_blocks(
     nlp: NLP,
-    dv: DVStructure[np.float64],
+    geometry: PhaseGeometry,
     lambda_: CFStructure[np.float64],
-    p: int,
 ) -> list[HessianBlock]:
     """Build the blocks for one phase: continuous Hessian terms, then chain-rule terms.
 
     The block order -- all second-derivative terms in structure order, then all
     first-derivative chain-rule terms -- is part of the pinned NLP interface.
     """
-    problem = nlp.problem
-    spectral_method = problem.spectral_method
-    if spectral_method not in ("lg", "lgr", "lgl"):  # pragma: no cover
-        raise RuntimeError
-
-    # integer twin of `dv`: same layout, values are NLP indices
-    dv_index: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
-    dv_index.z[:] = list(range(len(dv_index.z)))
-    cf_index: CFStructure[np.int_] = get_nlp_cf_structure(problem, int)
-
-    tau = nlp.mesh.tau_u[p]
-    w = nlp.mesh.w[p]
-    col_points = problem.mesh.phase[p].collocation_points
-    nc = sum(col_points)
-    if spectral_method == "lgl":
-        nw = nc - len(col_points) + 1
-        defect_index = np.asarray(cf_index.phase[p].defect_index)
-    else:
-        nw = nc
-        defect_index = np.arange(nc)
-
-    def span(cf_name: str) -> tuple[int, NDArray[np.intp]]:
-        """Return the entry count and callback-output index for a function kind.
-
-        Defect ("f") terms produce one entry per collocation point; integrand and path
-        terms produce one per callback evaluation point. The two differ only for the
-        LGL method, where interval-boundary points are shared.
-        """
-        if cf_name == "f":
-            return nc, defect_index
-        return nw, np.arange(nw)
-
-    def multiplier_scale(cf_name: str, i: int) -> Callable[[float], FloatArray]:
-        """Return the per-call factor common to every term of one function kind.
-
-        Each application of the chain rule through t = t(tau; t0, tf) contributes a
-        factor dt/dtau = (tf - t0)/2; the returned closures carry one such factor for
-        defect and integrand terms (whose constraint rows are themselves scaled by the
-        interval length) and none for path terms. The caller multiplies by 1/2 for
-        each *additional* time derivative in its term.
-        """
-        if cf_name == "f":
-            lam_defect = lambda_.phase[p].defect[i]
-            return lambda dt: 0.5 * dt * lam_defect
-        if cf_name == "g":
-            lam_integral = lambda_.phase[p].integral
-            return lambda dt: 0.5 * dt * w * lam_integral[i]
-        if cf_name == "h":
-            lam_path = lambda_.phase[p].path
-            return lambda _dt: lam_path[i]
-        msg = f"Invalid continuous function kind {cf_name!r} in phase {p}"  # pragma: no cover
-        raise ValueError(msg)  # pragma: no cover
-
-    def variable_indices(cv_name: str, j: int, index: NDArray[np.intp]) -> tuple[int, ...]:
-        """Return the NLP indices of one continuous variable over an index span."""
-        phase_index = dv_index.phase[p]
-        if cv_name == "x":
-            return tuple(int(k) for k in phase_index.x[j][index])
-        if cv_name == "u":
-            return tuple(int(k) for k in phase_index.u[j][index])
-        if cv_name == "s":
-            return len(index) * (int(dv_index.s[j]),)
-        msg = f"Invalid continuous variable kind {cv_name!r} in phase {p}"  # pragma: no cover
-        raise ValueError(msg)  # pragma: no cover
-
-    geometry = PhaseGeometry(
-        p=p,
-        tau=tau,
-        w=w,
-        i_t0=int(dv_index.phase[p].t0[0]),
-        i_tf=int(dv_index.phase[p].tf[0]),
-        # per-call time views; dt = tf - t0 is read through these after the z sync
-        t0_view=dv.phase[p].t0,
-        tf_view=dv.phase[p].tf,
-        span=span,
-        multiplier_scale=multiplier_scale,
-        variable_indices=variable_indices,
-    )
-
-    # second-derivative terms of the continuous functions, then the first-derivative
-    # chain-rule terms d(dt/dtau)/d{t0,tf} acting on the Jacobian
+    p = geometry.p
     blocks: list[HessianBlock] = [
-        continuous_hessian_block(chs_term, geometry)
+        continuous_hessian_block(chs_term, geometry, lambda_)
         for chs_term in nlp.functions.continuous_hessian_structure[p]
     ]
     blocks += [
@@ -334,12 +205,44 @@ def build_phase_blocks(
     return blocks
 
 
-def continuous_hessian_block(chs_term: CHSTerm, geometry: PhaseGeometry) -> HessianBlock:
+def multiplier_scale(
+    cf_name: str,
+    i: int,
+    geometry: PhaseGeometry,
+    lambda_: CFStructure[np.float64],
+) -> Callable[[float], FloatArray]:
+    """Return the per-call factor common to every term of one function kind.
+
+    Each application of the chain rule through t = t(tau; t0, tf) contributes a factor
+    dt/dtau = (tf - t0)/2; the returned closures carry one such factor for defect and
+    integrand terms (whose constraint rows are themselves scaled by the interval length)
+    and none for path terms. The caller multiplies by 1/2 for each *additional* time
+    derivative in its term.
+    """
+    p, w = geometry.p, geometry.w
+    if cf_name == "f":
+        lam_defect = lambda_.phase[p].defect[i]
+        return lambda dt: 0.5 * dt * lam_defect
+    if cf_name == "g":
+        lam_integral = lambda_.phase[p].integral
+        return lambda dt: 0.5 * dt * w * lam_integral[i]
+    if cf_name == "h":
+        lam_path = lambda_.phase[p].path
+        return lambda _dt: lam_path[i]
+    msg = f"Invalid continuous function kind {cf_name!r} in phase {p}"  # pragma: no cover
+    raise ValueError(msg)  # pragma: no cover
+
+
+def continuous_hessian_block(
+    chs_term: CHSTerm,
+    geometry: PhaseGeometry,
+    lambda_: CFStructure[np.float64],
+) -> HessianBlock:
     """Build the block for one second-derivative term of a continuous function."""
     (cf_name, i), (cv_name1, j), (cv_name2, k) = chs_term
     p = geometry.p
     n, index = geometry.span(cf_name)
-    scale = geometry.multiplier_scale(cf_name, i)
+    scale = multiplier_scale(cf_name, i, geometry, lambda_)
     i_t0, i_tf = geometry.i_t0, geometry.i_tf
     t0_view, tf_view = geometry.t0_view, geometry.tf_view
     tau_index = geometry.tau[index]
@@ -367,12 +270,12 @@ def continuous_hessian_block(chs_term: CHSTerm, geometry: PhaseGeometry) -> Hess
                 ],
             )
 
-        return HessianBlock((i_t0, i_t0, i_tf), (i_t0, i_tf, i_tf), evaluate)
+        return HessianBlock((i_t0, i_t0, i_tf), (i_t0, i_tf, i_tf), evaluate=evaluate)
 
     if cv_name1 == "t" or cv_name2 == "t":
         # mixed variable/time terms: n entries against t0, then n against tf
         cv_name, cv_j = (cv_name1, j) if cv_name2 == "t" else (cv_name2, k)
-        var_rows = geometry.variable_indices(cv_name, cv_j, index)
+        var_rows = geometry.columns(cv_name, cv_j, index)
         weight_t0 = 1 - tau_index
         weight_tf = 1 + tau_index
 
@@ -380,12 +283,12 @@ def continuous_hessian_block(chs_term: CHSTerm, geometry: PhaseGeometry) -> Hess
             term = 0.5 * term_values(context)
             return np.concatenate((weight_t0 * term, weight_tf * term))
 
-        return HessianBlock(2 * var_rows, n * (i_t0,) + n * (i_tf,), evaluate)
+        return HessianBlock(2 * var_rows, n * (i_t0,) + n * (i_tf,), evaluate=evaluate)
 
     # variable/variable terms: n entries, no endpoint sensitivity
-    rows = geometry.variable_indices(cv_name1, j, index)
-    cols = geometry.variable_indices(cv_name2, k, index)
-    return HessianBlock(rows, cols, term_values)
+    rows = geometry.columns(cv_name1, j, index)
+    cols = geometry.columns(cv_name2, k, index)
+    return HessianBlock(rows, cols, evaluate=term_values)
 
 
 def chain_rule_block(
@@ -437,10 +340,10 @@ def chain_rule_block(
                 ],
             )
 
-        return HessianBlock((i_t0, i_t0, i_tf), (i_t0, i_tf, i_tf), evaluate)
+        return HessianBlock((i_t0, i_t0, i_tf), (i_t0, i_tf, i_tf), evaluate=evaluate)
 
     # variable terms
-    var_cols = geometry.variable_indices(cv_name, j, index)
+    var_cols = geometry.columns(cv_name, j, index)
 
     if cf_name == "f":
 
@@ -456,41 +359,37 @@ def chain_rule_block(
             rhs = 0.5 * jac[index] * (w * lam_integral[jj])
             return np.concatenate((-rhs, rhs))
 
-    return HessianBlock(n * (i_t0,) + n * (i_tf,), 2 * var_cols, evaluate)
+    return HessianBlock(n * (i_t0,) + n * (i_tf,), 2 * var_cols, evaluate=evaluate)
 
 
-def build_objective_block(nlp: NLP) -> HessianBlock:
+def build_objective_block(nlp: NLP, twins: IndexTwins) -> HessianBlock:
     """Build the block for the objective Hessian terms."""
-    problem = nlp.problem
-    dv_index: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
-    dv_index.z[:] = list(range(len(dv_index.z)))
     ohs = nlp.functions.objective_hessian_structure
-
-    rows = tuple(int(dv_index.var_dict[key1][0]) for key1, _ in ohs)
-    cols = tuple(int(dv_index.var_dict[key2][0]) for _, key2 in ohs)
+    rows = tuple(int(twins.dv.var_dict[key1][0]) for key1, _ in ohs)
+    cols = tuple(int(twins.dv.var_dict[key2][0]) for _, key2 in ohs)
 
     def evaluate(context: HessianContext) -> FloatArray:
         return context.objective_factor * np.array(
             [context.objective_hessian[term] for term in ohs],
         )
 
-    return HessianBlock(rows, cols, evaluate)
+    return HessianBlock(rows, cols, evaluate=evaluate)
 
 
-def build_discrete_block(nlp: NLP, lambda_: CFStructure[np.float64]) -> HessianBlock:
+def build_discrete_block(
+    nlp: NLP,
+    twins: IndexTwins,
+    lambda_: CFStructure[np.float64],
+) -> HessianBlock:
     """Build the block for the discrete-constraint Hessian terms."""
-    problem = nlp.problem
-    dv_index: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
-    dv_index.z[:] = list(range(len(dv_index.z)))
     dhs = nlp.functions.discrete_hessian_structure
     lam_discrete = lambda_.discrete
-
-    rows = tuple(int(dv_index.var_dict[key1][0]) for _, key1, _ in dhs)
-    cols = tuple(int(dv_index.var_dict[key2][0]) for _, _, key2 in dhs)
+    rows = tuple(int(twins.dv.var_dict[key1][0]) for _, key1, _ in dhs)
+    cols = tuple(int(twins.dv.var_dict[key2][0]) for _, _, key2 in dhs)
 
     def evaluate(context: HessianContext) -> FloatArray:
         return np.array(
             [context.discrete_hessian[term] * lam_discrete[term[0]] for term in dhs],
         )
 
-    return HessianBlock(rows, cols, evaluate)
+    return HessianBlock(rows, cols, evaluate=evaluate)

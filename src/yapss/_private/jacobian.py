@@ -32,14 +32,25 @@ from __future__ import annotations
 
 # standard imports
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # third party imports
 import numpy as np
 
 # package imports
+from .assembly import (
+    Block,
+    ContinuousContext,
+    IndexTwins,
+    PhaseGeometry,
+    index_twins,
+    over_points,
+    phase_geometry,
+    plan_layout,
+    split_constants,
+)
 from .fold import fold_structure
-from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
+from .structure import DVStructure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
     # standard imports
@@ -55,59 +66,17 @@ if TYPE_CHECKING:
 
     FloatArray = NDArray[np.float64]
 
-__all__ = ["JacobianBlock", "make_nlp_jacobian"]
+__all__ = ["make_nlp_jacobian"]
 
 
 @dataclass
-class JacobianContext:
-    """Per-evaluation inputs shared by all blocks."""
+class JacobianContext(ContinuousContext):
+    """Per-evaluation inputs shared by all blocks: the point and the continuous outputs."""
 
     z: FloatArray = field(default_factory=lambda: np.zeros(0))
-    continuous: ContinuousArg[np.float64] | None = None
-
-    def continuous_phase(self, p: int) -> Any:
-        """Return the continuous output for phase ``p``, which the evaluator has set."""
-        if self.continuous is None:  # pragma: no cover - set whenever phases exist
-            msg = "Internal error: continuous output is None"
-            raise RuntimeError(msg)
-        return self.continuous.phase[p]
 
 
-@dataclass(frozen=True)
-class JacobianBlock:
-    """One contiguous run of Jacobian entries.
-
-    ``rows`` and ``cols`` are fixed at build time. Exactly one of ``constant`` and
-    ``evaluate`` is set: a constant block's values never change, and an evaluated
-    block's closure returns exactly ``len(rows)`` values per call.
-    """
-
-    rows: tuple[int, ...]
-    cols: tuple[int, ...]
-    constant: FloatArray | None = None
-    evaluate: Callable[[JacobianContext], FloatArray] | None = None
-
-
-@dataclass(frozen=True)
-class JacobianPhaseGeometry:
-    """Phase-constant inputs to the Jacobian block builders."""
-
-    p: int
-    nc: int
-    nw: int
-    # trailing point of the t0 columns and leading point of the tf columns are
-    # structural zeros for some spectral methods; these give the per-side trims
-    trim_t0: int
-    trim_tf: int
-    defect_index: NDArray[np.intp]
-    tau: FloatArray
-    w: FloatArray
-    i_t0: int
-    i_tf: int
-    t0_view: FloatArray
-    tf_view: FloatArray
-    dv_index: DVStructure[np.int_]
-    cf_index: CFStructure[np.int_]
+JacobianBlock = Block[JacobianContext]
 
 
 def make_nlp_jacobian(
@@ -135,12 +104,7 @@ def make_nlp_jacobian(
         fills the matching values.
     """
     problem = nlp.problem
-
-    # integer twins of the NLP vectors: values are NLP indices
-    dv_index: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
-    dv_index.z[:] = list(range(len(dv_index.z)))
-    cf_index: CFStructure[np.int_] = get_nlp_cf_structure(problem, int)
-    cf_index.c[:] = list(range(len(cf_index.c)))
+    twins = index_twins(problem)
 
     # float structure synchronized per evaluation; blocks capture views into it
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, float)
@@ -150,30 +114,18 @@ def make_nlp_jacobian(
     # terms for every phase, then the discrete constraints -- the historical order,
     # which the golden tests pin
     for p in range(problem.np):
-        blocks += constant_phase_blocks(nlp, dv_index, cf_index, p)
+        blocks += constant_phase_blocks(nlp, twins, p)
     for p in range(problem.np):
-        geometry = phase_geometry(nlp, dv, dv_index, cf_index, p)
-        blocks += variable_phase_blocks(nlp, geometry)
+        blocks += variable_phase_blocks(nlp, phase_geometry(nlp, dv, twins, p))
     if problem.nd > 0:
-        blocks.append(discrete_block(nlp, dv_index, cf_index, eval_discrete_jacobian))
+        blocks.append(discrete_block(nlp, twins, eval_discrete_jacobian))
 
-    row: list[int] = []
-    col: list[int] = []
-    slices: list[slice] = []
-    for block in blocks:
-        slices.append(slice(len(row), len(row) + len(block.rows)))
-        row += block.rows
-        col += block.cols
+    row, col, slices = plan_layout(blocks)
     structure = tuple(row), tuple(col)
 
     # constant entries are written once; evaluation only touches the nonlinear blocks
     jacobian = np.zeros(len(row), dtype=np.float64)
-    evaluated: list[tuple[Callable[[JacobianContext], FloatArray], slice]] = []
-    for block, block_slice in zip(blocks, slices, strict=True):
-        if block.evaluate is None:
-            jacobian[block_slice] = block.constant
-        else:
-            evaluated.append((block.evaluate, block_slice))
+    evaluated = split_constants(blocks, slices, jacobian)
 
     context = JacobianContext()
 
@@ -198,52 +150,7 @@ def make_nlp_jacobian(
     return (folded_rows, folded_cols), eval_folded_jacobian
 
 
-def phase_geometry(
-    nlp: NLP,
-    dv: DVStructure[np.float64],
-    dv_index: DVStructure[np.int_],
-    cf_index: CFStructure[np.int_],
-    p: int,
-) -> JacobianPhaseGeometry:
-    """Collect the phase-constant geometry for the block builders."""
-    problem = nlp.problem
-    spectral_method = problem.spectral_method
-    if spectral_method not in ("lg", "lgr", "lgl"):  # pragma: no cover
-        raise RuntimeError
-
-    col_points = problem.mesh.phase[p].collocation_points
-    nc = sum(col_points)
-    if spectral_method == "lgl":
-        nw = nc - len(col_points) + 1
-        defect_index = np.asarray(cf_index.phase[p].defect_index)
-    else:
-        nw = nc
-        defect_index = np.arange(nc)
-
-    return JacobianPhaseGeometry(
-        p=p,
-        nc=nc,
-        nw=nw,
-        trim_t0=1 if spectral_method == "lgl" else 0,
-        trim_tf=0 if spectral_method == "lg" else 1,
-        defect_index=defect_index,
-        tau=nlp.mesh.tau_u[p],
-        w=nlp.mesh.w[p],
-        i_t0=int(dv_index.phase[p].t0[0]),
-        i_tf=int(dv_index.phase[p].tf[0]),
-        t0_view=dv.phase[p].t0,
-        tf_view=dv.phase[p].tf,
-        dv_index=dv_index,
-        cf_index=cf_index,
-    )
-
-
-def constant_phase_blocks(
-    nlp: NLP,
-    dv_index: DVStructure[np.int_],
-    cf_index: CFStructure[np.int_],
-    p: int,
-) -> list[JacobianBlock]:
+def constant_phase_blocks(nlp: NLP, twins: IndexTwins, p: int) -> list[JacobianBlock]:
     """Build the constant collocation blocks for one phase.
 
     These are the linear terms of the transcription: the differentiation matrix
@@ -252,8 +159,8 @@ def constant_phase_blocks(
     """
     problem = nlp.problem
     mesh = nlp.mesh
-    dv_phase = dv_index.phase[p]
-    cf_phase = cf_index.phase[p]
+    dv_phase = twins.dv.phase[p]
+    cf_phase = twins.cf.phase[p]
     blocks: list[JacobianBlock] = []
 
     # d(defect)/dx due to differentiation-matrix terms
@@ -291,7 +198,7 @@ def constant_phase_blocks(
     return blocks
 
 
-def variable_phase_blocks(nlp: NLP, geometry: JacobianPhaseGeometry) -> list[JacobianBlock]:
+def variable_phase_blocks(nlp: NLP, geometry: PhaseGeometry) -> list[JacobianBlock]:
     """Build the evaluated blocks for one phase, in the historical order."""
     problem = nlp.problem
     p = geometry.p
@@ -307,28 +214,24 @@ def variable_phase_blocks(nlp: NLP, geometry: JacobianPhaseGeometry) -> list[Jac
 
 def continuous_jacobian_block(
     cjs_term: CJSTerm,
-    geometry: JacobianPhaseGeometry,
+    geometry: PhaseGeometry,
 ) -> JacobianBlock:
     """Build the block for one first-derivative term of a continuous function."""
     (cf_name, i), (cv_name, j) = cjs_term
     p = geometry.p
-    cf_phase = geometry.cf_index.phase[p]
-    dv_phase = geometry.dv_index.phase[p]
+    cf_phase = geometry.twins.cf.phase[p]
     w = geometry.w
-    defect_index = geometry.defect_index
     nw = geometry.nw
     t0_view, tf_view = geometry.t0_view, geometry.tf_view
+    n, index = geometry.span(cf_name)
 
-    # rows, entry count, and callback-output index for this function kind
+    # rows for this function kind: one per defect, or the single integral row repeated
     if cf_name == "f":
         term_rows = tuple(int(k) for k in cf_phase.defect[i])
-        n, index = geometry.nc, defect_index
     elif cf_name == "g":
         term_rows = nw * (int(cf_phase.integral[i]),)
-        n, index = nw, np.arange(nw)
     elif cf_name == "h":
         term_rows = tuple(int(k) for k in cf_phase.path[i])
-        n, index = nw, np.arange(nw)
     else:  # pragma: no cover
         msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
         raise ValueError(msg)
@@ -338,24 +241,21 @@ def continuous_jacobian_block(
 
         Defect and integrand rows are scaled by the interval length dt/dtau =
         (tf - t0)/2; path rows are not. The Jacobian value may be a scalar (a
-        constant derivative), so broadcast it over the evaluation points first.
+        constant derivative), so it is broadcast over the evaluation points first.
         """
-        buffer = np.zeros(nw)
-        buffer[:] = context.continuous_phase(p).jacobian[cjs_term]
+        values = over_points(context.continuous_phase(p).jacobian[cjs_term], nw)
         if cf_name == "f":
-            return np.asarray(0.5 * (tf_view[0] - t0_view[0]) * buffer[index], dtype=np.float64)
+            return np.asarray(0.5 * (tf_view[0] - t0_view[0]) * values[index], dtype=np.float64)
         if cf_name == "g":
-            return np.asarray(0.5 * (tf_view[0] - t0_view[0]) * w * buffer, dtype=np.float64)
-        return buffer
+            return np.asarray(0.5 * (tf_view[0] - t0_view[0]) * w * values, dtype=np.float64)
+        return values
 
     if cv_name in ("x", "u", "s"):
-        if cv_name == "x":
-            cols = tuple(int(k) for k in dv_phase.x[j][index])
-        elif cv_name == "u":
-            cols = tuple(int(k) for k in dv_phase.u[j][index])
-        else:
-            cols = n * (int(geometry.dv_index.s[j]),)
-        return JacobianBlock(rows=term_rows, cols=cols, evaluate=base_values)
+        return JacobianBlock(
+            rows=term_rows,
+            cols=geometry.columns(cv_name, j, index),
+            evaluate=base_values,
+        )
 
     if cv_name != "t":  # pragma: no cover
         msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
@@ -382,14 +282,14 @@ def continuous_jacobian_block(
     return JacobianBlock(rows=rows, cols=cols, evaluate=evaluate)
 
 
-def defect_time_block(i: int, geometry: JacobianPhaseGeometry) -> JacobianBlock:
+def defect_time_block(i: int, geometry: PhaseGeometry) -> JacobianBlock:
     """Build the d(defect)/d{t0, tf} block for one state.
 
     The defect constraints are scaled by the interval length (tf - t0)/2, so each
     picks up -+ f/2 with respect to the endpoints.
     """
     p = geometry.p
-    defect_rows = tuple(int(k) for k in geometry.cf_index.phase[p].defect[i])
+    defect_rows = tuple(int(k) for k in geometry.twins.cf.phase[p].defect[i])
     defect_index = geometry.defect_index
 
     def evaluate(context: JacobianContext) -> FloatArray:
@@ -404,11 +304,11 @@ def defect_time_block(i: int, geometry: JacobianPhaseGeometry) -> JacobianBlock:
     )
 
 
-def integral_time_block(i: int, geometry: JacobianPhaseGeometry) -> JacobianBlock:
+def integral_time_block(i: int, geometry: PhaseGeometry) -> JacobianBlock:
     """Build the d(integral defect)/d{t0, tf} block for one integral."""
     p = geometry.p
     w = geometry.w
-    integral_row = int(geometry.cf_index.phase[p].integral[i])
+    integral_row = int(geometry.twins.cf.phase[p].integral[i])
 
     def evaluate(context: JacobianContext) -> FloatArray:
         integrand = np.asarray(context.continuous_phase(p).integrand[i], dtype=np.float64)
@@ -422,9 +322,9 @@ def integral_time_block(i: int, geometry: JacobianPhaseGeometry) -> JacobianBloc
     )
 
 
-def duration_block(geometry: JacobianPhaseGeometry) -> JacobianBlock:
+def duration_block(geometry: PhaseGeometry) -> JacobianBlock:
     """Build the constant block for the phase duration constraint tf - t0."""
-    duration_row = int(geometry.cf_index.phase[geometry.p].duration[0])
+    duration_row = int(geometry.twins.cf.phase[geometry.p].duration[0])
     return JacobianBlock(
         rows=(duration_row, duration_row),
         cols=(geometry.i_tf, geometry.i_t0),
@@ -434,14 +334,13 @@ def duration_block(geometry: JacobianPhaseGeometry) -> JacobianBlock:
 
 def discrete_block(
     nlp: NLP,
-    dv_index: DVStructure[np.int_],
-    cf_index: CFStructure[np.int_],
+    twins: IndexTwins,
     eval_discrete_jacobian: Callable[[FloatArray], Sequence[np.float64 | float]],
 ) -> JacobianBlock:
     """Build the block for the discrete-constraint Jacobian terms."""
     djs = nlp.functions.discrete_jacobian_structure
-    rows = tuple(int(cf_index.discrete[i]) for i, _ in djs)
-    cols = tuple(int(dv_index.var_dict[dv_key][0]) for _, dv_key in djs)
+    rows = tuple(int(twins.cf.discrete[i]) for i, _ in djs)
+    cols = tuple(int(twins.dv.var_dict[dv_key][0]) for _, dv_key in djs)
 
     def evaluate(context: JacobianContext) -> FloatArray:
         return np.asarray(eval_discrete_jacobian(context.z), dtype=np.float64)
