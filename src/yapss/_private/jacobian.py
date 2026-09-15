@@ -32,7 +32,7 @@ from __future__ import annotations
 
 # standard imports
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
 # third party imports
 import numpy as np
@@ -225,15 +225,15 @@ def continuous_jacobian_block(
     n, index = geometry.span(cf_name)
 
     # rows for this function kind: one per defect, or the single integral row repeated
-    if cf_name == "f":
-        term_rows = tuple(int(k) for k in cf_phase.defect[i])
-    elif cf_name == "g":
-        term_rows = nw * (int(cf_phase.integral[i]),)
-    elif cf_name == "h":
-        term_rows = tuple(int(k) for k in cf_phase.path[i])
-    else:  # pragma: no cover
-        msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
-        raise ValueError(msg)
+    match cf_name:
+        case "f":
+            term_rows = tuple(int(k) for k in cf_phase.defect[i])
+        case "g":
+            term_rows = nw * (int(cf_phase.integral[i]),)
+        case "h":
+            term_rows = tuple(int(k) for k in cf_phase.path[i])
+        case _:
+            assert_never(cf_name)
 
     def base_values(context: JacobianContext) -> FloatArray:
         """Return the term's values over its index span, scaled for its row kind.
@@ -249,16 +249,12 @@ def continuous_jacobian_block(
             return np.asarray(0.5 * (tf_view[0] - t0_view[0]) * w * values, dtype=np.float64)
         return values
 
-    if cv_name in ("x", "u", "s"):
+    if cv_name != "t":
         return JacobianBlock(
             rows=term_rows,
             cols=geometry.columns(cv_name, j, index),
             evaluate=base_values,
         )
-
-    if cv_name != "t":  # pragma: no cover
-        msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
-        raise ValueError(msg)
 
     # time terms: the values against t0 and tf carry the endpoint sensitivities
     # dtau/dt0 and dtau/dtf; the trailing t0 point and leading tf point are structural

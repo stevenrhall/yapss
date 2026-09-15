@@ -21,7 +21,7 @@ __all__ = [  # noqa: RUF022
     "CJFDSPhase", "CJFDSTerm", "CJS", "CJSPhase", "CJSTerm", "CVIndex", "CVKey", "CVName",
     "DFIndex", "DHFDS", "DHS", "DHSTerm", "DJFDS", "DJS", "DJSTerm", "DVIndex", "DVKey",
     "DerivativeMethod", "DerivativeOrder", "OGS", "OHS", "OHSTerm", "PhaseIndex", "Sense",
-    "SpectralMethod",
+    "SpectralMethod", "VectorCVName",
 ]
 # fmt: on
 
@@ -48,7 +48,13 @@ Sense = Literal["minimize", "maximize"]
 PhaseIndex = int  # NewType("PhaseIndex", int)
 """Phase index."""
 
-CVName = str  # Literal["x", "u", "t", "s"]
+VectorCVName = Literal["x", "u", "s"]
+"""Name of a vector-valued continuous variable (states, controls, parameters).
+
+The index in a key such as ``("x", i)`` selects an element; time is scalar.
+"""
+
+CVName = Literal[VectorCVName, "t"]
 """Continuous variable name."""
 
 CVIndex = int  # NewType("CVIndex", int)
@@ -57,7 +63,7 @@ CVIndex = int  # NewType("CVIndex", int)
 CVKey = tuple[CVName, CVIndex]
 """Key type for the continuous function variables."""
 
-CFName = str  # Literal["f", "g", "h"]
+CFName = Literal["f", "g", "h"]
 """Continuous function name."""
 
 CFIndex = int  # NewType("CFIndex", int)
@@ -102,7 +108,7 @@ CHFDSPhase = tuple[CHFDSTerm, ...]
 CHFDS = tuple[CHFDSPhase, ...]
 """Continuous Hessian finite difference structure."""
 
-DVName = str  # Literal["x0", "xf", "t0", "tf", "q", "s"]
+DVName = Literal["x0", "xf", "t0", "tf", "q", "s"]
 """Discrete variable name."""
 
 DFIndex = int  # NewType("DFIndex", int)

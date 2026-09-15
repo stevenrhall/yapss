@@ -30,7 +30,7 @@ from __future__ import annotations
 # standard imports
 import math
 from collections import defaultdict
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, assert_never, cast
 
 # third party imports
 import numpy  # noqa: ICN001
@@ -71,6 +71,7 @@ if TYPE_CHECKING:
         OGS,
         OHS,
         CFKey,
+        CFName,
         CHSPhase,
         CHSTerm,
         CJSTerm,
@@ -151,16 +152,17 @@ def get_continuous_jacobian_structure_nan(
         var: CVName
         for var in ("s", "x", "u", "t"):
             v: ArrayLike
-            if var == "x":
-                n, v = nx, phase.state
-            elif var == "u":
-                n, v = nu, phase.control
-            elif var == "t":
-                n, v = 1, [phase.time]
-            elif var == "s":
-                n, v = ns, parameter
-            else:
-                raise RuntimeError
+            match var:
+                case "x":
+                    n, v = nx, phase.state
+                case "u":
+                    n, v = nu, phase.control
+                case "t":
+                    n, v = 1, [phase.time]
+                case "s":
+                    n, v = ns, parameter
+                case _:
+                    assert_never(var)
 
             for j in range(n):
                 w = v[j].copy()
@@ -207,7 +209,7 @@ def get_objective_gradient_structure_nan(
 
     objective_function = cast(ObjectiveFunctionFloat, problem.functions.objective)
 
-    var_names = ("t0", "tf", "x0", "xf", "q")
+    var_names: tuple[Literal["t0", "tf", "x0", "xf", "q"], ...] = ("t0", "tf", "x0", "xf", "q")
 
     nan = float("nan")
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, numpy.float64)
@@ -226,23 +228,19 @@ def get_objective_gradient_structure_nan(
 
         for v in var_names:
             var: NDArray[numpy.float64]
-            if v == "x0":
-                var = dv.phase[p].x0
-                n = nx
-            elif v == "xf":
-                var = dv.phase[p].xf
-                n = nx
-            elif v == "t0":
-                var = dv.phase[p].t0
-                n = 1
-            elif v == "tf":
-                var = dv.phase[p].tf
-                n = 1
-            elif v == "q":
-                var = dv.phase[p].q
-                n = nq
-            else:
-                raise RuntimeError
+            match v:
+                case "x0":
+                    var, n = dv.phase[p].x0, nx
+                case "xf":
+                    var, n = dv.phase[p].xf, nx
+                case "t0":
+                    var, n = dv.phase[p].t0, 1
+                case "tf":
+                    var, n = dv.phase[p].tf, 1
+                case "q":
+                    var, n = dv.phase[p].q, nq
+                case _:
+                    assert_never(v)
 
             for j in range(n):
                 z = var[j]
@@ -285,7 +283,7 @@ def get_objective_gradient_structure_nan(
 
             for i, d in enumerate(discrete):
                 if math.isnan(d):
-                    dv_key = (0, "s", j)
+                    dv_key: DVKey = (0, "s", j)
                     djs.append((i, dv_key))
 
         arg.parameter[j] = z
@@ -619,9 +617,11 @@ def get_continuous_jacobian_structure_full(problem: yapss.Problem) -> CJS:
         nq = problem.nq[p]
         nh = problem.nh[p]
 
-        for var, n in (("s", ns), ("x", nx), ("u", nu), ("t", 1)):
+        variables: tuple[tuple[CVName, int], ...] = (("s", ns), ("x", nx), ("u", nu), ("t", 1))
+        functions: tuple[tuple[CFName, int], ...] = (("f", nx), ("g", nq), ("h", nh))
+        for var, n in variables:
             for j in range(n):
-                for label, count in (("f", nx), ("g", nq), ("h", nh)):
+                for label, count in functions:
                     for i in range(count):
                         cjs_phase.append(((label, i), (var, j)))
 
@@ -655,7 +655,14 @@ def get_objective_gradient_structure_full(problem: yapss.Problem) -> tuple[OGS, 
         nq = problem.nq[p]
 
         # Append entries for each variable count without referencing any actual variables
-        for var_name, n in [("x0", nx), ("xf", nx), ("t0", 1), ("tf", 1), ("q", nq)]:
+        endpoints: tuple[tuple[DVName, int], ...] = (
+            ("x0", nx),
+            ("xf", nx),
+            ("t0", 1),
+            ("tf", 1),
+            ("q", nq),
+        )
+        for var_name, n in endpoints:
             for j in range(n):
                 ogs.append((p, var_name, j))
                 for i in range(problem.nd):

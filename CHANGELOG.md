@@ -28,6 +28,24 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 - Type checkers such as mypy now flag a misspelled attribute assignment, for example
   `problem.sence = "maximize"`. They accepted every assignment before, because the
   protection was visible to them as a general `__setattr__`.
+- Under the `"user"` derivative method, every derivative key is checked when the structure
+  is collected, before the solve starts. A key with an unknown name, the wrong length, an
+  index out of range, or a parameter not keyed with phase 0 raises `ValueError`; a key
+  with a part of the wrong type (not a tuple, a name that is not a string, an index that
+  is not an integer) raises `TypeError`. The message names the key, the callback, and the
+  phase, and suggests the closest name for a misspelling (`Invalid derivative key
+  (0, 'tF', 0) set by functions.objective_gradient: 'tF' is not a decision variable name;
+  expected one of 'x0', 'xf', 't0', 'tf', 'q', 's' (did you mean 'tf'?).`). Before, an
+  invalid key failed later with an error naming nothing (a `KeyError` for a misspelled
+  name, an `IndexError` for an index out of range), or was accepted silently: a negative
+  index named the same variable as a non-negative one, a `bool` or integral `float` index
+  was used as an integer in some callbacks, and in a multiphase problem a parameter could
+  be keyed with any phase. NumPy integer indices remain accepted.
+- `Problem.spectral_method`, `Problem.sense`, `Derivatives.method`, `Derivatives.order`, and
+  the keys of the user derivative dictionaries (`arg.gradient`, `arg.jacobian`,
+  `arg.hessian`) are typed with `Literal`s, so type checkers flag an invalid value or key
+  name. A value held in a variable typed `str` is also flagged; annotate it with the
+  literal values instead.
 
 ### Removed
 

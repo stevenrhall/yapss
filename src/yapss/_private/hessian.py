@@ -33,7 +33,7 @@ from __future__ import annotations
 
 # standard imports
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, assert_never
 
 # third party imports
 import numpy as np
@@ -63,7 +63,7 @@ if TYPE_CHECKING:
 
     from .input_args import ContinuousArg
     from .nlp import NLP
-    from .types_ import CHSTerm, CJSTerm
+    from .types_ import CFName, CHSTerm, CJSTerm
 
     # package imports
 
@@ -206,7 +206,7 @@ def build_phase_blocks(
 
 
 def multiplier_scale(
-    cf_name: str,
+    cf_name: CFName,
     i: int,
     geometry: PhaseGeometry,
     lambda_: CFStructure[np.float64],
@@ -220,17 +220,18 @@ def multiplier_scale(
     derivative in its term.
     """
     p, w = geometry.p, geometry.w
-    if cf_name == "f":
-        lam_defect = lambda_.phase[p].defect[i]
-        return lambda dt: 0.5 * dt * lam_defect
-    if cf_name == "g":
-        lam_integral = lambda_.phase[p].integral
-        return lambda dt: 0.5 * dt * w * lam_integral[i]
-    if cf_name == "h":
-        lam_path = lambda_.phase[p].path
-        return lambda _dt: lam_path[i]
-    msg = f"Invalid continuous function kind {cf_name!r} in phase {p}"  # pragma: no cover
-    raise ValueError(msg)  # pragma: no cover
+    match cf_name:
+        case "f":
+            lam_defect = lambda_.phase[p].defect[i]
+            return lambda dt: 0.5 * dt * lam_defect
+        case "g":
+            lam_integral = lambda_.phase[p].integral
+            return lambda dt: 0.5 * dt * w * lam_integral[i]
+        case "h":
+            lam_path = lambda_.phase[p].path
+            return lambda _dt: lam_path[i]
+        case _:
+            assert_never(cf_name)
 
 
 def continuous_hessian_block(
@@ -253,7 +254,21 @@ def continuous_hessian_block(
         term = over_points(context.continuous_phase(p).hessian[chs_term], n_points)
         return term[index] * scale(dt)
 
-    if cv_name1 == "t" and cv_name2 == "t":
+    def mixed_block(var_rows: tuple[int, ...]) -> HessianBlock:
+        """Mixed variable/time terms: n entries against t0, then n against tf."""
+        weight_t0 = 1 - tau_index
+        weight_tf = 1 + tau_index
+
+        def evaluate(context: HessianContext) -> FloatArray:
+            term = 0.5 * term_values(context)
+            return np.concatenate((weight_t0 * term, weight_tf * term))
+
+        return HessianBlock(2 * var_rows, n * (i_t0,) + n * (i_tf,), evaluate=evaluate)
+
+    if cv_name1 == "t":
+        if cv_name2 != "t":
+            return mixed_block(geometry.columns(cv_name2, k, index))
+
         # d2t/d{t0,tf}2 terms: one entry per endpoint pair, each a weighted sum with
         # the endpoint sensitivities dtau/dt0 = -(1 - tau)/2, dtau/dtf = (1 + tau)/2
         weight_t0t0 = (1 - tau_index) ** 2
@@ -272,18 +287,8 @@ def continuous_hessian_block(
 
         return HessianBlock((i_t0, i_t0, i_tf), (i_t0, i_tf, i_tf), evaluate=evaluate)
 
-    if cv_name1 == "t" or cv_name2 == "t":
-        # mixed variable/time terms: n entries against t0, then n against tf
-        cv_name, cv_j = (cv_name1, j) if cv_name2 == "t" else (cv_name2, k)
-        var_rows = geometry.columns(cv_name, cv_j, index)
-        weight_t0 = 1 - tau_index
-        weight_tf = 1 + tau_index
-
-        def evaluate(context: HessianContext) -> FloatArray:
-            term = 0.5 * term_values(context)
-            return np.concatenate((weight_t0 * term, weight_tf * term))
-
-        return HessianBlock(2 * var_rows, n * (i_t0,) + n * (i_tf,), evaluate=evaluate)
+    if cv_name2 == "t":
+        return mixed_block(geometry.columns(cv_name1, j, index))
 
     # variable/variable terms: n entries, no endpoint sensitivity
     rows = geometry.columns(cv_name1, j, index)
@@ -305,9 +310,6 @@ def chain_rule_block(
     p, w = geometry.p, geometry.w
     if cf_name == "h":
         return None
-    if cf_name not in ("f", "g"):  # pragma: no cover
-        msg = f"Invalid continuous Jacobian structure term {cjs_term} in phase {p}"
-        raise ValueError(msg)
 
     n, index = geometry.span(cf_name)
     i_t0, i_tf = geometry.i_t0, geometry.i_tf

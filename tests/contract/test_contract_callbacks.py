@@ -22,7 +22,11 @@ What a user may get wrong
     - A required callback left unset: `ValueError` from `validate()` naming it. A callback
       that is not callable with one argument: `TypeError` at the assignment.
     - Functions not finite at the initial guess: `ValueError` naming the output.
-    - Under `"user"`, a derivative key with an invalid name: `ValueError` naming the term.
+    - Under `"user"`, an invalid derivative key: `ValueError` (unknown name, wrong length,
+      index out of range, parameter not keyed with phase 0) or `TypeError` (a part of the
+      wrong type: a key that is not a tuple, a name that is not a string, an index that is
+      not an integer), naming the key, the callback, and the phase. NumPy integer indices
+      are accepted.
 """
 
 from __future__ import annotations
@@ -33,6 +37,7 @@ import numpy as np
 import pytest
 
 import yapss.math as ym
+from yapss import Problem
 from yapss.examples import brachistochrone, goddard_problem_3_phase
 
 from ._contract import (
@@ -259,17 +264,188 @@ def test_functions_not_finite_at_the_initial_guess_raise_naming_the_output(metho
         callback_problem(method, continuous=continuous).solve()
 
 
-def test_user_derivative_key_with_an_invalid_name_is_reported_naming_the_term():
+# ------------------------------------------------------------------- user derivative keys
+
+
+def user_key_problem(callback, key):
+    """A one-phase problem with a parameter, a discrete constraint, and every user
+    derivative callback, whose `callback` also sets the derivative entry `key`."""
+    ocp = Problem(name="keys", nx=[2], nu=[1], ns=1, nd=1)
+
+    def objective(arg):
+        arg.objective = arg.phase[0].final_time + arg.parameter[0] ** 2
+
+    def objective_gradient(arg):
+        arg.gradient[0, "tf", 0] = 1.0
+        arg.gradient[0, "s", 0] = 2.0 * arg.parameter[0]
+
+    def objective_hessian(arg):
+        arg.hessian[(0, "s", 0), (0, "s", 0)] = 2.0
+
+    def continuous(arg):
+        x, _ = arg.phase[0].state
+        (u,) = arg.phase[0].control
+        arg.phase[0].dynamics[:] = [x * u, u]
+
+    def continuous_jacobian(arg):
+        x, _ = arg.phase[0].state
+        (u,) = arg.phase[0].control
+        arg.phase[0].jacobian[("f", 0), ("x", 0)] = u
+        arg.phase[0].jacobian[("f", 0), ("u", 0)] = x
+        arg.phase[0].jacobian[("f", 1), ("u", 0)] = 1.0
+
+    def continuous_hessian(arg):
+        arg.phase[0].hessian[("f", 0), ("x", 0), ("u", 0)] = 1.0
+
+    def discrete(arg):
+        arg.discrete[:] = [arg.phase[0].final_state[0]]
+
+    def discrete_jacobian(arg):
+        arg.jacobian[0, (0, "xf", 0)] = 1.0
+
+    def discrete_hessian(_arg):
+        pass
+
+    callbacks = {
+        "objective_gradient": (objective_gradient, lambda arg: arg.gradient),
+        "objective_hessian": (objective_hessian, lambda arg: arg.hessian),
+        "continuous_jacobian": (continuous_jacobian, lambda arg: arg.phase[0].jacobian),
+        "continuous_hessian": (continuous_hessian, lambda arg: arg.phase[0].hessian),
+        "discrete_jacobian": (discrete_jacobian, lambda arg: arg.jacobian),
+        "discrete_hessian": (discrete_hessian, lambda arg: arg.hessian),
+    }
+    functions = ocp.functions
+    functions.objective = objective
+    functions.continuous = continuous
+    functions.discrete = discrete
+    for name, (function, _) in callbacks.items():
+        setattr(functions, name, function)
+    function, entries = callbacks[callback]
+
+    def with_key(arg):
+        function(arg)
+        entries(arg)[key] = 1.0
+
+    setattr(functions, callback, with_key)
+
+    bounds = ocp.bounds.phase[0]
+    bounds.initial_time.lower = bounds.initial_time.upper = 0.0
+    bounds.final_time.lower, bounds.final_time.upper = 1.0, 2.0
+    bounds.state.lower[:], bounds.state.upper[:] = -5.0, 5.0
+    bounds.control.lower[:], bounds.control.upper[:] = -5.0, 5.0
+    ocp.bounds.parameter.lower[:], ocp.bounds.parameter.upper[:] = -1.0, 1.0
+    ocp.bounds.discrete.lower[:], ocp.bounds.discrete.upper[:] = -5.0, 5.0
+    ocp.guess.phase[0].time = [0.0, 1.0]
+    ocp.guess.phase[0].state = [[1.0, 2.0], [0.0, 1.0]]
+    ocp.guess.phase[0].control = [[1.0, 1.0]]
+    ocp.guess.parameter = [0.5]
+    ocp.derivatives.method = "user"
+    ocp.derivatives.order = "second"
+    return ocp
+
+
+# (callback, key, exception, message fragments): one case per rule of E7b, plus the
+# shape of every callback's key. Every message also names the key and the callback.
+INVALID_KEYS = {
+    # decision variable keys, through the objective gradient
+    "misspelled name": ("objective_gradient", (0, "tF", 0), ValueError, "did you mean 'tf'?"),
+    "control in a gradient": ("objective_gradient", (0, "u", 0), ValueError, "one of 'x0'"),
+    "short key": ("objective_gradient", (0, "tf"), ValueError, "(phase, name, index)"),
+    "key not a tuple": ("objective_gradient", "tf", TypeError, "(phase, name, index)"),
+    "name not a string": ("objective_gradient", (0, 3, 0), TypeError, "not a string"),
+    "phase out of range": ("objective_gradient", (1, "tf", 0), ValueError, "has 1 phase"),
+    "state out of range": (
+        "objective_gradient",
+        (0, "xf", 2),
+        ValueError,
+        "the state index 2 is out of range: phase 0 has 2 states, so the index must be in range(2)",
+    ),
+    "negative index": ("objective_gradient", (0, "xf", -1), ValueError, "state index -1"),
+    "float index": ("objective_gradient", (0, "xf", 0.0), TypeError, "not an integer"),
+    "bool index": ("objective_gradient", (0, "xf", True), TypeError, "not an integer"),
+    "time index": ("objective_gradient", (0, "t0", 1), ValueError, "must be 0"),
+    "no integrals": ("objective_gradient", (0, "q", 0), ValueError, "has no integrals"),
+    "parameter phase": ("objective_gradient", (1, "s", 0), ValueError, "(0, 's', 0)"),
+    "parameter index": ("objective_gradient", (0, "s", 1), ValueError, "parameter index 1"),
+    # continuous function and variable keys, through the continuous Jacobian
+    "dynamics index": (
+        "continuous_jacobian",
+        (("f", 2), ("x", 0)),
+        ValueError,
+        "phase 0 dynamics has 2 elements",
+    ),
+    "no path": ("continuous_jacobian", (("h", 0), ("x", 0)), ValueError, "has no elements"),
+    "integral as a variable": ("continuous_jacobian", (("f", 0), ("q", 0)), ValueError, "'q'"),
+    "variable index": ("continuous_jacobian", (("f", 0), ("u", 1)), ValueError, "control index"),
+    "flat key": (
+        "continuous_jacobian",
+        ("f", 0, "x", 0),
+        ValueError,
+        "(function key, variable key)",
+    ),
+    "variable key not a tuple": (
+        "continuous_jacobian",
+        (("f", 0), "x"),
+        TypeError,
+        "continuous variable key",
+    ),
+    # the shape of each other callback's key
+    "objective Hessian": (
+        "objective_hessian",
+        ((0, "tf", 0),),
+        ValueError,
+        "(variable key, variable key)",
+    ),
+    "continuous Hessian": (
+        "continuous_hessian",
+        (("f", 0), ("x", 0), ("y", 0)),
+        ValueError,
+        "'y'",
+    ),
+    "discrete Jacobian": (
+        "discrete_jacobian",
+        (1, (0, "tf", 0)),
+        ValueError,
+        "discrete function index 1",
+    ),
+    "discrete Hessian": (
+        "discrete_hessian",
+        (0, (0, "tf", 0)),
+        ValueError,
+        "(discrete function index, variable key, variable key)",
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    ("callback", "key", "exc", "fragment"),
+    INVALID_KEYS.values(),
+    ids=INVALID_KEYS.keys(),
+)
+def test_invalid_user_derivative_key_raises_naming_it(callback, key, exc, fragment):
+    ocp = user_key_problem(callback, key)
+    phase = " in phase 0" if callback.startswith("continuous") else ""
+    with raises(exc, f"key {key!r} set by functions.{callback}{phase}:", fragment):
+        ocp.solve()
+
+
+def test_numpy_integer_indices_are_accepted():
+    reference = solve_objective(brachistochrone.setup())
     ocp = brachistochrone.setup()
-    jacobian = ocp.functions.continuous_jacobian
+    gradient, jacobian = ocp.functions.objective_gradient, ocp.functions.continuous_jacobian
+
+    def objective_gradient(arg):
+        gradient(arg)
+        arg.gradient[0, "tf", np.int64(0)] = arg.gradient.pop((0, "tf", 0))
 
     def continuous_jacobian(arg):
         jacobian(arg)
-        arg.phase[0].jacobian[("f", 0), ("q", 0)] = 1.0
+        entries = arg.phase[0].jacobian
+        entries[("f", np.int64(0)), ("x", np.int32(2))] = entries.pop((("f", 0), ("x", 2)))
 
+    ocp.functions.objective_gradient = objective_gradient
     ocp.functions.continuous_jacobian = continuous_jacobian
-    with raises(ValueError, "(('f', 0), ('q', 0))", "phase 0"):
-        ocp.solve()
+    assert solve_objective(ocp) == pytest.approx(reference, rel=1e-8)
 
 
 # ----------------------------------------------------------------- not yet met: outputs
@@ -463,43 +639,6 @@ def test_callback_with_defaulted_extra_parameter_is_accepted():
 
 
 # -------------------------------------------------------- not yet met: user derivatives
-
-
-def _with_extra_jacobian_entry(key, value=1.0):
-    ocp = brachistochrone.setup()
-    jacobian = ocp.functions.continuous_jacobian
-
-    def continuous_jacobian(arg):
-        jacobian(arg)
-        arg.phase[0].jacobian[key] = value
-
-    ocp.functions.continuous_jacobian = continuous_jacobian
-    return ocp
-
-
-@not_yet("E7b", "a derivative key out of range, or of the wrong shape, raises ValueError naming it")
-@pytest.mark.parametrize(
-    "key",
-    [(("f", 5), ("x", 0)), (("f", 0), ("x", 7)), ("f", 0, "x", 2)],
-    ids=["function index", "variable index", "flat key"],
-)
-def test_invalid_user_jacobian_key_raises_naming_it(key):
-    with raises(ValueError, "phase 0"):
-        _with_extra_jacobian_entry(key).solve()
-
-
-@not_yet("E7b", "a misspelled objective gradient key raises ValueError naming it")
-def test_misspelled_gradient_key_raises_naming_it():
-    ocp = brachistochrone.setup()
-    gradient = ocp.functions.objective_gradient
-
-    def objective_gradient(arg):
-        gradient(arg)
-        arg.gradient[0, "tF", 0] = 1.0
-
-    ocp.functions.objective_gradient = objective_gradient
-    with raises(ValueError, "'tF'"):
-        ocp.solve()
 
 
 @not_yet("E7b", "a derivative key first set after the first call raises")

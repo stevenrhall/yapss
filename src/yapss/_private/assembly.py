@@ -18,7 +18,7 @@ from __future__ import annotations
 
 # standard imports
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, assert_never
 
 # third party imports
 import numpy as np
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
     from .input_args import ContinuousArg
     from .nlp import NLP
+    from .types_ import CFName, VectorCVName
 
     FloatArray = NDArray[np.float64]
 
@@ -180,23 +181,29 @@ class PhaseGeometry:
     tf_view: FloatArray
     twins: IndexTwins = field(repr=False)
 
-    def span(self, cf_name: str) -> tuple[int, NDArray[np.intp]]:
+    def span(self, cf_name: CFName) -> tuple[int, NDArray[np.intp]]:
         """Return the entry count and callback-output index for a function kind."""
         if cf_name == "f":
             return self.nc, self.defect_index
         return self.nw, np.arange(self.nw)
 
-    def columns(self, cv_name: str, j: int, index: NDArray[np.intp]) -> tuple[int, ...]:
-        """Return the NLP indices of one continuous variable over an index span."""
+    def columns(
+        self,
+        cv_name: VectorCVName,
+        j: int,
+        index: NDArray[np.intp],
+    ) -> tuple[int, ...]:
+        """Return the NLP indices of one non-time continuous variable over an index span."""
         phase = self.twins.dv.phase[self.p]
-        if cv_name == "x":
-            return tuple(int(k) for k in phase.x[j][index])
-        if cv_name == "u":
-            return tuple(int(k) for k in phase.u[j][index])
-        if cv_name == "s":
-            return len(index) * (int(self.twins.dv.s[j]),)
-        msg = f"Invalid continuous variable kind {cv_name!r} in phase {self.p}"  # pragma: no cover
-        raise ValueError(msg)  # pragma: no cover
+        match cv_name:
+            case "x":
+                return tuple(int(k) for k in phase.x[j][index])
+            case "u":
+                return tuple(int(k) for k in phase.u[j][index])
+            case "s":
+                return len(index) * (int(self.twins.dv.s[j]),)
+            case _:
+                assert_never(cv_name)
 
 
 def phase_geometry(

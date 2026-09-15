@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 # standard inputs
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, assert_never, cast
 
 # third party imports
 import numpy  # noqa: ICN001
@@ -416,23 +416,23 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         """
         p, letter, i = item
         phase = self.phase[p]
-        if letter == "f":
-            value = phase.dynamics[i]
-        elif letter == "g":
-            value = phase.integrand[i]
-        elif letter == "h":
-            value = phase.path[i]
-        elif letter == "x":
-            value = phase.state[i]
-        elif letter == "u":
-            value = phase.control[i]
-        elif letter == "t":
-            value = phase.time
-        elif letter == "s":
-            value = self.parameter[i : i + 1]
-        else:
-            msg = f"Invalid item key '{letter}' in ContinuousArg.__getitem__."
-            raise RuntimeError(msg)
+        match letter:
+            case "f":
+                value = phase.dynamics[i]
+            case "g":
+                value = phase.integrand[i]
+            case "h":
+                value = phase.path[i]
+            case "x":
+                value = phase.state[i]
+            case "u":
+                value = phase.control[i]
+            case "t":
+                value = phase.time
+            case "s":
+                value = self.parameter[i : i + 1]
+            case _:
+                assert_never(letter)
 
         return cast(NDArray[T], value)
 

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 # package imports
+from . import derivative_keys
 from .input_args import (
     ContinuousHessianArg,
     ContinuousJacobianArg,
@@ -129,7 +130,10 @@ def make_user_functions(
     Raises
     ------
     ValueError
-        If any required user-defined function is not provided.
+        If any required user-defined function is not provided, or a derivative key has
+        the right type but a wrong value.
+    TypeError
+        If a part of a derivative key has the wrong type.
     """
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     dv.z[:] = z0
@@ -141,7 +145,10 @@ def make_user_functions(
     else:
         msg = "'functions.objective_gradient' function is required for 'user' method."
         raise ValueError(msg)
-    objective_gradient_structure = tuple(objective_gradient_arg.gradient)
+    objective_gradient_structure = derivative_keys.objective_gradient_structure(
+        problem,
+        objective_gradient_arg.gradient,
+    )
 
     # discrete Jacobian
     discrete_jacobian_arg = DiscreteJacobianArg(problem, dv)
@@ -151,7 +158,10 @@ def make_user_functions(
         else:
             msg = "'functions.discrete_jacobian' function is required for 'user' method."
             raise ValueError(msg)
-        discrete_jacobian_structure = tuple(discrete_jacobian_arg.jacobian.keys())
+        discrete_jacobian_structure = derivative_keys.discrete_jacobian_structure(
+            problem,
+            discrete_jacobian_arg.jacobian,
+        )
     else:
         discrete_jacobian_structure = None
 
@@ -172,8 +182,14 @@ def make_user_functions(
             msg = "'functions.continuous_jacobian' function is required for 'user' method."
             raise ValueError(msg)
         # Extract the jacobian structure from the result
-        cjs = [tuple(continuous_jacobian_arg.phase[p].jacobian.keys()) for p in range(problem.np)]
-        continuous_jacobian_structure = tuple(cjs)
+        continuous_jacobian_structure = tuple(
+            derivative_keys.continuous_jacobian_structure(
+                problem,
+                p,
+                continuous_jacobian_arg.phase[p].jacobian,
+            )
+            for p in range(problem.np)
+        )
 
     objective_hessian_structure = None
     discrete_hessian_structure = None
@@ -190,8 +206,19 @@ def make_user_functions(
             )
             raise ValueError(msg)
         problem.functions.objective_hessian(objective_hessian_arg)
-        _warn_mirrored_pairs(objective_hessian_arg.hessian, "objective Hessian", context=False)
-        objective_hessian_structure = tuple(objective_hessian_arg.hessian)
+        objective_hessian_structure = derivative_keys.objective_hessian_structure(
+            problem,
+            objective_hessian_arg.hessian,
+        )
+        _warn_mirrored_pairs(
+            dict(
+                zip(
+                    objective_hessian_structure, objective_hessian_arg.hessian.values(), strict=True
+                )
+            ),
+            "objective Hessian",
+            context=False,
+        )
 
         # discrete hessian
         if problem.nd > 0:
@@ -204,8 +231,21 @@ def make_user_functions(
                 )
                 raise ValueError(msg)
             problem.functions.discrete_hessian(discrete_hessian_arg)
-            _warn_mirrored_pairs(discrete_hessian_arg.hessian, "discrete Hessian", context=True)
-            discrete_hessian_structure = tuple(discrete_hessian_arg.hessian)
+            discrete_hessian_structure = derivative_keys.discrete_hessian_structure(
+                problem,
+                discrete_hessian_arg.hessian,
+            )
+            _warn_mirrored_pairs(
+                dict(
+                    zip(
+                        discrete_hessian_structure,
+                        discrete_hessian_arg.hessian.values(),
+                        strict=True,
+                    ),
+                ),
+                "discrete Hessian",
+                context=True,
+            )
         else:
             discrete_hessian_structure = None
 
@@ -227,13 +267,16 @@ def make_user_functions(
                     "when 'derivatives.order' option is set to 'second'."
                 )
                 raise ValueError(msg)
+            chs = []
             for p in range(problem.np):
+                entries = continuous_hessian_arg.phase[p].hessian
+                chs_phase = derivative_keys.continuous_hessian_structure(problem, p, entries)
                 _warn_mirrored_pairs(
-                    continuous_hessian_arg.phase[p].hessian,
+                    dict(zip(chs_phase, entries.values(), strict=True)),
                     f"continuous Hessian of phase {p}",
                     context=True,
                 )
-            chs = [tuple(continuous_hessian_arg.phase[p].hessian) for p in range(problem.np)]
+                chs.append(chs_phase)
             continuous_hessian_structure = tuple(chs)
 
     return ProblemFunctions(

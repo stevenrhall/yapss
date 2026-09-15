@@ -14,7 +14,7 @@ import inspect
 # standard imports
 from collections.abc import Callable, Sequence
 from types import FrameType, SimpleNamespace
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, assert_never, cast, get_args
 
 # third party imports
 import numpy as np
@@ -55,6 +55,7 @@ if TYPE_CHECKING:
         ObjectiveHessianFunction,
     )
     from .solution import Solution
+    from .types_ import CVName, DVName
 
     Array = NDArray[float64]
 
@@ -600,7 +601,7 @@ class Scale(Protected):
         _check_scale_elements("scale.parameter", self._parameter)
         _check_scale("scale.objective", self._objective)
 
-    def __getitem__(self, item: tuple[int, str, int]) -> float:
+    def __getitem__(self, item: tuple[int, CVName | DVName, int]) -> float:
         """Return the characteristic magnitude of one decision variable.
 
         Convenience accessor used by the finite-difference derivative methods to size
@@ -610,17 +611,19 @@ class Scale(Protected):
         are ever introduced, this mapping must be split accordingly.
         """
         p, v, i = item
-        if v == "s":
-            return float(self._parameter[i])
-        if v in ("x", "x0", "xf"):
-            return float(self.phase[p].state[i])
-        if v == "u":
-            return float(self.phase[p].control[i])
-        if v in ("t", "t0", "tf"):
-            return float(self.phase[p].time)
-        if v == "q":
-            return float(self.phase[p].integral[i])
-        raise RuntimeError
+        match v:
+            case "s":
+                return float(self._parameter[i])
+            case "x" | "x0" | "xf":
+                return float(self.phase[p].state[i])
+            case "u":
+                return float(self.phase[p].control[i])
+            case "t" | "t0" | "tf":
+                return float(self.phase[p].time)
+            case "q":
+                return float(self.phase[p].integral[i])
+            case _:
+                assert_never(v)
 
 
 class Derivatives(Protected):
