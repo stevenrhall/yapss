@@ -433,20 +433,20 @@ def make_continuous_hessian(
                     if base is None:
                         continuous(arg2)
                         base = {
-                            fcn: arg2[p, fcn[0], fcn[1]].copy()
+                            fcn: arg2[p, *fcn].copy()
                             for diag_key in chfds[p]
                             if diag_key[0][0] == diag_key[0][1]
                             for fcn in diag_key[1]
                         }
                     var1[:] = w1 + 2 * d1
                     continuous(arg2)
-                    plus = {fcn: arg2[p, fcn[0], fcn[1]].copy() for fcn in fcn_list}
+                    plus = {fcn: arg2[p, *fcn].copy() for fcn in fcn_list}
                     var1[:] = w1 - 2 * d1
                     continuous(arg2)
                     den = 4 * d1 * d1
                     for fcn in fcn_list:
                         hessian[fcn, (v1, i1), (v2, i2)] = (
-                            plus[fcn] - 2 * base[fcn] + arg2[p, fcn[0], fcn[1]]
+                            plus[fcn] - 2 * base[fcn] + arg2[p, *fcn]
                         ) / den
                     var1[:] = w1
                     continue

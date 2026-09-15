@@ -131,7 +131,6 @@ outputs:
         - pytest-xdist
         - ruff
         - mypy
-        - toml
         - lxml
         - pyyaml
         - hatch

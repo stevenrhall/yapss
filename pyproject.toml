@@ -87,7 +87,6 @@ dev = [
     "pytest-xdist",
     "ruff==0.16.1",
     "mypy==1.20.2",
-    "toml",
     "lxml",
     "nbwipers",
     "pyyaml",

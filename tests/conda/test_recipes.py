@@ -1,9 +1,9 @@
 import os
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
-import toml
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
@@ -94,7 +94,7 @@ EXPECTED_ONLY_IN_PYPROJECT: set[str] = {
 
 def _pyproject_names() -> tuple[set[str], set[str]]:
     """Return (core, optional) package-name sets from pyproject.toml."""
-    pyproject = toml.load(project_dir / "pyproject.toml")
+    pyproject = tomllib.loads((project_dir / "pyproject.toml").read_text(encoding="utf-8"))
 
     core = _names(set(pyproject["project"]["dependencies"]))
 
@@ -179,9 +179,9 @@ EXPECTED_ONLY_IN_ENV_TEST = {
     # Needed to `pip install --no-deps .` from source in this environment.
     "hatchling",
     "hatch-vcs",
-    # Needed by this file (test_recipes.py) to parse pyproject.toml and the
-    # conda recipe/environment files for these reconciliation checks.
-    "toml",
+    # Needed by this file (test_recipes.py) to parse the conda recipe and
+    # environment files for these reconciliation checks. pyproject.toml is read
+    # with the standard library's tomllib.
     "pyyaml",
     "jinja2",
 }
@@ -227,7 +227,7 @@ def test_environment_test_yml():
 # known-bad range, not "match what we're using right now," and conda-forge
 # tolerates that distinction.
 def test_dev_tool_pinning_policy():
-    pyproject = toml.load(project_dir / "pyproject.toml")
+    pyproject = tomllib.loads((project_dir / "pyproject.toml").read_text(encoding="utf-8"))
     dev_specs = _spec_by_name(set(pyproject["project"]["optional-dependencies"]["dev"]))
 
     # The dev tools this project exact-pins in pyproject.toml's dev extra.

@@ -16,8 +16,7 @@ dependencies:
   - pytest-cov
   - hatchling
   - hatch-vcs
-  # Needed by tests/conda/test_recipes.py to parse pyproject.toml and the
-  # conda recipe/environment files for reconciliation checks.
-  - toml
+  # Needed by tests/conda/test_recipes.py to parse the conda recipe and
+  # environment files for reconciliation checks.
   - pyyaml
   - jinja2
