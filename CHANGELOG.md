@@ -19,6 +19,10 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- On a phase of zero duration, `control_multiplier` and `path_multiplier` are now NaN at
+  every point, as documented in 0.2.3. They were computed by dividing by the zero duration,
+  which gives NaN only where Ipopt's multiplier is exactly zero. Nothing requires it to be
+  zero there, and a nonzero multiplier gave +/-inf.
 - A scale factor set elementwise or by slice, such as `problem.scale.phase[0].dynamics[0] =
   0`, is now checked. The 0.2.3 check ran only when a whole scale array was assigned,
   although the entry below says every scale factor is checked when it is set, and the

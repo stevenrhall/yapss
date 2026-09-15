@@ -267,10 +267,16 @@ def make_solution_object(
         # in tau and must be divided by h w_k to be a density in t. The defect rows carry
         # h already (D x - h f = 0), so the costate needs only w_k. On a zero-duration
         # phase the continuous multipliers are undefined: the constraint holds on a set
-        # of measure zero, and NaN is the honest value.
+        # of measure zero, and NaN is the honest value. Set explicitly, not left to 0/0:
+        # the NLP multipliers there need not be zero, and x/0 is +/-inf.
         half_duration = (tf - t0) / 2
         n_points = len(mesh.w[p])
-        with np.errstate(divide="ignore", invalid="ignore"):
+        control_multiplier: NDArray[np.float64]
+        path_multiplier: NDArray[np.float64]
+        if half_duration == 0:
+            control_multiplier = np.full((problem.nu[p], n_points), np.nan)
+            path_multiplier = np.full((nh, n_points), np.nan)
+        else:
             control_multiplier = _rows(
                 [
                     dv_multiplier.phase[p].u[i] / (half_duration * mesh.w[p])

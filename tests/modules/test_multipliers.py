@@ -86,3 +86,33 @@ def test_zero_duration_phase_multipliers_are_nan() -> None:
     assert np.all(np.isnan(solution.phase[0].control_multiplier))
     assert np.all(np.isnan(solution.phase[0].path_multiplier))
     assert np.all(np.isfinite(solution.phase[0].costate))
+
+
+def test_zero_duration_phase_multipliers_are_nan_whatever_ipopt_returns(monkeypatch) -> None:
+    """NaN must not depend on the NLP multipliers happening to be exactly zero.
+
+    The bound and the path constraint above duplicate each other, so how Ipopt splits the
+    multiplier between them is build-dependent: conda-forge Ipopt 3.14.19 on macOS returned
+    nonzero path-row values, which divided by the zero duration to -inf. Forcing every NLP
+    multiplier nonzero makes the case deterministic on any build.
+    """
+    from yapss._private import solver
+
+    make_solution_object = solver.make_solution_object
+
+    def nonzero_multipliers(problem, mesh, nlp, nlp_info):
+        for key in ("mult_g", "mult_x_L", "mult_x_U"):
+            nlp_info[key] = np.linspace(0.5, 1.5, len(nlp_info[key]))
+        nlp_info["mult_x_U"] = -nlp_info["mult_x_U"]
+        return make_solution_object(problem, mesh, nlp, nlp_info)
+
+    monkeypatch.setattr(solver, "make_solution_object", nonzero_multipliers)
+    problem = _setup(1.0, as_path=True)
+    problem.bounds.phase[0].control.lower = [-1.0]
+    problem.bounds.phase[0].control.upper = [1.0]
+    problem.bounds.phase[0].final_time.lower = 0.0
+    problem.bounds.phase[0].final_time.upper = 0.0
+    with np.errstate(all="raise"):
+        solution = problem.solve()
+    assert np.all(np.isnan(solution.phase[0].control_multiplier))
+    assert np.all(np.isnan(solution.phase[0].path_multiplier))
