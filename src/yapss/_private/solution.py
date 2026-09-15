@@ -20,8 +20,9 @@ from scipy.sparse import csr_matrix
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from numpy.typing import NDArray
-    from typing_extensions import Self
 
     import yapss
 

@@ -7,7 +7,12 @@ name = "yapss"
 dynamic = ["version"]
 description = "A Python package for solving optimal control problems using pseudospectral methods."
 readme = "README.md"
-requires-python = ">=3.10"
+# The upper bound follows the casadi ceiling below: casadi <=3.7.2 publishes no wheels
+# for 3.15, so this release cannot install there anyway, and the cap turns a failed
+# casadi source build into pip's "requires a different Python" error for anyone who
+# asks for this release. (A plain `pip install yapss` still falls back to an uncapped
+# 0.2.x and fails in the casadi build; the install docs say so.) Raise both together.
+requires-python = ">=3.11,<3.15"
 license = "MIT"
 license-files = ["LICENSE", "LICENSES/*"]
 keywords = ["optimal control", "optimization", "pseudospectral methods"]
@@ -19,7 +24,6 @@ classifiers = [
     "Intended Audience :: Education",
     "Topic :: Scientific/Engineering",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -37,7 +41,7 @@ dependencies = [
     # numpy.typing.NDArray using PEP 695 `type` statements, which cannot be
     # subclassed directly) is fixed at the source: _private/input_args.py now
     # subclasses np.ndarray directly and is version-agnostic. No ceiling is needed
-    # to keep 2.5 away from Python 3.10/3.11 either -- NumPy 2.5 declares
+    # to keep 2.5 away from Python 3.11 either -- NumPy 2.5 declares
     # requires-python >= 3.12, so pip will not select it there. Both ends of the
     # range are type-checked in CI: see tox's mypy and mypy-floor environments.
     "numpy",
@@ -126,9 +130,9 @@ packages = ["src/yapss"]
 # The minimum supported Python, and the default for a bare `mypy` invocation. Both
 # tox mypy environments pass --python-version explicitly and so override it, since
 # the target has to be paired with a numpy the target can actually install: numpy
-# 2.5's stubs use PEP 695 syntax that a 3.10 target cannot parse, and numpy 2.5
+# 2.5's stubs use PEP 695 syntax that a 3.11 target cannot parse, and numpy 2.5
 # requires Python 3.12+ at runtime in any case.
-python_version = "3.10"
+python_version = "3.11"
 files = ["src/**/*.py"]
 follow_imports = "silent"
 # numpy.typing.mypy_plugin removed -- deprecated as of NumPy 2.3, will be
@@ -177,7 +181,7 @@ ignore_missing_imports = true
 [tool.ruff]
 exclude = ["tests", "docs"]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 # Explicit category list rather than "ALL". "ALL" silently pulls in every new
@@ -256,7 +260,7 @@ known-third-party = ["numpy", "scipy", "matplotlib", "casadi", "pytest"]
 
 [tool.black]
 line-length = 100
-target-version = ["py310", "py311", "py312", "py313", "py314"]
+target-version = ["py311", "py312", "py313", "py314"]
 
 # ======================================== isort =========================================
 

@@ -17,6 +17,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ## [Unreleased]
 
+### Removed
+
+- Python 3.10 is no longer supported; YAPSS requires Python `>=3.11,<3.15`. Python 3.10
+  reaches end of life in October 2026. Python 3.15 is not yet supported, because the
+  CasADi versions YAPSS allows publish no wheels for it.
+
 ### Fixed
 
 - On a phase of zero duration, `control_multiplier` and `path_multiplier` are now NaN at

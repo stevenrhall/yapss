@@ -422,7 +422,7 @@ def test_numpy_where_under_central_differences_raises():
         callback_problem("central-difference", continuous=continuous).solve()
 
 
-# NumPy < 2.3 (the 3.10 floor) warns before raising here; newer NumPy raises directly
+# NumPy < 2.3 warns before raising here; newer NumPy raises directly
 @pytest.mark.filterwarnings("ignore:Conversion of an array with ndim > 0:DeprecationWarning")
 @not_yet("W5", "a non-yapss.math function on a symbol raises naming yapss.math")
 def test_math_module_function_on_a_symbol_raises_helpfully():

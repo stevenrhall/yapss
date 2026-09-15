@@ -333,8 +333,7 @@ def solve(problem: yapss.Problem) -> Solution:
     for name, value in problem.ipopt_options.get_options().items():
         try:
             ipopt_problem.add_option(name, value)
-        # try/except in a loop is unavoidable here, and not a performance issue
-        except (ValueError, TypeError) as e:  # noqa: PERF203 (try-except-in-loop)
+        except (ValueError, TypeError) as e:
             msg = (
                 f"Ipopt refused option '{name}' with value {value!r}: {e}. The option was "
                 f"not applied and the solve proceeds with Ipopt's default. Ipopt's console "

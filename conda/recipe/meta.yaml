@@ -17,12 +17,12 @@ build:
 
 requirements:
   host:
-    - python>=3.10,<3.15
+    - python>=3.11,<3.15
     - hatchling
     - hatch-vcs
     - pip
   run:
-    - python>=3.10,<3.15
+    - python>=3.11,<3.15
     - numpy
     # No CasADi ceiling here, unlike pyproject.toml. That ceiling guards the pip
     # backend, which binds to the Ipopt library vendored inside the CasADi wheel by a
@@ -42,12 +42,12 @@ outputs:
       script: "{{ PYTHON }} -m pip install . --no-deps -vv"
     requirements:
       host:
-        - python>=3.10,<3.15
+        - python>=3.11,<3.15
         - hatchling
         - hatch-vcs
         - pip
       run:
-        - python>=3.10,<3.15
+        - python>=3.11,<3.15
         - numpy
         # No CasADi ceiling; see the `run:` section of the top-level requirements.
         - casadi>=3.6.0
@@ -83,13 +83,13 @@ outputs:
       script: "{{ PYTHON }} -m pip install .[dev] --no-deps -vv"
     requirements:
       host:
-        - python>=3.10,<3.15
+        - python>=3.11,<3.15
         - hatchling
         - hatch-vcs
         - pip
       run:
         # yapss dependencies
-        - python>=3.10,<3.15
+        - python>=3.11,<3.15
         - numpy
         # No CasADi ceiling; see the `run:` section of the top-level requirements.
         - casadi>=3.6.0

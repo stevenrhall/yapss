@@ -23,7 +23,11 @@ YAPSS provides:
 
 ## Installation
 
-YAPSS requires Python 3.10 or later. Install it into a virtual environment with pip:
+YAPSS requires Python 3.11 through 3.14 (`>=3.11,<3.15`). CasADi, a YAPSS dependency,
+does not yet publish packages for Python 3.15. There, pip tries to build CasADi from
+source, which typically fails with "Failed to build casadi".
+
+Install YAPSS into a virtual environment with pip:
 
 ```console
 $ python -m venv yapss-env
@@ -35,7 +39,7 @@ $ source yapss-env/bin/activate
 Alternatively, install it with Conda:
 
 ```console
-$ conda create -n yapss-env python=3.10
+$ conda create -n yapss-env python=3.11
 $ conda activate yapss-env
 (yapss-env) $ conda install -c conda-forge yapss
 ```

@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   # yapss dependencies
-  - python>=3.10,<3.15
+  - python>=3.11,<3.15
   - numpy
   - casadi>=3.6.0
   - scipy
