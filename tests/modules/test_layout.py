@@ -3,22 +3,18 @@
 Test the phase layout record and the NLP structures built from it.
 
 The structures are checked against hand-worked indices for a two-segment mesh under each
-spectral method, which document the layout independently of the code. Until the mesh and
-the assembly geometry read the record, the record is also checked for agreement with what
-they derive, for every method and a range of meshes (one segment, several, unequal, the
-two-point minimum).
+spectral method, which document the layout independently of the code. The endpoint trims
+are checked against the mesh times the quadrature actually produces, for every method and
+a range of meshes (one segment, several, unequal, the two-point minimum).
 
 """
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import numpy as np
 import pytest
 
 from yapss import Problem
-from yapss._private.assembly import index_twins, phase_geometry
 from yapss._private.layout import SPECTRAL_METHODS, PhaseLayout, phase_layout, problem_layout
 from yapss._private.mesh import Mesh
 from yapss._private.structure import get_nlp_cf_structure, get_nlp_dv_structure
@@ -113,37 +109,15 @@ def test_structures_match_hand_worked_indices(method):
 
 
 @pytest.mark.parametrize(("method", "mesh_name"), CASES)
-def test_layout_matches_the_mesh(method, mesh_name):
+def test_trims_match_the_mesh_times(method, mesh_name):
+    """The trims count the evaluation points on tau = +1 (for t0) and tau = -1 (for tf)."""
     problem = build(method, MESHES[mesh_name])
     mesh = Mesh(problem.mesh.phase)
     mesh.set_matrices(method)
     for p, layout in enumerate(problem_layout(problem)):
-        assert len(mesh.tau_x[p]) == layout.n_time
-        assert len(mesh.tau_u[p]) == layout.n_eval
-        assert len(mesh.w[p]) == layout.n_eval
-        if method == "lg":
-            np.testing.assert_array_equal(mesh.lg_index[p], layout.time_order)
-        else:
-            np.testing.assert_array_equal(layout.time_order, np.arange(layout.n_time))
-        # the trims count the evaluation points on tau = +1 (for t0) and tau = -1 (for tf)
         tau_u = mesh.tau_u[p]
         assert layout.trim_t0 == int(np.isclose(tau_u[-1], 1.0))
         assert layout.trim_tf == int(np.isclose(tau_u[0], -1.0))
-
-
-@pytest.mark.parametrize(("method", "mesh_name"), CASES)
-def test_layout_matches_the_assembly_geometry(method, mesh_name):
-    problem = build(method, MESHES[mesh_name])
-    mesh = Mesh(problem.mesh.phase)
-    mesh.set_matrices(method)
-    nlp = SimpleNamespace(problem=problem, mesh=mesh)
-    dv = get_nlp_dv_structure(problem, float)
-    twins = index_twins(problem)
-    for p, layout in enumerate(problem_layout(problem)):
-        geometry = phase_geometry(nlp, dv, twins, p)
-        assert (geometry.nc, geometry.nw) == (layout.n_collocation, layout.n_eval)
-        assert (geometry.trim_t0, geometry.trim_tf) == (layout.trim_t0, layout.trim_tf)
-        np.testing.assert_array_equal(geometry.defect_index, layout.defect_index)
 
 
 def test_layout_is_cached_and_its_arrays_are_read_only():

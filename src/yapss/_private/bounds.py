@@ -454,18 +454,12 @@ def get_nlp_decision_variable_bounds(problem: yapss.Problem) -> tuple[FloatArray
     for p in range(problem.np):
         self_phase = problem.bounds.phase[p]
 
-        # state bounds
+        # state bounds at every time point, and zero-mode bounds (empty unless LGL)
         for i in range(problem.nx[p]):
-            if problem.spectral_method == "lg":
-                lb.phase[p].xa[i][:] = self_phase.state.lower[i]
-                ub.phase[p].xa[i][:] = self_phase.state.upper[i]
-            else:
-                lb.phase[p].x[i][:] = self_phase.state.lower[i]
-                ub.phase[p].x[i][:] = self_phase.state.upper[i]
-
-            if problem.spectral_method == "lgl":
-                lb.phase[p].xs[i][:] = self_phase._zero_mode.lower[i]
-                ub.phase[p].xs[i][:] = self_phase._zero_mode.upper[i]
+            lb.phase[p].x[i][:] = self_phase.state.lower[i]
+            ub.phase[p].x[i][:] = self_phase.state.upper[i]
+            lb.phase[p].xs[i][:] = self_phase._zero_mode.lower[i]
+            ub.phase[p].xs[i][:] = self_phase._zero_mode.upper[i]
 
         # overwrite boundary value bounds
         lb.phase[p].x0[:] = np.maximum(self_phase.initial_state.lower, self_phase.state.lower)

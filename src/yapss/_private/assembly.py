@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 import numpy as np
 
 # package imports
+from .layout import problem_layout
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
@@ -209,27 +210,14 @@ def phase_geometry(
     ``dv`` is the float decision-variable structure the plan synchronizes per evaluation;
     the geometry keeps views of its endpoint times.
     """
-    problem = nlp.problem
-    spectral_method = problem.spectral_method
-    if spectral_method not in ("lg", "lgr", "lgl"):  # pragma: no cover
-        raise RuntimeError
-
-    col_points = problem.mesh.phase[p].collocation_points
-    nc = sum(col_points)
-    if spectral_method == "lgl":
-        nw = nc - len(col_points) + 1
-        defect_index = np.asarray(twins.cf.phase[p].defect_index)
-    else:
-        nw = nc
-        defect_index = np.arange(nc)
-
+    layout = problem_layout(nlp.problem)[p]
     return PhaseGeometry(
         p=p,
-        nc=nc,
-        nw=nw,
-        defect_index=defect_index,
-        trim_t0=1 if spectral_method == "lgl" else 0,
-        trim_tf=0 if spectral_method == "lg" else 1,
+        nc=layout.n_collocation,
+        nw=layout.n_eval,
+        defect_index=layout.defect_index,
+        trim_t0=layout.trim_t0,
+        trim_tf=layout.trim_tf,
         tau=nlp.mesh.tau_u[p],
         w=nlp.mesh.w[p],
         i_t0=int(twins.dv.phase[p].t0[0]),

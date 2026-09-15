@@ -21,6 +21,7 @@ from casadi import SX
 from yapss.math.wrapper import SXW, sx_array
 
 # package imports
+from .layout import problem_layout
 from .types_ import Field, Protected
 
 if TYPE_CHECKING:
@@ -470,18 +471,8 @@ class ContinuousPhase(Protected, Generic[T]):
         nq = self._nq
         nh = self._nh
 
-        # Determine the number of collocation points (nt) based on the spectral method
-        collocation_points = problem.mesh.phase[q].collocation_points
-        if dtype == np.object_:
-            nt = 1
-        elif problem.spectral_method == "lgr":
-            nt = sum(collocation_points)
-        elif problem.spectral_method == "lgl":
-            nt = sum(collocation_points) - len(collocation_points) + 1
-        elif problem.spectral_method == "lg":
-            nt = sum(collocation_points)
-        else:
-            raise RuntimeError
+        # one column per evaluation point; a symbolic argument is traced at a single node
+        nt = 1 if dtype == np.object_ else problem_layout(problem)[q].n_eval
 
         # symbolic time is a single free symbol: the continuous functions are traced
         # once at a generic node, and the tau -> t chain rule is applied by the NLP

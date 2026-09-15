@@ -17,6 +17,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 # package imports
+from .layout import problem_layout
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
@@ -238,27 +239,22 @@ def make_solution_object(
 
         # state
         nx = problem.nx[p]
-        state_list = []
-        for i in range(nx):
-            if problem.spectral_method == "lg":
-                state_list.append(z_phase.xa[i][mesh.lg_index[p]])
-            else:
-                state_list.append(z_phase.x[i])
-        state = _rows(state_list, len(time))
+        time_order = problem_layout(problem)[p].time_order
+        state = _rows([z_phase.x[i][time_order] for i in range(nx)], len(time))
 
         # control
         control = _rows(list(dv.phase[p].u), len(time_c))
 
         # costate
         c_phase = cf_multiplier.phase[p]
-        if problem.spectral_method == "lgl":
-            # for sparse matrix necessary to calculate costate from multipliers
-            row = c_phase.defect_index
-            n = len(row)
-            col = list(range(n))
-            mat = csr_matrix((n * [1], (row, col)))
-        else:
-            mat = 1.0
+        # gather each defect multiplier onto the evaluation point its defect reads; under
+        # LGL, segment-boundary points collect two
+        layout = problem_layout(problem)[p]
+        n_defect = layout.n_collocation
+        mat = csr_matrix(
+            (np.ones(n_defect), (layout.defect_index, np.arange(n_defect))),
+            shape=(layout.n_eval, n_defect),
+        )
         nx = problem.nx[p]
         nh = problem.nh[p]
 

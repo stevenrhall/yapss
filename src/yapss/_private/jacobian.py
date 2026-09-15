@@ -174,17 +174,16 @@ def constant_phase_blocks(nlp: NLP, twins: IndexTwins, p: int) -> list[JacobianB
             ),
         )
 
-    # d(defect)/dx due to b terms
-    if problem.spectral_method == "lg":
-        for i in range(problem.nx[p]):
-            r_, c_ = mesh.b_lg[p].nonzero()
-            blocks.append(
-                JacobianBlock(
-                    rows=tuple(int(k) for k in cf_phase.lg_defect[i][r_]),
-                    cols=tuple(int(k) for k in dv_phase.xa[i][c_]),
-                    constant=np.asarray(mesh.b_lg[p].data, dtype=np.float64),
-                ),
-            )
+    # d(boundary defect)/dx: LG only; b_lg has no rows under the other methods
+    for i in range(problem.nx[p]):
+        r_, c_ = mesh.b_lg[p].nonzero()
+        blocks.append(
+            JacobianBlock(
+                rows=tuple(int(k) for k in cf_phase.lg_defect[i][r_]),
+                cols=tuple(int(k) for k in dv_phase.xa[i][c_]),
+                constant=np.asarray(mesh.b_lg[p].data, dtype=np.float64),
+            ),
+        )
 
     # d(integral defect)/dq
     nq = problem.nq[p]

@@ -13,6 +13,7 @@ import numpy as np
 from scipy.sparse import csr_matrix, lil_matrix
 
 # package imports
+from .layout import phase_layout
 from .quadrature import lg, lgl, lgr
 
 if TYPE_CHECKING:
@@ -29,18 +30,22 @@ if TYPE_CHECKING:
 class Mesh:
     """Mesh instances represent the mesh structure of the NLP.
 
+    Sizes and orderings come from each phase's `layout.PhaseLayout`; this class computes
+    the numerical quantities, which genuinely differ by spectral method.
+
     Attributes
     ----------
-    d0 : Array
-        Derivative matrix for LGL zero modes for each phase of the problem
     d : Array
-        Derivative matrix for LGL modes for each phase of the problem
+        Differentiation matrix acting on every stored state value, for each phase
+    b_lg : Array
+        Boundary-defect matrix acting on every stored state value, for each phase; it has a
+        row per segment under LG and no rows under the other methods
     w : Array
-        Quadrature weights for each phase of the problem
+        Quadrature weights at the evaluation points, for each phase
     tau_x : Array
-        Time scaling for the collocation points for each phase of the problem
+        Mesh time of each state time point, in time order, for each phase
     tau_u : Array
-        Time scaling for the collocation points for each phase of the problem
+        Mesh time of each evaluation point, for each phase
     phase : tuple[MeshPhase, ...]
         The mesh phases of the problem
     """
@@ -48,12 +53,10 @@ class Mesh:
     def __init__(self, mesh_phase: tuple[MeshPhase, ...]) -> None:
         self.phase = mesh_phase
         self.d: list[NDArray[np.float64]] = []
-        self.d0: list[NDArray[np.float64]] = []
         self.w: list[NDArray[np.float64]] = []
         self.tau_x: list[NDArray[np.float64]] = []
         self.tau_u: list[NDArray[np.float64]] = []
-        self.b_lg: list[NDArray[np.float64]] = []
-        self.lg_index: list[NDArray[np.int_]] = []
+        self.b_lg: list[csr_matrix] = []
 
     def set_matrices(self, spectral_method: str) -> None:
         """Compute and save the matrices and vectors needed for integration and differentiation.
@@ -80,11 +83,11 @@ class Mesh:
             s = fraction.sum()
             fraction /= s
 
-            # number of collocation and interpolation points
-            nc = sum(col_points)
-            nxpoints = nc + 1
-            nupoints = nc
-            d = lil_matrix((nc, nc + 1), dtype=np.float64)
+            layout = phase_layout("lgr", col_points)
+            nc = layout.n_collocation
+            nxpoints = layout.n_time
+            nupoints = layout.n_eval
+            d = lil_matrix((nc, layout.n_state_storage), dtype=np.float64)
 
             # quadrature weighting for phase
             w: Array = np.zeros([nupoints], dtype=np.float64)
@@ -118,6 +121,7 @@ class Mesh:
             d.eliminate_zeros()
             self.d.append(d)
             self.w.append(w)
+            self.b_lg.append(csr_matrix((0, layout.n_state_storage), dtype=np.float64))
 
             tau_x[:] = 2 * tau_x - 1.0
             tau_x[0], tau_x[-1] = -1.0, 1.0
@@ -134,12 +138,12 @@ class Mesh:
             s = fraction.sum()
             fraction /= s
 
-            # number of collocation and interpolation points
-            nc = sum(col_points)
-            nsegs = len(col_points)
-            nxpoints = nc - nsegs + 1
-            nupoints = nxpoints
-            d = lil_matrix((nc, nc + 1), dtype=np.float64)
+            layout = phase_layout("lgl", col_points)
+            nc = layout.n_collocation
+            nsegs = layout.n_segments
+            nxpoints = layout.n_time
+            nupoints = layout.n_eval
+            d = lil_matrix((nc, layout.n_state_storage), dtype=np.float64)
             d0 = lil_matrix((nc, nsegs), dtype=np.float64)
 
             # quadrature weighting for phase
@@ -180,10 +184,7 @@ class Mesh:
             d.eliminate_zeros()
             self.d.append(d)
             self.w.append(w)
-
-            d0 = d0.tocsr()
-            d0.eliminate_zeros()
-            self.d0.append(d0)
+            self.b_lg.append(csr_matrix((0, layout.n_state_storage), dtype=np.float64))
 
             tau_x[:] = 2 * tau_x - 1.0
             tau_x[0], tau_x[-1] = -1.0, 1.0
@@ -200,12 +201,12 @@ class Mesh:
             s = fraction.sum()
             fraction /= s
 
-            # number of collocation and interpolation points
-            nc = sum(col_points)
-            nsegs = len(col_points)
-            nxpoints = nc + nsegs + 1
-            nupoints = nc
-            d = lil_matrix((nc, nc + nsegs + 1), dtype=np.float64)
+            layout = phase_layout("lg", col_points)
+            nc = layout.n_collocation
+            nsegs = layout.n_segments
+            nxpoints = layout.n_time
+            nupoints = layout.n_eval
+            d = lil_matrix((nc, layout.n_state_storage), dtype=np.float64)
             d0 = lil_matrix((nc, nsegs), dtype=np.float64)
 
             # quadrature weighting for phase
@@ -213,13 +214,10 @@ class Mesh:
 
             tau_x: Array = np.zeros([nxpoints], dtype=np.float64)
             tau_u: Array = np.zeros([nupoints], dtype=np.float64)
-            bmat: Array = np.zeros([nsegs, nxpoints], dtype=np.float64)
-
-            lg_index: NDArray[np.int64] = np.zeros([nxpoints], dtype=int)
+            bmat: Array = np.zeros([layout.n_boundary_defect, nxpoints], dtype=np.float64)
 
             tau_last = 0.0
             i0 = 0  # row (wc) index
-            k0 = 0
 
             for k, nck in enumerate(col_points):
                 alpha = 1 / fraction[k]
@@ -230,10 +228,6 @@ class Mesh:
                 tau_x[i0 + k : i0 + k + len(tk)] = tau_last + tk * fraction[k]
                 tau_u[i0 : i0 + len(tk) - 1] = tau_last + tk[1:] * fraction[k]
 
-                lg_index[i0 + k] = nc + k
-                lg_index[i0 + k + 1 : i0 + k + 1 + nck] = range(k0, k0 + nck)
-
-                k0 += len(tk) - 1
                 tau_last += fraction[k]
                 d[i0 : i0 + nck, i0 : i0 + nck] = dk[1:, 1:] * alpha
                 d0[i0 : i0 + nck, k] = dk[1:, 0] * alpha
@@ -247,8 +241,6 @@ class Mesh:
                 # update indices
                 i0 += nck
 
-            lg_index[-1] = nc + nsegs
-
             d[:, -nsegs - 1 : -1] = d0
 
             # save the results
@@ -258,7 +250,6 @@ class Mesh:
             self.d.append(d)
             self.w.append(w)
             self.b_lg.append(bmat_csr)
-            self.lg_index.append(lg_index)
 
             tau_x[:] = 2 * tau_x - 1.0
             tau_x[0], tau_x[-1] = -1.0, 1.0

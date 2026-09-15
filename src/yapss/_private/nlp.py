@@ -321,21 +321,13 @@ def make_nlp_constraints(
             tf = dv.phase[p].tf[0]
             dt2 = (tf - t0) / 2
 
-            # state equation defect
+            # state equation defect, and the boundary defect (empty unless LG)
+            defect_index = nlp_cf_phase.defect_index
             for i in range(problem.nx[p]):
-                if problem.spectral_method == "lgl":
-                    defect = ci.phase[p].dynamics[i][cf.phase[p].defect_index] * dt2
-                    defect -= mesh.d[p] @ dv.phase[p].xa[i]
-                elif problem.spectral_method in ("lgr", "lg"):
-                    defect = ci.phase[p].dynamics[i] * dt2 - mesh.d[p] @ dv.phase[p].xa[i]
-                else:
-                    raise RuntimeError
+                defect = ci.phase[p].dynamics[i][defect_index] * dt2
+                defect -= mesh.d[p] @ dv.phase[p].xa[i]
                 nlp_cf_phase.defect[i] += defect
-
-                # lg endpoint defect
-                if problem.spectral_method == "lg":
-                    lg_defect = nlp_cf_phase.lg_defect
-                    lg_defect[i][:] = mesh.b_lg[p] @ dv.phase[p].xa[i]
+                nlp_cf_phase.lg_defect[i][:] = mesh.b_lg[p] @ dv.phase[p].xa[i]
 
             # integral evaluation defect
             for i in range(problem.nq[p]):

@@ -316,9 +316,10 @@ def test_initial_guess_nlp_state_is_in_time_order(spectral_method):
     """The NLP state guess, read back the way solution.py reads it, is the interpolant.
 
     For LG the state layout is collocation points first, then segment-start and final
-    values, so the write must go through ``mesh.lg_index`` just as the read does.
+    values, so the write must go through the layout's ``time_order`` just as the read does.
     """
     from yapss._private.guess import make_initial_guess_nlp
+    from yapss._private.layout import problem_layout
     from yapss._private.mesh import Mesh
     from yapss._private.structure import get_nlp_dv_structure
 
@@ -337,7 +338,7 @@ def test_initial_guess_nlp_state_is_in_time_order(spectral_method):
     dv.z[:] = z0
 
     phase = dv.phase[0]
-    x = phase.xa[0][mesh.lg_index[0]] if spectral_method == "lg" else phase.x[0]
+    x = phase.x[0][problem_layout(problem)[0].time_order]
     t_x = (mesh.tau_x[0] + 1) / 2
     np.testing.assert_allclose(x, t_x, atol=1e-14)
     assert phase.x0[0] == 0.0

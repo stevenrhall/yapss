@@ -15,6 +15,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 # package imports
+from .layout import problem_layout
 from .structure import DVStructure, get_nlp_dv_structure
 from .types_ import Protected, set_private
 
@@ -358,18 +359,12 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
 
         # interpolate state and control variables
         state = guess.phase[p].state
+        # tau_x is in time order; the stored order differs under LG, which time_order maps
+        time_order = problem_layout(problem)[p].time_order
         for i in range(problem.nx[p]):
             f = interp1d(time, state[i], fill_value="extrapolate")
-            if problem.spectral_method != "lg":
-                phase.x[i][:] = f(t_x)
-            else:
-                # tau_x is in time order, but the LG state layout is collocation points
-                # first, then segment-start and final values; lg_index maps time order
-                # to layout order, the same permutation solution.py inverts on read.
-                phase.xa[i][mesh.lg_index[p]] = f(t_x)
-
-            if problem.spectral_method == "lgl":
-                phase.xs[i][:] = 0.0
+            phase.x[i][time_order] = f(t_x)
+            phase.xs[i][:] = 0.0  # zero modes (empty unless LGL)
 
         control = guess.phase[p].control
         for i in range(problem.nu[p]):

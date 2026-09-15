@@ -281,12 +281,8 @@ def get_nlp_scaling(
     for p in range(problem.np):
         phase = problem.scale.phase[p]
         for i in range(problem.nx[p]):
-            if problem.spectral_method == "lg":
-                dv.phase[p].xa[i][:] = 1.0 / phase.state[i]
-            else:
-                dv.phase[p].x[i][:] = 1.0 / phase.state[i]
-            if problem.spectral_method == "lgl":
-                dv.phase[p].xs[i][:] = 1.0 / phase.state[i]
+            # every stored value of a state, zero modes (LGL) included, has its scale
+            dv.phase[p].xa[i][:] = 1.0 / phase.state[i]
         for i in range(problem.nu[p]):
             dv.phase[p].u[i][:] = 1.0 / phase.control[i]
         for i in range(problem.nq[p]):
@@ -304,9 +300,7 @@ def get_nlp_scaling(
         phase = problem.scale.phase[p]
         for i in range(problem.nx[p]):
             cf.phase[p].defect[i][:] = 1.0 / phase.dynamics[i]
-            if problem.spectral_method == "lg":
-                lg_defect = cf.phase[p].lg_defect
-                lg_defect[i][:] = 1.0 / phase.state[i]
+            cf.phase[p].lg_defect[i][:] = 1.0 / phase.state[i]  # empty unless LG
         for i in range(problem.nq[p]):
             cf.phase[p].integral[i] = 1.0 / phase.integral[i]
         for i in range(problem.nh[p]):
