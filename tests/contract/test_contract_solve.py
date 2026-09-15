@@ -25,8 +25,14 @@ import pytest
 
 import yapss
 from yapss import Problem
+from yapss.examples import brachistochrone_minimal
 
 from ._contract import callback_problem, default_objective, not_yet, raises
+
+# Reference optimum of `brachistochrone_minimal`, and the tolerance its example test holds it
+# to on every CI runner (tests/examples/test_brachistochrone_minimal.py).
+BRACHISTOCHRONE_J = 0.312480130
+BRACHISTOCHRONE_REL = 1e-8
 
 
 def unconverged():
@@ -35,15 +41,91 @@ def unconverged():
     return ocp
 
 
+def problem_inputs(ocp):
+    """Everything a user sets on a problem, as plain values that compare with ``==``.
+
+    Callbacks and `auxdata` entries are recorded by identity: what matters is that solve
+    replaced nothing, and a user object need not define equality.
+    """
+
+    def value(x):
+        return np.asarray(x).tolist() if isinstance(x, np.ndarray) else x
+
+    def lower_upper(b):
+        return value(b.lower), value(b.upper)
+
+    bound_names = (
+        "initial_time", "final_time", "duration", "initial_state", "final_state",
+        "state", "control", "integral", "path",
+    )  # fmt: skip
+    return {
+        "settings": (
+            ocp.name, ocp.spectral_method, ocp.sense, ocp.catch_keyboard_interrupt,
+            ocp.derivatives.method, ocp.derivatives.order, ocp.ipopt_options.get_options(),
+        ),  # fmt: skip
+        "functions": {
+            name: id(getattr(ocp.functions, name))
+            for name in dir(ocp.functions)
+            if not name.startswith("_")
+        },
+        "auxdata": {key: id(item) for key, item in vars(ocp.auxdata).items()},
+        "bounds": (
+            lower_upper(ocp.bounds.discrete),
+            lower_upper(ocp.bounds.parameter),
+            [[lower_upper(getattr(b, n)) for n in bound_names] for b in ocp.bounds.phase],
+        ),
+        "guess": (
+            value(ocp.guess.parameter),
+            [
+                [value(getattr(g, n)) for n in ("time", "state", "control", "integral")]
+                for g in ocp.guess.phase
+            ],
+        ),
+        "scale": (
+            value(ocp.scale.objective),
+            value(ocp.scale.parameter),
+            value(ocp.scale.discrete),
+            [
+                [
+                    value(getattr(c, n))
+                    for n in ("time", "state", "control", "integral", "path", "dynamics")
+                ]
+                for c in ocp.scale.phase
+            ],
+        ),
+        "mesh": [(value(m.collocation_points), value(m.fraction)) for m in ocp.mesh.phase],
+    }
+
+
 # ---------------------------------------------------------------- what a user may do
 
 
-def test_re_solving_gives_the_same_result():
+def test_solve_leaves_the_problem_unchanged():
+    """Nothing a solve writes into the problem can affect the next solve.
+
+    Checked exactly, before any solve result is involved. Through 0.2.2 the `"auto"`
+    method wrote into `auxdata`, replacing a user helper, and a second solve then called
+    the wrong function.
+    """
     ocp = callback_problem()
-    first = ocp.solve()
-    second = ocp.solve()
-    assert first.objective == second.objective
-    np.testing.assert_array_equal(first.phase[0].state, second.phase[0].state)
+    ocp.auxdata.helper = lambda x: x
+    before = problem_inputs(ocp)
+    ocp.solve()
+    assert problem_inputs(ocp) == before
+
+
+def test_consecutive_solves_each_reach_the_known_optimum():
+    """Each solve is checked against the reference answer, not against the other.
+
+    Solves are not reproducible run to run on every machine, so a comparison between
+    two runs cannot separate left-over state from ordinary variation.
+    """
+    ocp = brachistochrone_minimal.setup()
+    ocp.ipopt_options.print_level = 0
+    for _ in range(2):
+        solution = ocp.solve()
+        assert solution.nlp_info.ipopt_status == 0
+        assert solution.objective == pytest.approx(BRACHISTOCHRONE_J, rel=BRACHISTOCHRONE_REL)
 
 
 def test_solve_from_a_worker_thread():
