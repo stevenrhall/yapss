@@ -24,8 +24,9 @@ import textwrap
 import pytest
 
 from yapss import Problem
-from yapss._private.initial_point import _constraint_labels, _variable_labels
+from yapss._private.initial_point import _constraint_label, _labels, _variable_label
 from yapss._private.ipopt_options import DEFAULT_IPOPT_OPTIONS
+from yapss._private.structure import nlp_constraint_keys, nlp_variable_keys
 from yapss.examples import brachistochrone_minimal
 from yapss.math import cos, sin, sqrt
 
@@ -106,21 +107,40 @@ def test_finite_initial_guess_does_not_raise():
 
 @pytest.mark.parametrize("spectral_method", ["lgr", "lg", "lgl"])
 def test_every_nlp_entry_has_a_label(spectral_method):
-    """The labels cover every decision variable and constraint, for every method."""
+    """Each (phase, view, component) group of NLP entries gets the label users read."""
     problem = Problem(name="labels", nx=[2, 1], nu=[1, 2], nq=[1, 0], nh=[1, 1], ns=2, nd=3)
     problem.spectral_method = spectral_method
     problem.mesh.phase[0].collocation_points = (3, 4)
     problem.mesh.phase[0].fraction = (0.5, 0.5)
-    variables = _variable_labels(problem)
-    constraints = _constraint_labels(problem)
-    assert all(variables), [i for i, label in enumerate(variables) if not label]
-    assert all(constraints), [i for i, label in enumerate(constraints) if not label]
-    assert "parameter[1]" in variables
-    assert "phase 1 final time" in variables
-    assert "discrete[2]" in constraints
-    assert "phase 1 duration" in constraints
-    if spectral_method == "lg":
-        assert "phase 0 dynamics[1] (end-of-segment quadrature)" in constraints
+    variables = set(_labels(nlp_variable_keys(problem), _variable_label))
+    constraints = set(_labels(nlp_constraint_keys(problem), _constraint_label))
+    assert variables == {
+        *(f"phase 0 state[{i}]" for i in range(2)),
+        "phase 1 state[0]",
+        "phase 0 control[0]",
+        *(f"phase 1 control[{i}]" for i in range(2)),
+        "phase 0 integral[0]",
+        *(f"phase {p} {end} time" for p in range(2) for end in ("initial", "final")),
+        *(f"parameter[{i}]" for i in range(2)),
+    }
+    quadrature = (
+        {
+            f"phase {p} dynamics[{i}] (end-of-segment quadrature)"
+            for p, i in ((0, 0), (0, 1), (1, 0))
+        }
+        if spectral_method == "lg"
+        else set()
+    )
+    assert constraints == {
+        *(f"phase 0 dynamics[{i}]" for i in range(2)),
+        "phase 1 dynamics[0]",
+        *quadrature,
+        "phase 0 path[0]",
+        "phase 1 path[0]",
+        "phase 0 integral[0] (integrand)",
+        *(f"phase {p} duration" for p in range(2)),
+        *(f"discrete[{i}]" for i in range(3)),
+    }
 
 
 def test_nan_derivative_check_is_a_yapss_default():

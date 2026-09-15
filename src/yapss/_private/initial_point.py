@@ -19,21 +19,21 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Hashable
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, assert_never
 
 import numpy as np
 
-from .structure import get_nlp_cf_structure, get_nlp_dv_structure
+from .structure import nlp_constraint_keys, nlp_variable_keys
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from numpy.typing import NDArray
 
     import yapss
 
     from .nlp import NLP
-    from .structure import CFStructure, DVStructure
+    from .types_ import CFViewName, DVViewName
 
 __all__ = ["check_initial_point"]
 
@@ -43,52 +43,61 @@ _MAX_REPORTED = 12
 """Number of offending quantities listed before the rest are summarized as a count."""
 
 
-def _variable_labels(problem: yapss.Problem) -> list[str]:
-    """Name the problem-level variable behind each NLP decision variable."""
-    dv: DVStructure[np.int64] = get_nlp_dv_structure(problem, np.int64)
-    dv.z[:] = np.arange(dv.z.size)
-    labels = [""] * dv.z.size
-
-    def assign(indices: NDArray[np.int64], label: str) -> None:
-        for k in np.asarray(indices).ravel():
-            labels[int(k)] = label
-
-    for p, phase in enumerate(dv.phase):
-        for i, xa in enumerate(phase.xa):
-            assign(xa, f"phase {p} state[{i}]")
-        for i, u in enumerate(phase.u):
-            assign(u, f"phase {p} control[{i}]")
-        for i in range(phase.q.size):
-            assign(phase.q[i : i + 1], f"phase {p} integral[{i}]")
-        assign(phase.t0, f"phase {p} initial time")
-        assign(phase.tf, f"phase {p} final time")
-    for i in range(dv.s.size):
-        assign(dv.s[i : i + 1], f"parameter[{i}]")
-    return labels
+def _variable_label(group: tuple[int, DVViewName, int]) -> str:
+    """Name the problem-level variable behind a (phase, view, component) group."""
+    p, view, i = group
+    match view:
+        case "x" | "xs":
+            label = f"phase {p} state[{i}]"
+        case "u":
+            label = f"phase {p} control[{i}]"
+        case "q":
+            label = f"phase {p} integral[{i}]"
+        case "t0":
+            label = f"phase {p} initial time"
+        case "tf":
+            label = f"phase {p} final time"
+        case "s":
+            label = f"parameter[{i}]"
+        case _:
+            assert_never(view)
+    return label
 
 
-def _constraint_labels(problem: yapss.Problem) -> list[str]:
-    """Name the problem-level quantity behind each NLP constraint."""
-    cf: CFStructure[np.int64] = get_nlp_cf_structure(problem, np.int64)
-    cf.c[:] = np.arange(cf.c.size)
-    labels = [""] * cf.c.size
+def _constraint_label(group: tuple[int, CFViewName, int]) -> str:
+    """Name the problem-level quantity behind a (phase, view, component) group."""
+    p, view, i = group
+    match view:
+        case "defect":
+            label = f"phase {p} dynamics[{i}]"
+        case "lg_defect":
+            label = f"phase {p} dynamics[{i}] (end-of-segment quadrature)"
+        case "path":
+            label = f"phase {p} path[{i}]"
+        case "integral":
+            label = f"phase {p} integral[{i}] (integrand)"
+        case "duration":
+            label = f"phase {p} duration"
+        case "discrete":
+            label = f"discrete[{i}]"
+        case _:
+            assert_never(view)
+    return label
 
-    def assign(indices: NDArray[np.int64], label: str) -> None:
-        for k in np.asarray(indices).ravel():
-            labels[int(k)] = label
 
-    for p, phase in enumerate(cf.phase):
-        for i, defect in enumerate(phase.defect):
-            assign(defect, f"phase {p} dynamics[{i}]")
-        for i, lg_defect in enumerate(getattr(phase, "lg_defect", [])):
-            assign(lg_defect, f"phase {p} dynamics[{i}] (end-of-segment quadrature)")
-        for i, path in enumerate(phase.path):
-            assign(path, f"phase {p} path[{i}]")
-        for i in range(phase.integral.size):
-            assign(phase.integral[i : i + 1], f"phase {p} integral[{i}] (integrand)")
-        assign(phase.duration, f"phase {p} duration")
-    for i in range(cf.discrete.size):
-        assign(cf.discrete[i : i + 1], f"discrete[{i}]")
+def _labels(keys: NDArray[np.object_], label: Callable[[Any], str]) -> list[str]:
+    """Label every entry by its (phase, view, component) group, formatting each group once.
+
+    The keys come from an object array, so they are untyped here; `nlp_variable_keys` and
+    `nlp_constraint_keys` guarantee each is ``(phase, view, component, position)``.
+    """
+    cache: dict[tuple[Any, ...], str] = {}
+    labels = []
+    for p, view, i, _ in keys:
+        group = (p, view, i)
+        if group not in cache:
+            cache[group] = label(group)
+        labels.append(cache[group])
     return labels
 
 
@@ -157,8 +166,8 @@ def check_initial_point(problem: yapss.Problem, nlp: NLP, z0: NDArray[np.float64
     ):
         return
 
-    variable_labels = _variable_labels(problem)
-    constraint_labels = _constraint_labels(problem)
+    variable_labels = _labels(nlp_variable_keys(problem), _variable_label)
+    constraint_labels = _labels(nlp_constraint_keys(problem), _constraint_label)
     lines: list[str] = []
 
     if not np.isfinite(objective):

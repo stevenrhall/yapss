@@ -17,11 +17,11 @@ from typing import Any, ClassVar, Generic, Literal, TypeVar, cast
 
 # fmt: off
 __all__ = [  # noqa: RUF022
-    "CFIndex", "CFKey", "CFName", "CHFDS", "CHFDSPhase", "CHFDSTerm", "CHS", "CHSTerm", "CJFDS",
-    "CJFDSPhase", "CJFDSTerm", "CJS", "CJSPhase", "CJSTerm", "CVIndex", "CVKey", "CVName",
-    "DFIndex", "DHFDS", "DHS", "DHSTerm", "DJFDS", "DJS", "DJSTerm", "DVIndex", "DVKey",
-    "DerivativeMethod", "DerivativeOrder", "OGS", "OHS", "OHSTerm", "PhaseIndex", "Sense",
-    "SpectralMethod", "VectorCVName",
+    "CFIndex", "CFKey", "CFName", "CFViewName", "CHFDS", "CHFDSPhase", "CHFDSTerm", "CHS",
+    "CHSTerm", "CJFDS", "CJFDSPhase", "CJFDSTerm", "CJS", "CJSPhase", "CJSTerm", "CVIndex", "CVKey",
+    "CVName", "DFIndex", "DHFDS", "DHS", "DHSTerm", "DJFDS", "DJS", "DJSTerm", "DVIndex", "DVKey",
+    "DVViewName", "DerivativeMethod", "DerivativeOrder", "OGS", "OHS", "OHSTerm", "PhaseIndex",
+    "Sense", "SpectralMethod", "VectorCVName",
 ]
 # fmt: on
 
@@ -146,6 +146,16 @@ DHS = tuple[DHSTerm, ...]
 
 DHFDS = tuple[tuple[DVKey, tuple[tuple[DVKey, tuple[DFIndex, ...]], ...]], ...]
 """Discrete Hessian finite difference structure."""
+
+DVViewName = Literal["x", "xs", "u", "q", "t0", "tf", "s"]
+"""A decision variable view that no other listed view overlaps; together they cover z once.
+
+``xa`` is ``x`` followed by ``xs``, ``xc`` is a prefix of ``x``, and ``x0`` and ``xf`` are
+aliases into ``x``, so none of those is listed.
+"""
+
+CFViewName = Literal["defect", "lg_defect", "path", "integral", "duration", "discrete"]
+"""A constraint function view; together the views cover the constraint vector once."""
 
 S = TypeVar("S")
 

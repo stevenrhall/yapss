@@ -21,13 +21,14 @@ from __future__ import annotations
 
 # standard imports
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar, assert_never, get_args
 
 # third party imports
 import numpy as np
 
 # package imports
 from .layout import problem_layout
+from .types_ import CFViewName, DVViewName
 
 # Define a generic type variable
 T = TypeVar("T", bound=np.generic)
@@ -275,3 +276,95 @@ def get_nlp_cf_structure(problem: yapss.Problem, dtype: type) -> CFStructure[T]:
 
     cf.discrete = c[ic : ic + problem.nd]
     return cf
+
+
+def nlp_variable_keys(problem: yapss.Problem) -> NDArray[np.object_]:
+    """Return the key of every NLP decision variable, in NLP order.
+
+    ``keys[k] == (p, view, i, j)`` says that ``z[k]`` is ``dv.phase[p].<view>[i][j]`` in the
+    structure `get_nlp_dv_structure` returns (``dv.s[i]`` for a parameter, keyed with phase
+    0). The position ``j`` is the storage position in the view, not a time index; see
+    ``PhaseLayout.time_order``. The keys are written through the NLP's own views, into the
+    views named by `DVViewName`, so the map cannot disagree with the layout.
+    """
+    dv: DVStructure[np.object_] = get_nlp_dv_structure(problem, object)
+    for view in get_args(DVViewName):
+        for p in (0,) if view == "s" else range(problem.np):
+            _write_keys(_variable_components(dv, p, view), p, view)
+    return dv.z
+
+
+def nlp_constraint_keys(problem: yapss.Problem) -> NDArray[np.object_]:
+    """Return the key of every NLP constraint, in NLP order.
+
+    ``keys[k] == (p, view, i, j)`` says that ``c[k]`` is ``cf.phase[p].<view>[i][j]`` in the
+    structure `get_nlp_cf_structure` returns (``cf.discrete[i]`` for a discrete constraint,
+    keyed with phase 0). See `nlp_variable_keys`.
+    """
+    cf: CFStructure[np.object_] = get_nlp_cf_structure(problem, object)
+    for view in get_args(CFViewName):
+        for p in (0,) if view == "discrete" else range(problem.np):
+            _write_keys(_constraint_components(cf, p, view), p, view)
+    return cf.c
+
+
+def _variable_components(
+    dv: DVStructure[np.object_],
+    p: int,
+    view: DVViewName,
+) -> list[Array[np.object_]]:
+    """Return one array per component of a decision variable view."""
+    match view:
+        case "x":
+            components = dv.phase[p].x
+        case "xs":
+            components = dv.phase[p].xs
+        case "u":
+            components = dv.phase[p].u
+        case "q":
+            components = _scalars(dv.phase[p].q)
+        case "t0":
+            components = [dv.phase[p].t0]
+        case "tf":
+            components = [dv.phase[p].tf]
+        case "s":
+            components = _scalars(dv.s)
+        case _:
+            assert_never(view)
+    return components
+
+
+def _constraint_components(
+    cf: CFStructure[np.object_],
+    p: int,
+    view: CFViewName,
+) -> list[Array[np.object_]]:
+    """Return one array per component of a constraint view."""
+    match view:
+        case "defect":
+            components = cf.phase[p].defect
+        case "lg_defect":
+            components = cf.phase[p].lg_defect
+        case "path":
+            components = cf.phase[p].path
+        case "integral":
+            components = _scalars(cf.phase[p].integral)
+        case "duration":
+            components = [cf.phase[p].duration]
+        case "discrete":
+            components = _scalars(cf.discrete)
+        case _:
+            assert_never(view)
+    return components
+
+
+def _scalars(array: Array[np.object_]) -> list[Array[np.object_]]:
+    """Split a view whose components are single entries into one length-1 view each."""
+    return [array[i : i + 1] for i in range(array.size)]
+
+
+def _write_keys(components: list[Array[np.object_]], p: int, view: str) -> None:
+    """Write ``(p, view, i, j)`` into entry ``j`` of component ``i``."""
+    for i, array in enumerate(components):
+        for j in range(array.size):
+            array[j] = (p, view, i, j)
