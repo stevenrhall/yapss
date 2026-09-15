@@ -174,10 +174,8 @@ class Problem:
         eval_jac_g: EvaluationCallback,
         hessian_structure: SparsityStructure | None = None,
         eval_h: HessianCallback | None = None,
-        _unsafe_allow_unverified_library: bool = False,
     ) -> None:
-        if not _unsafe_allow_unverified_library:
-            library.require_initialized()
+        library.require_initialized()
         callbacks = {
             "eval_f": eval_f,
             "eval_g": eval_g,

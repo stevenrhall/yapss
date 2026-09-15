@@ -16,19 +16,11 @@ from pathlib import Path
 
 import pytest
 
-from yapss._private.config import get_conda_prefix
-
 WORKER = Path(__file__).parent / "_ipopt_worker.py"
 
 PASS, FAIL, SKIP = 0, 1, 2
 
-pytestmark = [
-    pytest.mark.isolation,
-    pytest.mark.skipif(
-        bool(get_conda_prefix()),
-        reason="conda uses the cyipopt backend; the resolver is not used there",
-    ),
-]
+pytestmark = pytest.mark.isolation
 
 
 def run_check(name):

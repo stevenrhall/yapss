@@ -7,11 +7,10 @@ dependencies:
   - scipy
   - mpmath
   - matplotlib
-  # No CasADi ceiling here: the pip-side <=3.7.2 cap is specifically about
-  # mseipopt hard-wiring a path into CasADi's bundled IPOPT. This env uses
-  # cyipopt (conda-forge's own IPOPT build), so that risk doesn't apply.
+  # No CasADi ceiling here: the pip-side <=3.7.2 cap is about the layout of the
+  # IPOPT bundled inside the CasADi wheel. Conda's CasADi links conda-forge's own
+  # IPOPT package instead, so that risk doesn't apply.
   - casadi>=3.6.0
-  - cyipopt
   - pytest
   - pytest-cov
   - hatchling

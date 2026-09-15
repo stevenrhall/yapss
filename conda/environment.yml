@@ -9,7 +9,6 @@ dependencies:
   - scipy
   - mpmath
   - matplotlib
-  - cyipopt
   # documentation
   - sphinx
   - sphinxcontrib-bibtex

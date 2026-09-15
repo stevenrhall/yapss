@@ -4,21 +4,24 @@ How YAPSS Connects to Ipopt
 .. note::
 
     Most users can skip this page. YAPSS connects to Ipopt automatically, and there is
-    nothing you need to configure. This page explains how it chooses, and answers the
-    questions that choice tends to raise.
+    nothing you need to configure. This page explains how, and answers the questions that
+    tends to raise.
 
 YAPSS solves optimal control problems by converting them into nonlinear programs (NLPs)
 and solving them with `Ipopt <https://coin-or.github.io/Ipopt/>`_, a software package for
-large-scale nonlinear optimization. How YAPSS reaches Ipopt depends entirely on the
-environment it is running in:
+large-scale nonlinear optimization. YAPSS calls Ipopt through its own interface, and it
+uses the Ipopt library that CasADi, a YAPSS dependency, already uses:
 
-* **In a Conda environment**: YAPSS uses cyipopt.
-* **Everywhere else** (a pip install, a virtual environment, a system Python): YAPSS uses
-  its own interface to the Ipopt library that the CasADi package already ships.
+* **In a pip install** (a virtual environment, a system Python): the Ipopt library bundled
+  inside the CasADi package.
+* **In a Conda environment**: conda-forge's Ipopt package, which conda-forge's CasADi links
+  against.
 
-The choice is made automatically by default. The formerly supported overrides are deprecated
-and will be removed in version 0.3.0. The rest of this page explains that choice and answers
-common questions about it.
+.. versionchanged:: 0.3.0
+
+    YAPSS uses the same interface in every environment. In a Conda environment it
+    previously used cyipopt instead. It calls the same Ipopt library there as before; only
+    the interface to it has changed.
 
 If CasADi already includes Ipopt, why not use CasADi's solver interface?
 ------------------------------------------------------------------------
@@ -65,26 +68,29 @@ callback, which is what carries the user's own callback and makes interrupting a
 Ctrl-C work; and it reports Ipopt's return status directly rather than a normalized subset
 of it. So ultimately, YAPSS needs to access Ipopt directly.
 
-Why are there two interfaces to Ipopt?
---------------------------------------
+How YAPSS calls Ipopt
+---------------------
 
-There are several ways to call a C library such as Ipopt from Python, and YAPSS uses two of
-them, because no single one works well in both packaging ecosystems.
+There are several ways to call a C library such as Ipopt from Python. YAPSS's interface is
+written in pure Python using ``ctypes``, the standard library's foreign function interface,
+so it needs no compiler. What it does need is a compiled Ipopt library to call, and one is
+already present wherever CasADi is installed. That makes installation a single step, with
+pip or with Conda. The interface is derived from
+`mseipopt <https://github.com/cea-ufmg/mseipopt>`_ and is bundled with YAPSS rather than
+installed separately.
 
-**cyipopt** is a Cython wrapper around Ipopt. In a Conda environment it installs with a
-single command, along with the Ipopt binary itself, so it is the natural choice there. In a
-pip environment it is considerably harder: building the extension needs a C compiler, and
-you have to install the Ipopt library on your system yourself. How difficult that is depends
-on the operating system — on macOS it is fairly straightforward with Homebrew — but there is
-no single-command installation.
+A ``ctypes`` interface has to agree with the library about the sizes of the values that
+cross between them, which a compiled wrapper gets automatically. So before its first solve,
+YAPSS checks the Ipopt library's compile-time configuration against the ``IpoptConfig.h``
+header installed alongside it, and refuses to run if the two disagree --- for instance, if
+Ipopt was built with 64-bit integer indices or in single precision. It also confirms that
+exactly one Ipopt library is loaded in the process, and runs a small test problem.
 
-**YAPSS's own interface** is written in pure Python using ``ctypes``, the standard library's
-foreign function interface, so it needs no compiler. What it does need is a compiled Ipopt
-library to call, and one is already present: the CasADi package, which YAPSS depends on in
-any case, ships Ipopt inside its distribution. That makes the pip path work with no
-additional installation steps at all. This interface is derived from
-`mseipopt <https://github.com/cea-ufmg/mseipopt>`_ and, as of version 0.2.0, is bundled
-with YAPSS rather than installed separately.
+Up to version 0.2.x, YAPSS used `cyipopt <https://github.com/mechmotum/cyipopt>`_, a Cython
+wrapper around Ipopt, in a Conda environment, where it installs with a single command. It
+was dropped in 0.3.0 so that there is one interface to maintain and test, and because some
+of its behavior had to be worked around: it discarded exceptions raised while computing the
+Hessian (see below).
 
 Exception handling
 ------------------
@@ -94,7 +100,7 @@ Exception handling
     Exceptions raised while Ipopt is calling into YAPSS are now preserved and re-raised
     once ``solve()`` returns, instead of being lost. This applies whether the exception
     comes from a user-supplied callback or from a function YAPSS constructs internally,
-    and to both interfaces described above, though the two previously failed
+    and to both interfaces YAPSS then used, though the two previously failed
     differently. On the Conda/cyipopt path, an exception raised during a Hessian
     evaluation was discarded silently: Ipopt kept iterating on stale Hessian values and
     reported the run as unconverged, or even as successful, with nothing printed to
@@ -109,60 +115,47 @@ Exception handling
 Why doesn't YAPSS use the cyipopt I installed?
 ----------------------------------------------
 
-Outside a Conda environment, YAPSS ignores cyipopt even when it is installed, and uses its
-own interface to CasADi's Ipopt instead. This is deliberate.
+YAPSS does not use cyipopt at all, and it makes certain that only one copy of Ipopt is
+loaded in the process.
 
 Loading two independently built copies of Ipopt into one process is unsafe. Each copy
-brings its own private OpenMP runtime, and the two can collide and crash the process
-part-way through a solve. Outside Conda, a pip-installed cyipopt and CasADi's bundled Ipopt
-are exactly two such copies, so YAPSS makes certain that only one is ever loaded.
+brings its own OpenMP runtime, and the two can collide and crash the process part-way
+through a solve. In a pip environment, cyipopt links an Ipopt you installed on your system,
+and CasADi's bundled Ipopt is a second, separate copy.
 
-Conda is the exception, and for a more specific reason than it might appear. It is not that
-Conda's runtimes are better behaved, it is that conda-forge's ``cyipopt`` and
-conda-forge's ``casadi`` both link against the *same* installed Ipopt and OpenMP packages,
-resolved once by Conda's dependency solver. There is only one Ipopt binary in the process,
-reached two ways — not two copies coexisting politely. Indeed, one of the reasons that Conda
-exists is to solve the problem of setting up binaries in scenarios just like this.
-
-Having cyipopt installed alongside YAPSS in a pip environment does no harm. It simply goes
-unused.
+Having cyipopt installed alongside YAPSS does no harm: it simply goes unused. Importing it
+into the same process as a YAPSS solve is another matter, because in a pip environment that
+loads the second copy. YAPSS checks when it first loads Ipopt, and if it finds another copy
+already loaded, it stops with an error naming both libraries rather than risk the crash. In a Conda environment, conda-forge's cyipopt and CasADi link the *same* installed
+Ipopt package, so there is only one copy, reached two ways.
 
 Why is CasADi required if I supply my own derivatives?
 ------------------------------------------------------
 
 CasADi provides the automatic differentiation behind the default ``derivatives.method`` of
-``"auto"``, so it is needed for that. But outside a Conda environment it is also where the
-Ipopt library itself comes from, which means YAPSS depends on CasADi even for problems that
-never use automatic differentiation — with user-supplied derivatives, or with central
-differences.
+``"auto"``, so it is needed for that. But it is also how YAPSS finds the Ipopt library,
+which means YAPSS depends on CasADi even for problems that never use automatic
+differentiation --- with user-supplied derivatives, or with central differences.
 
 Can I choose which Ipopt library YAPSS uses?
 --------------------------------------------
 
-.. deprecated:: 0.2.0
+No. Versions before 0.3.0 let you select the interface, or point YAPSS at an Ipopt library
+of your own, through the ``ipopt_source`` attribute of ``yapss.Problem`` or the
+``YAPSS_IPOPT_SOURCE`` environment variable.
 
-    The ``ipopt_source`` attribute of ``yapss.Problem`` and the ``YAPSS_IPOPT_SOURCE``
-    environment variable are deprecated, and will be **removed in version 0.3.0**. After
-    that, the interface is determined solely by whether YAPSS is running in a Conda
-    environment. Both continue to work in 0.2.x, and now emit a warning when set.
+.. versionchanged:: 0.3.0
 
-Earlier versions of YAPSS let you select the interface, or point it at an Ipopt library of
-your own. That option is being withdrawn because YAPSS cannot verify a library it did not
-ship.
+    ``ipopt_source`` and ``YAPSS_IPOPT_SOURCE`` were removed, after being deprecated in
+    0.2.0. Setting ``problem.ipopt_source`` now raises ``AttributeError``, and a
+    ``YAPSS_IPOPT_SOURCE`` still set in the environment has no effect, apart from a
+    one-time warning saying so. Deleting either is all that is required.
 
-For its own interface, YAPSS checks the Ipopt library's compile-time configuration against
-the header file that CasADi ships alongside it, and refuses to run if the two disagree —
-for instance if Ipopt was built with 64-bit integer indices or in single precision. A
-library supplied by you has no matching header to check against, and a mismatch of that
-kind does not produce a Python exception. It may or may not crash the process, and if it
-does, there is nothing to indicate why. Rather than offer an option that cannot be made safe,
-YAPSS is removing it.
-
-If you used previous versions of YAPSS, and were setting ``ipopt_source`` in a program,
-deleting that line is all that is required. For ``"default"``, ``"casadi"``, and for
-``"cyipopt"`` in a Conda environment, the behavior is identical to what you already had.
-The one case that changes is ``"cyipopt"`` requested outside a Conda environment, which is
-the unsafe configuration described above.
+The option was withdrawn because YAPSS cannot verify a library it did not find through
+CasADi. A library supplied by you has no matching header to check against, and a mismatch of
+the kind the check catches does not produce a Python exception. It may or may not crash the
+process, and if it does, there is nothing to indicate why. Rather than offer an option that
+could not be made safe, YAPSS removed it.
 
 The linear solver
 -----------------
@@ -282,7 +275,7 @@ In a Conda environment
 ----------------------
 
 YAPSS sets neither the linear solver nor the ordering in a Conda environment. There, Ipopt
-is a package you installed rather than one YAPSS shipped, and it may be built against
+is a package you installed rather than one bundled inside CasADi, and it may be built against
 solvers YAPSS cannot detect --- HSL's MA27, for instance, which would usually be the best
 choice available. Overriding a solver YAPSS knows nothing about would be presumptuous, and
 Conda's Ipopt already defaults to MUMPS in any case.

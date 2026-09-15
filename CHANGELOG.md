@@ -19,6 +19,16 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Removed
 
+- The cyipopt backend. In a Conda environment YAPSS now calls Ipopt through the same
+  interface it uses everywhere else, and verifies the library the same way. It calls the
+  same library as before, conda-forge's Ipopt package, and keeps the same Ipopt settings
+  there; cyipopt is no longer a dependency of the Conda package. The interface to Ipopt
+  is now one implementation, tested on Linux, macOS, and Windows in both pip and Conda
+  environments.
+- `Problem.ipopt_source` and the `YAPSS_IPOPT_SOURCE` environment variable, deprecated
+  since 0.2.0. Assigning `problem.ipopt_source` raises `AttributeError` with a message
+  saying the line can be deleted. A `YAPSS_IPOPT_SOURCE` still set has no effect, and
+  the first solve in a process warns that it can be unset.
 - Python 3.10 is no longer supported; YAPSS requires Python `>=3.11,<3.15`. Python 3.10
   reaches end of life in October 2026. Python 3.15 is not yet supported, because the
   CasADi versions YAPSS allows publish no wheels for it.

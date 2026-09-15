@@ -132,15 +132,25 @@ jobs:
           retention-days: 5
 
   # ------------------------------------------------------------- conda ------
-  # Run on PRs and as a weekly canary. cyipopt links conda-forge's own IPOPT
-  # build, a materially different path from the pip stack's mseipopt; nothing
-  # else here exercises it.
+  # Run on PRs and as a weekly canary. In a Conda environment CasADi links
+  # conda-forge's own IPOPT package rather than the one bundled in its wheel, so
+  # mseipopt resolves a different library in a different layout ($PREFIX/lib, or
+  # Library\bin on Windows, with the header found relative to it). Nothing else
+  # here exercises that, and the layout differs by OS, hence all three.
   test-conda:
     if: >-
       github.event_name == 'pull_request'
       || github.event_name == 'schedule'
       || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all", "test-conda"]'), inputs.job))
-    runs-on: ubuntu-latest
+    name: conda / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
     defaults:
       run:
         shell: bash -el {0}
@@ -160,8 +170,12 @@ jobs:
       - name: Install yapss (--no-deps so pip doesn't override the conda-linked solver build)
         run: python -m pip install --no-deps --no-build-isolation .
 
+      # An IPOPT library YAPSS could not verify as the only one mapped is an error
+      # here, not a warning, so a gap in loader introspection on a Conda layout fails.
       - name: Test with pytest
-        run: python -m pytest tests/
+        run: >-
+          python -m pytest tests/
+          -W error::yapss._private.mseipopt.library.IpoptVerificationWarning
 
   # Weekly canary for conda/environment.yml, the yapss-dev contributor dev
   # environment -- not consumed by any other CI job, so nothing else catches

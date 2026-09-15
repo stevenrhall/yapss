@@ -31,10 +31,10 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
-    # Ceiling is a stopgap, not an API-compatibility bet: mseipopt hard-wires a
-    # path to CasADi's bundled IPOPT library, which is not a public interface
-    # and could move in any release. Pinned to the highest version actually
-    # tested. Revisit once mseipopt is no longer the default solver backend.
+    # Ceiling is a stopgap, not an API-compatibility bet: mseipopt binds to the
+    # IPOPT library bundled inside the CasADi wheel, whose location and build are
+    # not a public interface and could change in any release. Pinned to the
+    # highest version actually tested.
     "casadi>=3.6.0,<=3.7.2",
     "scipy",
     # Unconstrained deliberately. The NumPy 2.5 breakage (it rewrote
@@ -155,10 +155,6 @@ warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-module = "cyipopt.*"
-ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "yapss._private.*"

@@ -24,7 +24,6 @@ import textwrap
 import pytest
 
 from yapss import Problem
-from yapss._private import solver
 from yapss._private.initial_point import _constraint_labels, _variable_labels
 from yapss._private.ipopt_options import DEFAULT_IPOPT_OPTIONS
 from yapss.examples import brachistochrone_minimal
@@ -129,7 +128,6 @@ def test_nan_derivative_check_is_a_yapss_default():
     assert brachistochrone_minimal.setup().ipopt_options.check_derivatives_for_naninf == "yes"
 
 
-@pytest.mark.skipif(solver._IN_CONDA, reason="the crash was observed with the vendored Ipopt")
 @pytest.mark.isolation
 def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
     """With YAPSS's own check disabled, Ipopt's derivative check still stops the solve.

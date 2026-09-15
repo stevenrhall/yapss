@@ -408,11 +408,10 @@ class ContinuousEvaluator:
     twice -- under central differences, two full perturbation stencils.
 
     The cache is keyed on the value of ``z``. Ipopt's ``new_x`` flag is deliberately
-    not used: cyipopt does not pass it through, it is set by vector identity rather
-    than value, and the compare it would save costs a few microseconds against user
-    functions that cost far more. A value compare can only ever cause a needless
-    re-evaluation; a trusted flag that was wrong would serve derivatives from the
-    wrong point silently.
+    not used: it is set by vector identity rather than value, and the compare it would
+    save costs a few microseconds against user functions that cost far more. A value
+    compare can only ever cause a needless re-evaluation; a trusted flag that was wrong
+    would serve derivatives from the wrong point silently.
 
     Orders are cumulative: order 1 adds the Jacobian to the function values, order 2
     adds the Hessian. A request for a higher order at the cached point evaluates only

@@ -204,6 +204,17 @@ def test_misspelled_attribute_raises_at_the_assignment(owner, typo):
         setattr(owner(ocp), typo, None)
 
 
+def test_removed_ipopt_source_raises_saying_what_to_do():
+    ocp = callback_problem()
+    with raises(
+        AttributeError,
+        "'ipopt_source' was removed in YAPSS 0.3.0",
+        "can be deleted",
+        at="ipopt_source =",
+    ):
+        ocp.ipopt_source = "casadi"
+
+
 @pytest.mark.parametrize(
     ("owner", "attribute", "value"),
     [

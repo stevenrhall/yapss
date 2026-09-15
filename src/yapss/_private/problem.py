@@ -14,7 +14,7 @@ import inspect
 # standard imports
 from collections.abc import Callable, Sequence
 from types import FrameType, SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 # third party imports
 import numpy as np
@@ -22,7 +22,6 @@ from numpy import float64
 
 # package imports
 from .bounds import Bounds
-from .config import warn_ipopt_source_deprecated
 from .guess import Guess
 from .ipopt_options import IpoptOptions
 from .solution import warn_if_not_converged
@@ -134,6 +133,15 @@ class Problem(Protected):
         conditioning only.
     """
 
+    # Removed in 0.3.0 with the cyipopt backend. Remove this entry in 0.4.0 or after
+    # 2027-09, whichever is later.
+    _removed_attrs: ClassVar[dict[str, str]] = {
+        "ipopt_source": (
+            "'ipopt_source' was removed in YAPSS 0.3.0. YAPSS always uses the Ipopt library "
+            "that CasADi loads, after verifying it, so this line can be deleted."
+        ),
+    }
+
     auxdata: Auxdata
 
     catch_keyboard_interrupt: LimitOptions[bool] = LimitOptions((True, False))
@@ -210,8 +218,6 @@ class Problem(Protected):
         self.scale = Scale(self)
         self.mesh = Mesh(self)
 
-        self.__dict__["_ipopt_source"] = "default"
-
         self._abort: bool = False
         self.catch_keyboard_interrupt = True
 
@@ -220,7 +226,6 @@ class Problem(Protected):
             "spectral_method",
             "_spectral_method",
             "catch_keyboard_interrupt",
-            "ipopt_source",
             "_abort",
             "_catch_keyboard_interrupt",
             "sense",
@@ -228,26 +233,6 @@ class Problem(Protected):
         )
         self.spectral_method = DEFAULT_SPECTRAL_METHOD
         self.sense = DEFAULT_SENSE
-
-    # ipopt_source getter
-    @property
-    def ipopt_source(self) -> str:
-        value = self.__dict__["_ipopt_source"]
-        if not isinstance(value, str):
-            msg = "Internal error: 'ipopt_source' must have type 'str'"
-            raise TypeError(msg)
-        return value
-
-    @ipopt_source.setter
-    def ipopt_source(self, value: str) -> None:
-        if not isinstance(value, str):
-            msg = f"'ipopt_source' must have type 'str', not {type(value)}"  # type: ignore[unreachable]
-            raise TypeError(msg)
-        # Warn here rather than at solve time so the report points at the line the
-        # user actually wrote. `__init__` assigns `_ipopt_source` directly and
-        # bypasses this setter, so nobody who never opted in is warned.
-        warn_ipopt_source_deprecated(value, stacklevel=2)
-        self.__dict__["_ipopt_source"] = value
 
     def solve(self) -> Solution:
         """Solve the optimal control problem.

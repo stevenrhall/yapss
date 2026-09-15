@@ -59,9 +59,6 @@ EXPECTED_ONLY_IN_CONDA = {
     # pyproject.toml expresses the Python floor via `requires-python`, not as a
     # `dependencies` entry; conda has no equivalent mechanism and must list it.
     "python",
-    # Only used on the conda/cyipopt backend; pip installs never import cyipopt
-    # (see _private/solver.py's deferred import and its OpenMP-collision comment).
-    "cyipopt",
 }
 # Present only in conda's *dev* targets (conda/environment.yml and
 # recipe/meta.yaml's yapss-dev output) -- not expected in the plain `yapss`
@@ -171,8 +168,6 @@ EXPECTED_ONLY_IN_ENV_TEST = {
     # pyproject.toml expresses the Python floor via `requires-python`, not as a
     # `dependencies` entry.
     "python",
-    # Only used on the conda/cyipopt backend (see EXPECTED_ONLY_IN_CONDA above).
-    "cyipopt",
     # Needed to run the test suite itself.
     "pytest",
     "pytest-cov",

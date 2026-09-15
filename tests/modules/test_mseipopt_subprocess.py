@@ -8,18 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from yapss._private.config import get_conda_prefix
-
 WORKER = Path(__file__).parent / "_mseipopt_hardening_worker.py"
 PASS, SKIP = 0, 2
 
-pytestmark = [
-    pytest.mark.isolation,
-    pytest.mark.skipif(
-        bool(get_conda_prefix()),
-        reason="conda uses cyipopt; mseipopt is not the active backend",
-    ),
-]
+pytestmark = pytest.mark.isolation
 
 
 def run_check(name: str) -> str:

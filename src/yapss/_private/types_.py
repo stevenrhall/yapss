@@ -12,7 +12,7 @@ discrete functions, and with evaluating the derivatives using finite difference 
 from __future__ import annotations
 
 # standard imports
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, ClassVar, Generic, TypeVar, cast
 
 # fmt: off
 __all__ = [  # noqa: RUF022
@@ -166,8 +166,18 @@ class LimitOptions(Generic[S]):
 class Protected:
     """Class for which only select attributes can be set or deleted."""
 
+    _removed_attrs: ClassVar[dict[str, str]] = {}
+    """Attributes removed from the public API, mapped to the message explaining what to do.
+
+    Checked on assignment only, so a removed name appears nowhere a type checker or IDE
+    would offer it. Reads get the ordinary AttributeError: handling them would take a
+    `__getattr__`, which makes type checkers accept every attribute name on the class.
+    """
+
     def __setattr__(self, name: str, value: Any) -> None:
         """Set the attribute if it is allowed."""
+        if name in self._removed_attrs:
+            raise AttributeError(self._removed_attrs[name])
         if hasattr(self, "_allowed_attrs") and name not in self._allowed_attrs:
             msg = f"cannot set '{self.__class__.__name__}' attribute '{name}'"
             raise AttributeError(msg)

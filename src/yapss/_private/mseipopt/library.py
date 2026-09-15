@@ -9,11 +9,11 @@
 
 Rationale
 ---------
-CasADi wheels vendor a full IPOPT stack (IPOPT, MUMPS, OpenBLAS, libgfortran).
-A separately built IPOPT -- a pip-installed ``cyipopt``, say -- puts a *second*
-copy of that stack into the same address space, and the two vendored OpenMP
-runtimes then collide. That is the crash the pip/conda backend split exists to
-avoid, so YAPSS binds to CasADi's copy rather than loading another.
+CasADi wheels vendor a full IPOPT stack (IPOPT, MUMPS, OpenBLAS, libgfortran);
+in a Conda environment CasADi links conda-forge's IPOPT package instead. A
+separately built IPOPT -- a pip-installed ``cyipopt``, say -- puts a *second*
+copy of that stack into the same address space, and the two OpenMP runtimes
+then collide. So YAPSS binds to the copy CasADi uses rather than loading another.
 
 That only works if we load *the same file*, which is stricter than it sounds:
 
@@ -441,16 +441,16 @@ def _not_found_message() -> str:
     reason = strategy1_failure_reason() or "no reason recorded"
     patterns = ", ".join(_PATTERNS[_platform_key()])
     return (
-        "YAPSS could not find the IPOPT library that CasADi bundles.\n\n"
+        "YAPSS could not find the IPOPT library that CasADi uses.\n\n"
         f"  casadi version : {version}\n"
         f"  casadi package : {package}\n"
         f"  looked for     : {patterns}\n"
         f"  found there    : {contents}\n"
         f"  loader probe   : {reason}\n\n"
         "YAPSS deliberately does not fall back to searching the system for some "
-        "other IPOPT: loading one that CasADi did not bundle is what causes the "
-        "OpenMP runtime collision this design exists to avoid, and it fails as a "
-        "crash rather than an error. Every CasADi wheel ships IPOPT, so reaching "
+        "other IPOPT: loading one other than CasADi's is what causes the OpenMP "
+        "runtime collision this design exists to avoid, and it fails as a crash "
+        "rather than an error. Every CasADi installation includes IPOPT, so reaching "
         "this point means something unexpected -- please report it to the YAPSS "
         "maintainers with the details above."
     )
@@ -525,8 +525,7 @@ def _check_single_copy(before: list[str], after: list[str]) -> None:
             "More than one was already mapped before YAPSS loaded anything, so "
             "another package brought its own IPOPT into this process -- a "
             "pip-installed cyipopt is the usual cause. YAPSS and CasADi must "
-            "share a single IPOPT; see the documentation on why cyipopt is "
-            "supported only under Conda."
+            "share a single IPOPT."
         )
     elif introduced:
         cause = (
@@ -580,8 +579,8 @@ def load_ipopt() -> tuple[ctypes.CDLL, str]:
         detail = f" (loader introspection was unavailable: {reason})" if reason else ""
         msg = (
             f"could not load the IPOPT shared library from {path!r}{detail}. "
-            "YAPSS uses the IPOPT library bundled with CasADi, so check that "
-            "casadi is installed and its wheel is intact."
+            "YAPSS uses the IPOPT library that CasADi uses, so check that "
+            "casadi is installed and intact."
         )
         raise IpoptLibraryNotFoundError(msg) from exc
     finally:
@@ -593,7 +592,7 @@ def load_ipopt() -> tuple[ctypes.CDLL, str]:
 
 
 # --------------------------------------------------------------------------
-# ABI verification from the headers CasADi ships
+# ABI verification from the header next to the loaded library
 # --------------------------------------------------------------------------
 
 _SMOKE_TOLERANCE = 1e-6
@@ -623,8 +622,27 @@ class IpoptHeaderInfo:
         return ctypes.c_bool
 
 
-def read_ipopt_header() -> IpoptHeaderInfo | None:
-    """Read ``IpoptConfig.h`` from the CasADi package, or None if unavailable.
+def _header_candidates(library_path: str) -> tuple[Path, Path]:
+    """Where ``IpoptConfig.h`` sits relative to an IPOPT library, in search order.
+
+    The header belongs to the library actually loaded, so it is found next to
+    that library rather than in any particular package. Layouts differ:
+
+    - pip wheel: ``casadi/libipopt.*`` with ``casadi/include/coin-or/``
+    - conda (Linux, macOS): ``$PREFIX/lib/libipopt.*`` with
+      ``$PREFIX/include/coin-or/``
+    - conda (Windows): ``%PREFIX%/Library/bin/ipopt-3.dll`` with
+      ``%PREFIX%/Library/include/coin-or/``
+    """
+    libdir = Path(library_path).parent
+    return (
+        libdir / "include" / "coin-or" / "IpoptConfig.h",
+        libdir.parent / "include" / "coin-or" / "IpoptConfig.h",
+    )
+
+
+def read_ipopt_header(library_path: str) -> IpoptHeaderInfo | None:
+    """Read the ``IpoptConfig.h`` that belongs to *library_path*, or None if unavailable.
 
     Autoconf writes an inactive macro as ``/* #undef NAME */`` rather than
     omitting it, so "defined", "explicitly undefined", and "absent" are three
@@ -634,14 +652,13 @@ def read_ipopt_header() -> IpoptHeaderInfo | None:
     treats that result as an ABI error because a smoke solve cannot establish
     index, real, or Boolean widths.
     """
-    package = casadi_package_dir()
-    if package is None:
-        return None
-    header = package / "include" / "coin-or" / "IpoptConfig.h"
-    try:
-        text = header.read_text(encoding="utf-8", errors="replace")
-    except OSError as exc:
-        logger.debug("could not read %s: %s", header, exc)
+    for header in _header_candidates(library_path):
+        try:
+            text = header.read_text(encoding="utf-8", errors="replace")
+            break
+        except OSError as exc:
+            logger.debug("could not read %s: %s", header, exc)
+    else:
         return None
 
     defined = {m.group(1): (m.group(2) or "").strip() for m in _DEFINE_RE.finditer(text)}
@@ -688,7 +705,7 @@ def _verify_header_abi(info: IpoptHeaderInfo) -> None:
         return
     detail = "\n".join(f"  - {p}" for p in problems)
     msg = (
-        f"The IPOPT bundled with CasADi was built with options YAPSS does not "
+        f"The IPOPT library was built with options YAPSS does not "
         f"support:\n\n{detail}\n\n"
         f"Read from {info.path}. Every array crossing the boundary would be "
         f"misinterpreted, so YAPSS stops rather than returning wrong answers. "
@@ -896,11 +913,15 @@ def initialize_ipopt() -> str:
 
         _initialization_state = _INITIALIZING
         try:
-            header = read_ipopt_header()
+            # Resolving runs only CasADi's own binding, never our declarations, so
+            # it is safe before the ABI check; the header is found from the path.
+            path = resolve_ipopt_library()
+            header = read_ipopt_header(path)
             if header is None:
+                searched = "\n".join(f"  {c}" for c in _header_candidates(path))
                 msg = (
-                    "CasADi's matching IpoptConfig.h is required to verify the "
-                    "IPOPT ABI before loading it"
+                    f"IpoptConfig.h is required to verify the IPOPT ABI before loading "
+                    f"{path}, but it was not found in either location searched:\n{searched}"
                 )
                 raise IpoptAbiError(msg)
             _verify_header_abi(header)

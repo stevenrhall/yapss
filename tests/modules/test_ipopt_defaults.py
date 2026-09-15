@@ -35,7 +35,7 @@ empirically on macOS, not here -- which is also how PORD was found to be an alia
 METIS.
 
 **Sabotage-verified.** Each condition in `solver.py` was inverted in turn -- both
-`ipopt_source` guards dropped, the `"darwin"` comparison flipped, each
+Conda guards dropped, the `"darwin"` comparison flipped, each
 `not in get_options()` check removed, and the two blocks swapped -- and the
 corresponding test confirmed to fail. `Temporary/sabotage_check.py` automates it;
 re-run it after changing either block.
@@ -46,12 +46,12 @@ wrong: tox installs YAPSS as a normal package, so the tests were importing
 `PYTHONPATH` and refuses to run unless `yapss` resolves inside `src/`. A verification
 that silently checks the wrong copy reports a clean result, not an error.
 
-`test_explicit_library_path_gets_neither_default` exists because of what that run found
-once it was fixed: seven tests, and none of them exercised the `ipopt_source` guard.
+`test_conda_gets_neither_default` exists because of what that run found once it was
+fixed: seven tests, and none of them exercised the guard on the other branch (then
+`ipopt_source`, now Conda).
 
-Conda is skipped throughout: there the backend is cyipopt and neither default is
-applied, by design -- a Conda user's Ipopt is their own and may be built against
-HSL.
+A real Conda environment is skipped throughout: neither default is applied there, by
+design -- a Conda user's Ipopt is their own package and may be built against HSL.
 
 """
 
@@ -160,28 +160,18 @@ class TestPivotOrderDefault:
         assert ("mumps_pivot_order", 0) in record_options
 
 
-@pytest.mark.filterwarnings("ignore::FutureWarning")
-def test_explicit_library_path_gets_neither_default(problem, record_options, monkeypatch):
-    """Neither default is applied when the user supplied their own Ipopt library.
+def test_conda_gets_neither_default(problem, record_options, monkeypatch):
+    """Neither default is applied in a Conda environment, where Ipopt is the user's own.
 
-    Both defaults are guarded by ``ipopt_source == "casadi"``, and nothing else in this
-    file exercises the other branch -- a sabotage run that removed that guard from the
-    `linear_solver` block went unnoticed by all seven other tests.
-
-    The bundled library's own path is used as the "explicit" path. It is already loaded
-    in this process, so `ctypes.CDLL` returns the same handle and no second copy of
-    Ipopt is mapped -- which is the hazard the whole backend design exists to avoid.
-    Nothing here depends on the library being a *different* one; what matters is only
-    that `ipopt_source` is no longer the string ``"casadi"``.
+    Both defaults are guarded by ``not _IN_CONDA``, and nothing else in this file
+    exercises the other branch -- a sabotage run that removed the equivalent guard from
+    the `linear_solver` block went unnoticed by all seven other tests.
 
     The platform is set to darwin so that the ordering default would fire too if its
     guard were removed, which makes this one test cover both.
     """
-    from yapss._private.mseipopt import initialize_ipopt
-
-    path = initialize_ipopt()
     set_platform(monkeypatch, "darwin")
-    problem.ipopt_source = path
+    monkeypatch.setattr(solver, "_IN_CONDA", True)
 
     problem.solve()
 

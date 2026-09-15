@@ -8,13 +8,7 @@ from typing import Any, get_type_hints
 import numpy as np
 import pytest
 
-from yapss._private.config import get_conda_prefix
 from yapss._private.mseipopt import bare, bare_np, library
-
-requires_mseipopt = pytest.mark.skipif(
-    bool(get_conda_prefix()),
-    reason="conda uses cyipopt; the vendored CasADi interface is not the active backend",
-)
 
 
 @pytest.fixture
@@ -101,28 +95,6 @@ def test_problem_requires_verified_initialization(monkeypatch):
     with pytest.raises(RuntimeError) as excinfo:
         make_problem()
     assert excinfo.value is failure
-
-
-def test_private_unverified_opt_out_is_solver_only_escape_hatch(monkeypatch, native):
-    """The deprecated explicit-path route can construct after raw bare setup."""
-    monkeypatch.setattr(
-        library,
-        "require_initialized",
-        lambda: (_ for _ in ()).throw(RuntimeError("not verified")),
-    )
-    problem = bare_np.Problem(
-        [-1.0],
-        [1.0],
-        [],
-        [],
-        eval_f=lambda *args: True,
-        eval_g=lambda *args: True,
-        eval_grad_f=lambda *args: True,
-        jacobian_structure=([], []),
-        eval_jac_g=lambda *args: True,
-        _unsafe_allow_unverified_library=True,
-    )
-    assert problem.n == 1
 
 
 @pytest.mark.parametrize("name", ["eval_f", "eval_g", "eval_grad_f", "eval_jac_g"])
@@ -744,7 +716,6 @@ def test_first_callback_failure_wins_and_suppresses_later_user_code(native, monk
     assert later_calls == []
 
 
-@requires_mseipopt
 def test_native_exception_and_interrupt_unwind_contract():
     """Exercise the latch through the real CasADi-bundled Ipopt call stack."""
     library.initialize_ipopt()

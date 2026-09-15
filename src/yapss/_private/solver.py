@@ -9,77 +9,41 @@ from __future__ import annotations
 
 # standard imports
 import contextlib
-import ctypes
 import functools
-import importlib.util
-import os
 import signal
 import sys
-import textwrap
 import threading
 import warnings
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 # third party imports
 import numpy as np
-from numpy.typing import NDArray
 
 # package imports
 from .auto import make_auto_functions
 from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variable_bounds
 from .central_difference import make_cd_functions
-from .config import get_conda_prefix, warn_ipopt_source_deprecated
+from .config import get_conda_prefix, warn_if_ipopt_source_env_set
 from .guess import make_initial_guess_nlp
 from .initial_point import check_initial_point
 from .mesh import Mesh
-
-# The backend default is determined by environment: a conda environment gets
-# cyipopt (safe to coexist with CasADi's own bundled IPOPT there, since
-# conda-forge builds share one OpenMP runtime); anything else gets the vendored
-# mseipopt, which loads CasADi's own bundled IPOPT directly rather than a second
-# binary. Running a second, independently-built IPOPT alongside CasADi's outside
-# of conda risks an OpenMP runtime collision.
-#
-# `ipopt_source` can still override the default, but is deprecated and is removed
-# in 0.3.0, after which the environment decides and nothing overrides it. See
-# IPOPT_BACKEND_POLICY.md.
-#
-# Importing the vendored mseipopt is free -- it is ctypes declarations, and no
-# library is opened until `initialize_ipopt()` is called.
-from .mseipopt import bare, bare_np, initialize_ipopt
-from .mseipopt.library import smoke_test as library_smoke_test
+from .mseipopt import bare_np, initialize_ipopt
 from .nlp import NLP
 from .solution import Solution, make_solution_object
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 from .user import make_user_functions
 
+# In a Conda environment CasADi, and so YAPSS, uses conda-forge's Ipopt package, which
+# the user installed and which may be built against solvers YAPSS cannot detect (HSL,
+# for instance). The solver defaults below exist for CasADi's own bundled build and are
+# not applied there.
 _IN_CONDA = bool(get_conda_prefix())
-
-# Deliberately `find_spec` rather than `import cyipopt`: importing cyipopt opens
-# its own IPOPT binary, so probing by import would map a second copy into the
-# process for anyone who merely has cyipopt installed -- tripping the duplicate
-# guard on a configuration that is perfectly fine. `find_spec` answers "is it
-# installed" without executing it.
-if _IN_CONDA and importlib.util.find_spec("cyipopt") is None:
-    msg = textwrap.dedent(
-        """
-        YAPSS is running in a Conda environment, where it connects to Ipopt through
-            'cyipopt', but 'cyipopt' is not installed. Install it with:
-
-                conda install -c conda-forge cyipopt
-
-            YAPSS uses cyipopt in a Conda environment and its own bundled interface
-            everywhere else; this is not configurable. See "Sharp Edges" in the user
-            guide for why.
-        """,
-    ).strip()
-    raise ModuleNotFoundError(msg)
 
 if TYPE_CHECKING:
     # standard imports
     from collections.abc import Callable
-    from types import TracebackType
+
+    from numpy.typing import NDArray
 
     import yapss
 
@@ -96,126 +60,6 @@ class IpoptOptionSettingWarning(Warning):
     for that option. It is a warning rather than an error because the option set varies
     with the Ipopt build, so a script written for one build can still run on another.
     """
-
-
-_env_deprecation_warned = False
-"""Whether the `YAPSS_IPOPT_SOURCE` deprecation has already been reported.
-
-The environment variable never passes through the `ipopt_source` setter, so it
-needs its own warning -- but it would otherwise fire on every solve, which is
-noise rather than information.
-"""
-
-
-def configure_ipopt_source(problem: yapss.Problem) -> str:
-    """Resolve which Ipopt backend to use, honoring the deprecated override.
-
-    Deprecated in favor of letting the environment decide; removed in 0.3.0,
-    along with this function. See IPOPT_BACKEND_POLICY.md.
-
-    Parameters
-    ----------
-    problem : yapss.Problem
-
-    Returns
-    -------
-    str
-        One of ``"cyipopt"``, ``"casadi"``, or a path to an Ipopt library.
-    """
-    global _env_deprecation_warned  # noqa: PLW0603
-
-    ipopt_source = problem.ipopt_source
-
-    if ipopt_source == "default":
-        env_ipopt_source = os.getenv("YAPSS_IPOPT_SOURCE", "")
-        if env_ipopt_source:
-            if not _env_deprecation_warned:
-                warn_ipopt_source_deprecated(env_ipopt_source, stacklevel=3)
-                _env_deprecation_warned = True
-            ipopt_source = env_ipopt_source
-        else:
-            ipopt_source = "cyipopt" if _IN_CONDA else "casadi"
-
-    # An explicitly requested cyipopt must actually be installed. Probed without
-    # importing, so that merely asking the question does not map a second IPOPT.
-    if ipopt_source == "cyipopt" and importlib.util.find_spec("cyipopt") is None:
-        msg = textwrap.dedent(
-            """
-            The 'cyipopt' option requires the 'cyipopt' package, which is not installed
-                by default in the yapss distribution. To use this option, install the
-                package using: 'pip install cyipopt' or
-                'conda install -c conda-forge cyipopt'.
-
-                Alternatively, delete the 'ipopt_source' setting: YAPSS then uses its
-                own bundled Ipopt interface, which needs no additional packages. Note
-                that 'ipopt_source' is deprecated and is removed in 0.3.0.
-            """,
-        ).strip()
-        raise ModuleNotFoundError(msg)
-
-    # A custom path must exist. Checked before loading, since the failure mode
-    # after loading a wrong library is a crash rather than an exception.
-    if ipopt_source not in ("cyipopt", "casadi") and not Path(ipopt_source).exists():
-        msg = f"The provided path to the Ipopt library does not exist: {ipopt_source}"
-        raise FileNotFoundError(msg)
-
-    return ipopt_source
-
-
-def _load_explicit_ipopt(path: str) -> None:
-    """Load an Ipopt library chosen by the user, bypassing every verification.
-
-    Quarantined here rather than placed in `mseipopt.library`, whose invariant is
-    that it only ever opens the Ipopt that CasADi bundles. That property is
-    currently absolute and directly testable, and an exception living inside it
-    would weaken it for every caller. This function is the exception, it is
-    deprecated, and it is deleted in 0.3.0 along with the option it serves.
-
-    None of the checks that protect the default path can apply here:
-
-    * The ABI header check cannot run. `read_ipopt_header()` reads
-      ``IpoptConfig.h`` from the CasADi package, which describes a *different*
-      library; verifying against it would report a match that means nothing.
-      `bare` therefore retains its fixed Ipopt 3.14+ `c_bool` declaration, so
-      a pre-3.14 Ipopt silently gets the wrong `Bool` width.
-    * The duplicate-copy guard is skipped, because a second copy is precisely
-      what the caller asked for.
-    * The smoke test cannot substitute for either: negative controls showed an
-      ABI mismatch crashes the process rather than returning a bad status.
-
-    Parameters
-    ----------
-    path : str
-        Path to the Ipopt shared library.
-    """
-    # Mirrors `library.load_ipopt()`: since Python 3.8, Windows no longer searches
-    # PATH when resolving a DLL's own dependencies (MUMPS, OpenBLAS, libgfortran),
-    # so without this the load fails with a bare "DLL load failed" naming only the
-    # top-level library.
-    cookie = None
-    if os.name == "nt" and Path(path).is_absolute():
-        directory = Path(path).parent
-        if directory.is_dir() and hasattr(os, "add_dll_directory"):
-            cookie = os.add_dll_directory(str(directory))
-
-    try:
-        lib = ctypes.CDLL(path)
-    except OSError as exc:
-        msg = (
-            f"could not load the Ipopt shared library from {path!r}. This path came "
-            f"from the deprecated 'ipopt_source' setting; deleting that setting lets "
-            f"YAPSS use its own bundled interface instead."
-        )
-        raise OSError(msg) from exc
-    finally:
-        if cookie is not None:
-            cookie.close()
-
-    bare.use_library(lib)
-    # The smoke test cannot detect an ABI mismatch here -- it crashes instead --
-    # but it does confirm the library exports the interface we expect, and a crash
-    # in a known three-variable problem beats one an hour into a user's solve.
-    library_smoke_test()
 
 
 def solve(problem: yapss.Problem) -> Solution:
@@ -277,57 +121,27 @@ def solve(problem: yapss.Problem) -> Solution:
     ub, lb = get_nlp_decision_variable_bounds(problem)
     gu, gl = get_nlp_constraint_function_bounds(problem)
 
-    ipopt_source = configure_ipopt_source(problem)
+    warn_if_ipopt_source_env_set()
 
-    cyipopt_adapter: _CyipoptProblemAdapter | None = None
-    if ipopt_source == "cyipopt":
-        # Imported here, not at module scope: importing cyipopt opens its own IPOPT
-        # binary, so an eager import would map a second copy for anyone who merely
-        # has cyipopt installed -- on some configurations (the OpenMP collision
-        # between cyipopt's and mseipopt's bundled IPOPT builds) that second copy
-        # crashes the process, not just wastes memory. Availability was already
-        # checked with `find_spec`.
-        import cyipopt  # noqa: PLC0415
+    # Resolve, load, verify and configure once per process; idempotent.
+    initialize_ipopt()
 
-        cyipopt_adapter = _CyipoptProblemAdapter(nlp_temp)
-        ipopt_problem = cyipopt.Problem(
-            n=len(lb),
-            m=len(gl),
-            lb=lb,
-            ub=ub,
-            cl=gl,
-            cu=gu,
-            problem_obj=cyipopt_adapter,
-        )
-    else:
-        if ipopt_source == "casadi":
-            # Resolve, load, verify and configure once per process. Idempotent, so
-            # unlike the path comparison this replaces, there is nothing to re-check.
-            initialize_ipopt()
-        else:
-            _load_explicit_ipopt(ipopt_source)
-
-        jacobian_structure = nlp_temp.jacobianstructure()
-        hessian_structure = nlp_temp.hessianstructure()
-        ipopt_problem = MseipoptProblem(
-            lb,
-            ub,
-            gl,
-            gu,
-            eval_f=_objective_callback(nlp_temp.objective),
-            eval_g=_constraint_callback(nlp_temp.constraints),
-            eval_grad_f=_gradient_callback(nlp_temp.gradient),
-            jacobian_structure=jacobian_structure,
-            eval_jac_g=_jacobian_callback(nlp_temp.jacobian),
-            hessian_structure=hessian_structure,
-            eval_h=_hessian_callback(nlp_temp.hessian),
-            # A custom library path is a deprecated, explicitly unsafe escape
-            # hatch. Its visible FutureWarning explains that YAPSS cannot verify
-            # the ABI and that incompatibility may crash the process. Keep the
-            # bypass private so direct bare_np callers retain the hard guarantee.
-            _unsafe_allow_unverified_library=ipopt_source != "casadi",
-        )
-        ipopt_problem.set_intermediate_callback(nlp_temp.intermediate)
+    jacobian_structure = nlp_temp.jacobianstructure()
+    hessian_structure = nlp_temp.hessianstructure()
+    ipopt_problem = MseipoptProblem(
+        lb,
+        ub,
+        gl,
+        gu,
+        eval_f=_objective_callback(nlp_temp.objective),
+        eval_g=_constraint_callback(nlp_temp.constraints),
+        eval_grad_f=_gradient_callback(nlp_temp.gradient),
+        jacobian_structure=jacobian_structure,
+        eval_jac_g=_jacobian_callback(nlp_temp.jacobian),
+        hessian_structure=hessian_structure,
+        eval_h=_hessian_callback(nlp_temp.hessian),
+    )
+    ipopt_problem.set_intermediate_callback(nlp_temp.intermediate)
 
     # apply user ipopt options
     for name, value in problem.ipopt_options.get_options().items():
@@ -357,10 +171,10 @@ def solve(problem: yapss.Problem) -> Solution:
     # installation behave alike.
     #
     # Only when the user has not chosen a solver, and only for CasADi's own library
-    # -- an explicit `ipopt_source` path is the user's own build. This must precede
-    # the `mumps_pivot_order` block below, which is meaningful only once MUMPS is
-    # the solver in use.
-    if ipopt_source == "casadi" and "linear_solver" not in problem.ipopt_options.get_options():
+    # -- not in Conda, where Ipopt is the user's own package. This must precede the
+    # `mumps_pivot_order` block below, which is meaningful only once MUMPS is the
+    # solver in use.
+    if not _IN_CONDA and "linear_solver" not in problem.ipopt_options.get_options():
         with contextlib.suppress(ValueError, TypeError):
             ipopt_problem.add_option("linear_solver", "mumps")
 
@@ -374,13 +188,12 @@ def solve(problem: yapss.Problem) -> Solution:
     # chosen because it is not a METIS alias -- PORD is one, and crashes at the
     # identical fault address.
     #
-    # Scoped narrowly on purpose: macOS only, CasADi's own bundled library only
-    # (an explicit `ipopt_source` path is the user's own build, not the one with
-    # the defect), and only when the user has not chosen an ordering. Conda is
-    # excluded because its Ipopt belongs to the user and may be built against HSL.
+    # Scoped narrowly on purpose: macOS only, CasADi's own bundled library only, and
+    # only when the user has not chosen an ordering. Conda is excluded because its
+    # Ipopt belongs to the user and may be built against HSL.
     if (
         sys.platform == "darwin"
-        and ipopt_source == "casadi"
+        and not _IN_CONDA
         and "mumps_pivot_order" not in problem.ipopt_options.get_options()
     ):
         with contextlib.suppress(ValueError, TypeError):
@@ -421,22 +234,12 @@ def solve(problem: yapss.Problem) -> Solution:
             if catch_interrupt:
                 original_handler = signal.signal(signal.SIGINT, problem._signal_handler)
                 try:
-                    z, nlp_info = _solve_ipopt_problem(
-                        ipopt_problem,
-                        z0,
-                        ipopt_source,
-                        cyipopt_adapter,
-                    )
+                    z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0)
                 finally:
                     signal.signal(signal.SIGINT, original_handler)
                     problem._abort = False
             else:
-                z, nlp_info = _solve_ipopt_problem(
-                    ipopt_problem,
-                    z0,
-                    ipopt_source,
-                    cyipopt_adapter,
-                )
+                z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0)
     finally:
         # Callback exceptions are re-raised only after Ipopt returns. Cleanup
         # must still release the native problem on that propagation path.
@@ -518,27 +321,13 @@ def get_nlp_scaling(
 
 
 def _solve_ipopt_problem(
-    ipopt_problem: Any,
+    ipopt_problem: MseipoptProblem,
     z0: NDArray[np.float64],
-    ipopt_source: str,
-    cyipopt_adapter: _CyipoptProblemAdapter | None = None,
 ) -> tuple[NDArray[np.float64], dict[str, Any]]:
-    """Solve through either backend and normalize its result for solution construction."""
-    if ipopt_source == "cyipopt":
-        try:
-            result = ipopt_problem.solve(z0)
-        except BaseException:
-            if cyipopt_adapter is not None:
-                cyipopt_adapter.raise_hessian_exception()
-            raise
-        if cyipopt_adapter is not None:
-            cyipopt_adapter.raise_hessian_exception()
-        return cast(tuple[NDArray[np.float64], dict[str, Any]], result)
-
-    mseipopt_problem = ipopt_problem
-    mseipopt_problem.add_option("warm_start_init_point", "no")
+    """Solve and normalize the result for solution construction."""
+    ipopt_problem.add_option("warm_start_init_point", "no")
     x = np.array(z0, dtype=np.float64, copy=True, order="C")
-    result = mseipopt_problem.solve(x)
+    result = ipopt_problem.solve(x)
     info: dict[str, Any] = {
         "g": result.g,
         "obj_val": result.obj_val,
@@ -550,55 +339,10 @@ def _solve_ipopt_problem(
     return result.x, info
 
 
-class _CyipoptProblemAdapter:
-    """Keep Hessian exceptions from being discarded by cyipopt's C callback."""
-
-    def __init__(self, nlp: NLP) -> None:
-        self._nlp = nlp
-        self._hessian_size = len(nlp.hessianstructure()[0])
-        self._hessian_exception: tuple[BaseException, TracebackType | None] | None = None
-
-    def __getattr__(self, name: str) -> Any:
-        """Delegate ordinary cyipopt callbacks to the NLP object."""
-        return getattr(self._nlp, name)
-
-    def hessian(
-        self,
-        z: NDArray[np.float64],
-        lambda_: NDArray[np.float64],
-        objective_factor: np.float64,
-    ) -> NDArray[np.float64]:
-        """Latch a Hessian failure until control has returned from native code."""
-        try:
-            return self._nlp.hessian(z, lambda_, objective_factor)
-        # cyipopt also swallows non-Exception failures such as SystemExit here.
-        except BaseException as exc:  # noqa: BLE001
-            if self._hessian_exception is None:
-                self._hessian_exception = exc, exc.__traceback__
-            return np.zeros(self._hessian_size, dtype=np.float64)
-
-    def intermediate(self, *args: Any) -> bool:
-        """Ask Ipopt to stop once a Hessian exception has been latched."""
-        if self._hessian_exception is not None:
-            return False
-        if self._nlp.intermediate is None:
-            return True
-        return self._nlp.intermediate(*args)
-
-    def raise_hessian_exception(self) -> None:
-        """Re-raise a latched Hessian exception with its original traceback."""
-        if self._hessian_exception is None:
-            return
-        exception, traceback = self._hessian_exception
-        self._hessian_exception = None
-        raise exception.with_traceback(traceback)
-
-
 # The ``new_x`` argument Ipopt passes to each callback is deliberately unused. The NLP
 # evaluates the continuous functions once per point through a value-keyed cache
-# (``nlp.ContinuousEvaluator``), which works identically under cyipopt, where the
-# flag is not passed through at all, and which cannot serve a stale value the way a
-# misread flag could.
+# (``nlp.ContinuousEvaluator``), which cannot serve a stale value the way a misread
+# flag could.
 def _objective_callback(function: Callable[..., Any]) -> Callable[..., bool]:
     @functools.wraps(function)
     def callback(
