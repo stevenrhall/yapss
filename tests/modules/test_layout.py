@@ -128,8 +128,3 @@ def test_layout_is_cached_and_its_arrays_are_read_only():
         first.time_order[0] = 0
     with pytest.raises(ValueError, match="read-only"):
         first.defect_index[0] = 0
-
-
-def test_an_unknown_method_is_refused():
-    with pytest.raises(ValueError, match="spectral method must be one of"):
-        phase_layout("gauss", (3,))

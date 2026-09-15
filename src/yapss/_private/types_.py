@@ -13,14 +13,15 @@ from __future__ import annotations
 
 # standard imports
 import difflib
-from typing import Any, ClassVar, Generic, TypeVar, cast
+from typing import Any, ClassVar, Generic, Literal, TypeVar, cast
 
 # fmt: off
 __all__ = [  # noqa: RUF022
     "CFIndex", "CFKey", "CFName", "CHFDS", "CHFDSPhase", "CHFDSTerm", "CHS", "CHSTerm", "CJFDS",
     "CJFDSPhase", "CJFDSTerm", "CJS", "CJSPhase", "CJSTerm", "CVIndex", "CVKey", "CVName",
-    "DFIndex", "DHFDS", "DHS", "DHSTerm", "DJFDS", "DJS", "DJSTerm", "DVIndex", "DVKey", "OGS",
-    "OHS", "OHSTerm", "PhaseIndex",
+    "DFIndex", "DHFDS", "DHS", "DHSTerm", "DJFDS", "DJS", "DJSTerm", "DVIndex", "DVKey",
+    "DerivativeMethod", "DerivativeOrder", "OGS", "OHS", "OHSTerm", "PhaseIndex", "Sense",
+    "SpectralMethod",
 ]
 # fmt: on
 
@@ -31,6 +32,18 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     ObjectArray = NDArray[np.object_]
+
+SpectralMethod = Literal["lg", "lgr", "lgl"]
+"""Spectral method: the allowed values of `Problem.spectral_method`."""
+
+DerivativeMethod = Literal["auto", "central-difference", "central-difference-full", "user"]
+"""Derivative method: the allowed values of `Derivatives.method`."""
+
+DerivativeOrder = Literal["first", "second"]
+"""Derivative order: the allowed values of `Derivatives.order`."""
+
+Sense = Literal["minimize", "maximize"]
+"""Optimization sense: the allowed values of `Problem.sense`."""
 
 PhaseIndex = int  # NewType("PhaseIndex", int)
 """Phase index."""

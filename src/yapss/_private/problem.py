@@ -14,7 +14,7 @@ import inspect
 # standard imports
 from collections.abc import Callable, Sequence
 from types import FrameType, SimpleNamespace
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast, get_args
 
 # third party imports
 import numpy as np
@@ -26,7 +26,15 @@ from .guess import Guess
 from .ipopt_options import IpoptOptions
 from .solution import warn_if_not_converged
 from .solver import solve
-from .types_ import LimitOptions, Protected, set_private
+from .types_ import (
+    DerivativeMethod,
+    DerivativeOrder,
+    LimitOptions,
+    Protected,
+    Sense,
+    SpectralMethod,
+    set_private,
+)
 
 if TYPE_CHECKING:
     # third party imports
@@ -53,10 +61,10 @@ if TYPE_CHECKING:
 # default options
 DEFAULT_NUMBER_OF_SEGMENTS = 10
 DEFAULT_NUMBER_OF_COLLOCATION_POINTS = 10
-DEFAULT_SPECTRAL_METHOD = "lgl"
-DEFAULT_DERIVATIVE_METHOD = "auto"
-DEFAULT_DERIVATIVE_ORDER = "second"
-DEFAULT_SENSE = "minimize"
+DEFAULT_SPECTRAL_METHOD: SpectralMethod = "lgl"
+DEFAULT_DERIVATIVE_METHOD: DerivativeMethod = "auto"
+DEFAULT_DERIVATIVE_ORDER: DerivativeOrder = "second"
+DEFAULT_SENSE: Sense = "minimize"
 
 
 class Problem(Protected):
@@ -161,8 +169,8 @@ class Problem(Protected):
     ipopt_options: IpoptOptions
     scale: Scale
     mesh: Mesh
-    spectral_method: LimitOptions[str] = LimitOptions(("lgl", "lgr", "lg"))
-    sense: LimitOptions[str] = LimitOptions(("minimize", "maximize"))
+    spectral_method: LimitOptions[SpectralMethod] = LimitOptions(get_args(SpectralMethod))
+    sense: LimitOptions[Sense] = LimitOptions(get_args(Sense))
 
     # TODO: mesh should be ReadOnlyProperty
 
@@ -626,12 +634,10 @@ class Derivatives(Protected):
         Order of derivatives used in search for optimum.
     """
 
-    order: LimitOptions[str] = LimitOptions(("first", "second"))
+    order: LimitOptions[DerivativeOrder] = LimitOptions(get_args(DerivativeOrder))
     """Order of derivatives used in search for optimum."""
 
-    method: LimitOptions[str] = LimitOptions(
-        ("auto", "central-difference", "central-difference-full", "user"),
-    )
+    method: LimitOptions[DerivativeMethod] = LimitOptions(get_args(DerivativeMethod))
     """Method used to compute derivatives."""
 
     def __init__(self) -> None:

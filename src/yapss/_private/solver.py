@@ -14,7 +14,7 @@ import signal
 import sys
 import threading
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, assert_never
 
 # third party imports
 import numpy as np
@@ -103,14 +103,15 @@ def solve(problem: yapss.Problem) -> Solution:
 
     method = problem.derivatives.method
     functions: ProblemFunctions
-    if method == "user":
-        functions = make_user_functions(problem, z0, mesh.tau_u)
-    elif method in ("central-difference", "central-difference-full"):
-        functions = make_cd_functions(problem, z0, mesh.tau_u)
-    elif method == "auto":
-        functions = make_auto_functions(problem)
-    else:
-        raise RuntimeError
+    match method:
+        case "user":
+            functions = make_user_functions(problem, z0, mesh.tau_u)
+        case "central-difference" | "central-difference-full":
+            functions = make_cd_functions(problem, z0, mesh.tau_u)
+        case "auto":
+            functions = make_auto_functions(problem)
+        case _:
+            assert_never(method)
     nlp_temp = NLP(problem, functions, mesh)
     nlp_temp.intermediate = problem._intermediate_cb
 

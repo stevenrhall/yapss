@@ -6,7 +6,7 @@ Module mesh.
 from __future__ import annotations
 
 # standard imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
 # third party imports
 import numpy as np
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
     # package imports
     from .problem import MeshPhase
+    from .types_ import SpectralMethod
 
     # typing
     Array = NDArray[np.float64]
@@ -58,21 +59,22 @@ class Mesh:
         self.tau_u: list[NDArray[np.float64]] = []
         self.b_lg: list[csr_matrix] = []
 
-    def set_matrices(self, spectral_method: str) -> None:
+    def set_matrices(self, spectral_method: SpectralMethod) -> None:
         """Compute and save the matrices and vectors needed for integration and differentiation.
 
         Parameters
         ----------
         spectral_method : {"lg", "lgr", "lgl"}
         """
-        if spectral_method == "lgl":
-            self.set_matrices_lgl()
-        elif spectral_method == "lgr":
-            self.set_matrices_lgr()
-        elif spectral_method == "lg":
-            self.set_matrices_lg()
-        else:
-            raise RuntimeError
+        match spectral_method:
+            case "lgl":
+                self.set_matrices_lgl()
+            case "lgr":
+                self.set_matrices_lgr()
+            case "lg":
+                self.set_matrices_lg()
+            case _:
+                assert_never(spectral_method)
 
     def set_matrices_lgr(self) -> None:
         """Compute and save the arrays for LGR integration and differentiation."""

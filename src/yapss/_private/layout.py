@@ -34,10 +34,13 @@ from __future__ import annotations
 # standard imports
 import functools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never, get_args
 
 # third party imports
 import numpy as np
+
+# package imports
+from .types_ import SpectralMethod
 
 if TYPE_CHECKING:
     # standard imports
@@ -51,7 +54,7 @@ if TYPE_CHECKING:
 
 __all__ = ["SPECTRAL_METHODS", "PhaseLayout", "phase_layout", "problem_layout"]
 
-SPECTRAL_METHODS = ("lg", "lgr", "lgl")
+SPECTRAL_METHODS: tuple[SpectralMethod, ...] = get_args(SpectralMethod)
 """Valid spectral methods."""
 
 
@@ -88,7 +91,7 @@ class PhaseLayout:
         ``tf`` vanishes.
     """
 
-    method: str
+    method: SpectralMethod
     n_segments: int
     n_collocation: int
     n_eval: int
@@ -109,50 +112,50 @@ class PhaseLayout:
 
 
 @functools.cache
-def _cached_layout(method: str, collocation_points: tuple[int, ...]) -> PhaseLayout:
+def _cached_layout(method: SpectralMethod, collocation_points: tuple[int, ...]) -> PhaseLayout:
     n_segments = len(collocation_points)
     n_collocation = sum(collocation_points)
     defect_index = np.arange(n_collocation)
 
-    if method == "lgr":
-        n_eval = n_collocation
-        n_time = n_collocation + 1
-        n_zero_mode = n_boundary_defect = 0
-        x0_position, xf_position = 0, n_collocation
-        time_order = np.arange(n_time)
-        trim_t0, trim_tf = 0, 1
-    elif method == "lgl":
-        n_eval = n_collocation - n_segments + 1
-        n_time = n_eval
-        n_zero_mode, n_boundary_defect = n_segments, 0
-        x0_position, xf_position = 0, n_time - 1
-        # each segment's collocation points start at the previous segment's last point
-        starts = np.cumsum([0, *(m - 1 for m in collocation_points[:-1])])
-        defect_index = np.concatenate(
-            [start + np.arange(m) for start, m in zip(starts, collocation_points, strict=True)],
-        )
-        time_order = np.arange(n_time)
-        trim_t0, trim_tf = 1, 1
-    elif method == "lg":
-        n_eval = n_collocation
-        n_time = n_collocation + n_segments + 1
-        n_zero_mode, n_boundary_defect = 0, n_segments
-        x0_position, xf_position = n_collocation, n_collocation + n_segments
-        # in time order: segment k's start value, then its collocation values; last, the
-        # final value. Storage holds the collocation values first, then the segment
-        # starts, then the final value.
-        order: list[int] = []
-        first = 0
-        for k, m in enumerate(collocation_points):
-            order.append(n_collocation + k)
-            order.extend(range(first, first + m))
-            first += m
-        order.append(n_collocation + n_segments)
-        time_order = np.array(order)
-        trim_t0, trim_tf = 0, 0
-    else:
-        msg = f"spectral method must be one of {SPECTRAL_METHODS}, not {method!r}"
-        raise ValueError(msg)
+    match method:
+        case "lgr":
+            n_eval = n_collocation
+            n_time = n_collocation + 1
+            n_zero_mode = n_boundary_defect = 0
+            x0_position, xf_position = 0, n_collocation
+            time_order = np.arange(n_time)
+            trim_t0, trim_tf = 0, 1
+        case "lgl":
+            n_eval = n_collocation - n_segments + 1
+            n_time = n_eval
+            n_zero_mode, n_boundary_defect = n_segments, 0
+            x0_position, xf_position = 0, n_time - 1
+            # each segment's collocation points start at the previous segment's last point
+            starts = np.cumsum([0, *(m - 1 for m in collocation_points[:-1])])
+            defect_index = np.concatenate(
+                [start + np.arange(m) for start, m in zip(starts, collocation_points, strict=True)],
+            )
+            time_order = np.arange(n_time)
+            trim_t0, trim_tf = 1, 1
+        case "lg":
+            n_eval = n_collocation
+            n_time = n_collocation + n_segments + 1
+            n_zero_mode, n_boundary_defect = 0, n_segments
+            x0_position, xf_position = n_collocation, n_collocation + n_segments
+            # in time order: segment k's start value, then its collocation values; last, the
+            # final value. Storage holds the collocation values first, then the segment
+            # starts, then the final value.
+            order: list[int] = []
+            first = 0
+            for k, m in enumerate(collocation_points):
+                order.append(n_collocation + k)
+                order.extend(range(first, first + m))
+                first += m
+            order.append(n_collocation + n_segments)
+            time_order = np.array(order)
+            trim_t0, trim_tf = 0, 0
+        case _:
+            assert_never(method)
 
     for array in (defect_index, time_order):
         array.flags.writeable = False  # shared by every caller of the cache
@@ -173,7 +176,7 @@ def _cached_layout(method: str, collocation_points: tuple[int, ...]) -> PhaseLay
     )
 
 
-def phase_layout(method: str, collocation_points: Sequence[int]) -> PhaseLayout:
+def phase_layout(method: SpectralMethod, collocation_points: Sequence[int]) -> PhaseLayout:
     """Return the layout of a phase with these collocation points under `method`.
 
     Pure and cached: the same arguments always return the same record.

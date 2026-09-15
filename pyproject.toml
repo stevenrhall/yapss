@@ -332,6 +332,7 @@ exclude_lines = [
     "if settings.DEBUG",
     "raise AssertionError",
     "raise RuntimeError",
+    "assert_never\\(",
     "if TYPE_CHECKING:",
     "if 0:",
     "if __name__ == .__main__.:",
