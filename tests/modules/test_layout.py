@@ -1,13 +1,12 @@
 """
 
-Test the phase layout record against the code that derives the layout today.
+Test the phase layout record and the NLP structures built from it.
 
-Until the layout consumers read `layout.phase_layout`, this is an equivalence test: every
-field of the record must agree with what `structure.py` builds, what `mesh.py` sizes and
-orders, and what `assembly.phase_geometry` derives, for every spectral method and a range
-of meshes (one segment, several, unequal, the two-point minimum). Once the consumers read
-the record, the comparisons with their re-derivations become circular and are replaced by
-hand-checked cases.
+The structures are checked against hand-worked indices for a two-segment mesh under each
+spectral method, which document the layout independently of the code. Until the mesh and
+the assembly geometry read the record, the record is also checked for agreement with what
+they derive, for every method and a range of meshes (one segment, several, unequal, the
+two-point minimum).
 
 """
 
@@ -22,12 +21,7 @@ from yapss import Problem
 from yapss._private.assembly import index_twins, phase_geometry
 from yapss._private.layout import SPECTRAL_METHODS, PhaseLayout, phase_layout, problem_layout
 from yapss._private.mesh import Mesh
-from yapss._private.structure import (
-    calculate_ic,
-    calculate_nz,
-    get_nlp_cf_structure,
-    get_nlp_dv_structure,
-)
+from yapss._private.structure import get_nlp_cf_structure, get_nlp_dv_structure
 
 MESHES = {
     "one segment": [(7,)],
@@ -51,60 +45,71 @@ def build(method: str, meshes: list[tuple[int, ...]]) -> Problem:
 CASES = [(method, name) for method in SPECTRAL_METHODS for name in MESHES]
 
 
-@pytest.mark.parametrize(("method", "mesh_name"), CASES)
-def test_layout_matches_the_decision_variable_structure(method, mesh_name):
-    problem = build(method, MESHES[mesh_name])
+def r(start: int, stop: int) -> list[int]:
+    return list(range(start, stop))
+
+
+# Hand-worked NLP indices for nx=[2], nu=[1], nq=[1], nh=[1], ns=1, nd=1 on a (3, 4) mesh:
+# K = 2 segments and N = 7 collocation points.
+HAND_CHECKED = {
+    # LGR: 7 evaluation points, 8 state time points (the final point is not collocated)
+    "lgr": {
+        "nz": 27, "xa": [r(0, 8), r(8, 16)], "x": [r(0, 8), r(8, 16)], "xc": [r(0, 7), r(8, 15)],
+        "xs": [[], []], "x0": [0, 8], "xf": [7, 15], "u": [r(16, 23)], "q": [23], "t0": [24],
+        "tf": [25], "s": [26],
+        "nc": 24, "defect": [r(0, 7), r(7, 14)], "lg_defect": [[], []], "path": [r(14, 21)],
+        "integral": [21], "duration": [22], "discrete": [23], "defect_index": r(0, 7),
+        "time_order": r(0, 8),
+    },
+    # LGL: segment boundaries are shared, so 6 evaluation and time points, plus 2 zero modes
+    # per state; each defect reads the point its collocation node sits on
+    "lgl": {
+        "nz": 26, "xa": [r(0, 8), r(8, 16)], "x": [r(0, 6), r(8, 14)], "xc": [r(0, 6), r(8, 14)],
+        "xs": [[6, 7], [14, 15]], "x0": [0, 8], "xf": [5, 13], "u": [r(16, 22)], "q": [22],
+        "t0": [23], "tf": [24], "s": [25],
+        "nc": 23, "defect": [r(0, 7), r(7, 14)], "lg_defect": [[], []], "path": [r(14, 20)],
+        "integral": [20], "duration": [21], "discrete": [22],
+        "defect_index": [0, 1, 2, 2, 3, 4, 5], "time_order": r(0, 6),
+    },
+    # LG: 7 collocation values stored first, then the 2 segment starts, then the final value;
+    # 2 boundary defects per state follow the defects
+    "lg": {
+        "nz": 31, "xa": [r(0, 10), r(10, 20)], "x": [r(0, 10), r(10, 20)],
+        "xc": [r(0, 7), r(10, 17)], "xs": [[], []], "x0": [7, 17], "xf": [9, 19],
+        "u": [r(20, 27)], "q": [27], "t0": [28], "tf": [29], "s": [30],
+        "nc": 28, "defect": [r(0, 7), r(7, 14)], "lg_defect": [[14, 15], [16, 17]],
+        "path": [r(18, 25)], "integral": [25], "duration": [26], "discrete": [27],
+        "defect_index": r(0, 7), "time_order": [7, 0, 1, 2, 8, 3, 4, 5, 6, 9],
+    },
+}  # fmt: skip
+
+
+@pytest.mark.parametrize("method", SPECTRAL_METHODS)
+def test_structures_match_hand_worked_indices(method):
+    expected = HAND_CHECKED[method]
+    problem = build(method, [(3, 4)])
     dv = get_nlp_dv_structure(problem, int)
     dv.z[:] = np.arange(len(dv.z))
-    for p, layout in enumerate(problem_layout(problem)):
-        phase = dv.phase[p]
-        storage = phase.xa[0]
-        start = storage[0]
-        assert len(storage) == layout.n_state_storage
-        assert len(phase.xc[0]) == layout.n_eval
-        np.testing.assert_array_equal(phase.xc[0], storage[: layout.n_eval])
-        assert phase.x0[0] - start == layout.x0_position
-        assert phase.xf[0] - start == layout.xf_position
-        assert len(phase.u[0]) == layout.n_eval
-        if layout.n_zero_mode:
-            np.testing.assert_array_equal(phase.xs[0], storage[layout.n_time :])
-
-
-@pytest.mark.parametrize(("method", "mesh_name"), CASES)
-def test_layout_matches_the_constraint_structure(method, mesh_name):
-    problem = build(method, MESHES[mesh_name])
     cf = get_nlp_cf_structure(problem, int)
-    for p, layout in enumerate(problem_layout(problem)):
-        phase = cf.phase[p]
-        assert len(phase.defect[0]) == layout.n_collocation
-        assert len(phase.path[0]) == layout.n_eval
-        if method == "lg":
-            assert len(phase.lg_defect[0]) == layout.n_boundary_defect
-        else:
-            assert layout.n_boundary_defect == 0
-        if method == "lgl":
-            np.testing.assert_array_equal(phase.defect_index, layout.defect_index)
-        else:
-            np.testing.assert_array_equal(layout.defect_index, np.arange(layout.n_collocation))
+    cf.c[:] = np.arange(len(cf.c))
+    (layout,) = problem_layout(problem)
+    dv_phase, cf_phase = dv.phase[0], cf.phase[0]
 
+    def lists(views):
+        return [view.tolist() for view in views]
 
-@pytest.mark.parametrize(("method", "mesh_name"), CASES)
-def test_layout_matches_the_vector_lengths(method, mesh_name):
-    problem = build(method, MESHES[mesh_name])
-    layouts = problem_layout(problem)
-    nz = problem.ns + sum(
-        problem.nx[p] * layout.n_state_storage + problem.nu[p] * layout.n_eval + problem.nq[p] + 2
-        for p, layout in enumerate(layouts)
-    )
-    nc = problem.nd + sum(
-        problem.nx[p] * (layout.n_collocation + layout.n_boundary_defect)
-        + problem.nh[p] * layout.n_eval
-        + problem.nq[p]
-        + 1
-        for p, layout in enumerate(layouts)
-    )
-    assert calculate_nz(problem, method) == nz
-    assert calculate_ic(problem, method) == nc
+    actual = {
+        "nz": len(dv.z), "xa": lists(dv_phase.xa), "x": lists(dv_phase.x),
+        "xc": lists(dv_phase.xc), "xs": lists(dv_phase.xs), "x0": dv_phase.x0.tolist(),
+        "xf": dv_phase.xf.tolist(), "u": lists(dv_phase.u), "q": dv_phase.q.tolist(),
+        "t0": dv_phase.t0.tolist(), "tf": dv_phase.tf.tolist(), "s": dv.s.tolist(),
+        "nc": len(cf.c), "defect": lists(cf_phase.defect), "lg_defect": lists(cf_phase.lg_defect),
+        "path": lists(cf_phase.path), "integral": cf_phase.integral.tolist(),
+        "duration": cf_phase.duration.tolist(), "discrete": cf.discrete.tolist(),
+        "defect_index": np.asarray(cf_phase.defect_index).tolist(),
+        "time_order": layout.time_order.tolist(),
+    }  # fmt: skip
+    assert actual == expected
 
 
 @pytest.mark.parametrize(("method", "mesh_name"), CASES)

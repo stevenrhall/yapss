@@ -26,6 +26,9 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 # third party imports
 import numpy as np
 
+# package imports
+from .layout import problem_layout
+
 # Define a generic type variable
 T = TypeVar("T", bound=np.generic)
 
@@ -42,39 +45,37 @@ if TYPE_CHECKING:
     Array = NDArray[T]
     """Generic array type."""
 
-SPECTRAL_METHODS = ("lg", "lgr", "lgl")
-"""Valid spectral methods."""
-
 
 class DVPhase(Generic[T], SimpleNamespace):
     """Container for decision variables of a single phase.
 
+    Every view is laid out by the phase's `layout.PhaseLayout`, identically for every
+    spectral method; a view a method does not use is empty.
+
     Attributes
     ----------
-    t0 : Array
-    tf : Array
-    x : list[Array]
-    xs : list[Array]
-    xc : list[Array]
-    x0 : Array
-    xf : Array
-    u : list[Array]
-    q : Array
-
-    x : list[Array]
-        collocation and interpolation points
     xa : list[Array]
-        all points (including zero mode)
-    xs : list[Array]
-        zero mode variables
+        Everything stored for each state: its values at the time points, then its zero modes.
+    x : list[Array]
+        Each state's values at the time points, in storage order (see
+        ``PhaseLayout.time_order`` for time order).
     xc : list[Array]
-        collocation points
-    xi : list[Array]
-        interpolation points
+        Each state's values at the evaluation points, the first stored time points.
+    xs : list[Array]
+        Each state's zero modes (LGL only; empty otherwise).
+    x0, xf : Array
+        The initial and final value of every state, one entry per state.
+    u : list[Array]
+        Each control's values at the evaluation points.
+    q : Array
+        The integrals.
+    t0, tf : Array
+        The initial and final time, one entry each.
     """
 
     t0: Array[T]
     tf: Array[T]
+    xa: list[Array[T]]
     x: list[Array[T]]
     xs: list[Array[T]]
     xc: list[Array[T]]
@@ -104,18 +105,26 @@ class DVStructure(Generic[T], SimpleNamespace):
 class CFPhase(Generic[T], SimpleNamespace):
     """Container for constraint function values of a single phase.
 
+    Every view is laid out by the phase's `layout.PhaseLayout`, identically for every
+    spectral method; a view a method does not use is empty.
+
     Attributes
     ----------
-    defect: list[Array]
-    defect_index: list[int]
-    path: list[Array]
-    integral: Array
-    duration: Array
+    defect : list[Array]
+        Each state's defect rows, one per collocation point.
+    lg_defect : list[Array]
+        Each state's boundary defect rows, one per segment (LG only; empty otherwise).
+    defect_index : NDArray[np.intp]
+        For each defect row, the evaluation point whose dynamics it reads.
+    path : list[Array]
+        Each path constraint's rows, one per evaluation point.
+    integral : Array
+    duration : Array
     """
 
     defect: list[Array[T]]
     lg_defect: list[Array[T]]
-    defect_index: list[int]
+    defect_index: NDArray[np.intp]
     path: list[Array[T]]
     integral: Array[T]
     duration: Array[T]
@@ -136,50 +145,11 @@ class CFStructure(Generic[T], SimpleNamespace):
     discrete: Array[T]
 
 
-def validate_spectral_method(spectral_method: str) -> None:
-    if spectral_method not in SPECTRAL_METHODS:
-        msg = f"'spectral_method' must be one of {SPECTRAL_METHODS}"
-        raise RuntimeError(msg)
-
-
-def calculate_nz(problem: yapss.Problem, spectral_method: str) -> int:
-    nz = 0
-
-    # Iterate through the phases
-    for p in range(problem.np):
-        nx = problem.nx[p]
-        nu = problem.nu[p]
-        nq = problem.nq[p]
-
-        nc_points = problem.mesh.phase[p].collocation_points
-        n_segments = len(nc_points)
-
-        if spectral_method == "lgl":
-            nupoints = sum(nc_points) - n_segments + 1
-            nxpoints = nupoints
-            nz += (nxpoints + n_segments) * nx + nupoints * nu
-        elif spectral_method == "lgr":
-            nupoints = sum(nc_points)
-            nxpoints = nupoints + 1
-            nz += nxpoints * nx + nupoints * nu
-        elif spectral_method == "lg":
-            nupoints = sum(nc_points)
-            nxpoints = nupoints + n_segments + 1
-            nz += nxpoints * nx + nupoints * nu
-        else:
-            raise RuntimeError
-
-        # integrals, t0, and tf
-        nz += nq + 2
-
-    # add in number of parameters
-    nz += problem.ns
-
-    return nz
-
-
 def get_nlp_dv_structure(problem: yapss.Problem, dtype: type) -> DVStructure[T]:
-    """Create the vector of decision variables for the NLP.
+    """Create the vector of decision variables for the NLP, with views into it.
+
+    Per phase, in order: every state's stored values (time points, then zero modes), every
+    control's values, the integrals, t0, tf. The parameters follow the last phase.
 
     Parameters
     ----------
@@ -190,148 +160,70 @@ def get_nlp_dv_structure(problem: yapss.Problem, dtype: type) -> DVStructure[T]:
     -------
     DVStructure
     """
-    spectral_method = problem.spectral_method
-    validate_spectral_method(spectral_method)
+    layouts = problem_layout(problem)
+    nz = problem.ns + sum(
+        problem.nx[p] * layout.n_state_storage + problem.nu[p] * layout.n_eval + problem.nq[p] + 2
+        for p, layout in enumerate(layouts)
+    )
 
     dv = DVStructure[T]()
     dv.phase = []
-
-    nz = calculate_nz(problem, spectral_method)
     z: Array[T] = np.zeros([nz], dtype=dtype)
     dv.z = z
-
-    # go back through list of variables, and assign subsets of z to them.
-    iz = 0
-
     var_dict = dv.var_dict = {}
-    ns = problem.ns
 
-    for p in range(problem.np):
+    iz = 0
+    for p, layout in enumerate(layouts):
+        nx, nu, nq = problem.nx[p], problem.nu[p], problem.nq[p]
+        n_storage, n_time, n_eval = layout.n_state_storage, layout.n_time, layout.n_eval
         dv_phase = DVPhase[T]()
-        nx = problem.nx[p]
-        nu = problem.nu[p]
-        nq = problem.nq[p]
 
-        nc_points = problem.mesh.phase[p].collocation_points
-        n_segments = len(nc_points)
+        # states: each occupies n_storage consecutive entries, so the boundary values of
+        # all states are strided views
+        states_end = iz + nx * n_storage
+        dv_phase.xa = [z[iz + i * n_storage : iz + (i + 1) * n_storage] for i in range(nx)]
+        dv_phase.x = [xa[:n_time] for xa in dv_phase.xa]
+        dv_phase.xc = [xa[:n_eval] for xa in dv_phase.xa]
+        dv_phase.xs = [xa[n_time:] for xa in dv_phase.xa]
+        dv_phase.x0 = z[iz + layout.x0_position : states_end : n_storage]
+        dv_phase.xf = z[iz + layout.xf_position : states_end : n_storage]
+        iz = states_end
 
-        if spectral_method == "lgl":
-            nupoints = sum(nc_points) - n_segments + 1
-            nxpoints = nupoints
-            n = sum(nc_points) + 1
-        elif spectral_method == "lgr":
-            nupoints = sum(nc_points)
-            nxpoints = nupoints + 1
-            n = nxpoints
-        elif spectral_method == "lg":
-            nupoints = sum(nc_points)
-            n = sum(nc_points) + n_segments + 1
-            nxpoints = sum(nc_points)
-        else:
-            raise RuntimeError
+        dv_phase.u = [z[iz + i * n_eval : iz + (i + 1) * n_eval] for i in range(nu)]
+        iz += nu * n_eval
 
-        if spectral_method in ("lgl", "lgr"):
-            dv_phase.x0 = z[iz : iz + nx * n : n]
-            dv_phase.xf = z[iz + nxpoints - 1 : iz + nx * n : n]
-        elif spectral_method == "lg":
-            # TODO: get rid of sum(nc_points)
-            dv_phase.x0 = z[iz + sum(nc_points) : iz + sum(nc_points) + nx * n : n]
-            dv_phase.xf = z[iz + n - 1 : iz + n - 1 + nx * n : n]
-        else:
-            raise RuntimeError
-
-        x = dv_phase.x = []
-        xs = dv_phase.xs = []
-        xc = dv_phase.xc = []
-        xa = dv_phase.xa = []
-
-        for _i in range(nx):
-            if spectral_method == "lgl":
-                x.append(z[iz : iz + nxpoints])
-                xa.append(z[iz : iz + nxpoints + n_segments])
-                xc.append(z[iz : iz + nupoints])
-                iz += nxpoints
-                xs.append(z[iz : iz + n_segments])
-                iz += n_segments
-            elif spectral_method == "lgr":
-                x.append(z[iz : iz + nxpoints])
-                xa.append(z[iz : iz + nxpoints])
-                xc.append(z[iz : iz + nupoints])
-                iz += nxpoints
-            elif spectral_method == "lg":
-                x.append(z[iz : iz + nxpoints])
-                xc.append(z[iz : iz + nxpoints])
-                xa.append(z[iz : iz + nxpoints + n_segments + 1])
-                iz += nxpoints + n_segments + 1
-            else:
-                raise RuntimeError
-
-        # control variables
-        u = dv_phase.u = []
-        for _i in range(nu):
-            u.append(z[iz : iz + nupoints])
-            iz += nupoints
-
-        # integral variables
         dv_phase.q = z[iz : iz + nq]
         iz += nq
-
-        # initial and final times
         dv_phase.t0 = z[iz : iz + 1]
-        iz += 1
-        dv_phase.tf = z[iz : iz + 1]
-        iz += 1
+        dv_phase.tf = z[iz + 1 : iz + 2]
+        iz += 2
 
         dv.phase.append(dv_phase)
-        last_phase = dv.phase[-1]
-
         for i in range(nx):
-            var_dict[p, "x0", i] = last_phase.x0[i : i + 1]
-            var_dict[p, "xf", i] = last_phase.xf[i : i + 1]
-
+            var_dict[p, "x0", i] = dv_phase.x0[i : i + 1]
+            var_dict[p, "xf", i] = dv_phase.xf[i : i + 1]
         for i in range(nu):
-            var_dict[p, "u", i] = last_phase.u[i]
-
-        var_dict[p, "t0", 0] = last_phase.t0
-        var_dict[p, "tf", 0] = last_phase.tf
-
+            var_dict[p, "u", i] = dv_phase.u[i]
+        var_dict[p, "t0", 0] = dv_phase.t0
+        var_dict[p, "tf", 0] = dv_phase.tf
         for i in range(nq):
-            var_dict[p, "q", i] = last_phase.q[i : i + 1]
+            var_dict[p, "q", i] = dv_phase.q[i : i + 1]
 
     # parameters
-    s = z[iz : iz + problem.ns]
-
-    dv.s = s
-    iz += problem.ns
-
+    dv.s = z[iz : iz + problem.ns]
     for p in range(max(problem.np, 1)):
-        for i in range(ns):
-            key = p, "s", i
-            var_dict[key] = s[i : i + 1]
+        for i in range(problem.ns):
+            var_dict[p, "s", i] = dv.s[i : i + 1]
 
     return dv
 
 
-def calculate_ic(problem: yapss.Problem, spectral_method: str) -> int:
-    ic = 0
-    for p in range(problem.np):
-        col_points = problem.mesh.phase[p].collocation_points
-        nc = sum(col_points)
-        nhpoints = nc
-        if spectral_method == "lgl":
-            nhpoints += -len(col_points) + 1
-        ic += nc * problem.nx[p] + nhpoints * problem.nh[p] + problem.nq[p] + 1
-        if spectral_method == "lg":
-            ic += len(col_points) * problem.nx[p]
-    ic += problem.nd
-    return ic
-
-
 def get_nlp_cf_structure(problem: yapss.Problem, dtype: type) -> CFStructure[T]:
-    """Create the vector of constraint variables for the NLP.
+    """Create the vector of constraint functions for the NLP, with views into it.
 
-    Also creates variables that are slices of the vector, so that the constraint vector
-    can be manipulated more easily.
+    Per phase, in order: every state's defect rows, every state's boundary defect rows,
+    every path constraint's rows, the integral rows, the duration row. The discrete
+    constraints follow the last phase.
 
     Parameters
     ----------
@@ -342,69 +234,44 @@ def get_nlp_cf_structure(problem: yapss.Problem, dtype: type) -> CFStructure[T]:
     -------
     CFStructure
     """
-    spectral_method = problem.spectral_method
-    validate_spectral_method(spectral_method)
+    layouts = problem_layout(problem)
+    nc = problem.nd + sum(
+        problem.nx[p] * (layout.n_collocation + layout.n_boundary_defect)
+        + problem.nh[p] * layout.n_eval
+        + problem.nq[p]
+        + 1
+        for p, layout in enumerate(layouts)
+    )
 
     cf: CFStructure[T] = CFStructure[T]()
-    cf.phase = [CFPhase[T]() for _ in range(problem.np)]
-
-    # define constraint array
-    ic = calculate_ic(problem, spectral_method)
-    c: Array[T] = np.zeros([ic], dtype=dtype)
+    cf.phase = []
+    c: Array[T] = np.zeros([nc], dtype=dtype)
     cf.c = c
 
-    # now go back through and assign subsets of constraint function array to variables
     ic = 0
-    for p in range(problem.np):
-        # extract phase information. n is number of u collocation points. m is number
-        # of x collocation points
-        col_points = problem.mesh.phase[p].collocation_points
-        nc = sum(col_points)
+    for p, layout in enumerate(layouts):
+        nx, nh, nq = problem.nx[p], problem.nh[p], problem.nq[p]
+        n_defect, n_boundary, n_eval = (
+            layout.n_collocation,
+            layout.n_boundary_defect,
+            layout.n_eval,
+        )
+        cf_phase = CFPhase[T]()
 
-        # defect in state equations
-        cf.phase[p].defect = []
-        for _ in range(problem.nx[p]):
-            cf.phase[p].defect.append(c[ic : ic + nc])
-            ic += nc
+        cf_phase.defect = [c[ic + i * n_defect : ic + (i + 1) * n_defect] for i in range(nx)]
+        ic += nx * n_defect
+        cf_phase.lg_defect = [c[ic + i * n_boundary : ic + (i + 1) * n_boundary] for i in range(nx)]
+        ic += nx * n_boundary
+        cf_phase.defect_index = layout.defect_index
 
-        if spectral_method == "lg":
-            lg_defect: list[Array[T]] = []
-            cf.phase[p].lg_defect = lg_defect
-            for _ in range(problem.nx[p]):
-                lg_defect.append(c[ic : ic + len(col_points)])
-                ic += len(col_points)
+        cf_phase.path = [c[ic + i * n_eval : ic + (i + 1) * n_eval] for i in range(nh)]
+        ic += nh * n_eval
 
-        if spectral_method == "lgl":
-            defect_index: list[int] = []
-            i = 0
-            for m in col_points:
-                defect_index += range(i, i + m)
-                i += m - 1
-            cf.phase[p].defect_index = defect_index
-
-        # path constraints
-        nhpoints = nc
-        if spectral_method == "lgl":
-            nhpoints += -len(col_points) + 1
-        cf.phase[p].path = []
-        for _ in range(problem.nh[p]):
-            cf.phase[p].path.append(c[ic : ic + nhpoints])
-            ic += nhpoints
-
-        # integral equations
-        nq = problem.nq[p]
-        cf.phase[p].integral = c[ic : ic + nq]
+        cf_phase.integral = c[ic : ic + nq]
         ic += nq
-
-        # duration
-        cf.phase[p].duration = c[ic : ic + 1]
+        cf_phase.duration = c[ic : ic + 1]
         ic += 1
+        cf.phase.append(cf_phase)
 
-    n = problem.nd
-    cf.discrete = c[ic : ic + n]
-    ic += n
-
-    if ic != len(c):
-        raise RuntimeError
-
+    cf.discrete = c[ic : ic + problem.nd]
     return cf
