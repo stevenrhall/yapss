@@ -30,6 +30,12 @@ What a user may get wrong
     - A required callback left unset: `ValueError` from `validate()` naming it. A callback
       that is not callable with one argument: `TypeError` at the assignment.
     - Functions not finite at the initial guess: `ValueError` naming the output.
+    - An output row never assigned (at the initial guess): `UnsetOutputWarning` at the
+      callback's `def` line, once per row, under every method. A row assigned zero, or
+      assigned and then updated in place, does not warn.
+    - A continuous callback that is not pointwise (`t - t[0]`, `len`, `mean`, `cumsum`, ...):
+      `ValueError` naming the callback and output and stating the rule, under every method;
+      differences below the tolerance are not reported.
     - Under `"user"`, an invalid derivative key: `ValueError` (unknown name, wrong length,
       index out of range, parameter not keyed with phase 0) or `TypeError` (a part of the
       wrong type: a key that is not a tuple, a name that is not a string, an index that is
@@ -40,12 +46,15 @@ What a user may get wrong
 from __future__ import annotations
 
 import math
+import warnings
 
 import numpy as np
 import pytest
 
+import yapss
 import yapss.math as ym
 from yapss import Problem
+from yapss._private.setup_check import UnsetOutputWarning
 from yapss.examples import brachistochrone, goddard_problem_3_phase
 
 from ._contract import (
@@ -390,6 +399,101 @@ def test_callback_that_is_not_callable_with_one_argument_raises_at_the_assignmen
         ocp.functions.objective = value
 
 
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+@pytest.mark.parametrize("output", ["arg.phase[0].path[0]", "arg.discrete[0]", "arg.objective"])
+@pytest.mark.parametrize("method", METHODS)
+def test_an_output_never_assigned_warns_at_the_callbacks_def_line(method, output):
+    def continuous(arg):
+        _, _, v = arg.phase[0].state
+        (u,) = arg.phase[0].control
+        arg.phase[0].dynamics[:] = v * ym.cos(u), v * ym.sin(u), G0 * ym.sin(u)
+        arg.phase[0].integrand[:] = (u**2,)
+        if output != "arg.phase[0].path[0]":
+            arg.phase[0].path[:] = (v,)
+
+    def discrete(arg):
+        if output != "arg.discrete[0]":
+            arg.discrete[:] = (arg.phase[0].final_state[1],)
+
+    def objective(arg):
+        if output != "arg.objective":
+            arg.objective = arg.phase[0].final_time
+
+    callbacks = {"continuous": continuous, "discrete": discrete, "objective": objective}
+    ocp = callback_problem(method, **callbacks)
+    ocp.ipopt_options.max_iter = 0
+    with pytest.warns(UnsetOutputWarning) as record:
+        ocp.solve()
+    unset = [w for w in record if issubclass(w.category, UnsetOutputWarning)]
+    assert len(unset) == 1, [str(w.message) for w in unset]
+    (warning,) = unset
+    assert f"never assigned {output}" in str(warning.message)
+    owner = {"arg.phase[0].path[0]": continuous, "arg.discrete[0]": discrete}.get(output, objective)
+    assert warning.filename == owner.__code__.co_filename
+    assert warning.lineno == owner.__code__.co_firstlineno
+
+
+@pytest.mark.parametrize("method", METHODS)
+def test_a_row_assigned_zero_or_updated_in_place_does_not_warn(method):
+    def continuous(arg):
+        default_continuous(arg)
+        arg.phase[0].path[0] = 0.0
+        arg.phase[0].path[0] += arg.phase[0].state[2]
+
+    ocp = callback_problem(method, continuous=continuous)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UnsetOutputWarning)
+        solve_objective(ocp)
+
+
+NOT_POINTWISE = {
+    "t - t[0]": lambda t, x: x + (t - t[0]),
+    "len": lambda t, x: x * len(t),
+    "mean": lambda t, x: x + np.mean(x),
+    "cumsum": lambda t, x: np.cumsum(x),
+}
+
+
+@pytest.mark.parametrize("violation", NOT_POINTWISE.values(), ids=NOT_POINTWISE.keys())
+@pytest.mark.parametrize("method", METHODS)
+def test_a_continuous_callback_that_is_not_pointwise_raises_stating_the_rule(method, violation):
+    def continuous(arg):
+        default_continuous(arg)
+        (u,) = arg.phase[0].control
+        _, _, v = arg.phase[0].state  # varies along the guess, as the check needs
+        arg.phase[0].integrand[0] = u**2 + violation(arg.phase[0].time, v)
+
+    with raises(ValueError, "not pointwise", "phase 0 integrand[0]", "continuous", "depend only"):
+        callback_problem(method, continuous=continuous).solve()
+
+
+@pytest.mark.parametrize("method", METHODS)
+def test_rounding_noise_below_the_tolerance_is_pointwise(method):
+    def continuous(arg):
+        default_continuous(arg)
+        (u,) = arg.phase[0].control
+        noise = 1 + 1e-12 * len(arg.phase[0].time)  # order- and length-dependent, tiny
+        arg.phase[0].integrand[0] = u**2 * noise
+
+    assert solve_objective(callback_problem(method, continuous=continuous)) > 0
+
+
+def test_a_phase_with_two_points_is_still_checked_for_pointwise():
+    """Two evaluation points leave one comparison point, so only a violation visible there."""
+
+    def continuous(arg):
+        default_continuous(arg)
+        (u,) = arg.phase[0].control
+        _, _, v = arg.phase[0].state
+        arg.phase[0].integrand[0] = u**2 + v[-1] - v
+
+    ocp = callback_problem("central-difference-full", continuous=continuous)
+    ocp.mesh.phase[0].collocation_points = (2,)
+    ocp.mesh.phase[0].fraction = (1.0,)
+    with raises(ValueError, "not pointwise"):
+        ocp.solve()
+
+
 @pytest.mark.filterwarnings("ignore:invalid value encountered in sqrt:RuntimeWarning")
 @pytest.mark.parametrize("method", METHODS)
 def test_functions_not_finite_at_the_initial_guess_raise_naming_the_output(method):
@@ -589,6 +693,7 @@ def test_numpy_integer_indices_are_accepted():
 # ----------------------------------------------------------------- not yet met: outputs
 
 
+@pytest.mark.filterwarnings("ignore::yapss._private.setup_check.UnsetOutputWarning")
 @not_yet("E1", "a callback that returns a value raises TypeError showing the assignment idiom")
 @pytest.mark.parametrize("method", METHODS)
 def test_returning_the_objective_raises(method):
@@ -600,6 +705,7 @@ def test_returning_the_objective_raises(method):
 
 
 @pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+@pytest.mark.filterwarnings("ignore::yapss._private.setup_check.UnsetOutputWarning")
 @not_yet("E1", "a continuous or discrete callback that returns a value raises TypeError")
 @pytest.mark.parametrize("callback", ["continuous", "discrete"])
 def test_returning_from_continuous_or_discrete_raises(callback):
@@ -614,26 +720,6 @@ def test_returning_from_continuous_or_discrete_raises(callback):
         callback_problem(
             **{callback: {"continuous": continuous, "discrete": discrete}[callback]}
         ).solve()
-
-
-@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
-@not_yet("E1", "an output never written warns (UnsetOutputWarning), naming callback and output")
-@pytest.mark.parametrize("output", ["path", "discrete"])
-def test_output_never_written_warns(output):
-    def continuous(arg):
-        _, _, v = arg.phase[0].state
-        (u,) = arg.phase[0].control
-        arg.phase[0].dynamics[:] = v * ym.cos(u), v * ym.sin(u), G0 * ym.sin(u)
-        arg.phase[0].integrand[:] = (u**2,)
-        if output != "path":
-            arg.phase[0].path[:] = (v,)
-
-    def discrete(arg):
-        if output != "discrete":
-            arg.discrete[:] = (arg.phase[0].final_state[1],)
-
-    with pytest.warns(Warning, match=output):
-        callback_problem(continuous=continuous, discrete=discrete).solve()
 
 
 @not_yet("W5", "a non-scalar objective raises naming arg.objective")
@@ -666,28 +752,6 @@ def test_writing_an_input_in_place_raises(target):
     ocp.functions.continuous = writer
     with raises(ValueError, at="] = 0.0"):
         ocp.solve()
-
-
-@not_yet("E15", "a callback that is not pointwise in time raises, stating the rule")
-def test_non_pointwise_continuous_callback_raises():
-    def continuous(arg):
-        default_continuous(arg)
-        t = arg.phase[0].time
-        arg.phase[0].integrand[0] = arg.phase[0].control[0] ** 2 + (t - t[0])
-
-    with pytest.raises(Exception, match="pointwise"):
-        callback_problem("central-difference", continuous=continuous).solve()
-
-
-@not_yet("F10b", "np.where under central differences raises, pointing to yapss.math.where")
-def test_numpy_where_under_central_differences_raises():
-    def continuous(arg):
-        default_continuous(arg)
-        (u,) = arg.phase[0].control
-        arg.phase[0].path[0] = np.where(u > 0, arg.phase[0].state[2], 0.0)
-
-    with raises(TypeError, "yapss.math.where", at="np.where"):
-        callback_problem("central-difference", continuous=continuous).solve()
 
 
 # NumPy < 2.3 warns before raising here; newer NumPy raises directly

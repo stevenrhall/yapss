@@ -25,10 +25,10 @@ from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variabl
 from .central_difference import make_cd_functions
 from .config import get_conda_prefix, warn_if_ipopt_source_env_set
 from .guess import make_initial_guess_nlp
-from .initial_point import check_initial_point
 from .mesh import Mesh
 from .mseipopt import bare_np, initialize_ipopt
 from .nlp import NLP
+from .setup_check import check_callbacks, check_derivatives
 from .solution import Solution, make_solution_object
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 from .types_ import set_private
@@ -115,9 +115,11 @@ def solve(problem: yapss.Problem) -> Solution:
     nlp_temp = NLP(problem, functions, mesh)
     nlp_temp.intermediate = problem._intermediate_cb
 
-    # Refuse a starting point where the functions or first derivatives are not finite,
-    # before Ipopt can pass a non-finite Jacobian to its linear solver (see the module).
-    check_initial_point(problem, nlp_temp, z0)
+    # Check the callbacks (unassigned rows, non-finite values, pointwise), then the NLP's
+    # first derivatives, before Ipopt can pass a non-finite Jacobian to its linear solver.
+    # After the derivative setup, so that its own errors come first (see the module).
+    check_callbacks(problem, mesh, z0)
+    check_derivatives(problem, nlp_temp, z0)
 
     # NLP variable and constraint bounds
     ub, lb = get_nlp_decision_variable_bounds(problem)

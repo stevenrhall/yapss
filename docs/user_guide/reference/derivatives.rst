@@ -40,6 +40,18 @@ The ``derivatives.method`` option can take on one of four values:
 
 *  "user", in which case the user must supply the first and perhaps second derivatives.
 
+.. warning::
+
+    Under ``"central-difference"``, the sparsity pattern is found by setting one variable to
+    ``nan`` and seeing which outputs come back ``nan``, so any function that *absorbs* a
+    ``nan`` hides a dependency and yields an incomplete Jacobian --- a wrong answer that Ipopt
+    reports as optimal. NumPy's ``where``, ``fmax``, ``fmin`` and the ``nan*`` reductions
+    (``nanmax``, ``nansum``, ...) all discard a ``nan`` in the branch they do not select, and
+    so do the builtin ``min`` and ``max`` on scalars. Use the ``yapss.math``
+    versions, which keep a ``nan`` from either branch, or the ``"central-difference-full"``
+    method, which does not detect sparsity. (``numpy.clip`` and ``numpy.maximum`` propagate
+    ``nan`` and are safe.)
+
 It's usually best to use the "auto" method, as it is typically faster and more accurate than the
 central-difference methods. If central-difference methods are required because the CasADi package
 is unable to calculate the derivatives, it is safer (but slower) to start with the

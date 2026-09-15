@@ -58,6 +58,7 @@ def optimal_control_problem():
         for p in range(2):
             t = arg.phase[p].time
             arg.phase[p].dynamics = [0 * t, 0 * t]
+            arg.phase[p].integrand[:] = 0.0
 
     def continuous_jacobian(_):
         return

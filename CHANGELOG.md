@@ -19,6 +19,19 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- Two checks now run at the start of every solve, before an Ipopt problem instance is created.
+  A callback that never assigns an output row at the initial guess warns (an unassigned row is
+  zero), pointing at the callback's `def` line; an output that is NaN or infinite there raises
+  `ValueError` naming the output and the points; and a continuous callback that is not
+  pointwise -- one whose output at a point depends on other points, through `t[0]`, `len`,
+  `mean`, `sum`, `cumsum`, `diff`, or indexing across points -- raises `ValueError` naming the
+  output, the point, and the rule. A callback that is not pointwise describes different
+  problems under different derivative methods, so this was previously a silent source of
+  method-dependent answers. The check evaluates the continuous callback once more, on every
+  point of each phase but the last in reverse order; it sees only what the initial guess
+  reveals, and accepts differences below 1e-7 relative. `Problem.solve()` also reports
+  non-finite objective gradients and constraint Jacobians as before, now in a message of their
+  own.
 - Callback outputs are assigned by whole rows. `arg.phase[p].dynamics`, `integrand`, and
   `path` accept a whole output, a slice of rows (any step), or one row (negative indices
   count from the end), with each row a scalar constant, an expression over the points, or a

@@ -1,11 +1,12 @@
 """
 
-Test the refusal of a starting point at which the NLP is not finite.
+Test the setup checks: non-finite callback values and NLP first derivatives at the start.
 
 A NaN or Inf Jacobian at the starting point used to reach Ipopt's least-squares multiplier
 initialization, which factors a system built from the Jacobian before Ipopt checks the
 constraint values; for some sparsity patterns MUMPS then crashed the process (SIGBUS, no
-traceback). Two fixes guard it: `check_initial_point` raises before Ipopt is created, and
+traceback). Two fixes guard it: `check_callbacks` and `check_derivatives` raise before Ipopt
+is created, and
 `check_derivatives_for_naninf = "yes"` is a YAPSS default so Ipopt stops with status -13 at
 any later iterate. Tests that call `solve()` on a non-finite starting point go through the
 first guard, and the second would still stop Ipopt cleanly, so a regression fails a test
@@ -16,6 +17,7 @@ which runs in a subprocess.
 
 from __future__ import annotations
 
+import contextlib
 import re
 import subprocess
 import sys
@@ -24,8 +26,13 @@ import textwrap
 import pytest
 
 from yapss import Problem
-from yapss._private.initial_point import _constraint_label, _labels, _variable_label
 from yapss._private.ipopt_options import DEFAULT_IPOPT_OPTIONS
+from yapss._private.setup_check import (
+    UnsetOutputWarning,
+    _constraint_label,
+    _labels,
+    _variable_label,
+)
 from yapss._private.structure import nlp_constraint_keys, nlp_variable_keys
 from yapss.examples import brachistochrone_minimal
 from yapss.math import cos, sin, sqrt
@@ -70,7 +77,7 @@ def test_nan_value_at_initial_guess_raises(method):
     with pytest.raises(ValueError, match="not finite at the initial guess") as info:
         problem.solve()
     message = str(info.value)
-    assert re.search(r"phase 0 dynamics\[2\] is NaN in \d+ of \d+ entries", message), message
+    assert re.search(r"phase 0 dynamics\[2\] is NaN at \d+ of \d+ points", message), message
     # derivatives of a value that is already non-finite are not reported
     assert "derivative of phase 0 dynamics[2]" not in message
 
@@ -143,6 +150,125 @@ def test_every_nlp_entry_has_a_label(spectral_method):
     }
 
 
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+def test_a_callable_object_callback_warns_at_the_users_solve_call():
+    """A callback without a `def` line (a callable object) points the warning at solve()."""
+
+    class Continuous:
+        def __call__(self, arg):
+            x, _, v = arg.phase[0].state
+            (u,) = arg.phase[0].control
+            arg.phase[0].dynamics[0] = v * cos(u)
+            arg.phase[0].dynamics[1] = v * sin(u)  # dynamics[2] left unassigned
+
+    problem = brachistochrone_minimal.setup()
+    problem.ipopt_options.print_level = 0
+    problem.functions.continuous = Continuous()
+    with pytest.warns(UnsetOutputWarning, match=r"arg\.phase\[0\]\.dynamics\[2\]") as record:
+        with contextlib.suppress(Exception):
+            problem.solve()
+    (warning,) = [w for w in record if issubclass(w.category, UnsetOutputWarning)]
+    assert warning.filename == __file__
+
+
+def test_an_exception_in_the_reversed_call_is_reported_as_a_finding():
+    """A callback that fails only on a different point count is not pointwise either."""
+    problem = brachistochrone_minimal.setup()
+    problem.ipopt_options.print_level = 0
+    problem.derivatives.method = "central-difference-full"  # floats only: no symbolic trace
+    problem.mesh.phase[0].collocation_points = (10,)
+    problem.mesh.phase[0].fraction = (1.0,)
+    continuous = problem.functions.continuous
+
+    def with_a_fixed_length_row(arg):
+        continuous(arg)
+        arg.phase[0].dynamics[0] = [0.0] * 10  # right only for the full set of points
+
+    problem.functions.continuous = with_a_fixed_length_row
+    with pytest.raises(ValueError, match="not pointwise") as info:
+        problem.solve()
+    assert "the call raised ValueError" in str(info.value)
+    assert isinstance(info.value.__cause__, ValueError)
+
+
+def test_an_infinite_objective_derivative_at_a_finite_value_is_reported():
+    """The derivative stage reports the objective gradient, not only the Jacobian."""
+    problem = brachistochrone_minimal.setup()
+    problem.ipopt_options.print_level = 0
+
+    def objective(arg):
+        # finite at the guess (initial time 0), with an infinite derivative there
+        arg.objective = arg.phase[0].final_time + sqrt(arg.phase[0].initial_time)
+
+    problem.functions.objective = objective
+    with pytest.raises(ValueError, match="derivatives of the problem functions") as info:
+        problem.solve()
+    assert "the derivative of the objective with respect to phase 0 initial time" in str(info.value)
+
+
+@pytest.mark.filterwarnings("ignore:divide by zero encountered:RuntimeWarning")
+def test_a_row_that_is_nan_at_some_points_and_infinite_at_others_says_so():
+    problem = _one_state_problem()
+
+    def continuous(arg):
+        (x,) = arg.phase[0].state
+        (u,) = arg.phase[0].control
+        # NaN where x < 0.5, infinite where x == 1 (the last point of the guess)
+        arg.phase[0].dynamics[:] = (u + sqrt(x - 0.5) + 1.0 / (x - 1.0),)
+
+    problem.functions.continuous = continuous
+    with pytest.raises(ValueError, match=r"phase 0 dynamics\[0\] is NaN or infinite") as info:
+        problem.solve()
+    assert "points" in str(info.value)
+
+
+def test_more_findings_than_the_report_shows_are_counted():
+    """A long list is truncated with a count of the rest."""
+    problem = _one_state_problem(nh=20)
+
+    def continuous(arg):
+        (u,) = arg.phase[0].control
+        arg.phase[0].dynamics[:] = (u,)
+        arg.phase[0].path[:] = tuple(sqrt(-1.0 - u) for _ in range(20))
+
+    problem.functions.continuous = continuous
+    with pytest.raises(ValueError, match="not finite at the initial guess") as info:
+        problem.solve()
+    assert "... and 8 more" in str(info.value)
+
+
+def _one_state_problem(*, nh: int = 0, nd: int = 0) -> Problem:
+    """One state, one control, a linear guess from x = 0 to x = 1, and a trivial objective."""
+    problem = Problem(name="one state", nx=[1], nu=[1], nh=[nh] if nh else [0], nd=nd)
+    problem.ipopt_options.print_level = 0
+
+    def objective(arg):
+        arg.objective = arg.phase[0].final_time
+
+    def continuous(arg):
+        arg.phase[0].dynamics[:] = (arg.phase[0].control[0],)
+
+    problem.functions.objective = objective
+    problem.functions.continuous = continuous
+    bounds = problem.bounds.phase[0]
+    bounds.initial_time.lower = bounds.initial_time.upper = 0.0
+    bounds.final_time.lower, bounds.final_time.upper = 1.0, 2.0
+    problem.guess.phase[0].time = [0.0, 1.0]
+    problem.guess.phase[0].state = [[0.0, 1.0]]
+    problem.guess.phase[0].control = [[1.0, 1.0]]
+    return problem
+
+
+def test_a_non_finite_discrete_constraint_is_reported():
+    def discrete(arg):
+        arg.discrete[0] = sqrt(-1.0 - arg.phase[0].final_time)
+
+    problem = _one_state_problem(nd=1)
+    problem.functions.discrete = discrete
+    with pytest.raises(ValueError, match=r"discrete\[0\] is NaN"):
+        problem.solve()
+
+
 def test_nan_derivative_check_is_a_yapss_default():
     assert DEFAULT_IPOPT_OPTIONS["check_derivatives_for_naninf"] == "yes"
     assert brachistochrone_minimal.setup().ipopt_options.check_derivatives_for_naninf == "yes"
@@ -161,8 +287,9 @@ def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
         import warnings
         warnings.simplefilter("ignore")
         from yapss._private import solver
-        from tests.modules.test_initial_point import _brachistochrone
-        solver.check_initial_point = lambda *args: None
+        from tests.modules.test_setup_check import _brachistochrone
+        solver.check_callbacks = lambda *args: None
+        solver.check_derivatives = lambda *args: None
         problem = _brachistochrone("central-difference", "nan-value")
         solution = problem.solve()
         print("STATUS", solution.nlp_info.ipopt_status)

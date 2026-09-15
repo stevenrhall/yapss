@@ -23,7 +23,7 @@ from yapss.math.wrapper import SXW, sx_array
 # package imports
 from .layout import problem_layout
 from .outputs import Output, OutputArray
-from .types_ import Field, Protected
+from .types_ import Protected, set_private
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -181,20 +181,28 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
     auxdata: Auxdata
     """SimpleNamespace container for user-defined data."""
 
-    objective: Field[T] = Field()
-    """The objective value, set by the callback."""
-
     def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
         # Initialize the DiscreteArgBase with problem and dv
         DiscreteArgBase.__init__(self, problem, dv, dtype)
-        # Define the objective, typed as T
+        # the objective starts at zero and unassigned
         if dtype == np.object_:
-            self.objective = cast(T, SXW(0.0))  # Explicitly cast SXW to T
+            self._objective = cast(T, SXW(0.0))
         elif dtype == np.float64:
-            self.objective = cast(T, 0.0)  # Explicitly cast float to T
+            self._objective = cast(T, 0.0)
         else:
             msg = f"Unsupported type for objective: {dtype}"
             raise TypeError(msg)
+        self._objective_written = False
+
+    @property
+    def objective(self) -> T:
+        """The objective value, set by the callback."""
+        return self._objective
+
+    @objective.setter
+    def objective(self, value: T) -> None:
+        set_private(self, "_objective", value)
+        set_private(self, "_objective_written", value=True)
 
 
 class ObjectiveGradientArg(DiscreteArgBase[np.float64], Protected):
@@ -350,6 +358,13 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         Decision variable structure.
     dtype : Type
         The data type for the continuous array elements, such as float or object.
+    tau_u : Sequence[NDArray], optional
+        Mesh time of each evaluation point, per phase; required for a numeric argument.
+    nodes : Sequence[NDArray[np.intp]], optional
+        For a numeric argument, the evaluation points to present, per phase, in the order
+        given: time, states, controls, and outputs all have ``len(nodes[p])`` points. The
+        inputs are copies, refreshed by `_sync`. Default: every evaluation point, with the
+        states and controls as views of ``dv``.
     """
 
     def __init__(
@@ -359,15 +374,21 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         dtype: type[T],
         *,
         tau_u: Sequence[NDArray[np.float64]] | None = None,
+        nodes: Sequence[NDArray[np.intp]] | None = None,
     ) -> None:
         super().__init__(problem, dv, dtype)
         if dtype == np.float64 and tau_u is None:
             msg = "Numeric ContinuousArg instances require tau_u."
             raise ValueError(msg)
+        if nodes is not None and (dtype != np.float64 or len(nodes) != problem.np):
+            msg = "nodes are given for numeric ContinuousArg instances only, one array per phase."
+            raise ValueError(msg)
+        self._nodes = nodes
         self._tau_u = tau_u
         # Initialize _phase with a tuple of ContinuousPhase instances
         self._phase: tuple[ContinuousPhase[T], ...] = tuple(
-            ContinuousPhase(problem, dv, q, dtype) for q in range(problem.np)
+            ContinuousPhase(problem, dv, q, dtype, None if nodes is None else nodes[q])
+            for q in range(problem.np)
         )
         # Initialize phase list based on problem.np
         self._phase_list: tuple[int, ...] = tuple(range(problem.np))
@@ -382,7 +403,17 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         for p, tau in enumerate(self._tau_u):
             t0 = self._dv.phase[p].t0[0]
             tf = self._dv.phase[p].tf[0]
-            self.phase[p].time[:] = tau * (tf - t0) / 2 + (t0 + tf) / 2
+            phase = self.phase[p]
+            if self._nodes is None:
+                phase.time[:] = tau * (tf - t0) / 2 + (t0 + tf) / 2
+                continue
+            # a node subset: the inputs are copies of the selected points
+            nodes = self._nodes[p]
+            phase.time[:] = tau[nodes] * (tf - t0) / 2 + (t0 + tf) / 2
+            for state, values in zip(phase.state, self._dv.phase[p].xc, strict=True):
+                state[:] = values[nodes]
+            for control, values in zip(phase.control, self._dv.phase[p].u, strict=True):
+                control[:] = values[nodes]
 
     def __getitem__(
         self,
@@ -446,6 +477,7 @@ class ContinuousPhase(Protected, Generic[T]):
         dv: SimpleNamespace,
         q: int,
         dtype: type[T],
+        nodes: NDArray[np.intp] | None = None,
     ) -> None:
         self._outputs: dict[str, OutputArray[T]] = {}
         self._p: int = q
@@ -457,8 +489,14 @@ class ContinuousPhase(Protected, Generic[T]):
         nq = self._nq
         nh = self._nh
 
-        # one column per evaluation point; a symbolic argument is traced at a single node
-        nt = 1 if dtype == np.object_ else problem_layout(problem)[q].n_eval
+        # one column per evaluation point (or per selected node); a symbolic argument is
+        # traced at a single node
+        if dtype == np.object_:
+            nt = 1
+        elif nodes is not None:
+            nt = len(nodes)
+        else:
+            nt = problem_layout(problem)[q].n_eval
 
         # symbolic time is a single free symbol: the continuous functions are traced
         # once at a generic node, and the tau -> t chain rule is applied by the NLP
@@ -470,10 +508,10 @@ class ContinuousPhase(Protected, Generic[T]):
             self.time = numpy.zeros([nt], dtype=dtype)
         self.state: NDArray[Any] = numpy.zeros([problem.nx[q]], dtype=object)
         for i in range(problem.nx[q]):
-            self.state[i] = dv.phase[q].xc[i]
+            self.state[i] = dv.phase[q].xc[i] if nodes is None else numpy.zeros(nt)
         self.control: NDArray[Any] = numpy.zeros([problem.nu[q]], dtype=object)
         for i in range(problem.nu[q]):
-            self.control[i] = dv.phase[q].u[i]
+            self.control[i] = dv.phase[q].u[i] if nodes is None else numpy.zeros(nt)
 
         # outputs, assigned by whole rows
         outputs = (("dynamics", "nx", nx), ("integrand", "nq", nq), ("path", "nh", nh))

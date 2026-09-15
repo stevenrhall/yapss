@@ -119,3 +119,98 @@ def test_symbolic_time_is_built_in_place() -> None:
     time = continuous_arg.phase[0].time
     assert isinstance(time, SXArray)
     assert isinstance(time <= 0.5, SXArray), "comparison on symbolic time must stay symbolic"
+
+
+def _goddard_point(spectral_method: str):
+    """Goddard's three-phase problem, its mesh, and a perturbed initial point."""
+    from yapss._private.guess import make_initial_guess_nlp
+    from yapss.examples import goddard_problem_3_phase
+
+    problem = goddard_problem_3_phase.setup()
+    problem.spectral_method = spectral_method
+    problem.validate()
+    mesh = Mesh(problem.mesh.phase)
+    mesh.set_matrices(spectral_method)
+    z0 = make_initial_guess_nlp(problem, mesh)
+    rng = np.random.default_rng(0)
+    return problem, mesh, z0 * (1 + 1e-3 * rng.standard_normal(z0.size))
+
+
+def _outputs(arg: ContinuousArg) -> list[np.ndarray]:
+    return [
+        np.asarray(getattr(phase, name))
+        for phase in arg.phase
+        for name in ("dynamics", "integrand", "path")
+    ]
+
+
+@pytest.mark.parametrize("spectral_method", ("lg", "lgr", "lgl"))
+def test_a_node_subset_presents_the_selected_points_in_the_given_order(
+    spectral_method: str,
+) -> None:
+    """Inputs and outputs of a subset argument are the full argument's at those nodes."""
+    problem, mesh, z = _goddard_point(spectral_method)
+    nodes = [np.arange(1, len(tau) - 1)[::-1] for tau in mesh.tau_u]
+    full = ContinuousArg(
+        problem, get_nlp_dv_structure(problem, np.float64), np.float64, tau_u=mesh.tau_u
+    )
+    subset = ContinuousArg(
+        problem,
+        get_nlp_dv_structure(problem, np.float64),
+        np.float64,
+        tau_u=mesh.tau_u,
+        nodes=nodes,
+    )
+    for arg in (full, subset):
+        arg._sync(z)
+        problem.functions.continuous(arg)
+
+    for p, selected in enumerate(nodes):
+        np.testing.assert_array_equal(subset.phase[p].time, full.phase[p].time[selected])
+        for name in ("state", "control"):
+            for part, whole in zip(
+                getattr(subset.phase[p], name), getattr(full.phase[p], name), strict=True
+            ):
+                np.testing.assert_array_equal(part, whole[selected])
+    per_phase = [nodes[p] for p in range(problem.np) for _ in range(3)]
+    for part, whole, selected in zip(_outputs(subset), _outputs(full), per_phase, strict=True):
+        assert part.shape == (whole.shape[0], len(selected))
+        np.testing.assert_allclose(part, whole[:, selected], rtol=1e-12, atol=0.0)
+
+
+def test_sync_refreshes_the_inputs_of_a_node_subset() -> None:
+    """The subset's inputs are copies, so every sync must rewrite them."""
+    problem, mesh, z = _goddard_point("lgr")
+    nodes = [np.array([3, 1]) for _ in mesh.tau_u]
+    arg = ContinuousArg(
+        problem,
+        get_nlp_dv_structure(problem, np.float64),
+        np.float64,
+        tau_u=mesh.tau_u,
+        nodes=nodes,
+    )
+    arg._sync(z)
+    arg._sync(2 * z)
+    doubled = get_nlp_dv_structure(problem, np.float64)
+    doubled.z[:] = 2 * z
+    np.testing.assert_array_equal(arg.phase[1].state[2], doubled.phase[1].xc[2][[3, 1]])
+    np.testing.assert_array_equal(arg.phase[1].control[0], doubled.phase[1].u[0][[3, 1]])
+
+
+def test_nodes_are_for_numeric_arguments_with_one_array_per_phase() -> None:
+    problem, mesh, _ = _goddard_point("lgr")
+    with pytest.raises(ValueError, match="one array per phase"):
+        ContinuousArg(
+            problem,
+            get_nlp_dv_structure(problem, np.float64),
+            np.float64,
+            tau_u=mesh.tau_u,
+            nodes=[np.array([1])],
+        )
+    with pytest.raises(ValueError, match="numeric ContinuousArg instances only"):
+        ContinuousArg(
+            problem,
+            get_nlp_dv_structure(problem, np.object_),
+            np.object_,
+            nodes=[np.array([1])] * problem.np,
+        )

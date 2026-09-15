@@ -229,6 +229,25 @@ over several points), a row that does not exist, or writing into an output with
     Outputs are assigned by whole rows only; element, partial-row, and column writes, and
     shapes that fit only by broadcasting, now raise.
 
+Each output at a point may depend only on the inputs **at that point** --- the time, states,
+and controls there --- and on the parameters. A callback that reaches across points, with
+``t[0]``, ``len``, ``mean``, ``sum``, ``cumsum``, ``diff``, or indexing by position, is not a
+valid continuous function: the ``"auto"`` method evaluates the callback at a single point,
+while the numeric methods pass every point at once, so the same callback then describes
+different problems under different methods, and the sparsity probe of
+``"central-difference"`` assumes each point is independent as well.
+
+YAPSS checks this before the solve starts, by evaluating the continuous callback a second
+time on every point of each phase but the last, in reverse order, and comparing. A callback
+whose outputs change raises ``ValueError`` naming the output and the point. The check is
+useful rather than complete: it can only see what the initial guess reveals --- nothing about
+an input that is constant along the guess --- and it accepts differences below a relative
+tolerance of 1e-7, since reordering can change floating-point rounding.
+
+The same setup check warns (``UnsetOutputWarning``) when a callback never assigns an output
+row at the initial guess, since an unassigned row is zero, and raises ``ValueError`` if an
+output is NaN or infinite there, naming the output and the number of points.
+
 .. note::
     Always iterate over `arg.phase_list` instead of, say, `range(3)`. It’s essential to
     use this idiom, especially when the derivatives are determined using the
