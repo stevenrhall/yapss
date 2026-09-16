@@ -93,6 +93,6 @@ def test_option_warning_is_the_solver_class():
         problem = yapss.Problem(name="filter", nx=[], ns=1)
         problem.functions.objective = lambda arg: setattr(arg, "objective", arg.parameter[0] ** 2)
         problem.ipopt_options.print_level = 0
-        problem.ipopt_options.not_a_real_option = 1
+        problem.ipopt_options.__dict__["not_a_real_option"] = 1  # the setter refuses it now
         with pytest.raises(yapss.IpoptOptionSettingWarning):
             problem.solve()

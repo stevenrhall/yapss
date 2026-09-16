@@ -33,13 +33,47 @@ Each option is of one of Ipopt's three kinds, and the value is checked against t
 is assigned: an Integer option takes an ``int`` (a NumPy integer is accepted and converted), a
 Number option takes a ``float`` or an ``int``, and a String option takes a ``str``. A ``bool`` is
 refused everywhere, since no Ipopt option is boolean; the yes/no options take the strings
-``"yes"`` and ``"no"``. A value of the wrong kind raises ``TypeError`` at the assignment. Options
-YAPSS does not know about are checked only for being one of the three kinds; Ipopt judges the
-rest when the problem is solved, and a value it refuses is reported with an
-:class:`~yapss.IpoptOptionSettingWarning`; the option is not applied and the solve proceeds
-with Ipopt's default. Ipopt prints what it would have accepted to its console. The warning
-can be silenced or turned into an error with :func:`warnings.filterwarnings`, as for
+``"yes"`` and ``"no"``. A value of the wrong kind raises ``TypeError`` at the assignment, as
+does a NaN for a Number option, since no comparison with NaN is true and Ipopt checks values
+against a range.
+
+YAPSS checks option *names* against a table generated from Ipopt's own documentation for one
+release. A name close to a known one is a misspelling and raises ``AttributeError`` where it
+is written, naming the likely intent --- ``max_iters`` suggests ``max_iter``. A name nothing
+like a known one may be an option that some other Ipopt build provides, since the pip wheel's
+Ipopt and conda-forge's are different builds of different versions, so it warns with
+:class:`~yapss.IpoptOptionSettingWarning` and is passed to Ipopt, which is the only authority
+on what it accepts.
+
+Ipopt itself validates every option when the problem is solved, and reports only that it
+refused one, not why. YAPSS compares the value with what Ipopt's own documentation records for
+that option and distinguishes two cases:
+
+- the value is **outside** the documented range or set of settings, which is a mistake in the
+  script: ``ValueError``, naming the option and the documented range;
+- the value is **within** it, so the option exists and the value is legal but this build does
+  not provide it: :class:`~yapss.IpoptOptionSettingWarning`, and the solve proceeds with
+  Ipopt's default.
+
+Neither verdict is stated as certain. The table YAPSS compares against describes one Ipopt
+release, and the library actually loaded may be another, so both messages name the release
+being quoted and send you to Ipopt's own console output. The warning can be silenced or turned
+into an error with :func:`warnings.filterwarnings`, as for
 :class:`~yapss.IpoptConvergenceWarning`.
+
+.. versionchanged:: 0.3.0
+
+    A value Ipopt refuses now raises when it is outside what Ipopt documents for that option;
+    before, every refusal was a warning and the solve continued with the default.
+
+Ipopt can write its own log to a file, which is the way to keep solver output when
+``print_level`` is 0::
+
+    problem.ipopt_options.output_file = "ipopt.log"
+    problem.ipopt_options.file_print_level = 5
+
+Ipopt's documentation says these work only when read from an ``ipopt.opt`` file. That is not
+true of the interface YAPSS uses: both take effect when set here.
 
 A complete description of the Ipopt options is available in the `Ipopt options documentation
 <https://coin-or.github.io/Ipopt/OPTIONS.html>`_. For most problems, the default Ipopt options will

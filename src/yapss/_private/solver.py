@@ -24,8 +24,8 @@ from .auto import make_auto_functions
 from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variable_bounds
 from .central_difference import make_cd_functions
 from .config import get_conda_prefix, warn_if_ipopt_source_env_set
-from .exceptions import YapssWarning
 from .guess import make_initial_guess_nlp
+from .ipopt_options import IpoptOptionSettingWarning, explain_refusal
 from .mesh import Mesh
 from .mseipopt import bare_np, initialize_ipopt
 from .nlp import NLP
@@ -50,18 +50,6 @@ if TYPE_CHECKING:
     import yapss
 
     from .input_args import ProblemFunctions
-
-
-# Define a custom warning class
-class IpoptOptionSettingWarning(YapssWarning):
-    """Ipopt refused an option value; the option was not applied.
-
-    Ipopt validates every option when it is set (the name exists, an Integer or Number
-    value is in range, a String value is one of the allowed settings) and prints what it
-    accepts to its console. YAPSS reports the refusal here and solves with Ipopt's default
-    for that option. It is a warning rather than an error because the option set varies
-    with the Ipopt build, so a script written for one build can still run on another.
-    """
 
 
 def solve(problem: yapss.Problem) -> Solution:
@@ -153,12 +141,13 @@ def solve(problem: yapss.Problem) -> Solution:
         try:
             ipopt_problem.add_option(name, value)
         except (ValueError, TypeError) as e:
-            msg = (
-                f"Ipopt refused option '{name}' with value {value!r}: {e}. The option was "
-                f"not applied and the solve proceeds with Ipopt's default. Ipopt's console "
-                f"output above explains what it accepts (an unknown name, a value out of "
-                f"range, or an invalid setting)."
-            )
+            # Ipopt says only that it refused the option, so compare the value with what
+            # Ipopt's own documentation records for it: a value outside the documented
+            # range is the user's mistake, a value inside it means the build most likely
+            # lacks the option. Neither verdict is stated as certain (E5).
+            msg, is_error = explain_refusal(name, value, str(e))
+            if is_error:
+                raise ValueError(msg) from e
             # stacklevel 3: warn -> solver.solve -> Problem.solve -> the user's call,
             # as warn_if_not_converged does
             warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=3)

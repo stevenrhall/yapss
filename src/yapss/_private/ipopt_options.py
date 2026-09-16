@@ -10,10 +10,31 @@ PyCharm to provide type hints and autocompletions.
 
 from __future__ import annotations
 
+import difflib
+import math
+import warnings
 from numbers import Integral, Real
 from typing import Any
 
-__all__ = ["IpoptOptions"]
+from .exceptions import YapssWarning
+from .ipopt_option_specs import IPOPT_DOC_VERSION, IPOPT_OPTION_SPECS, IpoptOptionSpec
+
+__all__ = ["IpoptOptionSettingWarning", "IpoptOptions"]
+
+
+class IpoptOptionSettingWarning(YapssWarning):
+    """YAPSS could not vouch for an Ipopt option, or Ipopt refused one.
+
+    Raised in two places, for the same underlying reason: the set of options depends on the
+    Ipopt build, and YAPSS checks names against one documented release. At assignment, for a
+    name that release does not list, which is passed to Ipopt anyway since another build may
+    have it. At the start of a solve, for an option Ipopt itself refused whose value is
+    within what the documentation allows, which usually means this build does not provide it.
+
+    A value *outside* the documented range is not this: it is wrong on every build, and
+    raises `ValueError` instead.
+    """
+
 
 DEFAULT_IPOPT_OPTIONS = {
     "mu_strategy": "adaptive",
@@ -47,21 +68,27 @@ RESERVED_IPOPT_OPTIONS = {
 
 _KIND_NAMES = {"int": "Integer", "float": "Number", "str": "String"}
 
+_CONTAINER_METHODS = frozenset({"reset", "get_options"})
+"""Methods of `IpoptOptions`; assigning them would shadow the method."""
+
 
 def _coerce_option(name: str, value: Any) -> str | int | float:
     """Check `value` against the kind of Ipopt option `name`, and return it as a Python type.
 
     Ipopt keeps three option registries -- Integer, Number, and String -- and refuses a value
     sent to the wrong one, so the value must reach the backend as the Python type that maps
-    to the option's registry. The annotations on ``IpoptOptions`` record the kind of every
-    documented option. An Integer option takes any integer, a Number option any integer or
-    real, a String option a string; NumPy scalars are converted to the Python type. ``bool``
+    to the option's registry. `IPOPT_OPTION_SPECS` records the kind of every documented
+    option; the annotations on ``IpoptOptions`` repeat it for an IDE's completions. An
+    Integer option takes any integer, a Number option any integer or real, a String option
+    a string; NumPy scalars are converted to the Python type. An option the table does not
+    have is checked only for being one of the three kinds. ``bool``
     is refused everywhere: Python makes it an integer, but no Ipopt option is boolean (the
-    yes/no options are strings). An option the annotations do not know is checked only for
-    being one of the three kinds.
+    yes/no options are strings).
     """
-    kind = IpoptOptions.__annotations__.get(name)
-    label = f"{_KIND_NAMES[kind]} option" if kind in _KIND_NAMES else "option"
+    kind = IPOPT_OPTION_SPECS.get(name, {}).get("kind")
+    label = (
+        f"{_KIND_NAMES[kind]} option" if isinstance(kind, str) and kind in _KIND_NAMES else "option"
+    )
     got = f"got {value!r} of type {type(value).__name__}"
     if isinstance(value, bool):
         msg = f"Ipopt {label} '{name}' does not take a bool ({got}); yes/no options take a str."
@@ -73,7 +100,15 @@ def _coerce_option(name: str, value: Any) -> str | int | float:
         raise TypeError(msg)
     if kind == "float":
         if isinstance(value, Real):
-            return float(value)
+            number = float(value)
+            if not math.isfinite(number):
+                msg = (
+                    f"Ipopt Number option '{name}' must be a finite number, got {number}. "
+                    f"Ipopt compares option values against a range, and no comparison with "
+                    f"NaN is true."
+                )
+                raise ValueError(msg)
+            return number
         msg = f"Ipopt Number option '{name}' takes a float or int, {got}."
         raise TypeError(msg)
     if kind == "str":
@@ -81,7 +116,8 @@ def _coerce_option(name: str, value: Any) -> str | int | float:
             return value
         msg = f"Ipopt String option '{name}' takes a str, {got}."
         raise TypeError(msg)
-    # not annotated: the kind is unknown, so accept any of the three and let Ipopt judge
+    # a name the table does not have: the kind is unknown, so accept any of the three and
+    # let Ipopt judge. `__setattr__` has already warned that YAPSS does not recognize it.
     if isinstance(value, Integral):
         return int(value)
     if isinstance(value, Real):
@@ -131,6 +167,37 @@ class IpoptOptions:
                 f"{RESERVED_IPOPT_OPTIONS[name]}"
             )
             raise ValueError(msg)
+        if name in _CONTAINER_METHODS:
+            # options are stored as instance attributes, so this would shadow the method
+            # and `reset()` would then fail with an int not being callable
+            msg = (
+                f"'{name}' is a method of ipopt_options, not an Ipopt option, and cannot be "
+                f"assigned. Ipopt has no option of that name either."
+            )
+            raise AttributeError(msg)
+        if name not in IPOPT_OPTION_SPECS:
+            # A name YAPSS's table does not have is one of two very different things, and
+            # how close it is to a known name separates them. A near miss is a misspelling:
+            # refuse it. A far miss may be an option some Ipopt build has and this table,
+            # scraped from one release, does not -- the pip wheel's Ipopt and conda-forge's
+            # are different builds of different versions -- so pass it on to Ipopt, which
+            # is the only authority on what it accepts, but say that YAPSS did not
+            # recognize it.
+            near = difflib.get_close_matches(name, IPOPT_OPTION_SPECS, n=1, cutoff=0.8)
+            if near:
+                msg = (
+                    f"'{name}' is not an Ipopt option. Did you mean '{near[0]}'? YAPSS "
+                    f"checks names against the options documented for Ipopt "
+                    f"{IPOPT_DOC_VERSION}."
+                )
+                raise AttributeError(msg)
+            msg = (
+                f"'{name}' is not among the options documented for Ipopt "
+                f"{IPOPT_DOC_VERSION}, which is what YAPSS checks against. It is being "
+                f"passed to Ipopt anyway, since your build may have options that release "
+                f"does not; Ipopt will report it at the start of the solve if it disagrees."
+            )
+            warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=2)
         if value is None:
             if hasattr(self, name):
                 delattr(self, name)
@@ -150,6 +217,14 @@ class IpoptOptions:
         return {k: v for k, v in self.__dict__.items() if v is not None}
 
     # retrieved from https://coin-or.github.io/Ipopt/OPTIONS.html 2024-10-27
+    # Ipopt's documentation says output_file, file_print_level and file_append work only
+    # when read from an ipopt.opt file. That is not true of the C interface for the first
+    # two, which is what YAPSS uses: tests/modules/test_ipopt_defaults.py sets them and
+    # reads back the log Ipopt wrote, so they are listed here like any other option.
+    # file_append is left out for an unrelated reason -- Ipopt 3.14.11, which the pinned
+    # casadi wheel bundles, has no such option and refuses it ("It is not a valid option").
+    # It arrived later, so a conda build may well have it; setting it is allowed and warns.
+    # file_append: str
     accept_after_max_steps: int
     accept_every_trial_step: str
     acceptable_compl_inf_tol: float
@@ -199,9 +274,7 @@ class IpoptOptions:
     expect_infeasible_problem_ctol: float
     expect_infeasible_problem_ytol: float
     fast_step_computation: str
-    # only works when read from the ipopt.opt options file
-    # file_append: str
-    # file_print_level: int
+    file_print_level: int
     filter_margin_fact: float
     filter_max_margin: float
     filter_reset_trigger: int
@@ -317,6 +390,7 @@ class IpoptOptions:
     mu_target: float
     mumps_dep_tol: float
     mumps_mem_percent: int
+    mumps_mpi_communicator: int
     mumps_permuting_scaling: int
     mumps_pivot_order: int
     mumps_pivtol: float
@@ -338,8 +412,7 @@ class IpoptOptions:
     obj_max_inc: float
     obj_scaling_factor: float
     option_file_name: str
-    # only works when read from the ipopt.opt options file
-    # output_file: str
+    output_file: str
     pardiso_iter_coarse_size: int
     pardiso_iter_dropping_factor: float
     pardiso_iter_dropping_schur: float
@@ -464,3 +537,85 @@ class IpoptOptions:
     wsmp_singularity_threshold: float
     wsmp_skip_inertia_check: str
     wsmp_write_matrix_iteration: int
+
+
+def _range_text(spec: IpoptOptionSpec) -> str:
+    """Spell a numeric option's documented range as Ipopt writes it."""
+    low, high = spec.get("low"), spec.get("high")
+    parts = []
+    if isinstance(low, (int, float)):
+        parts.append(f"{low:g} {'<=' if spec['low_inclusive'] else '<'}")
+    parts.append("value")
+    if isinstance(high, (int, float)):
+        parts.append(f"{'<=' if spec['high_inclusive'] else '<'} {high:g}")
+    return " ".join(parts)
+
+
+def _documented_as_valid(spec: IpoptOptionSpec, value: str | int | float) -> bool:
+    """Whether ``value`` is within what Ipopt documents for this option."""
+    if spec["kind"] == "str":
+        allowed = spec.get("values")
+        return not isinstance(allowed, tuple) or value in allowed
+    number = float(value)
+    if not math.isfinite(number):
+        return False
+    low, high = spec.get("low"), spec.get("high")
+    if isinstance(low, (int, float)) and (
+        number < low or (number == low and not spec["low_inclusive"])
+    ):
+        return False
+    return not (
+        isinstance(high, (int, float))
+        and (number > high or (number == high and not spec["high_inclusive"]))
+    )
+
+
+def explain_refusal(name: str, value: str | int | float, detail: str) -> tuple[str, bool]:
+    """Explain an option Ipopt refused, and say whether it is an error.
+
+    Ipopt reports only that it refused the option, not why, so YAPSS compares the value
+    with what Ipopt's own documentation records for that option (see
+    `ipopt_option_specs`). Three cases, and none of them is stated as certain --- the
+    table describes one Ipopt release and the library actually loaded may be another, so
+    every message sends the user to Ipopt's own output.
+
+    Returns
+    -------
+    tuple[str, bool]
+        The message, and True if it should be raised rather than warned.
+    """
+    tail = (
+        f"YAPSS is quoting Ipopt {IPOPT_DOC_VERSION} and the build in use may be a different "
+        f"release, so check Ipopt's own console output above before concluding anything."
+    )
+    spec = IPOPT_OPTION_SPECS.get(name)
+    if spec is None:
+        # `__setattr__` refuses an undocumented name, so this is reached only by a value
+        # written into the instance dictionary directly, bypassing it
+        near = difflib.get_close_matches(name, IPOPT_OPTION_SPECS, n=1, cutoff=0.8)
+        suggestion = f" Did you mean '{near[0]}'?" if near else ""
+        msg = (
+            f"Ipopt refused option '{name}' with value {value!r} ({detail}). No option of "
+            f"that name is documented "
+            f"for Ipopt {IPOPT_DOC_VERSION}.{suggestion} It may be a misspelling, or an "
+            f"option from another Ipopt release. The option was not applied and the solve "
+            f"proceeds with Ipopt's default. {tail}"
+        )
+        return msg, False
+    if not _documented_as_valid(spec, value):
+        values = spec.get("values")
+        allowed = f"one of {', '.join(values)}" if isinstance(values, tuple) else _range_text(spec)
+        msg = (
+            f"Ipopt refused option '{name}' with value {value!r} ({detail}). Ipopt "
+            f"{IPOPT_DOC_VERSION} documents this option as taking {allowed}, so the value "
+            f"appears to be out of range. {tail}"
+        )
+        return msg, True
+    msg = (
+        f"Ipopt refused option '{name}' with value {value!r} ({detail}), although Ipopt "
+        f"{IPOPT_DOC_VERSION} documents both the option and that value. The likeliest reason "
+        f"is that this Ipopt build does not provide it -- a linear solver that was not linked "
+        f"in, for example. The option was not applied and the solve proceeds with Ipopt's "
+        f"default. {tail}"
+    )
+    return msg, False

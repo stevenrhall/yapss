@@ -63,6 +63,29 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   whole solve. The other derivative methods are unaffected: their callbacks are generated and
   emit their structure by construction.
 
+- An Ipopt option that Ipopt refuses is now diagnosed rather than merely reported. Ipopt says
+  only that it refused an option, so YAPSS compares the value with what Ipopt's own
+  documentation records for it (a generated table, scraped from a pinned Ipopt release and
+  carrying the ranges of the numeric options and the allowed settings of the string ones). A
+  value outside the documented range or set raises `ValueError` naming the option and the range
+  --- `max_iter = -1`, `mu_strategy = "adaptiv"` --- where before it warned and the solve
+  continued with Ipopt's default. A value *within* the documented range still warns, because
+  the likeliest cause is a build that does not provide the option, such as
+  `linear_solver = "ma27"` without HSL. Neither verdict is stated as certain: both messages
+  name the Ipopt release being quoted, note that the loaded library may differ, and send you to
+  Ipopt's console output.
+- `problem.ipopt_options.output_file` and `file_print_level` are now listed among the
+  documented options, so an IDE suggests them. Ipopt's documentation says they work only when
+  read from an `ipopt.opt` file, which is not true of the interface YAPSS uses; they are the
+  way to keep Ipopt's own log when `print_level` is 0.
+- Ipopt option *names* are checked at the assignment. A name close to a real option is a
+  misspelling and raises `AttributeError` naming the likely intent (`max_iters` → `max_iter`).
+  A name nothing like a known one warns and is passed to Ipopt anyway, since the pip wheel's
+  Ipopt and conda-forge's are different builds and one may have options the other does not.
+  A NaN for a Number option raises `ValueError`. And the names of
+  the container's own methods, `reset` and `get_options`, can no longer be assigned: doing so
+  shadowed the method, so a later `reset()` failed with an int not being callable.
+
 - Mesh settings are checked where they are set. `mesh.phase[p].collocation_points` accepts
   NumPy integers and anything else `operator.index` accepts, and refuses a float --- `4.0`
   collocation points is now a `TypeError` rather than a `ValueError`, since a whole-number

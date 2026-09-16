@@ -242,14 +242,12 @@ def test_option_managed_by_yapss_raises_at_the_assignment_naming_the_knob(name, 
 # ----------------------------------------------------------------- not yet met
 
 
-@not_yet("E5", "a misspelled option name raises at the assignment, suggesting the right name")
 def test_misspelled_option_raises_at_the_assignment():
     ocp = callback_problem()
     with raises(AttributeError, "max_iter", at="max_iters ="):
         ocp.ipopt_options.max_iters = 10
 
 
-@not_yet("E5", "an out-of-range option value raises at solve start, naming the option")
 @pytest.mark.filterwarnings("ignore::yapss.IpoptOptionSettingWarning")
 def test_out_of_range_option_raises_at_solve_start():
     ocp = callback_problem()
@@ -258,7 +256,6 @@ def test_out_of_range_option_raises_at_solve_start():
         ocp.solve()
 
 
-@not_yet("E5", "an invalid choice for a string option raises at solve start")
 @pytest.mark.filterwarnings("ignore::yapss.IpoptOptionSettingWarning")
 def test_invalid_string_choice_raises_at_solve_start():
     ocp = callback_problem()
@@ -267,14 +264,12 @@ def test_invalid_string_choice_raises_at_solve_start():
         ocp.solve()
 
 
-@not_yet("E5", "a NaN value for a Number option raises at the assignment")
 def test_nan_number_option_raises_at_the_assignment():
     ocp = callback_problem()
     with raises(ValueError, "tol", at="tol ="):
         ocp.ipopt_options.tol = float("nan")
 
 
-@not_yet("E5", "IpoptOptions method names cannot be overwritten")
 def test_option_container_methods_are_reserved():
     ocp = callback_problem()
     with raises((AttributeError, ValueError), "reset", at="reset ="):

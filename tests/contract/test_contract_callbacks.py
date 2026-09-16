@@ -65,14 +65,7 @@ from yapss import Problem
 from yapss._private.setup_check import UnsetOutputWarning
 from yapss.examples import brachistochrone, goddard_problem_3_phase
 
-from ._contract import (
-    G0,
-    METHODS,
-    callback_problem,
-    default_continuous,
-    not_yet,
-    raises,
-)
+from ._contract import G0, METHODS, callback_problem, default_continuous, not_yet, raises
 
 
 def solve_objective(ocp):
