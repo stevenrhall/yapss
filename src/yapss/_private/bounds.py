@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy import float64
 
+from .checked_array import CheckedArray, raise_if_invalid
 from .coercion import real_array, real_scalar
 
 # package imports
@@ -36,6 +37,35 @@ if TYPE_CHECKING:
     import yapss
 
     FloatArray = NDArray[float64]
+
+
+@dataclass(frozen=True)
+class BoundCheck:
+    """What one side of a bound allows on its own: no NaN, and no infinity on the wrong side.
+
+    Whether the two sides are consistent (lower not above upper) depends on both, so it is
+    left to `ArrayBounds.validate`, and the sides can be assigned in either order.
+    """
+
+    side: str  # "lower" or "upper"
+
+    def invalid(self, values: NDArray[np.float64]) -> NDArray[np.bool_]:
+        """Return a mask of NaN values and of infinities on the wrong side."""
+        wrong_side = np.inf if self.side == "lower" else -np.inf
+        invalid: NDArray[np.bool_] = np.isnan(values) | (values == wrong_side)
+        return invalid
+
+    def describe(self, value: float) -> str:
+        """Say what is wrong with a refused value."""
+        return _describe_bound(self.side, value)
+
+
+def _describe_bound(side: str, value: float) -> str:
+    if np.isnan(value):
+        return "is NaN."
+    if side == "lower":
+        return "is +inf; a lower bound must be less than +inf."
+    return "is -inf; an upper bound must be greater than -inf."
 
 
 class ArrayBound:
@@ -57,10 +87,12 @@ class ArrayBound:
 
     def __set__(self, obj: ArrayBounds, value: ArrayLike) -> None:
         """Set the value of the attribute."""
-        # infinity is allowed: an unbounded side is +-inf. NaN is caught by validate(),
-        # which names the offending index.
-        bound = real_array(value, f"{obj._path}.{self.name}", shape=(obj._n,))
-        set_private(obj, self.private_name, bound)
+        # infinity is allowed on its own side: an unbounded side is +-inf
+        label = f"{obj._path}.{self.name}"
+        check = BoundCheck(self.name)
+        bound = real_array(value, label, shape=(obj._n,))
+        raise_if_invalid(check, label, bound)
+        set_private(obj, self.private_name, CheckedArray.create(bound, label, check))
 
 
 class ArrayBounds(Protected):
@@ -82,8 +114,12 @@ class ArrayBounds(Protected):
         self._p = phase_index
         self._name = name
         self._path = f"bounds.phase[{phase_index}].{name}" if phase_index >= 0 else f"bounds.{name}"
-        self._lower: NDArray[np.float64] = np.array(n * [-np.inf], dtype=float64)
-        self._upper: NDArray[np.float64] = np.array(n * [+np.inf], dtype=float64)
+        self._lower: NDArray[np.float64] = CheckedArray.create(
+            np.full(n, -np.inf), f"{self._path}.lower", BoundCheck("lower")
+        )
+        self._upper: NDArray[np.float64] = CheckedArray.create(
+            np.full(n, np.inf), f"{self._path}.upper", BoundCheck("upper")
+        )
 
     def reset(self) -> None:
         """Reset the bounds to their default values."""
@@ -152,8 +188,18 @@ class ScalarBound:
         raise AttributeError(msg)
 
     def __set__(self, obj: ScalarBounds, value: float | np.floating[Any] | np.integer[Any]) -> None:
-        """Set the value of the attribute."""
-        set_private(obj, "_" + self._name, real_scalar(value, f"{obj._path}.{self._name}"))
+        """Set the value of the attribute, refusing a value that is wrong on its own."""
+        label = f"{obj._path}.{self._name}"
+        bound = real_scalar(value, label)
+        if np.isnan(bound) or bound == (np.inf if self._name == "lower" else -np.inf):
+            msg = f"{label} {_describe_bound(self._name, bound)}"
+            raise ValueError(msg)
+        # A negative duration bound would let the phase run backward in time: the duration
+        # constraint's lower bound of zero is all that prevents tf < t0.
+        if obj._name == "duration" and bound < 0:
+            msg = f"{label} cannot be less than zero."
+            raise ValueError(msg)
+        set_private(obj, "_" + self._name, bound)
 
 
 class ScalarBounds(Protected):
@@ -189,36 +235,18 @@ class ScalarBounds(Protected):
     def validate(self) -> None:
         """Validate the bounds.
 
+        A value wrong on its own (NaN, an infinity on the wrong side, a negative duration
+        bound) is refused by the setter, which is the only way to write a scalar bound, so
+        only the relation between the two sides is left to check here.
+
         Raises
         ------
         ValueError
-            If a bound is NaN, if the lower bound is ``+inf`` or the upper bound is
-            ``-inf``, if the lower bound is greater than the upper bound, or if a duration
-            bound is negative.
+            If the lower bound is greater than the upper bound.
         """
-        path = f"bounds.phase[{self._p}].{self._name}"
-        for side in ("lower", "upper"):
-            if np.isnan(getattr(self, side)):
-                msg = f"{path}.{side} is NaN"
-                raise ValueError(msg)
-        if self.lower == np.inf:
-            msg = f"{path}.lower is +inf; a lower bound must be less than +inf"
-            raise ValueError(msg)
-        if self.upper == -np.inf:
-            msg = f"{path}.upper is -inf; an upper bound must be greater than -inf"
-            raise ValueError(msg)
         if self.lower > self.upper:
             msg = "bounds.phase[{}].{}.lower is greater than bounds.phase[{}].{}.upper"
             msg = msg.format(self._p, self._name, self._p, self._name)
-            raise ValueError(msg)
-        if self._name == "duration" and self.upper < 0:
-            msg = "bounds.phase[{}].duration.upper cannot be less than zero"
-            msg = msg.format(self._p)
-            raise ValueError(msg)
-        # A negative lower bound would let the phase run backward in time, which no part of
-        # YAPSS supports (a guess time array must be increasing, for one).
-        if self._name == "duration" and self.lower < 0:
-            msg = f"{path}.lower cannot be less than zero"
             raise ValueError(msg)
 
 

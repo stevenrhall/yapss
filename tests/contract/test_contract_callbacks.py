@@ -563,15 +563,15 @@ def test_a_row_assigned_on_one_call_only_does_not_persist():
     # "auto" it is traced once and the question of a second call does not arise
     problem.derivatives.method = "central-difference"
     seen = []
-    spiked = set()
+    spiked = []  # the arguments themselves: an id() can be reused once an argument is freed
 
     def continuous(arg):
         # keyed on the argument itself: the value must not survive to this argument's own
         # next call, which is what a shared, reused argument would otherwise carry over
         (u,) = arg.phase[0].control
         arg.phase[0].dynamics[0] = u
-        if id(arg) not in spiked:
-            spiked.add(id(arg))
+        if not any(a is arg for a in spiked):
+            spiked.append(arg)
             arg.phase[0].path[0] = u + 1000.0
         else:
             seen.append(float(np.max(np.abs(arg.phase[0].path.view(np.ndarray)))))

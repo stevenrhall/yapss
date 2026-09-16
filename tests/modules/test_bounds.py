@@ -153,8 +153,8 @@ def test_duration_bound_errors():
     """Test that errors are raised when duration bounds are infeasible."""
     # duration.lower > duration.upper
     ocp = goddard_problem_3_phase.setup()
-    ocp.bounds.phase[0].duration.lower = 1
-    ocp.bounds.phase[0].duration.upper = -1
+    ocp.bounds.phase[0].duration.lower = 2
+    ocp.bounds.phase[0].duration.upper = 1
     msg = "bounds.phase[0].duration.lower is greater than bounds.phase[0].duration.upper"
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.bounds.validate()
@@ -185,13 +185,11 @@ def test_duration_bound_errors():
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.bounds.validate()
 
-    # duration.upper < 0
+    # duration.upper < 0, refused where it is written
     ocp.bounds.reset()
-    ocp.bounds.phase[1].duration.upper = -1
-    ocp.bounds.phase[1].duration.lower = -10
-    msg = "bounds.phase[1].duration.upper cannot be less than zero"
+    msg = "bounds.phase[1].duration.upper cannot be less than zero."
     with pytest.raises(ValueError, match=re.escape(msg)):
-        ocp.bounds.validate()
+        ocp.bounds.phase[1].duration.upper = -1
     # duration is a float
     msg = "bounds.phase[1].duration.upper must be a real number"
     with pytest.raises(TypeError, match=re.escape(msg)):
@@ -288,10 +286,14 @@ _ARRAY_BOUNDS = [
 @pytest.mark.parametrize(("get", "path"), _ARRAY_BOUNDS)
 @pytest.mark.parametrize("side", ["lower", "upper"])
 def test_nan_array_bound_is_rejected(get, path, side):
-    """NaN passes every comparison, so it is checked first and named."""
+    """NaN passes every comparison, so validate() checks it first and names it.
+
+    A NaN is refused where it is written; this one is written around the checks, the path
+    validate() exists to catch.
+    """
     ocp = _bounds_problem()
     values = getattr(get(ocp.bounds), side)
-    values[-1] = np.nan
+    values.view(np.ndarray)[-1] = np.nan
     msg = f"{path}.{side}[i] is NaN for indices i in [{len(values) - 1}]"
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.bounds.validate()
@@ -307,14 +309,17 @@ def test_none_in_a_bound_list_raises_at_the_assignment():
 
 @pytest.mark.parametrize(("get", "path"), _ARRAY_BOUNDS)
 def test_infinite_bound_on_the_wrong_side_is_rejected(get, path, recwarn):
-    """Equal infinite bounds leave no feasible value and are not a crossing."""
+    """Equal infinite bounds leave no feasible value and are not a crossing.
+
+    Written around the checks, which refuse them at the assignment.
+    """
     ocp = _bounds_problem()
     bound = get(ocp.bounds)
-    bound.lower[0] = bound.upper[0] = np.inf
+    bound.lower.view(np.ndarray)[0] = bound.upper.view(np.ndarray)[0] = np.inf
     msg = f"{path}.lower[i] is +inf for indices i in [0]; a lower bound must be less than +inf"
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.bounds.validate()
-    bound.lower[0] = bound.upper[0] = -np.inf
+    bound.lower.view(np.ndarray)[0] = bound.upper.view(np.ndarray)[0] = -np.inf
     msg = f"{path}.upper[i] is -inf for indices i in [0]; an upper bound must be greater than -inf"
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.bounds.validate()
@@ -326,23 +331,22 @@ def test_infinite_bound_on_the_wrong_side_is_rejected(get, path, recwarn):
 def test_scalar_bound_nan_and_wrong_side_infinity_are_rejected(name):
     ocp = _bounds_problem()
     scalar = getattr(ocp.bounds.phase[1], name)
-    scalar.upper = float("nan")
-    with pytest.raises(ValueError, match=re.escape(f"bounds.phase[1].{name}.upper is NaN")):
-        ocp.bounds.validate()
-    ocp.bounds.reset()
-    scalar.upper = np.inf
-    scalar.lower = np.inf
-    msg = f"bounds.phase[1].{name}.lower is +inf; a lower bound must be less than +inf"
+    with pytest.raises(ValueError, match=re.escape(f"bounds.phase[1].{name}.upper is NaN.")):
+        scalar.upper = float("nan")
+    msg = f"bounds.phase[1].{name}.lower is +inf; a lower bound must be less than +inf."
     with pytest.raises(ValueError, match=re.escape(msg)):
-        ocp.bounds.validate()
+        scalar.lower = np.inf
+    msg = f"bounds.phase[1].{name}.upper is -inf; an upper bound must be greater than -inf."
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        scalar.upper = -np.inf
+    assert scalar.upper == np.inf
 
 
 def test_negative_duration_lower_bound_is_rejected():
     ocp = _bounds_problem()
-    ocp.bounds.phase[0].duration.lower = -5.0
-    msg = "bounds.phase[0].duration.lower cannot be less than zero"
+    msg = "bounds.phase[0].duration.lower cannot be less than zero."
     with pytest.raises(ValueError, match=re.escape(msg)):
-        ocp.bounds.validate()
+        ocp.bounds.phase[0].duration.lower = -5.0
     ocp.bounds.phase[0].duration.lower = 0.0
     ocp.bounds.validate()
 

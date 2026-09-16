@@ -11,18 +11,34 @@ What a user may do
       scalars included.
     - Rely on the defaults (-inf, +inf; duration.lower 0) and on `reset()` restoring them.
     - Rely on every accepted form reaching the NLP bounds as float64.
+    - Assign bounds in any order: `lower = upper = x`, or moving a window from [0, 1] to
+      [5, 6] one side at a time, even though the bounds cross in between.
+    - Take a copy of a bound array (`copy()`, `astype`, indexing with a list or a mask,
+      `np.sort`, arithmetic) and get a plain ndarray to use freely; print one and see
+      `array(...)`.
 
 What a user may get wrong
     - Wrong length, wrong dimension, or a scalar for a whole array: `ValueError` at the
       assignment.
-    - A non-real scalar bound (str, bool, None, ndarray): `TypeError` at the assignment.
-    - NaN anywhere, +inf as a lower or -inf as an upper bound, a crossing,
-      boundary-state bounds outside the state bounds, infeasible time bounds, a negative
-      duration bound: `ValueError` from `validate()` (run by `solve()`), naming the bound.
+    - A non-real value (str, bool, complex, None), whole, in a sequence, or written into an
+      element or slice: `TypeError` at the assignment, naming the bound.
+    - A value wrong on its own -- NaN, +inf as a lower or -inf as an upper bound, a
+      negative duration bound -- however it is written (whole array, element, slice, mask,
+      view, in-place operator, `fill`, scalar bound): `ValueError` at the assignment,
+      naming the bound, with the bound unchanged.
+    - Values wrong only together -- a crossing, boundary-state bounds outside the state
+      bounds, infeasible time bounds: `ValueError` from `validate()` (run by `solve()`),
+      naming the bound.
+    - A value wrong on its own written around the checks (`np.copyto`, `np.put`, `flat`,
+      `view(np.ndarray)`): `ValueError` from `validate()`. A bool written that way is
+      converted by NumPy and not detected.
     - A misspelled attribute: `AttributeError` at the assignment.
 """
 
 from __future__ import annotations
+
+import copy
+import pickle
 
 import numpy as np
 import pytest
@@ -37,7 +53,6 @@ from ._contract import (
     SCALAR_FORMS,
     SEQUENCE_FORMS,
     assert_float64_array,
-    not_yet,
     problem,
     raises,
     reference,
@@ -204,12 +219,17 @@ def test_scalar_bound_of_non_real_type_raises_at_the_assignment(name, value):
         getattr(ocp.bounds.phase[1], name).upper = value
 
 
+def around_the_checks(array):
+    """Return a plain view that writes into `array` without its checks (a deliberate backdoor)."""
+    return array.view(np.ndarray)
+
+
 @pytest.mark.parametrize("side", ["lower", "upper"])
 @pytest.mark.parametrize("path", ARRAYS)
-def test_nan_is_reported_by_validate(path, side):
+def test_nan_written_around_the_checks_is_reported_by_validate(path, side):
     ocp = problem()
     values = getattr(ARRAYS[path](ocp.bounds), side)
-    values[-1] = np.nan
+    around_the_checks(values)[-1] = np.nan
     with raises(ValueError, f"{path}.{side}[i] is NaN for indices i in [{len(values) - 1}]"):
         ocp.bounds.validate()
 
@@ -222,28 +242,28 @@ def test_none_in_a_sequence_raises_at_the_assignment():
 
 
 @pytest.mark.parametrize("path", ARRAYS)
-def test_infinity_on_the_wrong_side_is_reported_by_validate(path):
+def test_infinity_on_the_wrong_side_written_around_the_checks_is_reported_by_validate(path):
     ocp = problem()
     bound = ARRAYS[path](ocp.bounds)
-    bound.lower[0] = bound.upper[0] = np.inf
+    around_the_checks(bound.lower)[0] = around_the_checks(bound.upper)[0] = np.inf
     with raises(ValueError, f"{path}.lower[i] is +inf", "must be less than +inf"):
         ocp.bounds.validate()
-    bound.lower[0] = bound.upper[0] = -np.inf
+    around_the_checks(bound.lower)[0] = around_the_checks(bound.upper)[0] = -np.inf
     with raises(ValueError, f"{path}.upper[i] is -inf", "must be greater than -inf"):
         ocp.bounds.validate()
 
 
-@pytest.mark.parametrize("name", SCALARS)
-def test_scalar_nan_and_wrong_side_infinity_are_reported_by_validate(name):
+def test_bounds_may_cross_between_assignments():
+    """Moving a window one side at a time crosses in between; only validate() judges it."""
     ocp = problem()
-    scalar = getattr(ocp.bounds.phase[0], name)
-    scalar.lower = np.nan
-    with raises(ValueError, f"bounds.phase[0].{name}.lower is NaN"):
-        ocp.bounds.validate()
-    scalar.lower = np.inf
-    scalar.upper = np.inf
-    with raises(ValueError, f"bounds.phase[0].{name}.lower is +inf"):
-        ocp.bounds.validate()
+    state = ocp.bounds.phase[0].state
+    state.lower, state.upper = [0.0, 0.0], [1.0, 1.0]
+    state.lower = [5.0, 5.0]  # crosses the old upper bound
+    state.upper = [6.0, 6.0]
+    b = ocp.bounds.phase[0].final_time
+    b.upper = 1.0
+    b.lower = b.upper = 5.0  # chained: lower is assigned first, while upper is still 1.0
+    ocp.bounds.validate()
 
 
 def test_crossing_is_reported_by_validate():
@@ -276,18 +296,9 @@ def test_infeasible_time_bounds_are_reported_by_validate():
         ocp.bounds.validate()
 
 
-@pytest.mark.parametrize("side", ["lower", "upper"])
-def test_negative_duration_bound_is_reported_by_validate(side):
-    ocp = problem()
-    ocp.bounds.phase[0].duration.lower = -2.0
-    ocp.bounds.phase[0].duration.upper = -1.0 if side == "upper" else 5.0
-    with raises(ValueError, f"bounds.phase[0].duration.{side} cannot be less than zero"):
-        ocp.bounds.validate()
-
-
 def test_validate_runs_before_solve():
     ocp = brachistochrone_minimal.setup()
-    ocp.bounds.phase[0].control.upper[0] = np.nan
+    around_the_checks(ocp.bounds.phase[0].control.upper)[0] = np.nan
     with raises(ValueError, "bounds.phase[0].control.upper[i] is NaN"):
         ocp.solve()
 
@@ -328,17 +339,10 @@ def test_whole_array_assignment_copies():
 def test_assigning_one_bound_from_another_does_not_alias():
     ocp = problem()
     state = ocp.bounds.phase[0].state
+    state.upper = [1.0, 2.0]
     state.lower = state.upper
-    state.reset()
-    assert np.all(state.lower == -np.inf)
-    assert np.all(state.upper == np.inf)
-
-
-@not_yet("E2 part 2", "NaN written into a bound element raises at the assignment")
-def test_nan_element_raises_at_the_assignment():
-    ocp = problem()
-    with raises(ValueError, "bounds.phase[0].state.lower", at="state.lower[0] ="):
-        ocp.bounds.phase[0].state.lower[0] = np.nan
+    state.upper[0] = 5.0
+    assert_float64_array(state.lower, [1.0, 2.0])
 
 
 def test_wrong_length_message_names_the_bound():
@@ -366,9 +370,176 @@ def test_non_real_whole_array_raises_at_the_assignment(form):
         ocp.bounds.phase[0].state.lower = NOT_REAL[form]
 
 
-@not_yet("E2 part 2", "a non-real value written into a bound element raises at the assignment")
 @pytest.mark.parametrize("value", ["1", True], ids=["numeric string", "bool"])
 def test_non_real_element_raises_at_the_assignment(value):
     ocp = problem()
     with raises(TypeError, "bounds.phase[0].state.lower", at="state.lower[0] ="):
         ocp.bounds.phase[0].state.lower[0] = value
+    assert np.all(ocp.bounds.phase[0].state.lower == -np.inf)
+
+
+def test_bool_among_floats_raises_at_the_assignment():
+    ocp = problem()
+    state = ocp.bounds.phase[0].state
+    with raises(TypeError, "bounds.phase[0].state.lower", at="state.lower ="):
+        state.lower = [1.0, True]
+    with raises(TypeError, "bounds.phase[0].state.upper", at="state.upper[:] ="):
+        state.upper[:] = [1.0, True]
+    assert np.all(state.lower == -np.inf)
+    assert np.all(state.upper == np.inf)
+
+
+# Decided 2026-09-16 (Steve): a value wrong on its own raises where it is written, however
+# it is written, and a refused write changes nothing. Values wrong only together (a
+# crossing) stay with validate(), so bounds can be assigned in any order.
+#
+# Each case: the side written, the bad value, and an in-place operation producing it from
+# the default (-inf lower, +inf upper).
+SINGLE_VALUE_ERRORS = {
+    "NaN lower": ("lower", np.nan, lambda a: a.__iadd__(np.inf)),
+    "NaN upper": ("upper", np.nan, lambda a: a.__isub__(np.inf)),
+    "+inf lower": ("lower", np.inf, lambda a: a.__imul__(-1.0)),
+    "-inf upper": ("upper", -np.inf, lambda a: a.__imul__(-1.0)),
+}
+
+
+def _whole(bound, side, v):
+    setattr(bound, side, [0.0] * (len(getattr(bound, side)) - 1) + [v])
+
+
+def _element(bound, side, v):
+    getattr(bound, side)[-1] = v
+
+
+def _slice(bound, side, v):
+    getattr(bound, side)[:] = [0.0] * (len(getattr(bound, side)) - 1) + [v]
+
+
+def _mask(bound, side, v):
+    a = getattr(bound, side)
+    a[np.isinf(a)] = v
+
+
+def _view(bound, side, v):
+    view = getattr(bound, side)[:]
+    view[-1] = v
+
+
+def _reshaped_view(bound, side, v):
+    view = getattr(bound, side).reshape(1, -1)
+    view[0, -1] = v
+
+
+def _fill(bound, side, v):
+    getattr(bound, side).fill(v)
+
+
+# (writer, the fragment of its source line that performs the write)
+WRITES = {
+    "whole": (_whole, "setattr(bound, side,"),
+    "element": (_element, "[-1] = v"),
+    "slice": (_slice, "[:] = [0.0]"),
+    "mask": (_mask, "a[np.isinf(a)] = v"),
+    "view": (_view, "view[-1] = v"),
+    "reshaped view": (_reshaped_view, "view[0, -1] = v"),
+    "fill": (_fill, ".fill(v)"),
+}
+
+
+@pytest.mark.parametrize("write", WRITES)
+@pytest.mark.parametrize("case", SINGLE_VALUE_ERRORS)
+@pytest.mark.parametrize("path", ["bounds.phase[0].state", "bounds.discrete"])
+def test_single_value_error_raises_at_the_write(path, case, write):
+    ocp = problem()
+    bound = ARRAYS[path](ocp.bounds)
+    side, value, _ = SINGLE_VALUE_ERRORS[case]
+    writer, at = WRITES[write]
+    stored = getattr(bound, side)
+    before = stored.copy()
+    with raises(ValueError, f"{path}.{side}", at=at):
+        writer(bound, side, value)
+    assert getattr(bound, side) is stored
+    np.testing.assert_array_equal(stored, before)
+
+
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
+@pytest.mark.parametrize("case", SINGLE_VALUE_ERRORS)
+def test_in_place_operator_producing_a_single_value_error_raises(case):
+    ocp = problem()
+    side, _, operation = SINGLE_VALUE_ERRORS[case]
+    stored = getattr(ocp.bounds.phase[0].state, side)
+    before = stored.copy()
+    with raises(ValueError, f"bounds.phase[0].state.{side}", at="lambda a: a.__i"):
+        operation(stored)
+    np.testing.assert_array_equal(stored, before)
+
+
+@pytest.mark.parametrize("case", SINGLE_VALUE_ERRORS)
+@pytest.mark.parametrize("name", SCALARS)
+def test_scalar_bound_single_value_error_raises_at_the_assignment(name, case):
+    ocp = problem()
+    scalar = getattr(ocp.bounds.phase[0], name)
+    side, value, _ = SINGLE_VALUE_ERRORS[case]
+    before = getattr(scalar, side)
+    with raises(ValueError, f"bounds.phase[0].{name}.{side}", at="setattr(scalar"):
+        setattr(scalar, side, value)
+    assert getattr(scalar, side) == before
+
+
+@pytest.mark.parametrize("side", ["lower", "upper"])
+def test_negative_duration_bound_raises_at_the_assignment(side):
+    """The duration's lower bound of zero is all that keeps a phase from running backward."""
+    ocp = problem()
+    duration = ocp.bounds.phase[0].duration
+    before = getattr(duration, side)
+    with raises(
+        ValueError,
+        f"bounds.phase[0].duration.{side} cannot be less than zero",
+        at="setattr(duration",
+    ):
+        setattr(duration, side, -1.0)
+    assert getattr(duration, side) == before
+
+
+# Decided 2026-09-16 (Steve): only an array that writes into the problem is checked. A copy
+# is the user's own and is a plain ndarray; a bound array prints like one.
+COPIES = {
+    "copy()": lambda a: a.copy(),
+    "astype": lambda a: a.astype(np.float64),
+    "np.array": np.array,
+    "list index": lambda a: a[[0, 1]],
+    "mask index": lambda a: a[a < 0],
+    "np.sort": np.sort,
+    "arithmetic": lambda a: a + 1.0,
+}
+
+
+@pytest.mark.parametrize("make", COPIES)
+def test_a_copy_of_a_bound_is_a_plain_ndarray(make):
+    ocp = problem()
+    lower = ocp.bounds.phase[0].state.lower
+    result = COPIES[make](lower)
+    assert type(result) is np.ndarray
+    assert not np.shares_memory(result, lower)
+    result[0] = np.nan  # the copy is the user's own
+    assert np.all(lower == -np.inf)
+
+
+def test_a_bound_array_prints_like_an_ndarray():
+    ocp = problem()
+    lower = ocp.bounds.phase[0].state.lower
+    assert repr(lower) == "array([-inf, -inf])"
+    assert str(lower) == "[-inf -inf]"
+
+
+# Provisional (2026-09-16): a copied or unpickled problem keeps its checks. Depends on the
+# Solution design, which may stop Solution from holding a problem at all.
+@pytest.mark.parametrize(
+    "duplicate",
+    [copy.deepcopy, lambda p: pickle.loads(pickle.dumps(p))],
+    ids=["deepcopy", "pickle"],
+)
+def test_a_duplicated_problem_keeps_its_checks(duplicate):
+    ocp = duplicate(problem())
+    with raises(ValueError, "bounds.phase[0].state.lower"):
+        ocp.bounds.phase[0].state.lower[0] = np.nan

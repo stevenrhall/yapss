@@ -214,12 +214,20 @@ Input Validation
 ----------------
 
 Setting bounds correctly can be error-prone, so YAPSS helps reduce errors by validating
-bounds configurations in two steps. An assignment of the wrong shape or type raises at the
-assignment. Conflicts between bounds -- a lower bound above its upper bound, boundary-state
-bounds that do not overlap the state bounds, infeasible time bounds, and NaN or wrong-side
-infinite values -- are reported by ``validate()``, which ``problem.solve()`` runs before
-building the problem, because they depend on more than one assignment. For example, trying
-to assign a scalar instead of a sequence for path constraints raises an error immediately:
+bounds configurations in two steps.
+
+A value that is wrong on its own raises where it is written: the wrong shape, a value that
+is not a real number (a string, a bool, a complex number, ``None``), NaN, ``+inf`` as a
+lower bound or ``-inf`` as an upper bound, and a negative duration bound. This holds however
+the value is written -- a whole array, an element, a slice, an in-place operator such as
+``+=``, or ``fill`` -- and a refused write leaves the bound unchanged.
+
+Conflicts between bounds -- a lower bound above its upper bound, boundary-state bounds that do
+not overlap the state bounds, and infeasible time bounds -- are reported by ``validate()``,
+which ``problem.solve()`` runs before building the problem. They depend on more than one
+assignment, so the lower and upper bounds can be set in either order, as in
+``lower = upper = value``. For example, trying to assign a scalar instead of a sequence for
+path constraints raises an error immediately:
 
 .. doctest:: group2
 
@@ -227,6 +235,15 @@ to assign a scalar instead of a sequence for path constraints raises an error im
     Traceback (most recent call last):
         ...
     ValueError: bounds.phase[0].path.lower must have length 1, got a scalar.
+
+and so does a NaN written into an element:
+
+.. doctest:: group2
+
+    >>> bounds.control.upper[1] = np.nan
+    Traceback (most recent call last):
+        ...
+    ValueError: bounds.phase[0].control.upper[1] is NaN.
 
 Conflicting control bounds are reported when the bounds are validated:
 

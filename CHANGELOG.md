@@ -26,6 +26,25 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- A bound or scale factor that is wrong on its own now raises `ValueError` where it is
+  written, however it is written: a whole array, an element, a slice, a mask, a view, an
+  in-place operator such as `+=` or `*=`, or `fill`. For bounds that means NaN, `+inf` as a
+  lower bound, `-inf` as an upper bound, and a negative duration bound, including the scalar
+  `initial_time`, `final_time`, and `duration` bounds; for scale factors, anything not finite
+  and positive. Previously a whole scale array was checked at the assignment but its
+  elements, and every bound, only by `validate()`. A refused write leaves the value unchanged.
+  Conflicts between bounds, such as a lower bound above its upper bound, are still reported
+  by `validate()`, so the two sides can be assigned in either order. A write that goes around
+  NumPy's usual assignment (`np.copyto`, `np.put`, `a.flat`, `a.view(np.ndarray)`) is not
+  checked there, and `validate()` still reports it.
+- A copy of a bound or scale array (`copy()`, `astype`, indexing with a list or a mask,
+  `np.sort`, arithmetic) is a plain `ndarray`, free to change; a view such as `lower[1:]`
+  writes into the problem and is checked.
+- A bool among the numbers of a sequence, such as `[1.0, True]`, now raises `TypeError` for
+  bounds, guess values, and scale factors, as a bool on its own already did, and so does a
+  string or bool written into an element of a bound or scale array. NumPy converted both to
+  1.0.
+
 - Every warning YAPSS issues is now a `yapss.YapssWarning` (a `UserWarning`), and every
   error class it defines is a `yapss.YapssError` alongside the built-in exception it already
   inherited, so one line filters or escalates them all: `warnings.simplefilter("error",

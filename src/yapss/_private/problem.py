@@ -15,6 +15,7 @@ import inspect
 
 # standard imports
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from types import FrameType, SimpleNamespace
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, assert_never, cast, get_args
 
@@ -24,6 +25,7 @@ from numpy import float64
 
 # package imports
 from .bounds import Bounds
+from .checked_array import CheckedArray
 from .coercion import integer_scalar, integer_sequence, real_array, real_scalar
 from .exceptions import YapssWarning
 from .guess import Guess
@@ -445,15 +447,31 @@ def _check_scale(name: str, value: Array | float) -> None:
         raise ValueError(msg)
 
 
+@dataclass(frozen=True)
+class ScaleCheck:
+    """What a scale array allows, element by element: finite, positive factors."""
+
+    def invalid(self, values: Array) -> NDArray[np.bool_]:
+        """Return a mask of the factors that are not finite and positive."""
+        return ~(np.isfinite(values) & (values > 0))
+
+    def describe(self, value: float) -> str:
+        """Say what is wrong with a refused factor."""
+        return f"must be finite and positive, got {value!r}."
+
+
+def _scale_array(n: int, label: str) -> Array:
+    """Return a new stored scale array of ones, checked on every write."""
+    return CheckedArray.create(np.ones(n), label, ScaleCheck())
+
+
 def _check_scale_elements(name: str, value: Array) -> None:
     """Raise unless every element of a stored scale array is finite and positive.
 
-    The array setters check a whole assignment with `_check_scale`, but the getters return
-    the stored array itself, so an element or slice assignment such as
-    ``problem.scale.phase[0].dynamics[0] = 0`` never passes through a setter. This is the
-    check that catches it, from `Problem.validate`, before the scale reaches the NLP. The
-    message names the first offending element so that it points at the assignment that
-    produced it.
+    Writes into a stored array are checked where they are made (`ScaleCheck`), but a write
+    around the checks, such as ``np.copyto`` or through ``view(np.ndarray)``, is not. This
+    is the check that catches it, from `Problem.validate`, before the scale reaches the NLP.
+    The message names the first offending element.
     """
     array = np.asarray(value)
     bad = ~(np.isfinite(array) & (array > 0))
@@ -496,7 +514,8 @@ class ScaleArray:
             label = f"Scale '{self.name}'"
         scale = real_array(value, label, shape=shape)
         _check_scale(label, scale)
-        set_private(instance, "_" + self.name, scale)
+        path = getattr(instance, "_" + self.name)._label
+        set_private(instance, "_" + self.name, CheckedArray.create(scale, path, ScaleCheck()))
 
 
 class ScalePhase(Protected):
@@ -540,11 +559,12 @@ class ScalePhase(Protected):
         """
         self._p: int = p
         self.time = 1.0
-        self._state: Array = np.ones([problem.nx[p]], dtype=float)
-        self._control: Array = np.ones([problem.nu[p]], dtype=float)
-        self._integral: Array = np.ones([problem.nq[p]], dtype=float)
-        self._dynamics: Array = np.ones([problem.nx[p]], dtype=float)
-        self._path: Array = np.ones([problem.nh[p]], dtype=float)
+        prefix = f"scale.phase[{p}]"
+        self._state: Array = _scale_array(problem.nx[p], f"{prefix}.state")
+        self._control: Array = _scale_array(problem.nu[p], f"{prefix}.control")
+        self._integral: Array = _scale_array(problem.nq[p], f"{prefix}.integral")
+        self._dynamics: Array = _scale_array(problem.nx[p], f"{prefix}.dynamics")
+        self._path: Array = _scale_array(problem.nh[p], f"{prefix}.path")
 
     @property
     def time(self) -> float:
@@ -593,8 +613,8 @@ class Scale(Protected):
 
     def __init__(self, ocp: Problem) -> None:
         self.phase = tuple(ScalePhase(ocp, p) for p in range(ocp.np))
-        self._discrete: Array = np.ones([ocp.nd], dtype=float)
-        self._parameter: Array = np.ones([ocp.ns], dtype=float)
+        self._discrete: Array = _scale_array(ocp.nd, "scale.discrete")
+        self._parameter: Array = _scale_array(ocp.ns, "scale.parameter")
         self.objective = 1.0
 
     @property

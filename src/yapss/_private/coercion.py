@@ -18,10 +18,10 @@ work where the caller allows them.
 scale factor is a mistake rather than 1.0; complex values; and anything else (``None``,
 objects, ragged sequences).
 
-One case slips through and cannot be caught here: a *mixed* sequence such as ``[1, True]``,
-which NumPy has already reduced to an integer array before this code sees it. Writing a
-bool into an element of a stored array is the same problem, and both are for the checked
-array of E2 part 2.
+A *mixed* sequence such as ``[1.0, True]`` would be reduced by NumPy to a float array with
+no bool left in it, so the elements of a list or tuple are inspected before conversion.
+Writing into an element of a stored array is checked by `checked_array.CheckedArray`,
+which calls `real_array` on the value written.
 """
 
 # future imports
@@ -75,6 +75,13 @@ def _flatten(value: Any) -> Any:
             yield item
 
 
+def _is_bool(item: Any) -> bool:
+    """Return whether a sequence element is a bool, or an array of them."""
+    return isinstance(item, (bool, np.bool_)) or (
+        isinstance(item, np.ndarray) and item.dtype == np.bool_
+    )
+
+
 def _reject(label: str, value: Any) -> None:
     """Raise `TypeError` naming the attribute and what arrived."""
     msg = (
@@ -126,6 +133,8 @@ def real_array(
     """
     if isinstance(value, (str, bytes)):  # a string is a sequence, so check it before asarray
         _reject(label, value)
+    if isinstance(value, (list, tuple)) and any(_is_bool(item) for item in _flatten(value)):
+        _reject(label, value)  # NumPy would convert [1.0, True] to floats, losing the bool
     try:
         array = np.asarray(value)
     except (TypeError, ValueError):  # ragged sequences, and objects with no array form

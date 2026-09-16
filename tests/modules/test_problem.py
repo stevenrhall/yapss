@@ -8,6 +8,7 @@ Test the yapss._private.problem module.
 import re
 
 # third party imports
+import numpy as np
 import pytest
 
 # package imports
@@ -153,11 +154,11 @@ _SCALE_ARRAYS = [
 @pytest.mark.parametrize(("get_array", "name"), _SCALE_ARRAYS)
 @pytest.mark.parametrize("bad", [0.0, -1.0, float("nan"), float("inf")])
 def test_scale_validate_catches_element_assignment(get_array, name, bad):
-    """An element write bypasses the array setter; `Scale.validate` still reports it."""
+    """A write around the array's checks still reaches `Scale.validate`, which reports it."""
     ocp = _scale_problem()
     ocp.scale.validate()
     array = get_array(ocp.scale)
-    array[-1] = bad
+    array.view(np.ndarray)[-1] = bad
     index = len(array) - 1
     with pytest.raises(ValueError, match=re.escape(f"{name}[{index}] must be finite and positive")):
         ocp.scale.validate()
@@ -165,14 +166,14 @@ def test_scale_validate_catches_element_assignment(get_array, name, bad):
 
 def test_scale_validate_catches_slice_assignment():
     ocp = _scale_problem()
-    ocp.scale.phase[0].state[:] = [1.0, 0.0]
+    ocp.scale.phase[0].state.view(np.ndarray)[:] = [1.0, 0.0]
     msg = "scale.phase[0].state[1] must be finite and positive, got 0.0."
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.scale.validate()
 
 
 def test_problem_validate_checks_scale():
-    """`Problem.validate`, which `solve` runs first, reports an element-set zero scale.
+    """`Problem.validate`, which `solve` runs first, reports a zero scale set around the checks.
 
     Before this check, the zero reached Ipopt as an infinite scaling factor and the solve
     crashed the process with no Python traceback. This test calls `validate` rather than
@@ -180,7 +181,7 @@ def test_problem_validate_checks_scale():
     """
     ocp = brachistochrone_minimal.setup()
     ocp.validate()
-    ocp.scale.phase[0].dynamics[0] = 0.0
+    ocp.scale.phase[0].dynamics.view(np.ndarray)[0] = 0.0
     msg = "scale.phase[0].dynamics[0] must be finite and positive, got 0.0."
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.validate()

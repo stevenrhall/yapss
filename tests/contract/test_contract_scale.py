@@ -13,17 +13,28 @@ What a user may do
     - Return every factor to 1.0 with `scale.reset()`, or one phase's with
       `scale.phase[p].reset()`; an array read before the reset sees the ones.
 
+    - Take a copy of a scale array (`copy()`, `astype`, indexing with a list or a mask,
+      `np.sort`, arithmetic) and get a plain ndarray to use freely; print one and see
+      `array(...)`.
+
 What a user may get wrong
-    - A zero, negative, NaN, or infinite factor in a whole assignment, or in `time` or
-      `objective`: `ValueError` at the assignment, naming the scale.
-    - The same written into an element or slice: `ValueError` from `validate()` (run by
-      `solve()`), naming the element.
+    - A zero, negative, NaN, or infinite factor, however it is written (whole array,
+      element, slice, mask, view, in-place operator, `fill`, `time`, `objective`):
+      `ValueError` at the assignment, naming the scale, with the scale unchanged.
+    - A non-real value (str, bool, complex), whole, in a sequence, or written into an
+      element or slice: `TypeError` at the assignment, naming the scale.
+    - The same written around the checks (`np.copyto`, `np.put`, `flat`,
+      `view(np.ndarray)`): `ValueError` from `validate()` (run by `solve()`), naming the
+      element. A bool written that way is converted by NumPy and not detected.
     - A negative `objective`: the message points to `problem.sense`.
     - Wrong length or a scalar for a whole array: `ValueError` at the assignment.
     - A misspelled attribute: `AttributeError` at the assignment.
 """
 
 from __future__ import annotations
+
+import copy
+import pickle
 
 import numpy as np
 import pytest
@@ -35,7 +46,6 @@ from ._contract import (
     SCALAR_FORMS,
     SEQUENCE_FORMS,
     assert_float64_array,
-    not_yet,
     problem,
     raises,
     reference,
@@ -180,12 +190,17 @@ def test_bad_factor_in_a_whole_assignment_raises_at_the_assignment(key, bad):
     assert_float64_array(get(ocp, key), np.ones(n))  # the previous value is kept
 
 
+def around_the_checks(array):
+    """Return a plain view that writes into `array` without its checks (a deliberate backdoor)."""
+    return array.view(np.ndarray)
+
+
 @pytest.mark.parametrize("bad", BAD_FACTORS)
 @pytest.mark.parametrize("key", ARRAYS)
-def test_bad_factor_written_into_an_element_is_reported_by_validate(key, bad):
+def test_bad_factor_written_around_the_checks_is_reported_by_validate(key, bad):
     ocp = problem()
     values = get(ocp, key)
-    values[-1] = BAD_FACTORS[bad]
+    around_the_checks(values)[-1] = BAD_FACTORS[bad]
     _, path, _, _ = ARRAYS[key]
     with raises(ValueError, f"{path}[{len(values) - 1}] must be finite and positive"):
         ocp.scale.validate()
@@ -207,7 +222,7 @@ def test_bad_objective_factor_raises_at_the_assignment_and_points_to_sense(bad):
 
 def test_validate_runs_before_solve():
     ocp = brachistochrone_minimal.setup()
-    ocp.scale.phase[0].dynamics[0] = 0.0
+    around_the_checks(ocp.scale.phase[0].dynamics)[0] = 0.0
     with raises(ValueError, "scale.phase[0].dynamics[0] must be finite and positive"):
         ocp.solve()
 
@@ -235,10 +250,128 @@ def test_misspelled_attribute_raises_at_the_assignment(owner, typo):
 # ----------------------------------------------------------------- not yet met
 
 
-@not_yet("E2 part 2", "a bad factor written into an element raises at the assignment")
-def test_bad_element_raises_at_the_assignment():
+# Decided 2026-09-16 (Steve): a bad factor raises where it is written, however it is
+# written, and a refused write changes nothing.
+
+
+def _element(a, v):
+    a[-1] = v
+
+
+def _slice(a, v):
+    a[:] = [2.0] * (len(a) - 1) + [v]
+
+
+def _mask(a, v):
+    a[a > 0] = v
+
+
+def _view(a, v):
+    view = a[:]
+    view[-1] = v
+
+
+def _reshaped_view(a, v):
+    view = a.reshape(1, -1)
+    view[0, -1] = v
+
+
+def _in_place(a, v):
+    a *= v  # every bad factor is 1.0 times itself
+
+
+def _fill(a, v):
+    a.fill(v)
+
+
+# (writer, the fragment of its source line that performs the write)
+WRITES = {
+    "element": (_element, "a[-1] = v"),
+    "slice": (_slice, "a[:] = [2.0]"),
+    "mask": (_mask, "a[a > 0] = v"),
+    "view": (_view, "view[-1] = v"),
+    "reshaped view": (_reshaped_view, "view[0, -1] = v"),
+    "in-place": (_in_place, "a *= v"),
+    "fill": (_fill, "a.fill(v)"),
+}
+
+
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
+@pytest.mark.parametrize("write", WRITES)
+@pytest.mark.parametrize("bad", BAD_FACTORS)
+@pytest.mark.parametrize("key", ["phase[0].state", "discrete"])
+def test_bad_factor_raises_at_the_write(key, bad, write):
     ocp = problem()
-    with raises(ValueError, "scale.phase[0].state", at="state[0] ="):
+    _, path, _, _ = ARRAYS[key]
+    writer, at = WRITES[write]
+    stored = get(ocp, key)
+    before = stored.copy()
+    with raises(ValueError, path, "must be finite and positive", at=at):
+        writer(stored, BAD_FACTORS[bad])
+    assert get(ocp, key) is stored
+    np.testing.assert_array_equal(stored, before)
+
+
+@pytest.mark.parametrize("value", ["2", True], ids=["numeric string", "bool"])
+def test_non_real_element_raises_at_the_assignment(value):
+    ocp = problem()
+    with raises(TypeError, "scale.phase[0].state", at="state[0] ="):
+        ocp.scale.phase[0].state[0] = value
+    assert_float64_array(ocp.scale.phase[0].state, [1.0, 1.0])
+
+
+def test_bool_among_floats_raises_at_the_assignment():
+    ocp = problem()
+    phase = ocp.scale.phase[0]
+    with raises(TypeError, "phase 0", at="phase.state ="):
+        phase.state = [2.0, True]
+    with raises(TypeError, "scale.phase[0].control", at="phase.control[:] ="):
+        phase.control[:] = [True]
+    assert_float64_array(phase.state, [1.0, 1.0])
+    assert_float64_array(phase.control, [1.0])
+
+
+# Decided 2026-09-16 (Steve): only an array that writes into the problem is checked. A copy
+# is the user's own and is a plain ndarray; a scale array prints like one.
+COPIES = {
+    "copy()": lambda a: a.copy(),
+    "astype": lambda a: a.astype(np.float64),
+    "np.array": np.array,
+    "list index": lambda a: a[[0, 1]],
+    "mask index": lambda a: a[a > 0],
+    "np.sort": np.sort,
+    "arithmetic": lambda a: a + 1.0,
+}
+
+
+@pytest.mark.parametrize("make", COPIES)
+def test_a_copy_of_a_scale_is_a_plain_ndarray(make):
+    ocp = problem()
+    state = ocp.scale.phase[0].state
+    result = COPIES[make](state)
+    assert type(result) is np.ndarray
+    assert not np.shares_memory(result, state)
+    result[0] = 0.0  # the copy is the user's own
+    assert_float64_array(state, [1.0, 1.0])
+
+
+def test_a_scale_array_prints_like_an_ndarray():
+    ocp = problem()
+    state = ocp.scale.phase[0].state
+    assert repr(state) == "array([1., 1.])"
+    assert str(state) == "[1. 1.]"
+
+
+# Provisional (2026-09-16): a copied or unpickled problem keeps its checks. Depends on the
+# Solution design, which may stop Solution from holding a problem at all.
+@pytest.mark.parametrize(
+    "duplicate",
+    [copy.deepcopy, lambda p: pickle.loads(pickle.dumps(p))],
+    ids=["deepcopy", "pickle"],
+)
+def test_a_duplicated_problem_keeps_its_checks(duplicate):
+    ocp = duplicate(problem())
+    with raises(ValueError, "scale.phase[0].state"):
         ocp.scale.phase[0].state[0] = 0.0
 
 
