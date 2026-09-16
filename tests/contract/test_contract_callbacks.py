@@ -13,6 +13,7 @@ What a user may do
     - Get the same optimal control problem under every derivative method.
     - Rely on every call starting from a clean argument: outputs are zero and unassigned, and
       the objective is zero, so nothing a previous call wrote can be read or left in place.
+    - Read the inputs, which follow the point the call was made at.
     - Under `"user"`, supply derivative entries as scalar expressions or constants.
 
 What a user may get wrong
@@ -28,6 +29,9 @@ What a user may get wrong
     - A misspelled output, or an assignment to an input: `AttributeError` at the line.
     - A callback that returns its result instead of assigning it: `TypeError` naming the
       callback and the assignment to make.
+    - A write into an input -- a state, control, time, or parameter array, one of the
+      endpoint values, or the container holding the state or control rows: `ValueError` at
+      the line, since inputs are read-only.
     - A Python `if` on a problem variable: `TypeError` under `"auto"` (pointing to
       `yapss.math.where`), `ValueError` in the continuous callback under the numeric
       methods.
@@ -594,6 +598,73 @@ def test_a_row_assigned_on_one_call_only_does_not_persist():
     assert seen and set(seen) == {0.0}
 
 
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+@pytest.mark.parametrize("target", ["state", "control", "time", "parameter"])
+def test_writing_a_continuous_input_raises(target):
+    """Inputs are read-only: a write is refused at the user's line, not silently ignored."""
+    ocp = brachistochrone.setup()
+    ocp.derivatives.method = "central-difference"
+    continuous = ocp.functions.continuous
+
+    def writer(arg):
+        continuous(arg)
+        if target == "state":
+            arg.phase[0].state[2][:] = 0.0
+        elif target == "control":
+            arg.phase[0].control[0][:] = 0.0
+        elif target == "time":
+            arg.phase[0].time[:] = 0.0
+        else:
+            arg.parameter[:] = 0.0
+
+    ocp.functions.continuous = writer
+    with raises(ValueError, at="] = 0.0"):
+        ocp.solve()
+
+
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+@pytest.mark.parametrize("target", ["state", "control"])
+def test_replacing_a_whole_continuous_input_raises(target):
+    """The containers are read-only too, so a row cannot be swapped out."""
+    ocp = brachistochrone.setup()
+    ocp.derivatives.method = "central-difference"
+    continuous = ocp.functions.continuous
+
+    def writer(arg):
+        continuous(arg)
+        getattr(arg.phase[0], target)[0] = np.zeros(3)
+
+    ocp.functions.continuous = writer
+    with raises(ValueError, at="np.zeros(3)"):
+        ocp.solve()
+
+
+@pytest.mark.parametrize("target", ["initial_state", "final_state", "integral"])
+def test_writing_an_endpoint_input_raises(target):
+    """A copy that silently swallowed the write is worse than a refusal."""
+
+    def objective(arg):
+        values = getattr(arg.phase[0], target)
+        values[0] = 0.0
+        arg.objective = arg.phase[0].final_time
+
+    with raises(ValueError, at="values[0] = 0.0"):
+        callback_problem("central-difference", objective=objective).solve()
+
+
+def test_an_input_still_follows_the_point_it_is_read_at():
+    """Read-only does not mean stale: each call reads that call's own values."""
+    seen = []
+
+    def continuous(arg):
+        default_continuous(arg)
+        seen.append(float(arg.phase[0].time[-1]))
+
+    ocp = callback_problem("central-difference", continuous=continuous)
+    ocp.solve()
+    assert len(set(seen)) > 1
+
+
 # ------------------------------------------------------------------- user derivative keys
 
 
@@ -791,26 +862,6 @@ def test_non_scalar_objective_raises():
 
 
 # ------------------------------------------------------------------ not yet met: inputs
-
-
-@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
-@not_yet("E2 part 1", "callback inputs are read-only; an in-place write raises")
-@pytest.mark.parametrize("target", ["state", "parameter"])
-def test_writing_an_input_in_place_raises(target):
-    ocp = brachistochrone.setup()
-    ocp.derivatives.method = "central-difference"
-    continuous = ocp.functions.continuous
-
-    def writer(arg):
-        continuous(arg)
-        if target == "state":
-            arg.phase[0].state[2][:] = 0.0
-        else:
-            arg.parameter[:] = 0.0
-
-    ocp.functions.continuous = writer
-    with raises(ValueError, at="] = 0.0"):
-        ocp.solve()
 
 
 # NumPy < 2.3 warns before raising here; newer NumPy raises directly

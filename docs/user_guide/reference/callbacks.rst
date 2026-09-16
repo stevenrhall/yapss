@@ -76,8 +76,15 @@ The discrete variables that can be extracted from the ``arg`` object are:
 - ``arg.phase[p].integral``: The integral vector of phase :math:`p`.
 - ``arg.parameter``: The parameter vector of the problem.
 
-Do not modify these attributes. Some are copies, so a change has no effect, and
-``arg.parameter`` is the solver's own array.
+These are inputs, and they are read-only: a write into one raises ``ValueError`` at the
+line, rather than being silently swallowed by a copy or, for ``arg.parameter``, reaching
+the solver's own array.
+
+.. versionchanged:: 0.3.0
+
+    Callback inputs are read-only. Before, writing into ``arg.phase[p].initial_state`` and
+    the other endpoint values changed a copy and had no effect, while writing into
+    ``arg.parameter`` changed the solver's decision vector.
 
 The value of the objective function is assigned to the ``arg.objective`` attribute.
 
@@ -189,6 +196,9 @@ The values that can be extracted from the ``arg`` object are:
 - ``arg.phase[p].control``: the control vector for phase ``p``
 - ``arg.phase[p].time``: the time variable for phase ``p``
 - ``arg.parameter``: the parameter vector for the problem
+
+These are read-only as well, both the arrays and the ``state`` and ``control`` containers
+that hold them; each call reads the values of the point it was called at.
 
 In addition, the values of the dynamics, path constraints, and integrand are assigned to
 the attributes:

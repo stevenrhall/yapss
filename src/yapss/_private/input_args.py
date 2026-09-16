@@ -95,6 +95,18 @@ def call_callback(function: Any, arg: Any, *, reset: bool = True) -> None:
         raise TypeError(msg)
 
 
+def read_only(array: NDArray[Any]) -> NDArray[Any]:
+    """Return a view of ``array`` that a callback cannot write into.
+
+    The view tracks the array it is taken from, so a callback always reads the values of the
+    point it was called at; only writing is refused, at the user's own line, with NumPy's
+    message for a read-only array.
+    """
+    view = array.view()
+    view.flags.writeable = False
+    return view
+
+
 class BaseArg(Generic[T]):
     """Base class for all argument classes.
 
@@ -118,7 +130,7 @@ class BaseArg(Generic[T]):
     def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
         self.auxdata = problem.auxdata
         self._dv: DVStructure[T] = dv
-        self._parameter: NDArray[T] = dv.s
+        self._parameter: NDArray[T] = read_only(dv.s)
         self._dtype: type[T] = dtype
 
     @property
@@ -146,7 +158,7 @@ class DiscreteArgBase(BaseArg[T], Generic[T]):
         # _phase is a tuple of DiscretePhase instances, assuming they are not parameterized by T
         self._phase: tuple[DiscretePhase[T], ...] = tuple(DiscretePhase(p, dtype) for p in dv.phase)
         # _parameter and _dv use the generic type T
-        self._parameter: NDArray[T] = dv.s
+        self._parameter: NDArray[T] = read_only(dv.s)
         self._dv: DVStructure[T] = dv
 
     @property
@@ -189,18 +201,18 @@ class DiscretePhase(Protected, Generic[T]):
 
     @property
     def initial_state(self) -> NDArray[T]:
-        """Initial state of the phase as an immutable copy."""
-        return self._initial_state.copy()
+        """Initial state of the phase, as a read-only copy."""
+        return read_only(self._initial_state.copy())
 
     @property
     def final_state(self) -> NDArray[T]:
-        """Final state of the phase as an immutable copy."""
-        return self._final_state.copy()
+        """Final state of the phase, as a read-only copy."""
+        return read_only(self._final_state.copy())
 
     @property
     def integral(self) -> NDArray[T]:
-        """Array of integral values for the phase as an immutable copy."""
-        return self._integral.copy()
+        """Array of integral values for the phase, as a read-only copy."""
+        return read_only(self._integral.copy())
 
 
 class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
@@ -486,14 +498,14 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
             tf = self._dv.phase[p].tf[0]
             phase = self.phase[p]
             if self._nodes is None:
-                phase.time[:] = tau * (tf - t0) / 2 + (t0 + tf) / 2
+                phase._time[:] = tau * (tf - t0) / 2 + (t0 + tf) / 2
                 continue
             # a node subset: the inputs are copies of the selected points
             nodes = self._nodes[p]
-            phase.time[:] = tau[nodes] * (tf - t0) / 2 + (t0 + tf) / 2
-            for state, values in zip(phase.state, self._dv.phase[p].xc, strict=True):
+            phase._time[:] = tau[nodes] * (tf - t0) / 2 + (t0 + tf) / 2
+            for state, values in zip(phase._state, self._dv.phase[p].xc, strict=True):
                 state[:] = values[nodes]
-            for control, values in zip(phase.control, self._dv.phase[p].u, strict=True):
+            for control, values in zip(phase._control, self._dv.phase[p].u, strict=True):
                 control[:] = values[nodes]
 
     def __getitem__(
@@ -504,7 +516,9 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
 
         The __getitem__ method used here is not guaranteed to be stable and should not
         be used in callback functions. This method is used internally by YAPSS to
-        reference user-supplied values.
+        reference user-supplied values. It reaches the writable arrays behind the
+        read-only inputs a callback sees, because the central-difference stencils
+        perturb variables through it.
 
         Parameters
         ----------
@@ -522,13 +536,13 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
             case "h":
                 value = phase.path.view(numpy.ndarray)[i]
             case "x":
-                value = phase.state[i]
+                value = phase._state[i]
             case "u":
-                value = phase.control[i]
+                value = phase._control[i]
             case "t":
-                value = phase.time
+                value = phase._time
             case "s":
-                value = self.parameter[i : i + 1]
+                value = self._dv.s[i : i + 1]
             case _:
                 assert_never(letter)
 
@@ -582,17 +596,30 @@ class ContinuousPhase(Protected, Generic[T]):
         # symbolic time is a single free symbol: the continuous functions are traced
         # once at a generic node, and the tau -> t chain rule is applied by the NLP
         # assembly, which keeps the CasADi graph independent of the mesh size
+        # inputs are read-only to the callback. Each is a read-only view of a writable
+        # array kept beside it: `_time`, `_state`, and `_control` are what `_sync` and the
+        # central-difference NaN probes write, and the views a callback holds follow them.
         self.time: NDArray[T]
         if dtype == np.object_:
-            self.time = sx_array([SXW(SX.sym("t"))])
+            self._time: NDArray[T] = sx_array([SXW(SX.sym("t"))])
         else:
-            self.time = numpy.zeros([nt], dtype=dtype)
+            self._time = numpy.zeros([nt], dtype=dtype)
+        self.time = read_only(self._time)
+        self._state: list[NDArray[Any]] = [
+            dv.phase[q].xc[i] if nodes is None else numpy.zeros(nt) for i in range(problem.nx[q])
+        ]
+        self._control: list[NDArray[Any]] = [
+            dv.phase[q].u[i] if nodes is None else numpy.zeros(nt) for i in range(problem.nu[q])
+        ]
         self.state: NDArray[Any] = numpy.zeros([problem.nx[q]], dtype=object)
-        for i in range(problem.nx[q]):
-            self.state[i] = dv.phase[q].xc[i] if nodes is None else numpy.zeros(nt)
+        for i, values in enumerate(self._state):
+            self.state[i] = read_only(values)
         self.control: NDArray[Any] = numpy.zeros([problem.nu[q]], dtype=object)
-        for i in range(problem.nu[q]):
-            self.control[i] = dv.phase[q].u[i] if nodes is None else numpy.zeros(nt)
+        for i, values in enumerate(self._control):
+            self.control[i] = read_only(values)
+        # the containers too: `arg.phase[p].state[i] = ...` replaces an input
+        self.state.flags.writeable = False
+        self.control.flags.writeable = False
 
         # outputs, assigned by whole rows
         outputs = (("dynamics", "nx", nx), ("integrand", "nq", nq), ("path", "nh", nh))

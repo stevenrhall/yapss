@@ -136,7 +136,9 @@ def get_continuous_jacobian_structure_nan(
     cjs = []
 
     ns = problem.ns
-    parameter = [arg.parameter[i : i + 1] for i in range(ns)]
+    # the probe writes NaN into the arrays the argument reads from: the argument's own
+    # `state`, `control`, `time`, and `parameter` are read-only to anyone holding them
+    parameter = [dv.s[i : i + 1] for i in range(ns)]
 
     for p in range(problem.np):
         continuous = cast(ContinuousFunctionFloat, problem.functions.continuous)
@@ -155,11 +157,11 @@ def get_continuous_jacobian_structure_nan(
             v: ArrayLike
             match var:
                 case "x":
-                    n, v = nx, phase.state
+                    n, v = nx, phase._state
                 case "u":
-                    n, v = nu, phase.control
+                    n, v = nu, phase._control
                 case "t":
-                    n, v = 1, [phase.time]
+                    n, v = 1, [phase._time]
                 case "s":
                     n, v = ns, parameter
                 case _:
@@ -266,9 +268,9 @@ def get_objective_gradient_structure_nan(
     ns = problem.ns
 
     for j in range(ns):
-        # perturb variables
-        z = arg.parameter[j]
-        arg.parameter[j] = nan
+        # perturb variables (through the decision vector: `arg.parameter` is read-only)
+        z = dv.s[j]
+        dv.s[j] = nan
 
         # determine if objective is affected
         call_callback(objective_function, arg)
@@ -287,7 +289,7 @@ def get_objective_gradient_structure_nan(
                     dv_key: DVKey = (0, "s", j)
                     djs.append((i, dv_key))
 
-        arg.parameter[j] = z
+        dv.s[j] = z
 
     djs.sort(key=djs_sort_key)
     return tuple(ogs), tuple(djs)

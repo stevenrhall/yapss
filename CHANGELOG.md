@@ -43,6 +43,14 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   reveals, and accepts differences below 1e-7 relative. `Problem.solve()` also reports
   non-finite objective gradients and constraint Jacobians as before, now in a message of their
   own.
+- Callback inputs are read-only. The states, controls, time, and parameters a callback
+  receives, the endpoint values (`initial_state`, `final_state`, `integral`), and the
+  containers holding the state and control rows now refuse a write with `ValueError` at the
+  line. Before, a write went one of two silent ways: the endpoint values are copies, so a
+  change had no effect at all, while `arg.parameter` was the solver's own decision vector, so
+  a change there altered the problem being solved from that point on. Reading is unchanged,
+  and each call still reads the values of the point it was called at.
+
 - Every callback now starts from a clean argument, and must assign its results rather than
   return them. The outputs a continuous or discrete callback receives are zero and unassigned
   at the start of every call, so a row the callback does not assign on a given call is zero
