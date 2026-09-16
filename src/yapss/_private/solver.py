@@ -24,6 +24,7 @@ from .auto import make_auto_functions
 from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variable_bounds
 from .central_difference import make_cd_functions
 from .config import get_conda_prefix, warn_if_ipopt_source_env_set
+from .exceptions import YapssWarning
 from .guess import make_initial_guess_nlp
 from .mesh import Mesh
 from .mseipopt import bare_np, initialize_ipopt
@@ -52,7 +53,7 @@ if TYPE_CHECKING:
 
 
 # Define a custom warning class
-class IpoptOptionSettingWarning(Warning):
+class IpoptOptionSettingWarning(YapssWarning):
     """Ipopt refused an option value; the option was not applied.
 
     Ipopt validates every option when it is set (the name exists, an Integer or Number
@@ -218,32 +219,33 @@ def solve(problem: yapss.Problem) -> Solution:
     # TODO: add near here the ability to scale as above or to use yapss scaling.
     ipopt_problem.add_option("nlp_scaling_method", "user-scaling")
 
-    # suppress expected warning message from numpy
-    warning_message = "A builtin ctypes object gave a PEP3118 format string that does not match"
-
     # solve NLP. If keyboard interrupt is raised, signal IPOPT to stop through the
     # intermediate callback
-
+    #
+    # No `catch_warnings` block around the solve: it used to silence one NumPy message
+    # ("A builtin ctypes object gave a PEP3118 format string that does not match"), and
+    # leaving such a block invalidates Python's per-location warning registry, so the
+    # "default" and "once" filter actions stopped deduplicating for every warning in the
+    # process, not only YAPSS's. The message does not appear on any supported NumPy
+    # (checked on 2.4.6 and 2.5 across a full solve); if it returns, filter it where
+    # `numpy.ctypeslib.as_array` is called, in mseipopt.
     try:
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", warning_message)
-
-            # signal.signal is allowed only on the main thread. A worker thread never
-            # receives the keyboard interrupt anyway, so there is nothing to catch there
-            # and the solve simply runs without the handler.
-            catch_interrupt = (
-                problem.catch_keyboard_interrupt
-                and threading.current_thread() is threading.main_thread()
-            )
-            if catch_interrupt:
-                original_handler = signal.signal(signal.SIGINT, problem._signal_handler)
-                try:
-                    z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0)
-                finally:
-                    signal.signal(signal.SIGINT, original_handler)
-                    set_private(problem, "_abort", value=False)
-            else:
+        # signal.signal is allowed only on the main thread. A worker thread never
+        # receives the keyboard interrupt anyway, so there is nothing to catch there
+        # and the solve simply runs without the handler.
+        catch_interrupt = (
+            problem.catch_keyboard_interrupt
+            and threading.current_thread() is threading.main_thread()
+        )
+        if catch_interrupt:
+            original_handler = signal.signal(signal.SIGINT, problem._signal_handler)
+            try:
                 z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0)
+            finally:
+                signal.signal(signal.SIGINT, original_handler)
+                set_private(problem, "_abort", value=False)
+        else:
+            z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0)
     finally:
         # Callback exceptions are re-raised only after Ipopt returns. Cleanup
         # must still release the native problem on that propagation path.

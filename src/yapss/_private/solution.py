@@ -7,6 +7,7 @@ Module to encapsulate the problem solution in a Solution object.
 # standard library imports
 from __future__ import annotations
 
+import sys
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -17,6 +18,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 # package imports
+from .exceptions import YapssWarning
 from .layout import problem_layout
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
@@ -41,7 +43,7 @@ __all__ = [
 ]
 
 
-class IpoptConvergenceWarning(Warning):
+class IpoptConvergenceWarning(YapssWarning):
     """Ipopt did not report a converged solution.
 
     A `Solution` is returned whatever Ipopt reports, so an unconverged run yields a
@@ -51,6 +53,8 @@ class IpoptConvergenceWarning(Warning):
     Public, so it can be filtered or escalated::
 
         warnings.filterwarnings("error", category=yapss.IpoptConvergenceWarning)
+
+    or with every other YAPSS warning, as ``yapss.YapssWarning``.
     """
 
 
@@ -110,6 +114,11 @@ def warn_if_not_converged(solution: Solution, stacklevel: int = 2) -> None:
         The solution just constructed.
     stacklevel : int, default=2
         Passed through to `warnings.warn`.
+
+    Every unconverged solve warns, even when several are run from one line. Python's
+    "default" and "once" filter actions would otherwise report only the first, and a solve
+    that quietly returns a non-optimal trajectory is exactly what this warning exists to
+    prevent: see `_forget_previous_warning`.
     """
     status = solution.nlp_info.ipopt_status
     if status in QUIET_IPOPT_STATUSES:
@@ -121,6 +130,7 @@ def warn_if_not_converged(solution: Solution, stacklevel: int = 2) -> None:
     # explanation is left as one paragraph rather than hard-wrapped, so that it wraps
     # to the reader's terminal instead of to a width guessed here.
     message = ipopt_status_messages.get(status, "Unknown status code.")
+    _forget_previous_warning(stacklevel)
     warn(
         f'Ipopt did not converge. Status {status}: "{message}"\n'
         f"The returned solution does not satisfy Ipopt's convergence criteria and "
@@ -130,6 +140,28 @@ def warn_if_not_converged(solution: Solution, stacklevel: int = 2) -> None:
         category=IpoptConvergenceWarning,
         stacklevel=stacklevel,
     )
+
+
+def _forget_previous_warning(stacklevel: int) -> None:
+    """Let the warning at `stacklevel` be reported again, whatever it reported before.
+
+    Python records each (message, category, lineno) it has reported in the calling module's
+    ``__warningregistry__`` and, under the "default" and "once" actions, stays silent for the
+    rest of the process. That is right for a deprecation notice and wrong here: every solve
+    that does not converge must say so, including the tenth in a loop. Only this module's own
+    bookkeeping for the calling frame is cleared, so the user's filters -- "ignore", "error",
+    and any narrower rule -- still decide what happens to the warning itself.
+
+    Until 0.3.0 this happened by accident: `solver.solve` wrapped the Ipopt call in
+    `warnings.catch_warnings()`, whose exit invalidates the registry of *every* module, so no
+    warning anywhere in the process deduplicated after a solve.
+    """
+    frame = sys._getframe(stacklevel)  # the caller owns the registry this warning lands in
+    registry = frame.f_globals.get("__warningregistry__")
+    if registry:
+        for key in [key for key in registry if key != "version"]:
+            if isinstance(key, tuple) and len(key) > 1 and key[1] is IpoptConvergenceWarning:
+                del registry[key]
 
 
 def _rows(rows: list[Any], n_points: int) -> NDArray[np.float64]:

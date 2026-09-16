@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 from warnings import warn
 
+from .exceptions import YapssDeprecationWarning
+
 # ANSI escape codes for colors
 RED = "\033[31m"
 RESET = "\033[0m"
@@ -108,6 +110,7 @@ def warn_if_ipopt_source_env_set() -> None:
         "The YAPSS_IPOPT_SOURCE environment variable has no effect: it was removed in "
         "YAPSS 0.3.0, which always uses the Ipopt library that CasADi loads, after "
         "verifying it. It can be unset.",
+        YapssDeprecationWarning,
         # warn_if_ipopt_source_env_set -> solver.solve -> Problem.solve -> the user's call
         stacklevel=4,
     )

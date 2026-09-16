@@ -96,10 +96,11 @@ def test_every_unconverged_solve_warns_even_from_one_line(action):
     """Repeated unconverged solves from the same line each warn.
 
     Pins the behavior `solution.rst` documents. Python's "default" and "once" actions
-    would normally report a warning from one location only once, but the
-    `warnings.catch_warnings()` block around the Ipopt call invalidates the registry on
-    each solve. If that block is ever removed or narrowed, this test fails and the
-    documentation must change with it.
+    would normally report a warning from one location only once; `warn_if_not_converged`
+    clears its own entry in the caller's registry first (`_forget_previous_warning`), so
+    every unconverged solve says so. Until 0.3.0 this happened by accident, through the
+    `warnings.catch_warnings()` block that used to wrap the Ipopt call and invalidated the
+    registry of every module in the process.
     """
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter(action, yapss.IpoptConvergenceWarning)

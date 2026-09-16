@@ -315,20 +315,20 @@ def test_converged_flag():
     assert unconverged().solve().converged is False
 
 
-@not_yet("E12", "yapss.YapssWarning is the base of every YAPSS warning and subclasses UserWarning")
 def test_yapss_warning_hierarchy():
     for category in (
         yapss.IpoptConvergenceWarning,
         yapss.IpoptOptionSettingWarning,
         yapss.MirroredHessianPairWarning,
         yapss.UnsupportedMathFunctionWarning,
+        yapss.UnsetOutputWarning,
     ):
         assert issubclass(category, yapss.YapssWarning)
     assert issubclass(yapss.YapssWarning, UserWarning)
     assert issubclass(yapss.MirroredHessianPairWarning, FutureWarning)
+    assert issubclass(yapss.YapssDeprecationWarning, FutureWarning)
 
 
-@not_yet("E12", "yapss.YapssError is the base of every YAPSS-raised error")
 def test_yapss_error_hierarchy():
     assert issubclass(yapss.UnsupportedMathFunctionError, yapss.YapssError)
     assert issubclass(yapss.UnsupportedMathFunctionError, TypeError)

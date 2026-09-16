@@ -122,6 +122,7 @@ reference/scaling.rst
 reference/mesh_structure.rst
 reference/ipopt_options.rst
 reference/solution.rst
+reference/warnings.rst
 reference/ipopt_backend.rst
 ```
 

@@ -19,6 +19,17 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- Every warning YAPSS issues is now a `yapss.YapssWarning` (a `UserWarning`), and every
+  error class it defines is a `yapss.YapssError` alongside the built-in exception it already
+  inherited, so one line filters or escalates them all: `warnings.simplefilter("error",
+  yapss.YapssWarning)`. This is the only reliable way to filter them, because each points at
+  the user's own code through `stacklevel`, which makes a `module="yapss"` filter match none
+  of them. Warnings for behavior that will change subclass `yapss.YapssDeprecationWarning`,
+  which is also a `FutureWarning` rather than a `DeprecationWarning`, since Python hides the
+  latter outside `__main__`. `UnsetOutputWarning` is now public, and the notice for a
+  `YAPSS_IPOPT_SOURCE` environment variable left set has a category instead of being a bare
+  `UserWarning`. Errors for ordinary bad input remain the plain built-ins. The vendored
+  Ipopt interface keeps its own categories. See the new "Warnings and Errors" page.
 - Two checks now run at the start of every solve, before an Ipopt problem instance is created.
   A callback that never assigns an output row at the initial guess warns (an unassigned row is
   zero), pointing at the callback's `def` line; an output that is NaN or infinite there raises

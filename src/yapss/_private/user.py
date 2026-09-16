@@ -15,6 +15,7 @@ import numpy as np
 
 # package imports
 from . import derivative_keys
+from .exceptions import YapssDeprecationWarning
 from .input_args import (
     ContinuousHessianArg,
     ContinuousJacobianArg,
@@ -39,7 +40,7 @@ if TYPE_CHECKING:
     from .types_ import CHS, CJS
 
 
-class MirroredHessianPairWarning(FutureWarning):
+class MirroredHessianPairWarning(YapssDeprecationWarning):
     """A user-defined Hessian callback set both orders of one variable pair.
 
     Each unordered pair of variables is one second partial derivative and must be

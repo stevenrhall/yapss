@@ -38,13 +38,15 @@ import numpy as np
 from casadi import SX
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
+from yapss._private.exceptions import YapssDeprecationWarning, YapssError
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from numpy.typing import NDArray
 
 
-class UnsupportedMathFunctionError(TypeError):
+class UnsupportedMathFunctionError(YapssError, TypeError):
     """Raised for a numpy function that YAPSS callbacks cannot support.
 
     Subclasses :class:`TypeError`, which is what numpy itself raises today when one of these
@@ -52,7 +54,7 @@ class UnsupportedMathFunctionError(TypeError):
     """
 
 
-class UnsupportedMathFunctionWarning(FutureWarning):
+class UnsupportedMathFunctionWarning(YapssDeprecationWarning):
     """An unsupported function was called on real arguments; it will raise from 0.3.0.
 
     These functions have no symbolic equivalent, so they already fail under the ``"auto"``

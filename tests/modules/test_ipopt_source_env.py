@@ -13,6 +13,7 @@ import warnings
 
 import pytest
 
+import yapss
 from yapss._private import config
 from yapss.examples.rosenbrock import setup
 
@@ -57,7 +58,7 @@ def test_set_warns_once_at_the_solve_line_and_has_no_effect(problem, monkeypatch
         solution = problem.solve()
         problem.solve()
     (notice,) = notices(records)
-    assert notice.category is UserWarning
+    assert notice.category is yapss.YapssDeprecationWarning
     assert (notice.filename, notice.lineno) == (__file__, solve_line)
     assert solution.nlp_info.ipopt_status == 0
     assert "cyipopt" not in sys.modules

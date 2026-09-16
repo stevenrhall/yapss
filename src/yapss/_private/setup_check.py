@@ -47,6 +47,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, assert_never, cast
 
 import numpy as np
 
+from .exceptions import YapssWarning
 from .input_args import ContinuousArg, DiscreteArg, ObjectiveArg
 from .structure import get_nlp_dv_structure, nlp_constraint_keys, nlp_variable_keys
 
@@ -79,10 +80,12 @@ POINTWISE_ATOL = 1e-10
 OUTPUTS = ("dynamics", "integrand", "path")
 
 
-class UnsetOutputWarning(UserWarning):
+class UnsetOutputWarning(YapssWarning):
     """A callback did not assign an output row at the initial guess, so the row is zero.
 
-    Private until the YAPSS warning hierarchy exists; filterable as a `UserWarning`.
+    Public, so it can be filtered or escalated::
+
+        warnings.simplefilter("error", yapss.UnsetOutputWarning)
     """
 
 

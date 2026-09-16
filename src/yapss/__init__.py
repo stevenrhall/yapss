@@ -4,6 +4,8 @@
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
+from ._private.exceptions import YapssDeprecationWarning, YapssError, YapssWarning
+
 # module imports
 from ._private.input_args import ContinuousArg as ContinuousArg_
 from ._private.input_args import ContinuousHessianArg, ContinuousJacobianArg
@@ -12,6 +14,7 @@ from ._private.input_args import DiscreteHessianArg, DiscreteJacobianArg
 from ._private.input_args import ObjectiveArg as ObjectiveArg_
 from ._private.input_args import ObjectiveGradientArg, ObjectiveHessianArg
 from ._private.problem import Problem
+from ._private.setup_check import UnsetOutputWarning
 from ._private.solution import IpoptConvergenceWarning, Solution
 from ._private.solver import IpoptOptionSettingWarning
 from ._private.user import MirroredHessianPairWarning
@@ -35,8 +38,12 @@ __all__ = [
     "ObjectiveHessianArg",
     "Problem",
     "Solution",
+    "UnsetOutputWarning",
     "UnsupportedMathFunctionError",
     "UnsupportedMathFunctionWarning",
+    "YapssDeprecationWarning",
+    "YapssError",
+    "YapssWarning",
     "__version__",
 ]
 
