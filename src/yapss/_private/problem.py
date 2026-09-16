@@ -24,7 +24,7 @@ from numpy import float64
 
 # package imports
 from .bounds import Bounds
-from .coercion import integer_sequence, real_array, real_scalar
+from .coercion import integer_scalar, integer_sequence, real_array, real_scalar
 from .exceptions import YapssWarning
 from .guess import Guess
 from .ipopt_options import IpoptOptions
@@ -263,16 +263,36 @@ class Problem(Protected):
     def validate(self) -> None:
         """Validate the optimal control problem input.
 
+        Every part of the problem is checked, and all the failures are reported together:
+        fixing one thing only to be told about the next is a poor way to find out that four
+        things are wrong. Each part stops at its own first failure, so the report has at most
+        one entry per part.
+
         Raises
         ------
         ValueError
             If the problem is invalid.
         """
-        self.bounds.validate()
-        self.guess.validate()
-        self.scale.validate()
-        self.mesh.validate()
-        self._validate_functions()
+        parts = (
+            self.bounds.validate,
+            self.guess.validate,
+            self.scale.validate,
+            self.mesh.validate,
+            self._validate_functions,
+        )
+        problems = []
+        for check in parts:
+            try:
+                check()
+            except ValueError as error:
+                problems.append(str(error))
+        if not problems:
+            return
+        if len(problems) == 1:
+            raise ValueError(problems[0])
+        listed = "\n".join(f"  - {problem}" for problem in problems)
+        msg = f"The problem is not ready to solve, for {len(problems)} reasons:\n{listed}"
+        raise ValueError(msg)
 
     def _validate_functions(self) -> None:
         """Validate the user-defined functions.
@@ -312,6 +332,17 @@ class Problem(Protected):
                     msg = "'functions.discrete_hessian' function is required."
                     raise ValueError(msg)
 
+    def __repr__(self) -> str:
+        """Return the problem as it would be constructed.
+
+        The default repr says only ``<yapss._private.problem.Problem object at 0x...>``,
+        which in a debugger or a notebook does not even say which problem it is.
+        """
+        counts = ", ".join(
+            f"{name}={getattr(self, name)!r}" for name in ("nx", "nu", "nq", "nh", "ns", "nd")
+        )
+        return f"Problem(name={self.name!r}, {counts})"
+
     def __str__(self) -> str:
         """Return a short summary of the problem."""
         return (
@@ -333,23 +364,21 @@ class Problem(Protected):
     ) -> tuple[int, ...]:
         if array is None:
             return self.np * (0,)
-        if arg_name == "nx":
-            msg = f"Keyword '{arg_name}' must be a tuple or list of nonnegative integers."
-        else:
+        # the same rule as mesh collocation points: any sequence of integers, which covers
+        # NumPy integers, ndarrays and range, but not floats or bools
+        counts = integer_sequence(
+            array,
+            arg_name,
+            minimum=0,
+            allow_empty=True,  # nx=[] is a problem with no phases
+        )
+        if arg_name != "nx" and len(counts) != self.np:
             msg = (
-                f"Keyword '{arg_name}' must be a tuple or list of nonnegative integers, "
-                f"or None."
+                f"Length of '{arg_name}' must be the same as length of 'nx', "
+                f"{self.np}, but it has {len(counts)}."
             )
-        if not isinstance(array, (tuple, list)):
-            raise TypeError(msg)
-        if not all(isinstance(item, int) for item in array):
-            raise TypeError(msg)
-        if not all(item >= 0 for item in array):
             raise ValueError(msg)
-        if arg_name != "nx" and len(array) != self.np:
-            msg = f"Length of '{arg_name}' must be the same as length of 'nx'."
-            raise ValueError(msg)
-        return tuple(array)
+        return counts
 
     def _check_input(self) -> None:
         """Check the validity of the arguments.
@@ -376,17 +405,12 @@ class Problem(Protected):
         self.nq = self._validate_integer_array(self._nq, "nq")
         self.nh = self._validate_integer_array(self._nh, "nh")
 
-        msg = "Argument 'ns' must a nonnegative integer or None."
-        if not isinstance(self.ns, (int, type(None))):
-            raise TypeError(msg)
-        if self.ns < 0:
-            raise ValueError(msg)
-
-        msg = "Argument 'nd' must a nonnegative integer or None."
-        if not isinstance(self.nd, (int, type(None))):
-            raise TypeError(msg)
-        if self.nd < 0:
-            raise ValueError(msg)
+        for arg_name in ("ns", "nd"):
+            value = integer_scalar(getattr(self, arg_name), arg_name)
+            if value < 0:
+                msg = f"{arg_name} must be a nonnegative integer, got {value}."
+                raise ValueError(msg)
+            set_private(self, arg_name, value)
 
     def _signal_handler(self, signum: int, frame: FrameType | None) -> None:  # noqa: ARG002
         set_private(self, "_abort", value=True)
@@ -677,13 +701,19 @@ class Callback(Generic[F]):
             msg = f"Value of '{self.name}' must be a callable object with one argument, or None."
             if not callable(value):
                 raise TypeError(msg)
-            params = inspect.signature(value).parameters
-            positional = (
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                inspect.Parameter.POSITIONAL_ONLY,
-            )
-            if len(params) != 1 or not all(p.kind in positional for p in params.values()):
-                raise TypeError(msg)
+            # the question is whether it can be *called* with one argument, not how many
+            # parameters it has: extra parameters with defaults, and *args/**kwargs, are
+            # all fine. `bind` answers exactly that.
+            signature = inspect.signature(value)
+            try:
+                signature.bind(None)
+            except TypeError:
+                msg = (
+                    f"Value of '{self.name}' must be a callable object with one argument, "
+                    f"or None; {getattr(value, '__name__', value)}{signature} cannot be "
+                    f"called with one."
+                )
+                raise TypeError(msg) from None
         set_private(instance, "_" + self.name, value)
 
     def __delete__(self, instance: UserFunctions) -> None:

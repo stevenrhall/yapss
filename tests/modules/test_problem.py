@@ -22,15 +22,15 @@ def test_derivatives_options():
     # misspelled method option
     ocp.derivatives.method = "auto"
     msg = (
-        "The value 'misspelled' is not allowed. Allowed values are in "
-        "('auto', 'central-difference', 'central-difference-full', 'user')"
+        "The value 'misspelled' is not allowed for 'method'. Allowed values are "
+        "('auto', 'central-difference', 'central-difference-full', 'user')."
     )
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.derivatives.method = "misspelled"
 
     # misspelled order option
     ocp.derivatives.order = "first"
-    msg = "The value 'frst' is not allowed. Allowed values are in ('first', 'second')"
+    msg = "The value 'frst' is not allowed for 'order'. Allowed values are ('first', 'second')."
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.derivatives.order = "frst"
 
@@ -76,27 +76,25 @@ def test_keywords():
     # for a fully solved example of this edge case)
     Problem(name="test", nx=[1, 2, 3])
     Problem(name="test", nx=[1, 0, 3])
-    # nx must be a sequence
-    msg = "Keyword 'nx' must be a tuple or list of nonnegative integers."
-    with pytest.raises(TypeError, match=msg):
+    # nx must be a sequence of nonnegative integers
+    with pytest.raises(TypeError, match="nx must be a sequence of integers"):
         Problem(name="test", nx=1)
-    with pytest.raises(ValueError, match=msg):
+    with pytest.raises(ValueError, match=re.escape("nx[1] must be at least 0")):
         Problem(name="test", nx=[1, -2, 3])
 
     # test keyword ns
-    msg = "Argument 'ns' must a nonnegative integer or None."
     Problem(name="test", nx=[1, 2, 3], ns=1)
-    with pytest.raises(TypeError, match=msg):
+    with pytest.raises(TypeError, match="ns must be an integer"):
         Problem(name="test", nx=[1, 2, 3], ns="one")
-    with pytest.raises(ValueError, match=msg):
+    with pytest.raises(ValueError, match="ns must be a nonnegative integer"):
         Problem(name="test", nx=[1, 2, 3], ns=-1)
 
     # test keyword nd
     Problem(name="test", nx=[1, 2, 3], nd=1)
-    msg = "Argument 'nd' must a nonnegative integer or None."
-    with pytest.raises(TypeError, match=msg):
+
+    with pytest.raises(TypeError, match="nd must be an integer"):
         Problem(name="test", nx=[1, 2, 3], nd="one")
-    with pytest.raises(ValueError, match=msg):
+    with pytest.raises(ValueError, match="nd must be a nonnegative integer"):
         Problem(name="test", nx=[1, 2, 3], nd=-1)
 
 
@@ -301,21 +299,21 @@ def test_nh_is_list_of_integers() -> None:
 
 
 def test_nu_is_list_of_nonnegative_integers() -> None:
-    match = "Keyword 'nu' must be a tuple or list of nonnegative integers, or None."
+    match = re.escape("nu[")
     with pytest.raises(ValueError, match=match):
         Problem(name="test", nx=[1, 2], nu=[2, -1])
     Problem(name="test", nx=[1, 2], nu=[0, 3])
 
 
 def test_nq_is_list_of_nonnegative_integers() -> None:
-    match = "Keyword 'nq' must be a tuple or list of nonnegative integers, or None."
+    match = re.escape("nq[")
     with pytest.raises(ValueError, match=match):
         Problem(name="test", nx=[1, 2], nq=[-2, -1])
     Problem(name="test", nx=[1, 2], nq=[0, 0])
 
 
 def test_nh_is_list_of_nonnegative_integers() -> None:
-    match = "Keyword 'nh' must be a tuple or list of nonnegative integers, or None."
+    match = re.escape("nh[")
     with pytest.raises(ValueError, match=match):
         Problem(name="test", nx=[1, 2], nh=[-2, -1])
     Problem(name="test", nx=[1, 2], nh=[1, 0])

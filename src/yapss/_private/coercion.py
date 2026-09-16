@@ -37,7 +37,12 @@ import numpy as np
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-__all__ = ["integer_sequence", "real_array", "real_scalar"]
+__all__ = ["integer_scalar", "integer_sequence", "real_array", "real_scalar"]
+
+
+def _article(word: str) -> str:
+    """Return "a" or "an" to suit the word, so messages read as English."""
+    return "an" if word[:1].lower() in "aeiou" else "a"
 
 
 def _describe(value: Any) -> str:
@@ -52,9 +57,13 @@ def _describe(value: Any) -> str:
                 item,
                 (int, float, np.integer, np.floating),
             ):
-                return f"a {type(value).__name__} containing a {type(item).__name__}"
-        return f"a {type(value).__name__}"
-    return f"a {type(value).__name__}"
+                inner = type(item).__name__
+                return (
+                    f"{_article(type(value).__name__)} {type(value).__name__} "
+                    f"containing {_article(inner)} {inner}"
+                )
+        return f"{_article(type(value).__name__)} {type(value).__name__}"
+    return f"{_article(type(value).__name__)} {type(value).__name__}"
 
 
 def _flatten(value: Any) -> Any:
@@ -156,6 +165,7 @@ def integer_sequence(
     label: str,
     *,
     minimum: int | None = None,
+    allow_empty: bool = False,
 ) -> tuple[int, ...]:
     """Return ``value`` as a tuple of ints, accepting any sequence of integers.
 
@@ -174,23 +184,27 @@ def integer_sequence(
         The attribute as the user spells it, such as ``mesh.phase[0].collocation_points``.
     minimum : int, optional
         The smallest value each element may take, checked with a message naming the label.
+    allow_empty : bool, default False
+        Whether an empty sequence is allowed. A mesh needs at least one segment; a problem
+        with no phases is written ``nx=[]``.
     """
     if isinstance(value, (str, bytes)) or not hasattr(value, "__iter__"):
         msg = f"{label} must be a sequence of integers, got {_describe(value)}."
         raise TypeError(msg)
     items = list(value)
-    if not items:
+    if not items and not allow_empty:
         msg = f"{label} must have at least one element, got an empty sequence."
         raise ValueError(msg)
     result = []
     for i, item in enumerate(items):
         if isinstance(item, (bool, np.bool_)):
-            msg = f"{label}[{i}] must be an integer, got a bool."
+            msg = f"{label}[{i}] must be an integer, got the bool {item!r}."
             raise TypeError(msg)
         try:
             result.append(operator.index(item))
         except TypeError:
-            msg = f"{label}[{i}] must be an integer, got a {type(item).__name__}."
+            kind = type(item).__name__
+            msg = f"{label}[{i}] must be an integer, got {_article(kind)} {kind}, {item!r}."
             raise TypeError(msg) from None
     if minimum is not None:
         for i, item in enumerate(result):
@@ -198,3 +212,24 @@ def integer_sequence(
                 msg = f"{label}[{i}] must be at least {minimum}, got {item}."
                 raise ValueError(msg)
     return tuple(result)
+
+
+def integer_scalar(value: Any, label: str) -> int:
+    """Return ``value`` as an int, by the same rule as `integer_sequence`.
+
+    Parameters
+    ----------
+    value : Any
+        The value the user supplied.
+    label : str
+        The attribute or argument as the user spells it, such as ``ns``.
+    """
+    if isinstance(value, (bool, np.bool_)):
+        msg = f"{label} must be an integer, got the bool {value!r}."
+        raise TypeError(msg)
+    try:
+        return operator.index(value)
+    except TypeError:
+        kind = type(value).__name__
+        msg = f"{label} must be an integer, got {_article(kind)} {kind}, {value!r}."
+        raise TypeError(msg) from None

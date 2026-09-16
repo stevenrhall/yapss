@@ -176,20 +176,37 @@ class LimitOptions(Generic[S]):
     def __init__(self, allowed_values: tuple[S, ...]) -> None:
         """Initialize the descriptor."""
         self.allowed_values = allowed_values
+        # every allowed value is of one type, so that is the type a value must be. The
+        # check is on the exact type, not isinstance: `catch_keyboard_interrupt = 1` would
+        # otherwise pass, since `1 in (True, False)` is true.
+        self.value_type = type(allowed_values[0])
 
     def __get__(self, instance: Any | None, owner: Any) -> S:
-        """Get the value of the attribute."""
+        """Get the value of the attribute, or the descriptor itself on class access."""
+        if instance is None:
+            return cast(S, self)
         return cast(S, getattr(instance, self.name))
 
     def __set__(self, instance: Any, value: S) -> None:
         """Set the value of the attribute."""
+        if type(value) is not self.value_type:
+            msg = (
+                f"'{self.public_name}' must be a {self.value_type.__name__}, got "
+                f"{value!r} of type {type(value).__name__}. Allowed values are "
+                f"{self.allowed_values}."
+            )
+            raise TypeError(msg)
         if value not in self.allowed_values:
-            msg = f"The value {value!r} is not allowed. Allowed values are in {self.allowed_values}"
+            msg = (
+                f"The value {value!r} is not allowed for '{self.public_name}'. Allowed "
+                f"values are {self.allowed_values}."
+            )
             raise ValueError(msg)
         set_private(instance, self.name, value)
 
     def __set_name__(self, owner: type[Any], name: str) -> None:
         """Set the name of the attribute."""
+        self.public_name = name
         self.name = "_" + name
 
 

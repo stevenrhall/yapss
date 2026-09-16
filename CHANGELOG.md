@@ -63,6 +63,27 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   whole solve. The other derivative methods are unaffected: their callbacks are generated and
   emit their structure by construction.
 
+- Problem counts accept any sequence of integers. `nx`, `nu`, `nq` and `nh` take NumPy
+  integers, arrays, `range`, and anything else `operator.index` accepts, where they previously
+  required a `list` or `tuple` of Python `int`. `ns` and `nd` likewise. A `bool` is refused
+  everywhere, with the value shown: `nx[0] must be an integer, got the bool True`.
+  This is the same rule, and the same helper, as `mesh.phase[p].collocation_points`.
+- Settings with a fixed set of values --- `spectral_method`, `sense`, `derivatives.method`,
+  `derivatives.order`, `catch_keyboard_interrupt` --- check the type before the value, and
+  name the attribute when they refuse. `catch_keyboard_interrupt = 1` was accepted because
+  `1 in (True, False)` is true, and a NumPy array raised NumPy's "truth value is ambiguous"
+  rather than anything about the attribute; both now raise `TypeError` naming the setting.
+  Reading one off the class (`Problem.sense`) returns the descriptor instead of raising.
+- A callback is accepted if it can be *called* with one argument, rather than if it has
+  exactly one parameter, so `def objective(arg, scale=1.0)` and `*args` forms now work. The
+  message shows the signature that could not be called.
+- `Problem.validate()` reports every part that is wrong at once, instead of stopping at the
+  first. A missing guess and a missing objective are now named together, rather than one run
+  apart. Each part still stops at its own first failure, so there is at most one entry per
+  part: bounds, guess, scale, mesh, and callbacks.
+- `Problem` has a `repr` naming the problem and its counts, rather than
+  `<yapss._private.problem.Problem object at 0x...>`.
+
 - An Ipopt option that Ipopt refuses is now diagnosed rather than merely reported. Ipopt says
   only that it refused an option, so YAPSS compares the value with what Ipopt's own
   documentation records for it (a generated table, scraped from a pinned Ipopt release and

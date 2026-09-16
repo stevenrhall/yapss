@@ -267,7 +267,6 @@ def test_mismatched_mesh_lengths_are_reported_by_validate():
 # ----------------------------------------------------------------- not yet met
 
 
-@not_yet("W3", "counts accept NumPy integers and other integer sequences")
 @pytest.mark.parametrize(
     "nx", [[np.int64(2)], np.array([2]), range(2)], ids=["numpy int", "ndarray", "range"]
 )
@@ -275,7 +274,6 @@ def test_counts_accept_integer_like_values(nx):
     assert len(Problem(name="counts", nx=nx).nx) == len(nx)
 
 
-@not_yet("W3", "a bool count is rejected at construction with a message showing the value")
 @pytest.mark.parametrize("kwargs", [{"nx": [True]}, {"nx": [1], "ns": True}], ids=["nx", "ns"])
 def test_bool_count_is_rejected_helpfully(kwargs):
     with raises(TypeError, "True"):
@@ -289,14 +287,12 @@ def test_none_count_is_rejected(name):
         Problem(name="none", nx=[1], **{name: None})
 
 
-@not_yet("W3 LimitOptions", "an invalid value message names the attribute")
 def test_invalid_setting_message_names_the_attribute():
     ocp = callback_problem()
     with raises(ValueError, "spectral_method"):
         ocp.spectral_method = "LGR"
 
 
-@not_yet("W3 LimitOptions", "an array or a non-bool is not an allowed value")
 @pytest.mark.parametrize(
     ("attribute", "value"),
     [("spectral_method", np.array(["lg"])), ("catch_keyboard_interrupt", 1)],
@@ -308,7 +304,6 @@ def test_setting_rejects_values_of_the_wrong_type(attribute, value):
         setattr(ocp, attribute, value)
 
 
-@not_yet("W3 LimitOptions", "class access to a setting returns the descriptor")
 def test_class_access_to_a_setting():
     assert Problem.sense is not None
 
@@ -341,12 +336,10 @@ def test_function_deletion_messages():
     assert "set to None" not in str(info.value)
 
 
-@not_yet("W3", "Problem has a repr naming the problem")
 def test_problem_repr_names_the_problem():
     assert "callbacks" in repr(callback_problem())
 
 
-@not_yet("W3", "validate() reports every problem at once, not only the first")
 def test_validate_reports_every_problem():
     ocp = Problem(name="incomplete", nx=[1])
     with pytest.raises(ValueError) as info:

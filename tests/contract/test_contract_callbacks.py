@@ -887,7 +887,6 @@ def test_unused_derivative_callback_warns():
         ocp.solve()
 
 
-@not_yet("W3", "the arity check accepts a callable whose extra parameters have defaults")
 def test_callback_with_defaulted_extra_parameter_is_accepted():
     ocp = callback_problem()
 
