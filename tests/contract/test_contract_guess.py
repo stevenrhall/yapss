@@ -5,6 +5,7 @@ What a user may do
       numbers: list, tuple, range, ndarray of any real dtype, NumPy scalars.
     - Assign `state` and `control` as 2-D arrays of shape (n, len(time)): nested lists or
       tuples, or an ndarray of any real dtype.
+    - Read back a `state` or `control` that was assigned, whether or not `time` is set.
     - Read `state` or `control` once `time` is set and get zeros, then write into them by
       element, row, column, or slice; the writes stick. The zeros follow a later change of
       `time` for as long as they have not been written.
@@ -12,13 +13,17 @@ What a user may do
     - Rely on a guess copying what it is set from, and on every accepted form reaching the
       NLP starting point.
     - Warm-start with `problem.guess(solution)` (equivalently `guess.from_solution`).
+    - Return the whole guess, or one phase's, to its state when the problem was created with
+      `guess.reset()` or `guess.phase[p].reset()`: `time`, `state`, and `control` unset,
+      `integral` and `parameter` zeros.
 
 What a user may get wrong
     - A `time` that is not strictly increasing, too short, or not 1-D: `ValueError` at the
       assignment.
     - A `state` or `control` that is not 2-D or has the wrong number of rows: `ValueError`
       at the assignment. The wrong number of columns: `ValueError` from `validate()`.
-    - Reading `state` or `control` before `time`: `ValueError` naming what to set.
+    - Reading an unassigned `state` or `control` before `time`: `ValueError` naming what to
+      set.
     - A phase whose `time` was never set: `ValueError` from `validate()`.
     - A `parameter` of the wrong length, or a scalar: `ValueError` at the assignment.
     - A string, a bool, a complex value, or `None`, whole or in a sequence: `TypeError` at
@@ -310,12 +315,54 @@ def test_warm_start_from_a_mismatched_solution_changes_nothing():
     np.testing.assert_array_equal(target.guess.phase[0].time, [0.0, 1.0])
 
 
-@not_yet("E10 part 1", "Guess.reset() and PhaseGuess.reset() exist and restore the defaults")
-def test_guess_reset():
-    ocp = timed()
+def _fill(ocp):
+    """Set every guess value of the contract problem to something other than its default."""
+    for p, phase in enumerate(ocp.guess.phase):
+        phase.time = [0.0, 1.0, 2.0]
+        phase.state = np.ones((ocp.nx[p], 3))
+        phase.control = np.ones((ocp.nu[p], 3))
+        phase.integral = np.ones(ocp.nq[p])
     ocp.guess.parameter = [1.0, 2.0]
+
+
+def _assert_phase_is_new(ocp, p):
+    phase = ocp.guess.phase[p]
+    assert phase.time is None
+    for name in ("state", "control"):
+        with raises(ValueError, f"guess.phase[{p}].time", at="getattr(phase, name)"):
+            getattr(phase, name)
+    assert_float64_array(phase.integral, np.zeros(ocp.nq[p]))
+    phase.time = [0.0, 1.0]
+    assert_float64_array(phase.state, np.zeros((ocp.nx[p], 2)))
+
+
+def test_guess_reset_is_a_new_guess():
+    ocp = problem()
+    _fill(ocp)
     ocp.guess.reset()
+    with raises(ValueError, "guess.phase[0].time has not been set", at="validate()"):
+        ocp.guess.validate()
     assert_float64_array(ocp.guess.parameter, [0.0, 0.0])
+    for p in range(ocp.np):
+        _assert_phase_is_new(ocp, p)
+
+
+def test_phase_guess_reset_leaves_the_rest():
+    ocp = problem()
+    _fill(ocp)
+    ocp.guess.phase[0].reset()
+    _assert_phase_is_new(ocp, 0)
+    assert_float64_array(ocp.guess.phase[1].time, [0.0, 1.0, 2.0])
+    assert_float64_array(ocp.guess.phase[1].state, np.ones((1, 3)))
+    assert_float64_array(ocp.guess.parameter, [1.0, 2.0])
+
+
+@pytest.mark.parametrize("name", ["state", "control"])
+def test_an_assigned_guess_reads_back_before_time_is_set(name):
+    ocp = problem()
+    rows = ocp.nx[0] if name == "state" else ocp.nu[0]
+    setattr(ocp.guess.phase[0], name, np.arange(3 * rows).reshape(rows, 3))
+    assert_float64_array(getattr(ocp.guess.phase[0], name), np.arange(3 * rows).reshape(rows, 3))
 
 
 # Decided 2026-09-14 (Steve): guess values accept real numbers and convert nothing else,

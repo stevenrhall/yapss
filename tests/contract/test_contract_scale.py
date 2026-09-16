@@ -10,6 +10,8 @@ What a user may do
       NumPy scalars included.
     - Rely on the defaults (all ones), on a scale copying what it is set from, and on every
       accepted value reaching the NLP scaling.
+    - Return every factor to 1.0 with `scale.reset()`, or one phase's with
+      `scale.phase[p].reset()`; an array read before the reset sees the ones.
 
 What a user may get wrong
     - A zero, negative, NaN, or infinite factor in a whole assignment, or in `time` or
@@ -240,14 +242,49 @@ def test_bad_element_raises_at_the_assignment():
         ocp.scale.phase[0].state[0] = 0.0
 
 
-@not_yet("E10 part 1", "Scale.reset() and ScalePhase.reset() exist and restore ones")
-def test_scale_reset():
+PHASE_ARRAYS = ("state", "control", "integral", "dynamics", "path")
+
+
+def _fill(ocp):
+    """Set every scale factor of the contract problem to 2.0."""
+    for phase in ocp.scale.phase:
+        for name in PHASE_ARRAYS:
+            setattr(phase, name, 2 * np.ones(len(getattr(phase, name))))
+        phase.time = 2.0
+    ocp.scale.discrete = [2.0, 2.0]
+    ocp.scale.parameter = [2.0, 2.0]
+    ocp.scale.objective = 2.0
+
+
+def _assert_phase_is_ones(phase, value=1.0):
+    for name in PHASE_ARRAYS:
+        array = getattr(phase, name)
+        assert_float64_array(array, value * np.ones(len(array)))
+    assert phase.time == value
+
+
+def test_scale_reset_restores_ones():
     ocp = problem()
-    ocp.scale.phase[0].state = [2.0, 3.0]
-    ocp.scale.objective = 5.0
+    _fill(ocp)
+    held = ocp.scale.phase[0].state
     ocp.scale.reset()
-    assert_float64_array(ocp.scale.phase[0].state, [1.0, 1.0])
+    for phase in ocp.scale.phase:
+        _assert_phase_is_ones(phase)
+    assert_float64_array(ocp.scale.discrete, [1.0, 1.0])
+    assert_float64_array(ocp.scale.parameter, [1.0, 1.0])
     assert ocp.scale.objective == 1.0
+    assert type(ocp.scale.objective) is float
+    assert held is ocp.scale.phase[0].state
+
+
+def test_scale_phase_reset_leaves_the_rest():
+    ocp = problem()
+    _fill(ocp)
+    ocp.scale.phase[0].reset()
+    _assert_phase_is_ones(ocp.scale.phase[0])
+    _assert_phase_is_ones(ocp.scale.phase[1], 2.0)
+    assert_float64_array(ocp.scale.parameter, [2.0, 2.0])
+    assert ocp.scale.objective == 2.0
 
 
 def test_scale_phase_is_read_only():

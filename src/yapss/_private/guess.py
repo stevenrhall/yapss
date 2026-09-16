@@ -50,15 +50,17 @@ class PhaseArrayGuess:
     def __get__(self, instance: PhaseGuess, owner: type) -> Array:
         """Get the value of the guess, creating the all-zeros default on first read.
 
-        The phase's time array fixes the shape, so it must be set first; reading before
-        that raises. The default is stored, so indexing and slicing assign into it as
+        The phase's time array fixes the default's shape, so reading an unset guess before
+        the time array is set raises; a guess that has been assigned is returned whether or
+        not the time array is set. The default is stored, so indexing and slicing assign into it as
         expected (``state[0, :] = ...``). An array that is still all zeros is treated as
         the default when the time array changes length and is regenerated at the new
         length (see ``TimeGuess.__set__``); through 0.2.2 the stored default froze at the
         length it was created with and a later change to the time array alone then
         failed validation.
         """
-        if instance._nt is None:
+        value = getattr(instance, self.private_name)
+        if value is None and instance._nt is None:
             msg = (
                 f"guess.phase[{instance._p}].{self.name} cannot be read before "
                 f"guess.phase[{instance._p}].time is set: the time array's length fixes "
@@ -66,8 +68,8 @@ class PhaseArrayGuess:
                 f"of time points)."
             )
             raise ValueError(msg)
-        value = getattr(instance, self.private_name)
         if value is None:
+            assert instance._nt is not None
             value = np.zeros([getattr(instance, self.len_name), instance._nt], dtype=float)
             set_private(instance, self.private_name, value)
         assert isinstance(value, np.ndarray)
@@ -174,9 +176,6 @@ class Guess(Protected):
         self._nq = problem.nq
         self._problem = problem
 
-        # initialize the parameter guess
-        self._parameter: Array = np.zeros([problem.ns], dtype=float)
-
         # initialize the guess for each phase
         phase = [PhaseGuess(problem, p) for p in range(len(problem.nx))]
         self._phase = tuple(phase)
@@ -187,6 +186,16 @@ class Guess(Protected):
         return self._phase
 
     parameter = Parameter()
+
+    def reset(self) -> None:
+        """Reset the guess to its state when the problem was created.
+
+        Every phase is reset (see `PhaseGuess.reset`), and the parameter guess returns to
+        zeros.
+        """
+        for phase in self._phase:
+            phase.reset()
+        set_private(self, "_attr_parameter", np.zeros(self._ns, dtype=np.float64))
 
     def validate(self) -> None:
         """Validate user-provided initial guess."""
@@ -314,6 +323,20 @@ class PhaseGuess(Protected):
                 finite=True,
             ),
         )
+
+    def reset(self) -> None:
+        """Reset the guess for the phase to its state when the problem was created.
+
+        The time, state, and control guesses become unset, so the time array must be set
+        again before the state or control guess can be read, and the integral guess
+        returns to zeros. New arrays are stored: an array read before the reset is no
+        longer part of the guess.
+        """
+        set_private(self, "_time", None)
+        set_private(self, "_nt", None)
+        set_private(self, "_state", None)
+        set_private(self, "_control", None)
+        set_private(self, "_integral", np.zeros([self._nq]))
 
     def validate(self) -> None:
         """Validate the user-supplied guess for a phase."""

@@ -17,6 +17,13 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ## [Unreleased]
 
+### Added
+
+- `problem.guess.reset()` and `problem.guess.phase[p].reset()` return the guess, or one
+  phase's, to its state when the problem was created: time, state, and control unset, and
+  integral and parameter zeros. `problem.scale.reset()` and `problem.scale.phase[p].reset()`
+  return every scale factor to 1.0, filling the arrays in place as `bounds.reset()` does.
+
 ### Changed
 
 - Every warning YAPSS issues is now a `yapss.YapssWarning` (a `UserWarning`), and every
@@ -228,6 +235,9 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Fixed
 
+- A state or control guess assigned before the phase's time guess can now be read back.
+  Reading it raised `ValueError` saying the time guess must be set first, which is needed
+  only to create the default zeros.
 - `problem.mesh` now rejects misspelled attributes, and `problem.mesh.phase` and
   `problem.scale.phase` can no longer be reassigned. Reassigning either was accepted and
   then failed inside `solve()` with an `IndexError` naming no attribute.

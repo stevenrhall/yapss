@@ -558,6 +558,16 @@ class ScalePhase(Protected):
         _check_scale(label, scale)
         set_private(self, "_time", scale)
 
+    def reset(self) -> None:
+        """Reset every scale factor of the phase to 1.0.
+
+        The arrays are filled with ones in place, as `Bounds.reset` does, so an array read
+        before the reset still refers to the phase's scale factors.
+        """
+        for name in ("state", "control", "integral", "dynamics", "path"):
+            getattr(self, "_" + name)[:] = 1.0
+        set_private(self, "_time", 1.0)
+
     def validate(self) -> None:
         """Check every scale factor of the phase, including elements set in place.
 
@@ -607,6 +617,14 @@ class Scale(Protected):
             )
             raise ValueError(msg)
         set_private(self, "_objective", float(value))
+
+    def reset(self) -> None:
+        """Reset every scale factor to 1.0, in every phase (see `ScalePhase.reset`)."""
+        for phase in self.phase:
+            phase.reset()
+        self._discrete[:] = 1.0
+        self._parameter[:] = 1.0
+        set_private(self, "_objective", 1.0)
 
     def validate(self) -> None:
         """Check every scale factor, including array elements set in place.

@@ -180,3 +180,17 @@ and the scales for the discrete constraints were set as discussed in the Theory 
 
 With these scales, the problem converges in a reasonable number of iterations (about
 32).
+
+The ``reset()`` Method
+----------------------
+
+To return scale factors to 1.0, call the ``reset()`` method of the scale object or of one of
+its phases:
+
+.. testcode:: group2
+
+   problem.scale.phase[0].reset()  # Resets the scales for phase 0
+   problem.scale.reset()  # Resets every scale factor
+
+The arrays are filled with ones in place, so an array read before the reset, such as
+``phase.state`` above, holds the ones too.

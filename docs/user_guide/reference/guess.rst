@@ -86,8 +86,8 @@ k)``, respectively.
 The ``guess.phase[p].state`` and ``guess.phase[p].control`` attributes are arrays of zeros of
 the right shape until an array is assigned, so a guess can be built up by indexing or slicing
 (``guess.phase[p].state[0, :] = ...``) as well as by assigning a whole array. The time array
-fixes the shape, so it must be set first; reading either attribute before that raises
-``ValueError``.
+fixes the shape of the zeros, so it must be set first; reading either attribute before that
+raises ``ValueError``, unless an array has already been assigned to it.
 
 If no initial guess is assigned to the time array, an exception will be raised when the ``solve()``
 method is called. An exception is also raised if the shapes of the arrays assigned to
@@ -126,6 +126,22 @@ Below is an example from the Dynamic Soaring problem:
     >>> problem.guess.phase[0].state = x, y, h, v, gamma, psi
     >>> problem.guess.phase[0].control = cl, phi
     >>> problem.guess.parameter = 0.08,
+
+The ``reset()`` Method
+----------------------
+
+To start a guess over, call the ``reset()`` method of the guess or of one of its phases. The
+guess is then as it was when the problem was created: the time, state, and control guesses
+are unset, and the integral and parameter guesses are zeros. Continuing the example above:
+
+.. doctest:: guess-dynamic-soaring
+
+    >>> problem.guess.phase[0].reset()  # Resets the guess for phase 0
+    >>> print(problem.guess.phase[0].time)
+    None
+    >>> problem.guess.reset()  # Resets the whole guess
+    >>> problem.guess.parameter
+    array([0.])
 
 Initial Guess from Previous Solution
 ------------------------------------

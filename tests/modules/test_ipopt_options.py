@@ -12,6 +12,7 @@ import pytest
 from yapss import IpoptConvergenceWarning, IpoptOptionSettingWarning
 from yapss._private.ipopt_option_specs import IPOPT_DOC_VERSION
 from yapss._private.ipopt_options import IpoptOptions, explain_refusal
+from yapss._private.mseipopt import library
 from yapss.examples.rosenbrock import setup
 
 
@@ -124,20 +125,54 @@ def test_the_file_log_options_are_supported(name, value):
     assert name in IpoptOptions.__annotations__
 
 
-def test_an_option_this_ipopt_build_lacks_warns_at_the_solve():
-    """`file_append` arrived after Ipopt 3.14.11, which the pinned casadi wheel bundles.
+# Ipopt 3.14.13 added `file_append` (Ipopt ChangeLog, #720). The casadi wheel bundles 3.14.11
+# and conda-forge ships a later Ipopt, so which of the two tests below runs depends on the
+# build loaded, not on the environment: a version check stays right if the wheel moves on.
+FILE_APPEND_VERSION = (3, 14, 13)
 
-    The name and the value are both documented, so setting it says nothing; Ipopt then
-    refuses it ("It is not a valid option") and YAPSS reports the one explanation that
-    fits -- this build does not provide it. A conda build may, which is why it is not an
-    error. This is the real case for that branch, on the wheel this suite runs against.
-    """
-    ocp = setup()
+
+def _loaded_ipopt_version() -> tuple[int, int, int] | None:
+    path = library.initialize_ipopt()
+    info = library.read_ipopt_header(path)
+    return None if info is None else info.version
+
+
+def _label(version: tuple[int, int, int] | None) -> str:
+    return "version unknown" if version is None else ".".join(map(str, version))
+
+
+def _set_file_append(ocp):
     ocp.ipopt_options.print_level = 0
     with warnings.catch_warnings():
         warnings.simplefilter("error", IpoptOptionSettingWarning)
         ocp.ipopt_options.file_append = "yes"  # silent: the table has it
+
+
+def test_an_option_this_ipopt_build_lacks_warns_at_the_solve():
+    """On an Ipopt older than the option, the solve reports that this build lacks it.
+
+    The name and the value are both documented, so setting it says nothing; Ipopt then
+    refuses it ("It is not a valid option") and YAPSS reports the one explanation that
+    fits -- this build does not provide it. This is the real case for that branch.
+    """
+    version = _loaded_ipopt_version()
+    if version is None or version >= FILE_APPEND_VERSION:
+        pytest.skip(f"the loaded Ipopt, {_label(version)}, provides file_append or has no version")
+    ocp = setup()
+    _set_file_append(ocp)
     with pytest.warns(IpoptOptionSettingWarning, match="does not provide it"):
+        ocp.solve()
+
+
+def test_an_option_this_ipopt_build_has_is_accepted_at_the_solve():
+    """On an Ipopt that has the option, the same setting solves without a warning."""
+    version = _loaded_ipopt_version()
+    if version is None or version < FILE_APPEND_VERSION:
+        pytest.skip(f"the loaded Ipopt, {_label(version)}, lacks file_append or has no version")
+    ocp = setup()
+    _set_file_append(ocp)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", IpoptOptionSettingWarning)
         ocp.solve()
 
 
