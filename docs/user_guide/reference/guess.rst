@@ -33,8 +33,10 @@ For example, in the Rosenbrock problem, we might have:
     >>> problem = Problem(name="Rosenbrock", nx=[], ns=2)
     >>> problem.guess.parameter = [-2.0, 2.0]
 
-An exception will be raised if the object assigned to ``guess.parameter`` cannot be converted to a
-NumPy array with ``dtype=float`` and shape ``(ns,)``.
+``guess.parameter`` accepts real numbers --- Python ``int`` and ``float``, NumPy integers and
+floats, and any sequence or array of them --- with length ``ns``. A string, a bool, a complex
+value, or ``None``, whole or inside the sequence, raises ``TypeError`` naming the attribute; a
+wrong length or a non-finite value raises ``ValueError``.
 
 The initial guess array is stored as a NumPy array in the ``guess.parameter`` attribute, so
 individual elements can be modified using indexing or slicing. The example above could also be
@@ -62,8 +64,8 @@ isoperimetric problem, we might have:
     >>> problem = Problem(name="Isoperimetric Problem", nx=[2], nu=[2], nq=[3], nh=[1], nd=4)
     >>> problem.guess.phase[0].integral = [0.0, 0.0, 0.0]
 
-An exception is raised if the object assigned to ``guess.phase[p].integral`` cannot be converted to
-a NumPy array with ``dtype=float`` and shape ``(nq[p],)``.
+``guess.phase[p].integral`` accepts the same forms, with length ``nq[p]``, and refuses the same
+values.
 
 As with parameters, the default initial guess for each phase's integrals is an array of zeros. Thus,
 in this example, we could omit the ``integral`` assignment and obtain the same result.

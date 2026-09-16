@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.interpolate import interp1d
 
+from .coercion import real_array
+
 # package imports
 from .layout import problem_layout
 from .structure import DVStructure, get_nlp_dv_structure
@@ -78,7 +80,7 @@ class PhaseArrayGuess:
     ) -> None:
         """Set the value of the guess."""
         # copy: the guess must not alias the caller's array (a Solution's, typically)
-        value = np.array(value, dtype=float)
+        value = real_array(value, f"guess.phase[{instance._p}].{self.name}", finite=True)
         shape = value.shape
         array_dimensions = 2
         if len(shape) != array_dimensions:
@@ -129,12 +131,13 @@ class Parameter:
     def __set__(self, instance: Guess, value: ArrayLike) -> None:
         """Set the value of the parameter array."""
         private_name = f"_attr_{self.name}"
-        array_value = np.array(value, dtype=np.float64)  # copy, never alias the caller's
-
-        # Check array shape
-        if array_value.shape != (instance._ns,):
-            msg = f"'guess.{self.name}' must be a 1-dimensional array of length {instance._ns}."
-            raise ValueError(msg)
+        # copy, never alias the caller's
+        array_value = real_array(
+            value,
+            f"guess.{self.name}",
+            shape=(instance._ns,),
+            finite=True,
+        )
 
         # Set the parameter array on the instance
         set_private(instance, private_name, array_value)
@@ -240,7 +243,8 @@ class TimeGuess:
         """Set the value of the time array."""
         min_length = 2
         p = instance._p
-        t: Array = np.array(value, dtype=float)  # copy, never alias the caller's
+        # copy, never alias the caller's; a time guess must be finite, unlike a bound
+        t: Array = real_array(value, f"guess.phase[{p}].time", finite=True)
         shape = t.shape
         base_msg = (
             f"Expected 'guess.phase[{p}].time' to be a strictly increasing, 1-dimensional array "
@@ -300,7 +304,16 @@ class PhaseGuess(Protected):
 
     @integral.setter
     def integral(self, value: ArrayLike) -> None:
-        self._integral[:] = value
+        set_private(
+            self,
+            "_integral",
+            real_array(
+                value,
+                f"guess.phase[{self._p}].integral",
+                shape=(self._nq,),
+                finite=True,
+            ),
+        )
 
     def validate(self) -> None:
         """Validate the user-supplied guess for a phase."""

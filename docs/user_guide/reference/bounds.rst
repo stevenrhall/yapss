@@ -226,7 +226,7 @@ to assign a scalar instead of a sequence for path constraints raises an error im
     >>> bounds.path.lower = -2
     Traceback (most recent call last):
         ...
-    ValueError: ArrayBound must be a sequence of floats of length 1.
+    ValueError: bounds.phase[0].path.lower must have length 1, got a scalar.
 
 Conflicting control bounds are reported when the bounds are validated:
 

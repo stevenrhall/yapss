@@ -264,7 +264,6 @@ NOT_REAL = {
 }
 
 
-@not_yet("W4 coercion", "a whole scale array of non-real values raises TypeError naming the scale")
 @pytest.mark.filterwarnings("ignore::numpy.exceptions.ComplexWarning")
 @pytest.mark.parametrize("form", NOT_REAL)
 def test_non_real_whole_array_raises_at_the_assignment(form):
@@ -273,7 +272,6 @@ def test_non_real_whole_array_raises_at_the_assignment(form):
         ocp.scale.phase[0].state = NOT_REAL[form]
 
 
-@not_yet("W4 coercion", "a non-real time or objective factor raises TypeError naming it")
 @pytest.mark.parametrize("value", ["2", True, 2 + 0j], ids=["numeric string", "bool", "complex"])
 @pytest.mark.parametrize("name", ["time", "objective"])
 def test_non_real_time_or_objective_raises_at_the_assignment(name, value):

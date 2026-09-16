@@ -22,6 +22,7 @@ from numpy import float64
 
 # package imports
 from .bounds import Bounds
+from .coercion import real_array, real_scalar
 from .guess import Guess
 from .ipopt_options import IpoptOptions
 from .solution import warn_if_not_converged
@@ -461,15 +462,12 @@ class ScaleArray:
         value: Sequence[float] | Array,
     ) -> None:
         """Set the value of the scale array."""
-        scale = np.array(value, dtype=float64)
         shape = getattr(instance, "_" + self.name).shape
         if hasattr(instance, "_p"):
             label = f"Scale '{self.name}' in phase {instance._p}"
         else:
             label = f"Scale '{self.name}'"
-        if scale.shape != shape:
-            msg = f"{label} must be an array of length {shape[0]}."
-            raise ValueError(msg)
+        scale = real_array(value, label, shape=shape)
         _check_scale(label, scale)
         set_private(instance, "_" + self.name, scale)
 
@@ -528,8 +526,9 @@ class ScalePhase(Protected):
 
     @time.setter
     def time(self, value: float) -> None:
-        scale = float(value)
-        _check_scale(f"Scale 'time' in phase {self._p}", scale)
+        label = f"Scale 'time' in phase {self._p}"
+        scale = real_scalar(value, label)
+        _check_scale(label, scale)
         set_private(self, "_time", scale)
 
     def validate(self) -> None:
@@ -572,6 +571,7 @@ class Scale(Protected):
 
     @objective.setter
     def objective(self, value: float) -> None:
+        value = real_scalar(value, "scale.objective")
         if not np.isfinite(value) or not value > 0:
             msg = (
                 f"'scale.objective' must be positive, got {value!r}. "

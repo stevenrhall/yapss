@@ -42,21 +42,21 @@ def test_scale_setup():
     ocp.scale.parameter = [1]
 
     # scale must be a sequence
-    msg = "Scale 'parameter' must be an array of length 1."
+    msg = "Scale 'parameter' must have length 1"
     with pytest.raises(ValueError, match=msg):
         ocp.scale.parameter = 1
-    msg = "Scale 'state' in phase 0 must be an array of length 6."
+    msg = "Scale 'state' in phase 0 must have length 6"
     with pytest.raises(ValueError, match=msg):
         ocp.scale.phase[0].state = 1
 
     # scale must be a sequence of length 1
-    msg = "Scale 'parameter' must be an array of length 1."
+    msg = "Scale 'parameter' must have length 1"
     with pytest.raises(ValueError, match=msg):
         ocp.scale.parameter = [1, 2]
 
     # scale must be a sequence of length 6
     ocp.scale.phase[0].state = [1, 2, 3, 4, 5, 6]
-    msg = "Scale 'state' in phase 0 must be an array of length 6."
+    msg = "Scale 'state' in phase 0 must have length 6"
     with pytest.raises(ValueError, match=msg):
         ocp.scale.phase[0].state = [1, 2, 3, 4, 5]
 

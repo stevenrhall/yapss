@@ -63,6 +63,20 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   whole solve. The other derivative methods are unaffected: their callbacks are generated and
   emit their structure by construction.
 
+- Bounds, guess values, and scale factors accept real numbers and convert nothing else. Each
+  used to convert whatever it was given with NumPy, which turned `"1"` into 1.0, `True` into
+  1.0, `None` into NaN, and `1 + 1j` into 1.0 with a warning, so a typo or a stray comparison
+  became a plausible-looking number. Strings (including numeric ones, since `np.inf` is the
+  number and `"inf"` is a string), bools, complex values, and `None` now raise `TypeError`
+  naming the attribute, whether supplied whole or inside a sequence: `guess.parameter must be a
+  real number or a sequence of real numbers, got a list containing a str`. Guess values,
+  including `time`, must also be finite. Messages for a wrong length now name the attribute and
+  the length it needs, in place of NumPy's `could not broadcast input array from shape (4,) into
+  shape (3,)` and of `ArrayBound must be a sequence of floats of length 2`, which named a
+  private class. A bound also copies the array it is assigned from, so a later change to the
+  caller's array no longer reaches into the problem. One mixed sequence still slips through,
+  `[1, True]`, which NumPy reduces to an integer array before YAPSS sees it.
+
 - Each continuous callback now receives its own argument, carrying the inputs and only the
   output that callback assigns. `continuous` has `dynamics`, `integrand`, and `path`;
   `continuous_jacobian` has `jacobian`; `continuous_hessian` has `hessian`. Writing or

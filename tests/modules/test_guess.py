@@ -30,7 +30,7 @@ def test_guess_parameter():
     assert np.array_equal(problem.guess.parameter, np.zeros(2))
     problem.guess.parameter = [-2.0, 2.0]
     assert np.array_equal(problem.guess.parameter, np.array([-2.0, 2.0], dtype=float))
-    msg = "'guess.parameter' must be a 1-dimensional array of length 2."
+    msg = "guess.parameter must have length 2"
     with pytest.raises(ValueError, match=msg):
         problem.guess.parameter = [-2.0, 2.0, 3.0]
 
@@ -122,7 +122,7 @@ def test_parameter():
     # test that assigning a parameter guess of the wrong length raises an error
     with pytest.raises(
         ValueError,
-        match="'guess.parameter' must be a 1-dimensional array of length 3.",
+        match=re.escape("guess.parameter must have length 3"),
     ):
         problem.guess.parameter = 1, 2, 3, 4
     # test that we can assign a new element of the parameter guess
@@ -139,7 +139,7 @@ def test_integral():
     # test that assigning an integral guess of the wrong length raises an error
     with pytest.raises(
         ValueError,
-        match=re.escape("could not broadcast input array from shape (4,) into shape (3,)"),
+        match=re.escape("guess.phase[0].integral must have length 3, got 4."),
     ):
         problem.guess.phase[0].integral = 1, 2, 3, 4
     # test that we can assign a new element of the integral guess
@@ -148,12 +148,13 @@ def test_integral():
 
 
 def test_invalid_data():
+    """A string is the wrong type, named as such; NumPy used to raise ValueError here."""
     problem = Problem(name="Test", nx=[], ns=2)
-    with pytest.raises(ValueError, match="could not convert string to float: 'invalid'"):
+    with pytest.raises(TypeError, match="guess.parameter must be a real number"):
         problem.guess.parameter = [-2.0, "invalid"]
 
     problem = Problem(name="Test", nx=[2, 3], nu=[2, 4], nq=[3, 4], nh=[1, 2], nd=4)
-    with pytest.raises(ValueError, match="could not convert string to float: 'invalid'"):
+    with pytest.raises(TypeError, match=re.escape("guess.phase[0].integral must be a real")):
         problem.guess.phase[0].integral = [0.0, 0.0, "invalid"]
 
 
@@ -161,7 +162,7 @@ def test_guess_time():
     """Test setting the time vector for each phase."""
     problem = Problem(name="Test", nx=[2, 3], nu=[2, 4], nq=[3, 4], nh=[1, 2], nd=4)
     assert problem.guess.phase[0].time is None
-    with pytest.raises(ValueError, match="could not convert string to float: 'invalid'"):
+    with pytest.raises(TypeError, match=re.escape("guess.phase[0].time must be a real")):
         problem.guess.phase[0].time = "invalid"
     msg = re.escape(
         "Expected 'guess.phase[1].time' to be a strictly increasing, 1-dimensional array with "

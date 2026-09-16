@@ -200,7 +200,7 @@ def test_complex_values_raise_at_the_assignment():
 @pytest.mark.parametrize("name", SCALARS)
 def test_scalar_bound_of_non_real_type_raises_at_the_assignment(name, value):
     ocp = problem()
-    with raises(TypeError, "must be a float", at=".upper ="):
+    with raises(TypeError, f"bounds.phase[1].{name}.upper", at=".upper ="):
         getattr(ocp.bounds.phase[1], name).upper = value
 
 
@@ -214,11 +214,11 @@ def test_nan_is_reported_by_validate(path, side):
         ocp.bounds.validate()
 
 
-def test_none_in_a_sequence_is_reported_as_nan_by_validate():
+def test_none_in_a_sequence_raises_at_the_assignment():
+    """`None` used to become NaN here, reported only later by validate()."""
     ocp = problem()
-    ocp.bounds.phase[0].state.upper = [10.0, None]
-    with raises(ValueError, "bounds.phase[0].state.upper[i] is NaN for indices i in [1]"):
-        ocp.bounds.validate()
+    with raises(TypeError, "bounds.phase[0].state.upper", at="state.upper ="):
+        ocp.bounds.phase[0].state.upper = [10.0, None]
 
 
 @pytest.mark.parametrize("path", ARRAYS)
@@ -317,7 +317,6 @@ def test_bound_arrays_cannot_be_deleted():
 # ----------------------------------------------------------------- not yet met
 
 
-@not_yet("B6 / E2 part 1", "a bound copies the array it is assigned from")
 def test_whole_array_assignment_copies():
     ocp = problem()
     source = np.array([1.0, 2.0])
@@ -326,7 +325,6 @@ def test_whole_array_assignment_copies():
     assert_float64_array(ocp.bounds.phase[0].state.lower, [1.0, 2.0])
 
 
-@not_yet("B6 / E2 part 1", "assigning one bound from another does not share a buffer")
 def test_assigning_one_bound_from_another_does_not_alias():
     ocp = problem()
     state = ocp.bounds.phase[0].state
@@ -343,7 +341,6 @@ def test_nan_element_raises_at_the_assignment():
         ocp.bounds.phase[0].state.lower[0] = np.nan
 
 
-@not_yet("W4 messages", "the length error names the bound and its expected length")
 def test_wrong_length_message_names_the_bound():
     ocp = problem()
     with raises(ValueError, "bounds.phase[0].state.lower", "2"):
@@ -361,7 +358,6 @@ NOT_REAL = {
 }
 
 
-@not_yet("W4 coercion", "a whole bound array of non-real values raises TypeError naming the bound")
 @pytest.mark.filterwarnings("ignore::numpy.exceptions.ComplexWarning")
 @pytest.mark.parametrize("form", NOT_REAL)
 def test_non_real_whole_array_raises_at_the_assignment(form):

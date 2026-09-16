@@ -21,7 +21,9 @@ What a user may get wrong
     - Reading `state` or `control` before `time`: `ValueError` naming what to set.
     - A phase whose `time` was never set: `ValueError` from `validate()`.
     - A `parameter` of the wrong length, or a scalar: `ValueError` at the assignment.
-    - Non-numeric strings: `ValueError` at the assignment.
+    - A string, a bool, a complex value, or `None`, whole or in a sequence: `TypeError` at
+      the assignment, naming the attribute. A numeric string is no different.
+    - A non-finite guess value, including in `time`: `ValueError` at the assignment.
     - A misspelled attribute: `AttributeError` at the assignment.
 """
 
@@ -240,11 +242,16 @@ def test_parameter_of_wrong_shape_raises_at_the_assignment(value):
         ocp.guess.parameter = value
 
 
-def test_non_numeric_strings_raise_at_the_assignment():
+def test_strings_raise_at_the_assignment():
+    """Numeric or not, a string is the wrong type: both raise TypeError, naming the target.
+
+    Non-numeric strings used to raise `ValueError` from NumPy's conversion while numeric
+    ones were silently converted, so the two differed for no reason a user could act on.
+    """
     ocp = timed()
-    with raises(ValueError, at="state ="):
+    with raises(TypeError, "guess.phase[0].state", at="state ="):
         ocp.guess.phase[0].state = [["a", "b", "c"], ["d", "e", "f"]]
-    with raises(ValueError, at="parameter ="):
+    with raises(TypeError, "guess.parameter", at="parameter ="):
         ocp.guess.parameter = ["a", "b"]
 
 
@@ -262,7 +269,6 @@ def test_misspelled_attribute_raises_at_the_assignment(owner, typo):
 # ----------------------------------------------------------------- not yet met
 
 
-@not_yet("W4", "a time guess must be finite, checked at the assignment")
 @pytest.mark.parametrize("bad", [np.nan, np.inf])
 def test_non_finite_time_raises_at_the_assignment(bad):
     ocp = problem()
@@ -277,7 +283,6 @@ def test_state_with_wrong_number_of_columns_raises_at_the_assignment():
         ocp.guess.phase[0].state = [[0.0, 1.0], [2.0, 3.0]]
 
 
-@not_yet("W4 messages", "an integral of the wrong length names guess.phase[p].integral")
 def test_integral_of_wrong_length_message_names_the_attribute():
     ocp = timed()
     with raises(ValueError, "guess.phase[0].integral", at="integral ="):
@@ -332,7 +337,6 @@ TARGETS = {
 }
 
 
-@not_yet("W4 coercion", "a guess of non-real values raises TypeError naming the attribute")
 @pytest.mark.filterwarnings("ignore::numpy.exceptions.ComplexWarning")
 @pytest.mark.parametrize("form", NOT_REAL)
 @pytest.mark.parametrize("target", TARGETS)
@@ -343,7 +347,6 @@ def test_non_real_guess_raises_at_the_assignment(target, form):
         setattr(owner(ocp.guess), name, NOT_REAL[form](shape))
 
 
-@not_yet("W4", "a non-finite guess value in a whole assignment raises at the assignment")
 @pytest.mark.parametrize("bad", [np.nan, np.inf], ids=["NaN", "inf"])
 @pytest.mark.parametrize("target", ["state", "control", "integral", "parameter"])
 def test_non_finite_guess_raises_at_the_assignment(target, bad):

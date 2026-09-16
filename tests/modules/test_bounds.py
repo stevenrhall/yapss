@@ -89,7 +89,9 @@ def test_change_bounds_new_attribute():
 
 def test_change_bounds_shape():
     ocp = goddard_problem_3_phase.setup()
-    with pytest.raises(ValueError, match="ArrayBound must be a sequence of floats of length 3."):
+    with pytest.raises(
+        ValueError, match=re.escape("bounds.phase[0].state.lower must have length 3")
+    ):
         ocp.bounds.phase[0].state.lower = [1, 2, 3, 4]
     ocp.bounds.phase[0].state.lower = [1, 2, 3]
     ocp.bounds.phase[0].state.upper = [-1, 2, -3]
@@ -191,7 +193,7 @@ def test_duration_bound_errors():
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.bounds.validate()
     # duration is a float
-    msg = "attribute 'upper' must be a float, not <class 'str'>"
+    msg = "bounds.phase[1].duration.upper must be a real number"
     with pytest.raises(TypeError, match=re.escape(msg)):
         ocp.bounds.phase[1].duration.upper = "string"
 
@@ -264,7 +266,7 @@ def test_scalar_bounds_accept_numpy_scalars():
     assert bounds.final_time.upper == 10.0
     assert bounds.final_time.lower == 2.0
     assert isinstance(bounds.final_time.lower, float)
-    with pytest.raises(TypeError, match="must be a float"):
+    with pytest.raises(TypeError, match="must be a real number"):
         bounds.final_time.upper = True
 
 
@@ -295,12 +297,12 @@ def test_nan_array_bound_is_rejected(get, path, side):
         ocp.bounds.validate()
 
 
-def test_none_in_a_bound_list_is_reported_as_nan():
+def test_none_in_a_bound_list_raises_at_the_assignment():
+    """`None` became NaN through NumPy; it is now refused where it is written."""
     ocp = _bounds_problem()
-    ocp.bounds.phase[0].state.upper = [10.0, None]
-    msg = "bounds.phase[0].state.upper[i] is NaN for indices i in [1]"
-    with pytest.raises(ValueError, match=re.escape(msg)):
-        ocp.bounds.validate()
+    msg = "bounds.phase[0].state.upper must be a real number"
+    with pytest.raises(TypeError, match=re.escape(msg)):
+        ocp.bounds.phase[0].state.upper = [10.0, None]
 
 
 @pytest.mark.parametrize(("get", "path"), _ARRAY_BOUNDS)

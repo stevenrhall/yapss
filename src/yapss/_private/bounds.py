@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy import float64
 
+from .coercion import real_array, real_scalar
+
 # package imports
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 from .types_ import Protected, set_private
@@ -55,10 +57,9 @@ class ArrayBound:
 
     def __set__(self, obj: ArrayBounds, value: ArrayLike) -> None:
         """Set the value of the attribute."""
-        bound: NDArray[np.float64] = np.asarray(value, dtype=np.float64)
-        if bound.shape != (obj._n,):
-            msg = f"ArrayBound must be a sequence of floats of length {obj._n}."
-            raise ValueError(msg)
+        # infinity is allowed: an unbounded side is +-inf. NaN is caught by validate(),
+        # which names the offending index.
+        bound = real_array(value, f"{obj._path}.{self.name}", shape=(obj._n,))
         set_private(obj, self.private_name, bound)
 
 
@@ -80,6 +81,7 @@ class ArrayBounds(Protected):
         self._n = n
         self._p = phase_index
         self._name = name
+        self._path = f"bounds.phase[{phase_index}].{name}" if phase_index >= 0 else f"bounds.{name}"
         self._lower: NDArray[np.float64] = np.array(n * [-np.inf], dtype=float64)
         self._upper: NDArray[np.float64] = np.array(n * [+np.inf], dtype=float64)
 
@@ -97,7 +99,7 @@ class ArrayBounds(Protected):
             If a bound is NaN, if a lower bound is ``+inf`` or an upper bound is ``-inf``
             (no value can satisfy it), or if a lower bound is greater than its upper bound.
         """
-        path = f"bounds.phase[{self._p}].{self._name}" if self._p >= 0 else f"bounds.{self._name}"
+        path = self._path
         # NaN first: every comparison below is false for NaN, so a NaN bound would pass them
         # and reach Ipopt, whose interface rejects it with a message that names no bound.
         for side, values in (("lower", self.lower), ("upper", self.upper)):
@@ -151,15 +153,7 @@ class ScalarBound:
 
     def __set__(self, obj: ScalarBounds, value: float | np.floating[Any] | np.integer[Any]) -> None:
         """Set the value of the attribute."""
-        # NumPy scalars (np.float32, np.int64, ...) are accepted as ArrayBound already
-        # accepts them through np.asarray; bool is excluded, a bound of True is a mistake.
-        # The tuple names the hint's types rather than numbers.Real: mypy does not know
-        # NumPy registers its scalars with the numbers ABCs, and would call the
-        # success path unreachable.
-        if isinstance(value, bool) or not isinstance(value, (int, float, np.integer, np.floating)):
-            msg = f"attribute '{self._name}' must be a float, not {type(value)}"
-            raise TypeError(msg)
-        set_private(obj, "_" + self._name, float(value))
+        set_private(obj, "_" + self._name, real_scalar(value, f"{obj._path}.{self._name}"))
 
 
 class ScalarBounds(Protected):
@@ -182,6 +176,7 @@ class ScalarBounds(Protected):
         self._lower: float = -float("inf")
         self._name = name
         self._p = phase
+        self._path = f"bounds.phase[{phase}].{name}" if phase >= 0 else f"bounds.{name}"
 
     def reset(self) -> None:
         """Reset the bounds to their default values."""
