@@ -63,6 +63,27 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   whole solve. The other derivative methods are unaffected: their callbacks are generated and
   emit their structure by construction.
 
+- Mesh settings are checked where they are set. `mesh.phase[p].collocation_points` accepts
+  NumPy integers and anything else `operator.index` accepts, and refuses a float --- `4.0`
+  collocation points is now a `TypeError` rather than a `ValueError`, since a whole-number
+  float is the wrong type, not a count out of range --- along with bools and strings. An empty
+  sequence is rejected, where it used to be accepted and fail later. `fraction` accepts any
+  real number type, including NumPy floats, which it previously refused, and a non-positive
+  fraction raises `ValueError` naming the phase and the element. Every message names the
+  attribute as the user spells it, `mesh.phase[0].collocation_points`, and the length-mismatch
+  message from `validate()` no longer refers to `col_points`, which is not a name YAPSS has.
+- The tolerance on the mesh fractions is now 1e-8 rather than 0.01. Fractions are rescaled to
+  sum to exactly 1 so segment boundaries are exact, and the tolerance exists to absorb the
+  rounding error of that sum --- seven sevenths sum to 0.9999999999999998. At 0.01 it also
+  absorbed real mistakes: `[0.5, 0.495]` was silently rescaled rather than reported.
+- New warning category `yapss.LargeSegmentWarning`, raised when a segment is given more than
+  15 collocation points. A segment is fitted by a single polynomial of that degree, and YAPSS
+  computes its quadrature rule in high-precision arithmetic at a cost that grows
+  quadratically, so more and shorter segments are usually both more accurate and faster to set
+  up; published hp-adaptive methods raise the degree only to about 10 per interval before
+  splitting instead. Nothing fails above the threshold, so a deliberate single-segment mesh
+  need only filter the warning.
+
 - Bounds, guess values, and scale factors accept real numbers and convert nothing else. Each
   used to convert whatever it was given with NumPy, which turned `"1"` into 1.0, `True` into
   1.0, `None` into NaN, and `1 + 1j` into 1.0 with a warning, so a typo or a stray comparison

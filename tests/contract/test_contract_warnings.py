@@ -41,6 +41,7 @@ def unconverged():
 
 CATEGORIES = [
     yapss.IpoptConvergenceWarning,
+    yapss.LargeSegmentWarning,
     yapss.IpoptOptionSettingWarning,
     yapss.MirroredHessianPairWarning,
     yapss.UnsetOutputWarning,
@@ -72,6 +73,22 @@ def test_every_warning_class_is_in_the_hierarchy():
     for cls in classes:
         assert issubclass(cls, YapssWarning), cls
     assert issubclass(YapssWarning, UserWarning)
+
+
+def test_every_warning_category_is_exported():
+    """A category users cannot name is a category they cannot filter.
+
+    `CATEGORIES` above is hand-written, so on its own it would not notice a new class; this
+    walks the package instead, and holds every category except the two bases to being
+    importable from `yapss`.
+    """
+    bases = {YapssWarning, YapssDeprecationWarning}
+    for cls in yapss_classes(Warning):
+        if cls in bases:
+            continue
+        assert cls.__name__ in yapss.__all__, f"{cls.__name__} is not exported from yapss"
+        assert getattr(yapss, cls.__name__) is cls
+        assert cls in CATEGORIES, f"{cls.__name__} is missing from CATEGORIES in this file"
 
 
 def test_every_error_class_is_in_the_hierarchy():

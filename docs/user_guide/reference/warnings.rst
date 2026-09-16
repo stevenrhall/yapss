@@ -16,6 +16,7 @@ The hierarchy
      └── yapss.YapssWarning
           ├── yapss.IpoptConvergenceWarning      Ipopt did not report a converged solution
           ├── yapss.IpoptOptionSettingWarning    Ipopt refused an option value
+          ├── yapss.LargeSegmentWarning          a mesh segment has very many points
           ├── yapss.UnsetOutputWarning           a callback never assigned an output row
           └── yapss.YapssDeprecationWarning      (also a FutureWarning)
                ├── yapss.MirroredHessianPairWarning
@@ -70,6 +71,7 @@ Reference
 .. autoexception:: yapss.YapssDeprecationWarning
 .. autoexception:: yapss.YapssError
 .. autoexception:: yapss.UnsetOutputWarning
+.. autoexception:: yapss.LargeSegmentWarning
 
 The other categories are documented where the behavior they report is described:
 :class:`~yapss.IpoptConvergenceWarning` in :doc:`solution`,

@@ -28,6 +28,7 @@ array of E2 part 2.
 from __future__ import annotations
 
 # standard imports
+import operator
 from typing import TYPE_CHECKING, Any
 
 # third party imports
@@ -36,7 +37,7 @@ import numpy as np
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-__all__ = ["real_array", "real_scalar"]
+__all__ = ["integer_sequence", "real_array", "real_scalar"]
 
 
 def _describe(value: Any) -> str:
@@ -148,3 +149,52 @@ def real_array(
         )
         raise ValueError(msg)
     return result
+
+
+def integer_sequence(
+    value: Any,
+    label: str,
+    *,
+    minimum: int | None = None,
+) -> tuple[int, ...]:
+    """Return ``value`` as a tuple of ints, accepting any sequence of integers.
+
+    Counts and collocation points are integers rather than measurements, so they take a
+    different rule from `real_array`: anything `operator.index` accepts is an integer,
+    which covers Python ``int``, NumPy integers, and any object that defines
+    ``__index__``. A float is refused even when it is whole --- ``4.0`` collocation points
+    is a mistake, not a rounding --- and so is ``bool``, which ``operator.index`` would
+    otherwise accept as 0 or 1.
+
+    Parameters
+    ----------
+    value : Any
+        The value the user assigned.
+    label : str
+        The attribute as the user spells it, such as ``mesh.phase[0].collocation_points``.
+    minimum : int, optional
+        The smallest value each element may take, checked with a message naming the label.
+    """
+    if isinstance(value, (str, bytes)) or not hasattr(value, "__iter__"):
+        msg = f"{label} must be a sequence of integers, got {_describe(value)}."
+        raise TypeError(msg)
+    items = list(value)
+    if not items:
+        msg = f"{label} must have at least one element, got an empty sequence."
+        raise ValueError(msg)
+    result = []
+    for i, item in enumerate(items):
+        if isinstance(item, (bool, np.bool_)):
+            msg = f"{label}[{i}] must be an integer, got a bool."
+            raise TypeError(msg)
+        try:
+            result.append(operator.index(item))
+        except TypeError:
+            msg = f"{label}[{i}] must be an integer, got a {type(item).__name__}."
+            raise TypeError(msg) from None
+    if minimum is not None:
+        for i, item in enumerate(result):
+            if item < minimum:
+                msg = f"{label}[{i}] must be at least {minimum}, got {item}."
+                raise ValueError(msg)
+    return tuple(result)

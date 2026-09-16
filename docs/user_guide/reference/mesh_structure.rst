@@ -94,13 +94,27 @@ attributes that can be set are:
    floor of 2 uniformly, since the spectral method can be changed independently of the
    mesh.) In practice, 2 or 3 collocation points per segment rarely gives a good
    approximation -- 4 or more per segment is recommended. The length of the sequence is the
-   number of segments in the phase.
+   number of segments in the phase, and it must not be empty. More than 15 points in one
+   segment raises :class:`~yapss.LargeSegmentWarning`. A segment is fitted by a single
+   polynomial of that degree, and YAPSS computes its quadrature rule in high-precision
+   arithmetic at a cost that grows quadratically with the count, so more and shorter
+   segments are usually both more accurate and faster to set up. For comparison,
+   published hp-adaptive methods raise the degree only to about 10 per interval before
+   splitting the interval instead. Nothing fails above the threshold --- a deliberate
+   single-segment method is a legitimate choice --- so the warning can simply be filtered.
 
 -  ``mesh.phase[k].fraction`` (Sequence[float]): The fraction of the phase duration of
-   each segment. Each element must be greater than 0.0, and the sum of the elements must be
-   within 0.01 of 1.0; the fractions are then rescaled to sum to exactly 1.0. A single
-   segment is ``fraction = [1.0]``. The length of the ``fraction`` attribute must be the
-   same as the length of the ``collocation_points`` attribute.
+   each segment. Each element must be greater than 0.0, and the elements must sum to 1.0.
+   The fractions are rescaled so that they sum to exactly 1.0, which is why a tolerance of
+   1e-8 is allowed on the sum: seven values of 1/7 sum to 0.9999999999999998, and that
+   rounding error is absorbed. A sum further from 1 than that is reported rather than
+   rescaled. A single segment is ``fraction = [1.0]``. The length of the ``fraction``
+   attribute must be the same as the length of the ``collocation_points`` attribute.
+
+.. versionchanged:: 0.3.0
+
+   The tolerance on the sum was 0.01, which silently rescaled a genuine mistake such as
+   ``[0.5, 0.495]``.
 
 The default mesh structure is 10 segments of equal duration, each with 10 collocation
 points. That is, the default is

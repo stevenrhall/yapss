@@ -102,22 +102,24 @@ def test_keywords():
 
 def test_fraction():
     ocp = dynamic_soaring.setup()
-    msg = "fraction must be a sequence of floats"
+    msg = re.escape("mesh.phase[0].fraction must be a real number")
     with pytest.raises(TypeError, match=msg):
         ocp.mesh.phase[0].fraction = ["a", "b", "c"]
-    msg = "Sum of mesh fractions must be close to 1.0. Sum is 1.5"
+    msg = re.escape("mesh.phase[0].fraction must sum to 1, but sums to 1.5")
     with pytest.raises(ValueError, match=msg):
         ocp.mesh.phase[0].fraction = (0.5, 0.5, 0.5)
 
 
 def test_collocation_points():
     ocp = dynamic_soaring.setup()
-    msg = "collocation_points must be a sequence of positive integers, not 0.5"
+    msg = re.escape("mesh.phase[0].collocation_points must be a sequence of integers")
     with pytest.raises(TypeError, match=msg):
         ocp.mesh.phase[0].collocation_points = 0.5
-    msg = "collocation_points must be a sequence of integers, each at least 2"
-    with pytest.raises(ValueError, match=msg):
+    # a float count is the wrong type; a count below the floor is the wrong value
+    msg = re.escape("mesh.phase[0].collocation_points[0] must be an integer, got a float")
+    with pytest.raises(TypeError, match=msg):
         ocp.mesh.phase[0].collocation_points = (0.5, 0.5, 0.5)
+    msg = re.escape("mesh.phase[0].collocation_points[2] must be at least 2")
     with pytest.raises(ValueError, match=msg):
         ocp.mesh.phase[0].collocation_points = (10, 10, 0)
     with pytest.raises(ValueError, match=msg):
@@ -126,7 +128,7 @@ def test_collocation_points():
 
 
 def test_mesh_validates():
-    msg = re.escape("mesh.phase[0].col_points and mesh.phase[0].fraction must be the same length")
+    msg = re.escape("mesh.phase[0].collocation_points has 10 segments")
     ocp = dynamic_soaring.setup()
     ocp.mesh.phase[0].collocation_points = 10 * [4]
     ocp.mesh.phase[0].fraction = 4 * [0.25]

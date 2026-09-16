@@ -7,6 +7,8 @@ Module problem.
 # future imports
 from __future__ import annotations
 
+import warnings
+
 __all__ = ["Problem"]
 
 import inspect
@@ -22,7 +24,8 @@ from numpy import float64
 
 # package imports
 from .bounds import Bounds
-from .coercion import real_array, real_scalar
+from .coercion import integer_sequence, real_array, real_scalar
+from .exceptions import YapssWarning
 from .guess import Guess
 from .ipopt_options import IpoptOptions
 from .solution import warn_if_not_converged
@@ -731,10 +734,58 @@ class UserFunctions(Protected):
     discrete_hessian: Callback[DiscreteHessianFunction] = Callback()
 
 
+# The point above which `LargeSegmentWarning` suggests splitting a segment. It is a
+# judgement, not a cliff: nothing fails at 26 points. The figure is set well above
+# published practice and well below where the cost becomes painful.
+#
+# Published hp-adaptive methods cap the degree per interval far lower: the method is
+# parameterized as hp-Method(Nmin, Nmax) with "a user-specified upper limit Nmax >= 2 ...
+# to prevent the polynomial degree from growing unreasonably large", and GPOPS-II's
+# examples use ph-(4, 10) -- a maximum of 10 (Darby, Hager and Rao, "An hp-adaptive
+# pseudospectral method for solving optimal control problems", Optimal Control
+# Applications and Methods 32, 2011; Patterson and Rao, "GPOPS-II", ACM TOMS 41, 2014).
+# Conditioning is the milder constraint: the first-derivative differentiation matrix
+# conditions as O(N^2), so N = 100 costs about four digits, which double precision
+# absorbs.
+#
+# What bites in YAPSS is the mesh setup. `quadrature.py` computes the nodes with mpmath,
+# memoized per (method, count), and the cost grows quadratically: measured on an M-series
+# Mac, LGL takes 0.02 s at 10 points, 0.03 s at 15, 0.08 s at 25, 0.32 s at 50, 1.2 s at
+# 100, and 21 s at 400.
+LARGE_SEGMENT_THRESHOLD = 15
+
+# A fraction sequence is rescaled to sum to exactly 1, so that the segment boundaries are
+# exact. Only rounding error is absorbed silently: seven sevenths sum to 0.9999999999999998,
+# which must be accepted, while [0.5, 0.495] is a mistake the user should hear about.
+#
+# The measured worst case for n equal fractions, n = 2 to 2000, is 6.7e-16, so this leaves
+# eight orders of margin. It is deliberately not tighter than that: the tolerance is there
+# to read the user's intent to sum to 1, and a value that only just clears the rounding
+# error would turn a slightly different way of computing the same fractions into an error.
+FRACTION_SUM_TOLERANCE = 1e-8
+
+
+class LargeSegmentWarning(YapssWarning):
+    """A mesh segment has more collocation points than it probably should.
+
+    The collocation points of a segment are the roots of a polynomial of that degree, so a
+    segment with many points is a high-order fit over the whole segment. Published
+    hp-adaptive methods raise the degree only to about 10 per interval before splitting the
+    interval instead, and YAPSS computes the quadrature rule for a segment in high-precision
+    arithmetic, at a cost that grows quadratically with the count. More, shorter segments
+    are usually both more accurate and faster to set up.
+
+    This is advice, not a limit: nothing fails above the threshold, and a deliberate
+    single-segment (global) method is a legitimate thing to want. Silence it with
+    ``warnings.simplefilter("ignore", yapss.LargeSegmentWarning)``.
+    """
+
+
 class MeshPhase(Protected):
     """MeshPhase instances represent the mesh structure of a phase of the NLP."""
 
-    def __init__(self) -> None:
+    def __init__(self, phase_index: int = 0) -> None:
+        self._p = phase_index
         self._fraction: Sequence[float] = 10 * (0.1,)
         self._collocation_points: Sequence[int] = 10 * (10,)
 
@@ -744,14 +795,21 @@ class MeshPhase(Protected):
 
     @fraction.setter
     def fraction(self, value: Sequence[float]) -> None:
-        if not all(isinstance(f, (int, float)) and f > 0 for f in value):
-            msg = "fraction must be a sequence of floats"
-            raise TypeError(msg)
-        s = sum(value)
-        if not np.isclose(s, 1.0, atol=0.01):
-            msg = f"Sum of mesh fractions must be close to 1.0. Sum is {s}"
+        label = f"mesh.phase[{self._p}].fraction"
+        fractions = real_array(value, label, finite=True)
+        if fractions.ndim != 1 or fractions.size == 0:
+            msg = f"{label} must be a non-empty one-dimensional sequence of positive numbers."
             raise ValueError(msg)
-        set_private(self, "_fraction", tuple(fraction / s for fraction in value))
+        bad = np.flatnonzero(fractions <= 0)
+        if bad.size:
+            msg = f"{label}[{bad[0]}] must be positive, got {fractions[bad[0]]}."
+            raise ValueError(msg)
+        total = float(fractions.sum())
+        if abs(total - 1.0) > FRACTION_SUM_TOLERANCE:
+            msg = f"{label} must sum to 1, but sums to {total}."
+            raise ValueError(msg)
+        # rescale by the residual rounding error, so the boundaries are exact
+        set_private(self, "_fraction", tuple(float(f) / total for f in fractions))
 
     @property
     def collocation_points(self) -> Sequence[int]:
@@ -759,20 +817,26 @@ class MeshPhase(Protected):
 
     @collocation_points.setter
     def collocation_points(self, value: Sequence[int]) -> None:
-        if not isinstance(value, Sequence):
-            msg = f"collocation_points must be a sequence of positive integers, not {value}"  # type: ignore[unreachable]
-            raise TypeError(msg)
         # The true minimum depends on the spectral method: LG and LGR quadrature will
         # accept 1 point, but LGL requires at least 2. Since the spectral method can be
         # set independently of (and after) the mesh, we enforce the higher, universal
         # floor of 2 here so a mesh is never silently invalid for whichever method ends
         # up being selected. Values of 2 or 3 work but are rarely a good choice in
         # practice -- 4 or more collocation points per segment is recommended.
-        min_collocation_points = 2
-        if not all(isinstance(i, int) and i >= min_collocation_points for i in value):
-            msg = "collocation_points must be a sequence of integers, each at least 2"
-            raise ValueError(msg)
-        set_private(self, "_collocation_points", tuple(value))
+        label = f"mesh.phase[{self._p}].collocation_points"
+        points = integer_sequence(value, label, minimum=2)
+        for i, n in enumerate(points):
+            if n > LARGE_SEGMENT_THRESHOLD:
+                msg = (
+                    f"{label}[{i}] is {n}, above the {LARGE_SEGMENT_THRESHOLD} points above "
+                    f"which a segment is usually better split. A segment is fitted by a "
+                    f"single polynomial of that degree, and its quadrature rule costs more "
+                    f"to compute the larger it is; hp-adaptive methods raise the degree only "
+                    f"to about 10 before splitting instead. Nothing fails above this, so "
+                    f"filter yapss.LargeSegmentWarning if the mesh is deliberate."
+                )
+                warnings.warn(msg, LargeSegmentWarning, stacklevel=3)
+        set_private(self, "_collocation_points", points)
 
 
 class Mesh(Protected):
@@ -782,7 +846,7 @@ class Mesh(Protected):
 
     def __init__(self, problem: yapss.Problem) -> None:
         """Initialize the mesh object."""
-        self.phase = tuple(MeshPhase() for _ in range(problem.np))
+        self.phase = tuple(MeshPhase(p) for p in range(problem.np))
         segments = DEFAULT_NUMBER_OF_SEGMENTS
         points = DEFAULT_NUMBER_OF_COLLOCATION_POINTS
         for p in range(problem.np):
@@ -809,6 +873,7 @@ class Mesh(Protected):
             if len(cp) != len(f):
                 # TODO: Check error message
                 msg = (
-                    "mesh.phase[{}].col_points and mesh.phase[{}].fraction must be the same length"
+                    f"mesh.phase[{p}].collocation_points has {len(cp)} segments but "
+                    f"mesh.phase[{p}].fraction has {len(f)}; they must be the same length."
                 )
-                raise ValueError(msg.format(p, p))
+                raise ValueError(msg)

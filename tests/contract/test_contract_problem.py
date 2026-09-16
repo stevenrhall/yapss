@@ -231,17 +231,29 @@ def test_value_outside_the_allowed_set_raises_at_the_assignment(owner, attribute
         setattr(owner(ocp), attribute, value)
 
 
-@pytest.mark.parametrize("value", [[1], [4.0], [4, 1]], ids=["below 2", "float", "one below 2"])
-def test_invalid_collocation_points_raise_at_the_assignment(value):
+@pytest.mark.parametrize("value", [[1], [4, 1]], ids=["below 2", "one below 2"])
+def test_collocation_points_below_two_raise_at_the_assignment(value):
     phase = callback_problem().mesh.phase[0]
     with raises(ValueError, "collocation_points", at="collocation_points ="):
+        phase.collocation_points = value
+
+
+@pytest.mark.parametrize("value", [[4.0], [True], ["4"]], ids=["float", "bool", "str"])
+def test_collocation_points_of_the_wrong_type_raise_at_the_assignment(value):
+    """A count is an integer: 4.0 is the wrong type, not a value out of range.
+
+    This used to be `ValueError`, which put a whole-number float in the same class as a
+    negative count.
+    """
+    phase = callback_problem().mesh.phase[0]
+    with raises(TypeError, "collocation_points", at="collocation_points ="):
         phase.collocation_points = value
 
 
 def test_fraction_not_summing_to_one_raises_at_the_assignment():
     phase = callback_problem().mesh.phase[0]
     phase.collocation_points = [4, 4]
-    with raises(ValueError, "Sum of mesh fractions", at="fraction ="):
+    with raises(ValueError, "mesh.phase[0].fraction", "sum to 1", at="fraction ="):
         phase.fraction = [0.5, 0.4]
 
 
@@ -344,20 +356,17 @@ def test_validate_reports_every_problem():
     assert "functions.objective" in message
 
 
-@not_yet("E8 fixes", "fraction accepts any real number type")
 def test_fraction_accepts_numpy_float32():
     phase = callback_problem().mesh.phase[0]
     phase.collocation_points = [4, 4]
     phase.fraction = [np.float32(0.5), np.float32(0.5)]
 
 
-@not_yet("E8 fixes", "collocation_points accepts NumPy integers")
 def test_collocation_points_accept_numpy_integers():
     phase = callback_problem().mesh.phase[0]
     phase.collocation_points = [np.int64(4)]
 
 
-@not_yet("E8 fixes", "a non-positive fraction raises ValueError naming the phase")
 def test_negative_fraction_raises_value_error_naming_the_phase():
     phase = callback_problem().mesh.phase[0]
     phase.collocation_points = [4, 4]
@@ -365,14 +374,12 @@ def test_negative_fraction_raises_value_error_naming_the_phase():
         phase.fraction = [1.5, -0.5]
 
 
-@not_yet("E8 fixes", "an empty collocation_points is rejected")
 def test_empty_collocation_points_is_rejected():
     phase = callback_problem().mesh.phase[0]
     with raises(ValueError, "collocation_points", at="collocation_points ="):
         phase.collocation_points = []
 
 
-@not_yet("E8 fixes", "the rescaling tolerance only absorbs rounding error (about 1e-9)")
 def test_fraction_off_by_more_than_rounding_raises():
     phase = callback_problem().mesh.phase[0]
     phase.collocation_points = [4, 4]
@@ -380,7 +387,6 @@ def test_fraction_off_by_more_than_rounding_raises():
         phase.fraction = [0.5, 0.495]
 
 
-@not_yet("E8 fixes", "the length-mismatch message uses the public name collocation_points")
 def test_mismatched_lengths_message_uses_public_names():
     ocp = callback_problem()
     ocp.mesh.phase[0].collocation_points = [4, 4]  # the fraction has three segments
@@ -388,7 +394,6 @@ def test_mismatched_lengths_message_uses_public_names():
         ocp.mesh.validate()
 
 
-@not_yet("E8 fixes", "more than about 100 collocation points in a segment warns")
 def test_very_large_segment_warns():
     phase = callback_problem().mesh.phase[0]
     with pytest.warns(Warning, match="collocation"):
