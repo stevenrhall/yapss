@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     # package imports
     import yapss
 
-    from .input_args import ContinuousArg
+    from .input_args import ContinuousStore
     from .nlp import NLP
     from .types_ import CFName, VectorCVName
 
@@ -75,7 +75,7 @@ def over_points(value: Any, n_points: int) -> FloatArray:
 class ContinuousContext:
     """Per-evaluation inputs common to both plans: the continuous-function outputs."""
 
-    continuous: ContinuousArg[np.float64] | None = None
+    continuous: ContinuousStore[np.float64] | None = None
 
     def continuous_phase(self, p: int) -> Any:
         """Return the continuous output for phase ``p``, which the evaluator has set."""

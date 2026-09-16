@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 # package imports
 from yapss import (
     ContinuousArg,
+    ContinuousHessianArg,
+    ContinuousJacobianArg,
     ObjectiveArg,
     ObjectiveGradientArg,
     ObjectiveHessianArg,
@@ -57,7 +59,7 @@ def setup(*, wall: bool = False) -> Problem:
             path = y - x / 2 - 0.1
             arg.phase[0].path[:] = (path,)
 
-    def continuous_jacobian(arg: ContinuousArg) -> None:
+    def continuous_jacobian(arg: ContinuousJacobianArg) -> None:
         _, _, v = arg.phase[0].state
         (u,) = arg.phase[0].control
         g0 = arg.auxdata.g0
@@ -73,7 +75,7 @@ def setup(*, wall: bool = False) -> Problem:
             jacobian[("h", 0), ("x", 0)] = -1 / 2
             jacobian[("h", 0), ("x", 1)] = 1
 
-    def continuous_hessian(arg: ContinuousArg) -> None:
+    def continuous_hessian(arg: ContinuousHessianArg) -> None:
         _, _, v = arg.phase[0].state
         (u,) = arg.phase[0].control
         g0 = arg.auxdata.g0

@@ -609,10 +609,32 @@ it worked through 0.2.1, and a patch release does not take away working code.
 
 If you have a reason to use one anyway (you shouldn't!), call it directly through ``numpy``.
 
-``ContinuousArg`` Class Reference
-----------------------------------
+Continuous Argument Class Reference
+-----------------------------------
+
+Each of the three continuous callbacks receives its own argument class. All three carry the
+same inputs; each carries only the output its own callback assigns, so a Jacobian callback
+has no ``dynamics`` to write and the continuous callback has no ``jacobian``. Writing another
+callback's output raises ``AttributeError`` at the line.
+
+.. versionchanged:: 0.3.0
+
+    The three continuous callbacks used to share one argument carrying every output. A
+    derivative entry assigned from the continuous callback was silently ignored, and a
+    dynamics row assigned from the Jacobian callback overwrote the constraint values the
+    solver had already computed at that point, giving a wrong answer with no error.
 
 .. autoclass:: yapss._private.input_args.ContinuousArg
+   :members:
+   :no-special-members:
+   :no-undoc-members:
+
+.. autoclass:: yapss._private.input_args.ContinuousJacobianArg
+   :members:
+   :no-special-members:
+   :no-undoc-members:
+
+.. autoclass:: yapss._private.input_args.ContinuousHessianArg
    :members:
    :no-special-members:
    :no-undoc-members:

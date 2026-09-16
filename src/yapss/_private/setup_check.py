@@ -48,7 +48,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, assert_never, cast
 import numpy as np
 
 from .exceptions import YapssWarning
-from .input_args import ContinuousArg, DiscreteArg, ObjectiveArg, call_callback
+from .input_args import ContinuousArg, ContinuousStore, DiscreteArg, ObjectiveArg, call_callback
 from .structure import get_nlp_dv_structure, nlp_constraint_keys, nlp_variable_keys
 
 if TYPE_CHECKING:
@@ -263,8 +263,9 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
     failure: Exception | None = None
     if problem.np > 0 and functions.continuous is not None:
         continuous_function = cast("ContinuousFunctionFloat", functions.continuous)
-        base: ContinuousArg[np.float64] = ContinuousArg(problem, dv, np.float64, tau_u=mesh.tau_u)
-        base._sync(z0)
+        store = ContinuousStore(problem, dv, np.float64, tau_u=mesh.tau_u)
+        store._sync(z0)
+        base = store.value_arg
         call_callback(continuous_function, base)
         for p, phase in enumerate(base.phase):
             for name in OUTPUTS:
@@ -320,14 +321,15 @@ def _pointwise_findings(
     # mean), the first point moves (t[0], cumsum, diff), and the subset is not symmetric, so
     # even the mean of a linear guess on symmetric points changes (step 5, measurement m9)
     nodes = [np.arange(len(tau) - 1)[::-1] for tau in mesh.tau_u]
-    reversed_arg: ContinuousArg[np.float64] = ContinuousArg(
+    reversed_store = ContinuousStore(
         problem,
         get_nlp_dv_structure(problem, np.float64),
         np.float64,
         tau_u=mesh.tau_u,
         nodes=nodes,
     )
-    reversed_arg._sync(z0)
+    reversed_store._sync(z0)
+    reversed_arg = reversed_store.value_arg
     try:
         call_callback(continuous, reversed_arg)
     except Exception as exc:  # noqa: BLE001 -- the base call succeeded; report this as a finding

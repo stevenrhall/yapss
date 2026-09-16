@@ -959,16 +959,14 @@ def test_mirrored_hessian_pair_raises():
 
 # ------------------------------------------------- callback arguments keep outputs apart
 #
-# Each callback's argument exposes the outputs that callback produces. Writing another
-# callback's output raises `AttributeError` at the line. The objective and discrete
-# families meet this already. The continuous family does not: one object carrying every
-# output goes to `continuous`, `continuous_jacobian`, and `continuous_hessian` (E7c). A
-# derivative entry written from `continuous` is silently ignored; worse, a dynamics row
-# written from `continuous_jacobian` overwrites the constraint values the shared evaluator
-# has cached on that object, and the solve silently goes wrong (measured 2026-09-14: status
-# -1, objective 0.312455 against 0.312480). E7c's target (option A) removes
-# the foreign outputs entirely; its accepted fallback (option C) keeps them visible but
-# refuses writes. The write clause is required under either; absence is the target only.
+# Each callback's argument exposes the outputs that callback produces, and nothing else:
+# another callback's output is absent, so reading or writing it raises `AttributeError` at
+# the line. Until 0.3.0 the continuous family was the exception -- one object carrying every
+# output went to `continuous`, `continuous_jacobian`, and `continuous_hessian`, and `nlp.py`
+# merely cast it. A derivative entry written from `continuous` was silently ignored, and a
+# dynamics row written from `continuous_jacobian` overwrote the constraint values the shared
+# evaluator had cached on that object, so the solve silently went wrong (measured
+# 2026-09-14: status -1, objective 0.312455 against 0.312480).
 
 
 def _user_problem(example):
@@ -1069,9 +1067,6 @@ def test_continuous_family_arguments_expose_their_own_outputs(callback):
     assert all(seen.values()), seen
 
 
-@not_yet(
-    "E7c", "writing another continuous-family callback's output raises AttributeError at the line"
-)
 @pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
 @pytest.mark.parametrize(
     ("callback", "foreign"),
@@ -1083,7 +1078,6 @@ def test_writing_another_callbacks_output_raises_in_continuous_callbacks(callbac
         _run_statement_in(_user_problem(brachistochrone), callback, statement)
 
 
-@not_yet("E7c target (option A)", "a continuous-family argument has no other callback's outputs")
 @pytest.mark.parametrize("callback", CONTINUOUS_OUTPUTS)
 def test_continuous_family_arguments_have_no_foreign_outputs(callback):
     foreign = [name for name in CONTINUOUS_ALL if name not in CONTINUOUS_OUTPUTS[callback]]

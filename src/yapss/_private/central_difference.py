@@ -24,10 +24,12 @@ import numpy as np
 # package imports
 from .finite_difference import make_fd_structure
 from .input_args import (
-    ContinuousArg,
     ContinuousFunctionFloat,
+    ContinuousHessianArg,
     ContinuousHessianFunction,
+    ContinuousJacobianArg,
     ContinuousJacobianFunction,
+    ContinuousStore,
     DiscreteArg,
     DiscreteFunctionFloat,
     DiscreteHessianArg,
@@ -203,25 +205,28 @@ def make_continuous_jacobian(
     # argument and re-evaluated the user function once more at the end to restore
     # them -- one extra evaluation per Jacobian call.
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, dtype=np.float64)
-    arg2: ContinuousArg[np.float64] = ContinuousArg(problem, dv, dtype=np.float64, tau_u=tau_u)
+    store2: ContinuousStore[np.float64] = ContinuousStore(
+        problem, dv, dtype=np.float64, tau_u=tau_u
+    )
+    arg2 = store2.value_arg
 
-    def continuous_jacobian(arg: ContinuousArg[np.float64]) -> None:
+    def continuous_jacobian(arg: ContinuousJacobianArg) -> None:
         """Calculate continuous Jacobian using finite differences.
 
         Parameters
         ----------
         arg : ContinuousJacobianArg
         """
-        arg2._sync(arg._dv.z)
+        store2._sync(arg._dv.z)
 
         for p in [PhaseIndex(p) for p in arg.phase_list]:
             jacobian = arg.phase[p].jacobian
-            set_private(arg2, "_phase_list", (p,))
-            ne = len(arg2.phase[p].time)
+            set_private(store2, "_phase_list", (p,))
+            ne = len(store2.phase[p].time)
 
             for cv_key, cf_keys in cjfds[p]:
                 var2, i1 = cv_key
-                var = arg2[p, var2, i1]
+                var = store2[p, var2, i1]
                 w = var.copy()
                 for cf_key in cf_keys:
                     jacobian[cf_key, cv_key] = np.zeros(ne)
@@ -235,7 +240,7 @@ def make_continuous_jacobian(
 
                     for cf_key in cf_keys:
                         var1, i = cf_key
-                        jacobian[cf_key, cv_key] += j * arg2[p, var1, i] / (2 * d)
+                        jacobian[cf_key, cv_key] += j * store2[p, var1, i] / (2 * d)
 
                 var[:] = w
 
@@ -393,24 +398,25 @@ def make_continuous_hessian(
         The continuous Hessian callback function.
     """
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, dtype=np.float64)
-    arg2: ContinuousArg[np.float64] = ContinuousArg(
+    store2: ContinuousStore[np.float64] = ContinuousStore(
         problem,
         dv,
         dtype=np.float64,
         tau_u=tau_u,
     )
+    arg2 = store2.value_arg
     scale: Scale = problem.scale
 
-    def continuous_hessian(arg: ContinuousArg[np.float64]) -> None:
+    def continuous_hessian(arg: ContinuousHessianArg) -> None:
         """Calculate Hessian of the continuous constraint functions using finite differences."""
         continuous = cast(ContinuousFunctionFloat, problem.functions.continuous)
-        arg2._sync(arg._dv.z)
+        store2._sync(arg._dv.z)
         phase_list = arg.phase_list
 
         for p in [PhaseIndex(p) for p in phase_list]:
             hessian = arg.phase[p].hessian
-            ne = len(arg2.phase[p].time)
-            set_private(arg2, "_phase_list", (p,))
+            ne = len(store2.phase[p].time)
+            set_private(store2, "_phase_list", (p,))
             # the functions at the unperturbed point, snapshotted on the first diagonal
             # pair and shared by all of them (see below)
             base: dict[CFKey, Array] | None = None
@@ -421,7 +427,7 @@ def make_continuous_hessian(
                 ((v1, i1), (v2, i2)), fcn_list = key
 
                 # extract the variables and store their original values
-                var1 = arg2[p, v1, i1]
+                var1 = store2[p, v1, i1]
                 w1 = var1.copy()
 
                 # prepare the perturbation size
@@ -434,25 +440,25 @@ def make_continuous_hessian(
                     if base is None:
                         call_callback(continuous, arg2)
                         base = {
-                            fcn: arg2[p, *fcn].copy()
+                            fcn: store2[p, *fcn].copy()
                             for diag_key in chfds[p]
                             if diag_key[0][0] == diag_key[0][1]
                             for fcn in diag_key[1]
                         }
                     var1[:] = w1 + 2 * d1
                     call_callback(continuous, arg2)
-                    plus = {fcn: arg2[p, *fcn].copy() for fcn in fcn_list}
+                    plus = {fcn: store2[p, *fcn].copy() for fcn in fcn_list}
                     var1[:] = w1 - 2 * d1
                     call_callback(continuous, arg2)
                     den = 4 * d1 * d1
                     for fcn in fcn_list:
                         hessian[fcn, (v1, i1), (v2, i2)] = (
-                            plus[fcn] - 2 * base[fcn] + arg2[p, *fcn]
+                            plus[fcn] - 2 * base[fcn] + store2[p, *fcn]
                         ) / den
                     var1[:] = w1
                     continue
 
-                var2 = arg2[p, v2, i2]
+                var2 = store2[p, v2, i2]
                 w2 = var2.copy()
                 d2: np.float64 = scale[p, v2, i2] * DELTA2
 
@@ -468,7 +474,7 @@ def make_continuous_hessian(
                         call_callback(continuous, arg2)
                         den = 4 * d1 * d2
                         for f, k in fcn_list:
-                            delta_hessian = i * j * arg2[p, f, k] / den
+                            delta_hessian = i * j * store2[p, f, k] / den
                             hessian[(f, k), (v1, i1), (v2, i2)] += delta_hessian
                         var1[:] = w1
                         var2[:] = w2

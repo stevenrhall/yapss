@@ -423,8 +423,8 @@ class DiscreteHessianArg(DiscreteArgBase[np.float64], Protected):
         self._dv = dv
 
 
-class ContinuousArg(BaseArg[T], Protected, Generic[T]):
-    """Continuous argument to be passed to user-defined continuous constraint function.
+class ContinuousStore(BaseArg[T], Generic[T]):
+    """All continuous data of one problem: the inputs, the outputs, and the derivatives.
 
     Parameters
     ----------
@@ -443,15 +443,6 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         states and controls as views of ``dv``.
     """
 
-    _callback = "continuous"
-    _results_in = "arg.phase[p].dynamics[i] = ..."
-
-    def _reset(self) -> None:
-        """Return every output row of every phase to zero and unassigned."""
-        for storage, written in self._output_buffers:
-            storage.fill(0)
-            written[:] = False
-
     def __init__(
         self,
         problem: yapss.Problem,
@@ -463,16 +454,16 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
     ) -> None:
         super().__init__(problem, dv, dtype)
         if dtype == np.float64 and tau_u is None:
-            msg = "Numeric ContinuousArg instances require tau_u."
+            msg = "Numeric ContinuousStore instances require tau_u."
             raise ValueError(msg)
         if nodes is not None and (dtype != np.float64 or len(nodes) != problem.np):
-            msg = "nodes are given for numeric ContinuousArg instances only, one array per phase."
+            msg = "nodes are for numeric ContinuousStore instances only, one array per phase."
             raise ValueError(msg)
         self._nodes = nodes
         self._tau_u = tau_u
         # Initialize _phase with a tuple of ContinuousPhase instances
-        self._phase: tuple[ContinuousPhase[T], ...] = tuple(
-            ContinuousPhase(problem, dv, q, dtype, None if nodes is None else nodes[q])
+        self._phase: tuple[ContinuousPhaseData[T], ...] = tuple(
+            ContinuousPhaseData(problem, dv, q, dtype, None if nodes is None else nodes[q])
             for q in range(problem.np)
         )
         # Initialize phase list based on problem.np
@@ -485,11 +476,14 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
             for output in phase._outputs.values()
             if output.shape[0]
         )
+        self._value_arg: ContinuousArg[T] | None = None
+        self._jacobian_arg: ContinuousJacobianArg | None = None
+        self._hessian_arg: ContinuousHessianArg | None = None
 
     def _sync(self, z: NDArray[np.float64]) -> None:
         """Synchronize numeric continuous inputs with an NLP decision vector."""
         if self._dtype != np.float64 or self._tau_u is None:
-            msg = "ContinuousArg._sync() is available for numeric arguments only."
+            msg = "ContinuousStore._sync() is available for numeric arguments only."
             raise TypeError(msg)
 
         self._dv.z[:] = z
@@ -512,7 +506,7 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         self,
         item: tuple[PhaseIndex, CVName, CVIndex] | tuple[PhaseIndex, CFName, CFIndex],
     ) -> NDArray[T]:
-        """Get items from ContinuousArg structure using CVKey or CFKey object.
+        """Get items from the store using a CVKey or CFKey object.
 
         The __getitem__ method used here is not guaranteed to be stable and should not
         be used in callback functions. This method is used internally by YAPSS to
@@ -554,13 +548,42 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         return self._phase_list
 
     @property
-    def phase(self) -> tuple[ContinuousPhase[T], ...]:
-        """Return the tuple of ContinuousPhase objects."""
+    def phase(self) -> tuple[ContinuousPhaseData[T], ...]:
+        """Return the tuple of per-phase data objects."""
         return self._phase
 
+    # ---------------------------------------------------- the three callback arguments
+    # Built once, on demand: a symbolic store never needs the derivative arguments.
 
-class ContinuousPhase(Protected, Generic[T]):
-    """Continuous phase."""
+    @property
+    def value_arg(self) -> ContinuousArg[T]:
+        """The argument passed to the continuous callback."""
+        if self._value_arg is None:
+            phases = tuple(ContinuousPhase(data) for data in self._phase)
+            self._value_arg = ContinuousArg(self, phases)
+        return self._value_arg
+
+    @property
+    def jacobian_arg(self) -> ContinuousJacobianArg:
+        """The argument passed to the continuous Jacobian callback."""
+        if self._jacobian_arg is None:
+            store = cast("ContinuousStore[np.float64]", self)
+            phases = tuple(ContinuousJacobianPhase(data) for data in store._phase)
+            self._jacobian_arg = ContinuousJacobianArg(store, phases)
+        return self._jacobian_arg
+
+    @property
+    def hessian_arg(self) -> ContinuousHessianArg:
+        """The argument passed to the continuous Hessian callback."""
+        if self._hessian_arg is None:
+            store = cast("ContinuousStore[np.float64]", self)
+            phases = tuple(ContinuousHessianPhase(data) for data in store._phase)
+            self._hessian_arg = ContinuousHessianArg(store, phases)
+        return self._hessian_arg
+
+
+class ContinuousPhaseData(Generic[T]):
+    """One phase of a `ContinuousStore`: its inputs, outputs and derivative entries."""
 
     dynamics: Output[T] = Output()
     integrand: Output[T] = Output()
@@ -644,29 +667,131 @@ class ContinuousPhase(Protected, Generic[T]):
         return self._hessian
 
 
-# Define generically typed ContinuousJacobianArg and ContinuousHessianArg
-class ContinuousJacobianArg(ContinuousArg[np.float64]):
-    """Continuous argument for user-defined continuous constraint Jacobian function."""
+# --------------------------------------------------------------------------------------
+# The three continuous arguments.
+#
+# Ipopt asks for the constraint values, the Jacobian, and the Hessian at each iterate, and
+# the Hessian's chain-rule terms need the values and the Jacobian too, so all three are
+# evaluated once per point from one `ContinuousStore`. Each callback is handed its own
+# argument over that store, exposing the inputs and that callback's own output and nothing
+# else, so one continuous callback cannot read or write another's results (E7c). Before,
+# one object went to all three and `nlp.py` merely *cast* it, so a dynamics row written
+# from `continuous_jacobian` overwrote the cached constraint values and spoiled the solve
+# with no error.
+#
+# The three are siblings, not a hierarchy. `_ContinuousPhaseInputs` is a base only for what
+# is genuinely common -- reading the time, states and controls of the point the call was
+# made at -- which every one of them honors, so it is substitutable in the Liskov sense.
+# An argument that must refuse `dynamics` cannot stand in for one that accepts it, so
+# neither derivative argument is a kind of `ContinuousArg`.
+
+
+class _ContinuousPhaseInputs(Generic[T]):
+    """One phase's inputs, as every continuous callback sees them."""
+
+    def __init__(self, data: ContinuousPhaseData[T]) -> None:
+        # direct references, not properties: the input views are made once and written
+        # through the storage behind them, so a callback's reads cost what they always did
+        self.time: NDArray[T] = data.time
+        self.state: NDArray[Any] = data.state
+        self.control: NDArray[Any] = data.control
+
+
+class ContinuousPhase(_ContinuousPhaseInputs[T], Protected, Generic[T]):
+    """One phase as the continuous callback sees it: its inputs and its three outputs."""
+
+    dynamics: Output[T] = Output()
+    integrand: Output[T] = Output()
+    path: Output[T] = Output()
+
+    def __init__(self, data: ContinuousPhaseData[T]) -> None:
+        super().__init__(data)
+        self._outputs: dict[str, OutputArray[T]] = data._outputs
+
+
+class ContinuousJacobianPhase(_ContinuousPhaseInputs[np.float64], Protected):
+    """One phase as the continuous Jacobian callback sees it: its inputs and `jacobian`."""
+
+    def __init__(self, data: ContinuousPhaseData[np.float64]) -> None:
+        super().__init__(data)
+        self._jacobian = data._jacobian
+
+    @property
+    def jacobian(self) -> dict[tuple[CFKey, CVKey], Any]:
+        """The Jacobian entries of this phase, keyed by (function, variable)."""
+        return self._jacobian
+
+
+class ContinuousHessianPhase(_ContinuousPhaseInputs[np.float64], Protected):
+    """One phase as the continuous Hessian callback sees it: its inputs and `hessian`."""
+
+    def __init__(self, data: ContinuousPhaseData[np.float64]) -> None:
+        super().__init__(data)
+        self._hessian = data._hessian
+
+    @property
+    def hessian(self) -> dict[tuple[CFKey, CVKey, CVKey], Any]:
+        """The Hessian entries of this phase, keyed by (function, variable, variable)."""
+        return self._hessian
+
+
+class _ContinuousArgBase(BaseArg[T], Generic[T]):
+    """What the three continuous arguments share: the inputs and the phase list."""
+
+    def __init__(self, store: ContinuousStore[T], phase: tuple[Any, ...]) -> None:
+        self.auxdata = store.auxdata
+        self._store = store
+        self._dv = store._dv
+        self._parameter = store._parameter
+        self._dtype = store._dtype
+        self._phase = phase
+
+    @property
+    def phase(self) -> tuple[Any, ...]:
+        """The phases, as this callback sees them."""
+        return self._phase
+
+    @property
+    def phase_list(self) -> tuple[int, ...]:
+        """The phases this call is for."""
+        return self._store._phase_list
+
+
+class ContinuousArg(_ContinuousArgBase[T], Protected, Generic[T]):
+    """Argument of the continuous callback: the inputs and the continuous outputs."""
+
+    _callback = "continuous"
+    _results_in = "arg.phase[p].dynamics[i] = ..."
+
+    def _reset(self) -> None:
+        """Return every output row of every phase to zero and unassigned."""
+        for storage, written in self._store._output_buffers:
+            storage.fill(0)
+            written[:] = False
+
+
+class ContinuousJacobianArg(_ContinuousArgBase[np.float64], Protected):
+    """Argument of the continuous Jacobian callback: the inputs and `phase[p].jacobian`."""
 
     _callback = "continuous_jacobian"
     _results_in = "arg.phase[p].jacobian[key] = ..."
 
     def _reset(self) -> None:
-        """Keep the outputs: they belong to the continuous callback.
-
-        The NLP's shared evaluator passes one argument to all three continuous callbacks, and
-        the function values it holds must survive a Jacobian or Hessian call.
-        """
+        """Empty every phase's Jacobian entries."""
+        for phase in self._store.phase:
+            phase._jacobian.clear()
 
 
-class ContinuousHessianArg(ContinuousArg[np.float64]):
-    """Continuous argument for user-defined continuous constraint Hessian function."""
+class ContinuousHessianArg(_ContinuousArgBase[np.float64], Protected):
+    """Argument of the continuous Hessian callback: the inputs and `phase[p].hessian`."""
 
     _callback = "continuous_hessian"
     _results_in = "arg.phase[p].hessian[key] = ..."
 
     def _reset(self) -> None:
-        """Keep the outputs: they belong to the continuous callback."""
+        """Empty every phase's Hessian entries."""
+        for phase in self._store.phase:
+            phase._hessian.clear()
 
 
 # Define function type aliases with generics

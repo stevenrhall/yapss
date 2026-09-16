@@ -35,10 +35,8 @@ from .hessian import make_nlp_hessian
 
 # package imports
 from .input_args import (
-    ContinuousArg,
     ContinuousFunctionFloat,
-    ContinuousHessianArg,
-    ContinuousJacobianArg,
+    ContinuousStore,
     DiscreteArg,
     DiscreteFunctionFloat,
     DiscreteJacobianArg,
@@ -431,7 +429,7 @@ class ContinuousEvaluator:
         self._functions = nlp.functions
         self._np = problem.np
         self.dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
-        self.arg: ContinuousArg[np.float64] = ContinuousArg(
+        self.store: ContinuousStore[np.float64] = ContinuousStore(
             problem,
             self.dv,
             dtype=np.float64,
@@ -440,7 +438,7 @@ class ContinuousEvaluator:
         self._z: FloatArray | None = None
         self._order_done = -1
 
-    def __call__(self, z: FloatArray, order: int = 0) -> ContinuousArg[np.float64]:
+    def __call__(self, z: FloatArray, order: int = 0) -> ContinuousStore[np.float64]:
         """Return the continuous argument evaluated at ``z`` through ``order``.
 
         Parameters
@@ -452,41 +450,36 @@ class ContinuousEvaluator:
 
         Returns
         -------
-        ContinuousArg
-            The shared argument. Valid until the next call at a different point.
+        ContinuousStore
+            The shared store. Valid until the next call at a different point.
         """
-        arg = self.arg
+        store = self.store
         if self._z is None or not np.array_equal(z, self._z):
             # a new point: nothing computed here is valid until order 0 completes
             self._z = None
             self._order_done = -1
-            arg._sync(z)
+            store._sync(z)
             self._z = np.array(z, dtype=np.float64, copy=True)
 
+        # each callback gets its own argument over the store, so the values an order-0 call
+        # produced are not reachable from the Jacobian or Hessian call that follows it
         if self._order_done < 0:
-            set_private(arg, "_phase_list", tuple(range(self._np)))
+            set_private(store, "_phase_list", tuple(range(self._np)))
             if self._np > 0:
-                call_callback(cast(ContinuousFunctionFloat, self._functions.continuous), arg)
+                continuous = cast(ContinuousFunctionFloat, self._functions.continuous)
+                call_callback(continuous, store.value_arg)
             self._order_done = 0
 
         if order >= 1 and self._order_done < 1:
-            set_private(arg, "_phase_list", tuple(range(self._np)))
-            for p in range(self._np):
-                arg.phase[p].jacobian.clear()
-            call_callback(
-                self._functions.continuous_jacobian, cast(ContinuousJacobianArg, arg), reset=False
-            )
+            set_private(store, "_phase_list", tuple(range(self._np)))
+            call_callback(self._functions.continuous_jacobian, store.jacobian_arg)
             self._order_done = 1
 
         if order >= 2 and self._order_done < 2:  # noqa: PLR2004
-            for p in range(self._np):
-                arg.phase[p].hessian.clear()
-            call_callback(
-                self._functions.continuous_hessian, cast(ContinuousHessianArg, arg), reset=False
-            )
+            call_callback(self._functions.continuous_hessian, store.hessian_arg)
             self._order_done = 2
 
-        return arg
+        return store
 
 
 def make_eval_discrete_jacobian(nlp: NLP) -> Callable[[FloatArray], Sequence[np.float64 | float]]:

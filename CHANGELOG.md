@@ -51,6 +51,20 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   a change there altered the problem being solved from that point on. Reading is unchanged,
   and each call still reads the values of the point it was called at.
 
+- Each continuous callback now receives its own argument, carrying the inputs and only the
+  output that callback assigns. `continuous` has `dynamics`, `integrand`, and `path`;
+  `continuous_jacobian` has `jacobian`; `continuous_hessian` has `hessian`. Writing or
+  reading another callback's output raises `AttributeError` at the line. Before, one
+  object carrying every output went to all three: a derivative entry assigned from
+  `continuous` was silently discarded, and a `dynamics` row assigned from
+  `continuous_jacobian` overwrote the constraint values the solver had already computed at
+  that point, so the solve returned a wrong answer with no error and no warning. The
+  objective and discrete callbacks already worked this way; the continuous family was the
+  exception. `ContinuousJacobianArg` and `ContinuousHessianArg` are therefore no longer
+  subclasses of `ContinuousArg` --- an argument that must refuse `dynamics` cannot stand in
+  for one that accepts it --- so an `isinstance` check against `ContinuousArg` no longer
+  matches them. Type annotations on callbacks are unaffected.
+
 - Every callback now starts from a clean argument, and must assign its results rather than
   return them. The outputs a continuous or discrete callback receives are zero and unassigned
   at the start of every call, so a row the callback does not assign on a given call is zero

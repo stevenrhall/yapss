@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
-    from .input_args import ContinuousArg
+    from .input_args import ContinuousStore
     from .nlp import NLP
     from .types_ import CFName, CHSTerm, CJSTerm
 
@@ -91,7 +91,7 @@ HessianBlock = Block[HessianContext]
 
 def make_nlp_hessian(
     nlp: NLP,
-    eval_continuous: Callable[[FloatArray, int], ContinuousArg[np.float64]],
+    eval_continuous: Callable[[FloatArray, int], ContinuousStore[np.float64]],
 ) -> tuple[
     tuple[tuple[int, ...], tuple[int, ...]],
     Callable[[FloatArray, FloatArray, np.float64], FloatArray],

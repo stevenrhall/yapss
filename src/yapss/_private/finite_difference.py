@@ -38,8 +38,8 @@ import numpy as np
 
 # package imports
 from .input_args import (
-    ContinuousArg,
     ContinuousFunctionFloat,
+    ContinuousStore,
     DiscreteArg,
     DiscreteFunctionFloat,
     ObjectiveArg,
@@ -125,13 +125,14 @@ def get_continuous_jacobian_structure_nan(
         return a, b, item_dict[c], d
 
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, float)
-    arg: ContinuousArg[np.float64] = ContinuousArg(
+    store: ContinuousStore[np.float64] = ContinuousStore(
         problem,
         dv,
         dtype=numpy.float64,
         tau_u=tau_u,
     )
-    arg._sync(z0)
+    arg = store.value_arg
+    store._sync(z0)
 
     cjs = []
 
@@ -142,8 +143,8 @@ def get_continuous_jacobian_structure_nan(
 
     for p in range(problem.np):
         continuous = cast(ContinuousFunctionFloat, problem.functions.continuous)
-        set_private(arg, "_phase_list", (p,))
-        phase = arg.phase[p]
+        set_private(store, "_phase_list", (p,))
+        phase = store.phase[p]
 
         cjs_phase: list[CJSTerm] = []
 

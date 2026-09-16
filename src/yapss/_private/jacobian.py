@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     # package imports
-    from .input_args import ContinuousArg
+    from .input_args import ContinuousStore
     from .nlp import NLP
     from .types_ import CJSTerm
 
@@ -81,7 +81,7 @@ JacobianBlock = Block[JacobianContext]
 
 def make_nlp_jacobian(
     nlp: NLP,
-    eval_continuous: Callable[[FloatArray, int], ContinuousArg[np.float64]],
+    eval_continuous: Callable[[FloatArray, int], ContinuousStore[np.float64]],
     eval_discrete_jacobian: Callable[[FloatArray], Sequence[np.float64 | float]],
 ) -> tuple[
     tuple[tuple[int, ...], tuple[int, ...]],

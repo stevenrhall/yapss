@@ -17,8 +17,7 @@ import numpy as np
 from . import derivative_keys
 from .exceptions import YapssDeprecationWarning
 from .input_args import (
-    ContinuousHessianArg,
-    ContinuousJacobianArg,
+    ContinuousStore,
     DiscreteHessianArg,
     DiscreteJacobianArg,
     ObjectiveGradientArg,
@@ -171,13 +170,14 @@ def make_user_functions(
     # promises; a parameter-only problem has no continuous function to differentiate.
     continuous_jacobian_structure: CJS = ()
     if problem.np > 0:
-        continuous_jacobian_arg = ContinuousJacobianArg(
+        continuous_jacobian_store = ContinuousStore(
             problem,
             dv=dv,
             dtype=np.float64,
             tau_u=tau_u,
         )
-        continuous_jacobian_arg._sync(z0)
+        continuous_jacobian_store._sync(z0)
+        continuous_jacobian_arg = continuous_jacobian_store.jacobian_arg
         if problem.functions.continuous_jacobian is not None:
             call_callback(problem.functions.continuous_jacobian, continuous_jacobian_arg)
         else:
@@ -254,13 +254,14 @@ def make_user_functions(
         # continuous hessian, again only when there are phases
         continuous_hessian_structure = ()
         if problem.np > 0:
-            continuous_hessian_arg = ContinuousHessianArg(
+            continuous_hessian_store = ContinuousStore(
                 problem,
                 dv=dv,
                 dtype=np.float64,
                 tau_u=tau_u,
             )
-            continuous_hessian_arg._sync(z0)
+            continuous_hessian_store._sync(z0)
+            continuous_hessian_arg = continuous_hessian_store.hessian_arg
             if problem.functions.continuous_hessian is not None:
                 call_callback(problem.functions.continuous_hessian, continuous_hessian_arg)
             else:

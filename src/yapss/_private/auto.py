@@ -27,6 +27,11 @@ from .input_args import (
     ContinuousArg,
     ContinuousFunction,
     ContinuousFunctionObject,
+    ContinuousHessianArg,
+    ContinuousHessianFunction,
+    ContinuousJacobianArg,
+    ContinuousJacobianFunction,
+    ContinuousStore,
     DiscreteArg,
     DiscreteFunction,
     DiscreteFunctionObject,
@@ -42,6 +47,7 @@ from .input_args import (
     ObjectiveHessianArg,
     ObjectiveHessianFunction,
     ProblemFunctions,
+    _ContinuousArgBase,
     call_callback,
 )
 from .structure import DVPhase, DVStructure
@@ -72,7 +78,7 @@ def make_auto_functions(problem: yapss.Problem) -> ProblemFunctions:
     problem_functions : ProblemFunctions
     """
     # make the arguments for the objective, discrete, and continuous functions
-    objective_arg, discrete_arg, continuous_arg = make_args(problem)
+    objective_arg, discrete_arg, continuous_store = make_args(problem)
 
     # make the objective and discrete callback functions and derivative structures
     # noinspection PyTupleAssignmentBalance
@@ -97,7 +103,7 @@ def make_auto_functions(problem: yapss.Problem) -> ProblemFunctions:
         continuous_jacobian_structure,
         continuous_hessian,
         continuous_hessian_structure,
-    ) = make_continuous_derivatives(problem, continuous_arg)
+    ) = make_continuous_derivatives(problem, continuous_store)
 
     return ProblemFunctions(
         continuous=continuous,
@@ -120,7 +126,7 @@ def make_auto_functions(problem: yapss.Problem) -> ProblemFunctions:
 
 def make_args(
     problem: yapss.Problem,
-) -> tuple[ObjectiveArg[np.object_], DiscreteArg[np.object_], ContinuousArg[np.object_]]:
+) -> tuple[ObjectiveArg[np.object_], DiscreteArg[np.object_], ContinuousStore[np.object_]]:
     """Make callback function arguments.
 
     Make callback function arguments of types `ObjectiveArg`, `DiscreteArg`, and
@@ -159,8 +165,8 @@ def make_args(
 
     objective_arg = ObjectiveArg(problem, dv, dtype=np.object_)
     discrete_arg = DiscreteArg(problem, dv, dtype=np.object_)
-    continuous_arg = ContinuousArg(problem, dv=dv, dtype=np.object_)
-    return objective_arg, discrete_arg, continuous_arg
+    continuous_store = ContinuousStore(problem, dv=dv, dtype=np.object_)
+    return objective_arg, discrete_arg, continuous_store
 
 
 def make_discrete_derivatives(
@@ -415,12 +421,12 @@ def make_discrete_derivatives(
 
 def make_continuous_derivatives(
     problem: yapss.Problem,
-    arg: ContinuousArg[np.object_],
+    store: ContinuousStore[np.object_],
 ) -> tuple[
     ContinuousFunction | None,
-    ContinuousFunction | None,
+    ContinuousJacobianFunction | None,
     CJS | None,
-    ContinuousFunction | None,
+    ContinuousHessianFunction | None,
     CHS | None,
 ]:
     """Make the continuous callback functions and derivative structures.
@@ -428,7 +434,7 @@ def make_continuous_derivatives(
     Parameters
     ----------
     problem : Problem
-    arg : ContinuousArg
+    store : ContinuousStore
 
     Returns
     -------
@@ -445,7 +451,7 @@ def make_continuous_derivatives(
     if problem.np == 0:
         return None, None, None, None, None
 
-    continuous_hessian: ContinuousFunction | None = None
+    continuous_hessian: ContinuousHessianFunction | None = None
     cjs: list[CJSPhase] = []
     chs: list[CHSPhase] = []
 
@@ -456,10 +462,11 @@ def make_continuous_derivatives(
     # call the continuous function callback with symbolic args to get symbolic expressions
     # for the functions
     continuous_function_ = cast(ContinuousFunctionObject, problem.functions.continuous)
+    arg = store.value_arg
     call_callback(continuous_function_, arg)
 
     for p in range(problem.np):
-        phase = arg.phase[p]
+        phase = store.phase[p]
         sxut = (
             list(arg.parameter)
             + [item[0] for item in phase.state]
@@ -537,7 +544,7 @@ def make_continuous_derivatives(
             if continuous_[2].shape[0]:
                 continuous_arg.phase[q].path[:] = continuous_[2]
 
-    def continuous_jacobian(continuous_arg: ContinuousArg[np.float64]) -> None:
+    def continuous_jacobian(continuous_arg: ContinuousJacobianArg) -> None:
         """Continuous Jacobian callback function."""
         sxut_ = make_sxut(problem, continuous_arg)
 
@@ -550,7 +557,7 @@ def make_continuous_derivatives(
 
     if problem.derivatives.order == "second":
 
-        def continuous_hessian(continuous_arg: ContinuousArg[np.float64]) -> None:
+        def continuous_hessian(continuous_arg: ContinuousHessianArg) -> None:
             """Continuous Hessian callback function."""
             sxut_ = make_sxut(problem, continuous_arg)
 
@@ -619,7 +626,7 @@ def make_sxqt(
 
 def make_sxut(
     problem: yapss.Problem,
-    arg: ContinuousArg[np.float64],
+    arg: _ContinuousArgBase[np.float64],
 ) -> dict[int, NDArray[np.float64]]:
     """Make numpy array argument for casadi continuous functions.
 

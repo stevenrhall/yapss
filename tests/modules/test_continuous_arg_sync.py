@@ -5,7 +5,7 @@ import pytest
 
 from yapss import Problem
 from yapss._private.finite_difference import get_continuous_jacobian_structure_nan
-from yapss._private.input_args import ContinuousArg
+from yapss._private.input_args import ContinuousArg, ContinuousStore
 from yapss._private.mesh import Mesh
 from yapss._private.structure import get_nlp_dv_structure
 
@@ -25,14 +25,14 @@ def test_sync_updates_decision_variables_and_time(spectral_method: str) -> None:
     source.phase[0].u[0][:] = 4.0
 
     target = get_nlp_dv_structure(problem, np.float64)
-    arg = ContinuousArg(problem, target, dtype=np.float64, tau_u=mesh.tau_u)
-    arg._sync(source.z)
+    store = ContinuousStore(problem, target, dtype=np.float64, tau_u=mesh.tau_u)
+    store._sync(source.z)
 
     expected_time = mesh.tau_u[0] * 1.5 + 3.5
-    np.testing.assert_array_equal(arg._dv.z, source.z)
-    np.testing.assert_allclose(arg.phase[0].time, expected_time)
-    np.testing.assert_array_equal(arg.phase[0].state[0], source.phase[0].xc[0])
-    np.testing.assert_array_equal(arg.phase[0].control[0], source.phase[0].u[0])
+    np.testing.assert_array_equal(store._dv.z, source.z)
+    np.testing.assert_allclose(store.phase[0].time, expected_time)
+    np.testing.assert_array_equal(store.phase[0].state[0], source.phase[0].xc[0])
+    np.testing.assert_array_equal(store.phase[0].control[0], source.phase[0].u[0])
 
 
 def test_nan_structure_discovery_uses_initial_guess_time() -> None:
@@ -102,9 +102,9 @@ def test_time_is_not_assignable() -> None:
     mesh = Mesh(problem.mesh.phase)
     mesh.set_matrices(problem.spectral_method)
     dv = get_nlp_dv_structure(problem, np.float64)
-    arg = ContinuousArg(problem, dv, dtype=np.float64, tau_u=mesh.tau_u)
+    store = ContinuousStore(problem, dv, dtype=np.float64, tau_u=mesh.tau_u)
     with pytest.raises(AttributeError, match="time"):
-        arg.phase[0].time = np.zeros(3)
+        store.value_arg.phase[0].time = np.zeros(3)
 
 
 def test_symbolic_time_is_built_in_place() -> None:
@@ -136,10 +136,10 @@ def _goddard_point(spectral_method: str):
     return problem, mesh, z0 * (1 + 1e-3 * rng.standard_normal(z0.size))
 
 
-def _outputs(arg: ContinuousArg) -> list[np.ndarray]:
+def _outputs(store: ContinuousStore) -> list[np.ndarray]:
     return [
         np.asarray(getattr(phase, name))
-        for phase in arg.phase
+        for phase in store.phase
         for name in ("dynamics", "integrand", "path")
     ]
 
@@ -151,19 +151,19 @@ def test_a_node_subset_presents_the_selected_points_in_the_given_order(
     """Inputs and outputs of a subset argument are the full argument's at those nodes."""
     problem, mesh, z = _goddard_point(spectral_method)
     nodes = [np.arange(1, len(tau) - 1)[::-1] for tau in mesh.tau_u]
-    full = ContinuousArg(
+    full = ContinuousStore(
         problem, get_nlp_dv_structure(problem, np.float64), np.float64, tau_u=mesh.tau_u
     )
-    subset = ContinuousArg(
+    subset = ContinuousStore(
         problem,
         get_nlp_dv_structure(problem, np.float64),
         np.float64,
         tau_u=mesh.tau_u,
         nodes=nodes,
     )
-    for arg in (full, subset):
-        arg._sync(z)
-        problem.functions.continuous(arg)
+    for store in (full, subset):
+        store._sync(z)
+        problem.functions.continuous(store.value_arg)
 
     for p, selected in enumerate(nodes):
         np.testing.assert_array_equal(subset.phase[p].time, full.phase[p].time[selected])
@@ -182,33 +182,33 @@ def test_sync_refreshes_the_inputs_of_a_node_subset() -> None:
     """The subset's inputs are copies, so every sync must rewrite them."""
     problem, mesh, z = _goddard_point("lgr")
     nodes = [np.array([3, 1]) for _ in mesh.tau_u]
-    arg = ContinuousArg(
+    store = ContinuousStore(
         problem,
         get_nlp_dv_structure(problem, np.float64),
         np.float64,
         tau_u=mesh.tau_u,
         nodes=nodes,
     )
-    arg._sync(z)
-    arg._sync(2 * z)
+    store._sync(z)
+    store._sync(2 * z)
     doubled = get_nlp_dv_structure(problem, np.float64)
     doubled.z[:] = 2 * z
-    np.testing.assert_array_equal(arg.phase[1].state[2], doubled.phase[1].xc[2][[3, 1]])
-    np.testing.assert_array_equal(arg.phase[1].control[0], doubled.phase[1].u[0][[3, 1]])
+    np.testing.assert_array_equal(store.phase[1].state[2], doubled.phase[1].xc[2][[3, 1]])
+    np.testing.assert_array_equal(store.phase[1].control[0], doubled.phase[1].u[0][[3, 1]])
 
 
 def test_nodes_are_for_numeric_arguments_with_one_array_per_phase() -> None:
     problem, mesh, _ = _goddard_point("lgr")
     with pytest.raises(ValueError, match="one array per phase"):
-        ContinuousArg(
+        ContinuousStore(
             problem,
             get_nlp_dv_structure(problem, np.float64),
             np.float64,
             tau_u=mesh.tau_u,
             nodes=[np.array([1])],
         )
-    with pytest.raises(ValueError, match="numeric ContinuousArg instances only"):
-        ContinuousArg(
+    with pytest.raises(ValueError, match="numeric ContinuousStore instances only"):
+        ContinuousStore(
             problem,
             get_nlp_dv_structure(problem, np.object_),
             np.object_,
