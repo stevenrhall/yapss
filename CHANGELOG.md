@@ -51,6 +51,18 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   a change there altered the problem being solved from that point on. Reading is unchanged,
   and each call still reads the values of the point it was called at.
 
+- Under the `"user"` derivative method, every call of a derivative callback must set the same
+  keys. The keys a callback sets *are* the sparsity structure, and YAPSS deduces that structure
+  from one call at the initial guess, so a key added on a later call is outside the structure
+  and a key dropped on a later call leaves the assembly with no value; both now raise
+  `ValueError` naming the key, the callback, and the phase. A derivative that is structurally
+  zero is expressed by never setting the key, and one that is zero at a particular point by
+  setting it to `0.0`. Before, an added key was silently ignored, and a dropped key silently
+  reused the value from an earlier point. For `arg.jacobian` in the discrete Jacobian
+  callback, whose entries were never cleared between calls, that stale value persisted for the
+  whole solve. The other derivative methods are unaffected: their callbacks are generated and
+  emit their structure by construction.
+
 - Each continuous callback now receives its own argument, carrying the inputs and only the
   output that callback assigns. `continuous` has `dynamics`, `integrand`, and `path`;
   `continuous_jacobian` has `jacobian`; `continuous_hessian` has `hessian`. Writing or

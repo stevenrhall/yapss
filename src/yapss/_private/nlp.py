@@ -45,6 +45,7 @@ from .input_args import (
     ObjectiveGradientArg,
     ProblemFunctions,
     call_callback,
+    require_keys,
 )
 from .jacobian import make_nlp_jacobian
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
@@ -370,6 +371,8 @@ def make_nlp_objective_gradient(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
     gradient: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     arg = ObjectiveGradientArg(problem, dv)
+    if problem.derivatives.method == "user":
+        require_keys(arg, nlp.functions.objective_gradient_structure)
 
     # begin callback function
 
@@ -380,8 +383,7 @@ def make_nlp_objective_gradient(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
         dv_key: DVKey
 
         dv.z[:] = z
-        arg.gradient.clear()
-        nlp.functions.objective_gradient(arg)
+        call_callback(nlp.functions.objective_gradient, arg)
 
         gradient.z[:] = 0
         for dv_key in nlp.functions.objective_gradient_structure:
@@ -435,6 +437,18 @@ class ContinuousEvaluator:
             dtype=np.float64,
             tau_u=nlp.mesh.tau_u,
         )
+        if problem.derivatives.method == "user":
+            require_keys(
+                self.store.jacobian_arg,
+                nlp.functions.continuous_jacobian_structure,
+                per_phase=True,
+            )
+            if problem.derivatives.order == "second":
+                require_keys(
+                    self.store.hessian_arg,
+                    nlp.functions.continuous_hessian_structure,
+                    per_phase=True,
+                )
         self._z: FloatArray | None = None
         self._order_done = -1
 
@@ -498,6 +512,8 @@ def make_eval_discrete_jacobian(nlp: NLP) -> Callable[[FloatArray], Sequence[np.
     problem = nlp.problem
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     arg = DiscreteJacobianArg(problem, dv)
+    if problem.derivatives.method == "user":
+        require_keys(arg, nlp.functions.discrete_jacobian_structure)
 
     # begin callback function
 
@@ -523,7 +539,7 @@ def make_eval_discrete_jacobian(nlp: NLP) -> Callable[[FloatArray], Sequence[np.
         # call and return the user-defined discrete jacobian
         if problem.nd == 0:
             return []
-        nlp.functions.discrete_jacobian(arg)
+        call_callback(nlp.functions.discrete_jacobian, arg)
         structure = nlp.functions.discrete_jacobian_structure
         return [arg.jacobian[djs_term] for djs_term in structure]
 

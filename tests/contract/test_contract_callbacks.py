@@ -907,24 +907,6 @@ def test_callback_with_defaulted_extra_parameter_is_accepted():
 # -------------------------------------------------------- not yet met: user derivatives
 
 
-@not_yet("E7b", "a derivative key first set after the first call raises")
-def test_key_set_only_on_later_calls_raises():
-    ocp = brachistochrone.setup()
-    ocp.ipopt_options.print_level = 0
-    jacobian = ocp.functions.continuous_jacobian
-    calls = {"n": 0}
-
-    def continuous_jacobian(arg):
-        jacobian(arg)
-        calls["n"] += 1
-        if calls["n"] > 1:
-            arg.phase[0].jacobian[("f", 0), ("x", 0)] = 0.0
-
-    ocp.functions.continuous_jacobian = continuous_jacobian
-    with raises(ValueError, "('f', 0)"):
-        ocp.solve()
-
-
 @not_yet("W5", "a length-1 array entry in a user Hessian raises ValueError naming the key")
 def test_length_one_array_hessian_entry_raises_naming_it():
     ocp = brachistochrone.setup()
@@ -952,6 +934,71 @@ def test_mirrored_hessian_pair_raises():
     ocp.functions.continuous_hessian = continuous_hessian
     with raises(ValueError):
         ocp.solve()
+
+
+def test_key_set_only_on_later_calls_raises():
+    """The sparsity structure is deduced once, so a key appearing later is outside it."""
+    ocp = brachistochrone.setup()
+    ocp.ipopt_options.print_level = 0
+    jacobian = ocp.functions.continuous_jacobian
+    calls = {"n": 0}
+
+    def continuous_jacobian(arg):
+        jacobian(arg)
+        calls["n"] += 1
+        if calls["n"] > 1:
+            arg.phase[0].jacobian[("f", 0), ("x", 0)] = 0.0
+
+    ocp.functions.continuous_jacobian = continuous_jacobian
+    with raises(ValueError, "('f', 0)", "phase 0"):
+        ocp.solve()
+
+
+def test_key_dropped_on_a_later_call_raises():
+    """The other direction: the assembly would have no value for it."""
+    ocp = brachistochrone.setup()
+    ocp.ipopt_options.print_level = 0
+    jacobian = ocp.functions.continuous_jacobian
+    calls = {"n": 0}
+
+    def continuous_jacobian(arg):
+        jacobian(arg)
+        calls["n"] += 1
+        if calls["n"] > 1:
+            del arg.phase[0].jacobian[("f", 0), ("x", 2)]
+
+    ocp.functions.continuous_jacobian = continuous_jacobian
+    with raises(ValueError, "did not set", "phase 0"):
+        ocp.solve()
+
+
+def test_a_discrete_jacobian_key_set_only_once_raises():
+    """The discrete Jacobian entries were never cleared, so a stale value was reused."""
+    ocp = goddard_problem_3_phase.setup()
+    ocp.derivatives.method = "user"
+    ocp.ipopt_options.print_level = 0
+    discrete_jacobian = ocp.functions.discrete_jacobian
+    calls = {"n": 0}
+    key = {}
+
+    def wrapped(arg):
+        discrete_jacobian(arg)
+        calls["n"] += 1
+        if calls["n"] == 1:
+            key["k"] = next(iter(arg.jacobian))
+        else:
+            del arg.jacobian[key["k"]]
+
+    ocp.functions.discrete_jacobian = wrapped
+    with raises(ValueError, "did not set"):
+        ocp.solve()
+
+
+def test_the_other_methods_are_not_checked():
+    """Only "user" takes its keys from the user; the rest emit their structure themselves."""
+    for method in ("auto", "central-difference"):
+        ocp = callback_problem(method)
+        assert ocp.solve().nlp_info.ipopt_status == 0
 
 
 # ------------------------------------------------------------------ not yet met: targets

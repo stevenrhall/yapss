@@ -154,7 +154,6 @@ def make_objective_gradient(
     def objective_gradient(arg: ObjectiveGradientArg) -> None:
         """Evaluate the objective gradient via central difference."""
         dv.z[:] = arg._dv.z
-        arg.gradient.clear()
 
         for dv_key in ogs:
             var = dv.var_dict[dv_key][:1]
@@ -327,7 +326,6 @@ def make_objective_hessian(problem: yapss.Problem, ogs: OGS) -> ObjectiveHessian
     def objective_hessian(arg: ObjectiveHessianArg) -> None:
         """Evaluate the objective hessian using central differences."""
         dv.z[:] = arg._dv.z
-        arg.hessian.clear()
         f0: float | None = None  # the objective at the unperturbed point, on demand
 
         for i, dv_key1 in enumerate(ogs):

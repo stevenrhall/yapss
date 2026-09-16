@@ -92,6 +92,23 @@ element ``x * u``, the entries are ``jacobian[("f", 0), ("x", 0)] = u`` and
 ``hessian[("f", 0), ("x", 0), ("u", 0)] = 1.0``. An array over the time grid is accepted
 wherever a scalar is, but it is never required.
 
+Which keys you set *is* the sparsity structure. YAPSS deduces it from one call at the
+initial guess and builds the NLP around it, so **every call must set the same keys**. There
+are two ways to say that a derivative is zero, and both are unambiguous:
+
+- structurally zero, everywhere: never set the key, on any call;
+- zero at this point but not in general: set the key to ``0.0``.
+
+A key that appears only on some calls is neither, so it raises ``ValueError`` naming the key,
+the callback, and the phase, whether it was added after the first call (it is outside the
+structure, and would be ignored) or dropped (the assembly is left with no value for it). This
+applies only to the ``"user"`` method, where the keys come from you.
+
+.. versionadded:: 0.3.0
+
+    The key set is checked on every call. Before, a key added later was silently ignored and
+    a key dropped later left a stale value from an earlier point in place.
+
 The Hessian of the continuous functions is defined similarly:
 
 .. testcode:: group1

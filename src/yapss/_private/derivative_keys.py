@@ -52,17 +52,7 @@ if TYPE_CHECKING:
     # package imports
     import yapss
 
-    from .types_ import (
-        DHS,
-        DJS,
-        OGS,
-        OHS,
-        CFKey,
-        CHSPhase,
-        CJSPhase,
-        CVKey,
-        DVKey,
-    )
+    from .types_ import DHS, DJS, OGS, OHS, CFKey, CHSPhase, CJSPhase, CVKey, DVKey
 
 __all__ = [
     "continuous_hessian_structure",

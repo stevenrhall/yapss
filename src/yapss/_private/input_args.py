@@ -68,6 +68,55 @@ from numpy.typing import NDArray
 T = TypeVar("T", bound=np.generic)
 
 
+def _check_keys(arg: Any) -> None:
+    """Check that a derivative callback set the key set its structure was deduced from.
+
+    Under the ``"user"`` method the key set *is* the sparsity structure, and the structure is
+    deduced from one call at the initial guess. A key that appears later is outside the
+    structure and would be ignored; a key that stops appearing leaves the assembly without a
+    value. Neither can be intended: a derivative that is structurally zero is expressed by
+    never declaring the key, and one that is zero at this point by assigning ``0.0``.
+
+    This raises where an unassigned output row only warns. Whether that split is right is an
+    open question for 0.3.0 -- see W9b in the work list; raising is the direction that can
+    still be relaxed after release.
+    """
+    for (where, entries), expected in zip(arg._key_groups(), arg._expected_keys, strict=True):
+        if entries.keys() == expected:
+            continue
+        actual = set(entries)
+        missing = sorted(expected - actual, key=repr)
+        extra = sorted(actual - expected, key=repr)
+        if missing:
+            msg = (
+                f"the {arg._callback} callback did not set {missing[0]!r}{where} on this "
+                f"call. The sparsity structure is taken from the first call, so every call "
+                f"must set the same keys; assign 0.0 for an entry that is zero here."
+            )
+        else:
+            msg = (
+                f"the {arg._callback} callback set {extra[0]!r}{where}, which the first call "
+                f"did not set and which is not in the sparsity structure. The structure is "
+                f"taken from the first call, so every call must set the same keys."
+            )
+        raise ValueError(msg)
+
+
+def require_keys(arg: Any, structure: Any, *, per_phase: bool = False) -> None:
+    """Require ``arg``'s callback to set exactly the keys its structure was deduced from.
+
+    Called only for the ``"user"`` method, and only once each, when the NLP is built: under
+    the other methods the generated callbacks emit their structure by construction, and
+    `BaseArg._expected_keys` stays None so nothing is checked.
+    """
+    if structure is None:
+        return
+    groups = (
+        tuple(frozenset(phase) for phase in structure) if per_phase else (frozenset(structure),)
+    )
+    set_private(arg, "_expected_keys", groups)
+
+
 def call_callback(function: Any, arg: Any, *, reset: bool = True) -> None:
     """Call one user callback, under the rules every callback obeys.
 
@@ -87,6 +136,8 @@ def call_callback(function: Any, arg: Any, *, reset: bool = True) -> None:
     if reset:
         arg._reset()
     result = function(arg)
+    if arg._expected_keys is not None:
+        _check_keys(arg)
     if result is not None:
         msg = (
             f"the {arg._callback} callback returned a {type(result).__name__}; a callback "
@@ -124,8 +175,19 @@ class BaseArg(Generic[T]):
     _results_in: str
     """The assignment a user makes instead of returning a value."""
 
+    _expected_keys: tuple[frozenset[Any], ...] | None = None
+    """Key set per group the callback must set on every call, or None to not check.
+
+    Set only for the ``"user"`` method, where the keys come from the user. The generated
+    callbacks of the other methods emit exactly their structure by construction.
+    """
+
+    def _key_groups(self) -> tuple[tuple[str, dict[Any, Any]], ...]:
+        """(phase description, entries) for each key set that must stay invariant."""
+        return ()
+
     def _reset(self) -> None:
-        """Clear whatever the callback assigns. Derivative dictionaries are kept (E7b)."""
+        """Clear whatever the callback assigns."""
 
     def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
         self.auxdata = problem.auxdata
@@ -282,6 +344,13 @@ class ObjectiveGradientArg(DiscreteArgBase[np.float64], Protected):
     _callback = "objective_gradient"
     _results_in = "arg.gradient[key] = ..."
 
+    def _key_groups(self) -> tuple[tuple[str, dict[Any, Any]], ...]:
+        return (("", self.gradient),)
+
+    def _reset(self) -> None:
+        """Empty the gradient entries."""
+        self.gradient.clear()
+
     def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
         # Initialize the base class with the provided problem and dv
         DiscreteArgBase.__init__(self, problem, dv, np.float64)
@@ -308,6 +377,13 @@ class ObjectiveHessianArg(DiscreteArgBase[np.float64], Protected):
 
     _callback = "objective_hessian"
     _results_in = "arg.hessian[key] = ..."
+
+    def _key_groups(self) -> tuple[tuple[str, dict[Any, Any]], ...]:
+        return (("", self.hessian),)
+
+    def _reset(self) -> None:
+        """Empty the Hessian entries."""
+        self.hessian.clear()
 
     def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
         # Initialize the base class with the provided problem and dv
@@ -386,6 +462,13 @@ class DiscreteJacobianArg(DiscreteArgBase[np.float64], Protected):
     _callback = "discrete_jacobian"
     _results_in = "arg.jacobian[key] = ..."
 
+    def _key_groups(self) -> tuple[tuple[str, dict[Any, Any]], ...]:
+        return (("", self.jacobian),)
+
+    def _reset(self) -> None:
+        """Empty the Jacobian entries."""
+        self.jacobian.clear()
+
     def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
         # Initialize the superclass with problem and dv
         super().__init__(problem, dv, np.float64)
@@ -414,6 +497,13 @@ class DiscreteHessianArg(DiscreteArgBase[np.float64], Protected):
 
     _callback = "discrete_hessian"
     _results_in = "arg.hessian[key] = ..."
+
+    def _key_groups(self) -> tuple[tuple[str, dict[Any, Any]], ...]:
+        return (("", self.hessian),)
+
+    def _reset(self) -> None:
+        """Empty the Hessian entries."""
+        self.hessian.clear()
 
     def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
         # Initialize the superclass with problem and dv
@@ -776,6 +866,11 @@ class ContinuousJacobianArg(_ContinuousArgBase[np.float64], Protected):
     _callback = "continuous_jacobian"
     _results_in = "arg.phase[p].jacobian[key] = ..."
 
+    def _key_groups(self) -> tuple[tuple[str, dict[Any, Any]], ...]:
+        return tuple(
+            (f" for phase {p}", phase._jacobian) for p, phase in enumerate(self._store.phase)
+        )
+
     def _reset(self) -> None:
         """Empty every phase's Jacobian entries."""
         for phase in self._store.phase:
@@ -787,6 +882,11 @@ class ContinuousHessianArg(_ContinuousArgBase[np.float64], Protected):
 
     _callback = "continuous_hessian"
     _results_in = "arg.phase[p].hessian[key] = ..."
+
+    def _key_groups(self) -> tuple[tuple[str, dict[Any, Any]], ...]:
+        return tuple(
+            (f" for phase {p}", phase._hessian) for p, phase in enumerate(self._store.phase)
+        )
 
     def _reset(self) -> None:
         """Empty every phase's Hessian entries."""

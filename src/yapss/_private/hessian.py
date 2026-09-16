@@ -51,7 +51,7 @@ from .assembly import (
     split_constants,
 )
 from .fold import fold_structure
-from .input_args import DiscreteHessianArg, ObjectiveHessianArg
+from .input_args import DiscreteHessianArg, ObjectiveHessianArg, call_callback, require_keys
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
 if TYPE_CHECKING:
@@ -121,6 +121,9 @@ def make_nlp_hessian(
 
     objective_input = ObjectiveHessianArg(problem, dv)
     discrete_input = DiscreteHessianArg(problem, dv)
+    if problem.derivatives.method == "user":
+        require_keys(objective_input, functions.objective_hessian_structure)
+        require_keys(discrete_input, functions.discrete_hessian_structure)
     twins = index_twins(problem)
 
     blocks: list[HessianBlock] = []
@@ -150,13 +153,11 @@ def make_nlp_hessian(
         if problem.np > 0:
             context.continuous = eval_continuous(z, 2)
 
-        objective_input.hessian.clear()
-        functions.objective_hessian(objective_input)
+        call_callback(functions.objective_hessian, objective_input)
         context.objective_hessian = objective_input.hessian
 
         if problem.nd > 0:
-            discrete_input.hessian.clear()
-            functions.discrete_hessian(discrete_input)
+            call_callback(functions.discrete_hessian, discrete_input)
             context.discrete_hessian = discrete_input.hessian
 
         for evaluate, block_slice in evaluated:
