@@ -9,6 +9,9 @@ repos:
     rev: v0.16.1
     hooks:
       - id: ruff
+        # pre-commit appends the staged filenames to these args, so the effective scope is
+        # src/yapss *plus any staged file not excluded below* -- tools/ included. `tox -e
+        # ruff` lints the same set (src/yapss and tools) so the two cannot disagree.
         args: [ "src/yapss" ]
         exclude: "^(tests|docs|examples|utils)/"
 

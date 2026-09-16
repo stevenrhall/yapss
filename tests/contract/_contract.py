@@ -16,16 +16,38 @@ decided. Decide it, then either keep the test as `not_yet` or delete it.
 
 from __future__ import annotations
 
+import json
+import os
 import sys
 import traceback
 from collections.abc import Iterator
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
 
 from yapss import Problem
+
+# Set YAPSS_ERROR_CATALOG to a path and every message `raises` sees is appended there, one
+# JSON object per line, for `tools/error_catalog.py` to render. Off by default, so an
+# ordinary run is untouched; one line per record, appended, because xdist runs the suite in
+# several processes at once.
+_CATALOG = os.environ.get("YAPSS_ERROR_CATALOG")
+
+
+def _record(exc: BaseException, statement: str, test: str, area: str) -> None:
+    """Append one raised message to the catalogue."""
+    entry = {
+        "area": area,
+        "type": type(exc).__name__,
+        "message": str(exc),
+        "statement": statement.strip(),
+        "test": test,
+    }
+    with Path(_CATALOG).open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(entry) + "\n")
 
 
 def problem() -> Problem:
@@ -55,21 +77,29 @@ def raises(exc: type[BaseException], *fragments: str, at: str | None = None) -> 
     whose source contains `at` -- that is, the traceback's last frame in the calling test
     file is that statement, the stand-in for the user's own line.
     """
-    caller_file = sys._getframe(2).f_code.co_filename  # 0: here, 1: contextmanager, 2: test
+    caller = sys._getframe(2)  # 0: here, 1: contextmanager, 2: test
+    caller_file = caller.f_code.co_filename
     with pytest.raises(exc) as info:
         yield info
     message = str(info.value)
     missing = [fragment for fragment in fragments if fragment not in message]
     assert not missing, f"message {message!r} lacks {missing!r}"
+    frames = [
+        frame
+        for frame in traceback.extract_tb(info.value.__traceback__)
+        if frame.filename == caller_file
+    ]
     if at is not None:
-        frames = [
-            frame
-            for frame in traceback.extract_tb(info.value.__traceback__)
-            if frame.filename == caller_file
-        ]
         assert frames, "the traceback does not pass through the calling test"
         line = frames[-1].line or ""
         assert at in line, f"raised by the statement {line!r}, not by the one containing {at!r}"
+    if _CATALOG:
+        _record(
+            info.value,
+            frames[-1].line or "" if frames else "",
+            caller.f_code.co_name,
+            Path(caller_file).stem.replace("test_contract_", ""),
+        )
 
 
 def assert_float64_array(value: Any, expected: Any) -> None:

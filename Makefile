@@ -67,8 +67,19 @@ docs: readme ## Generate user guide documentation.
 	@# that this runs the doctests too, because the `docs` env does.
 	tox -e docs
 
+.PHONY: error-catalog
+error-catalog: ## Harvest every error message from the contract suite into the dev docs.
+	@# The catalogue is generated, never hand-written: `raises` in the contract suite
+	@# records what it actually saw, so the page cannot drift from the code. It is not
+	@# checked in for the same reason -- build it to read it.
+	@mkdir -p build
+	@rm -f build/errors.jsonl
+	@# plain `python`, like `make test`: $(PYTHON) below is the ReadTheDocs venv, not this one
+	YAPSS_ERROR_CATALOG=build/errors.jsonl python -m pytest tests/contract -q -p no:randomly
+	python tools/error_catalog.py build/errors.jsonl
+
 .PHONY: dev-docs
-dev-docs: ## Generate development documentation.
+dev-docs: error-catalog ## Generate development documentation.
 	cd docs/development && $(MAKE) html SPHINXOPTS="-W"
 
 .PHONY: linkcheck
@@ -98,7 +109,7 @@ doctest: ## Run doctests on user guide documentation.
 	cd $(USER_GUIDE_DIR) && $(MAKE) doctest
 
 .PHONY: view-dev-docs
-view-dev-docs: ## Generate development documentation and open it in a browser.
+view-dev-docs: error-catalog ## Generate development documentation and open it in a browser.
 	rm -rf docs/development/build
 	rm -rf docs/development/source/generated
 	cd docs/development && $(MAKE) html

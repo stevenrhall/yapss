@@ -245,6 +245,12 @@ exclude = [
 ]
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
+[tool.ruff.lint.per-file-ignores]
+# tools/ holds standalone scripts, run by path (`python tools/error_catalog.py`) and never
+# imported as a package, so the implicit-namespace-package rule does not apply: adding an
+# __init__.py would make them look like a library they are not.
+"tools/*" = ["INP001"]
+
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 

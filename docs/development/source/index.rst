@@ -5,6 +5,12 @@ This is the API documentation for the YAPSS project. It's useful mostly for deve
 want to contribute to the project
 
 .. toctree::
+   :maxdepth: 2
+   :caption: Reference
+
+   error_catalog
+
+.. toctree::
    :maxdepth: 3
    :caption: API Reference
 
