@@ -68,6 +68,33 @@ from numpy.typing import NDArray
 T = TypeVar("T", bound=np.generic)
 
 
+def call_callback(function: Any, arg: Any, *, reset: bool = True) -> None:
+    """Call one user callback, under the rules every callback obeys.
+
+    The callback's outputs are cleared first, so a row the callback does not assign on this
+    call is zero rather than whatever the previous call left there, and a value returned
+    instead of assigned is refused, naming the idiom to use.
+
+    Every call of a user-supplied function goes through here. Derivative arguments keep their
+    ``jacobian``/``hessian`` dictionaries across calls; whether a key may first appear on a
+    later call is an open question (E7b), so `BaseArg._reset` leaves them alone.
+
+    ``reset=False`` is for the NLP's shared continuous evaluator alone: it passes one
+    `ContinuousArg` to all three continuous callbacks, so the outputs a Jacobian or Hessian
+    call finds there belong to the continuous callback and must survive. Distinct runtime
+    classes (E7c) would carry that in `ContinuousJacobianArg._reset` and retire the argument.
+    """
+    if reset:
+        arg._reset()
+    result = function(arg)
+    if result is not None:
+        msg = (
+            f"the {arg._callback} callback returned a {type(result).__name__}; a callback "
+            f"assigns its results to the argument and returns nothing: {arg._results_in}"
+        )
+        raise TypeError(msg)
+
+
 class BaseArg(Generic[T]):
     """Base class for all argument classes.
 
@@ -78,6 +105,15 @@ class BaseArg(Generic[T]):
     dv : DVStructure
         A structure for decision variables.
     """
+
+    _callback: str
+    """The callback this argument is passed to, as `problem.functions` spells it."""
+
+    _results_in: str
+    """The assignment a user makes instead of returning a value."""
+
+    def _reset(self) -> None:
+        """Clear whatever the callback assigns. Derivative dictionaries are kept (E7b)."""
 
     def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
         self.auxdata = problem.auxdata
@@ -181,6 +217,9 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
     auxdata: Auxdata
     """SimpleNamespace container for user-defined data."""
 
+    _callback = "objective"
+    _results_in = "arg.objective = ..."
+
     def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
         # Initialize the DiscreteArgBase with problem and dv
         DiscreteArgBase.__init__(self, problem, dv, dtype)
@@ -193,6 +232,12 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
             msg = f"Unsupported type for objective: {dtype}"
             raise TypeError(msg)
         self._objective_written = False
+        self._objective_zero = self._objective
+
+    def _reset(self) -> None:
+        """Return the objective to zero and unassigned."""
+        set_private(self, "_objective", self._objective_zero)
+        set_private(self, "_objective_written", value=False)
 
     @property
     def objective(self) -> T:
@@ -222,6 +267,9 @@ class ObjectiveGradientArg(DiscreteArgBase[np.float64], Protected):
     gradient: dict[DVKey, float | np.floating[Any]]
     """Dictionary mapping decision variable keys to gradient values of type T."""
 
+    _callback = "objective_gradient"
+    _results_in = "arg.gradient[key] = ..."
+
     def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
         # Initialize the base class with the provided problem and dv
         DiscreteArgBase.__init__(self, problem, dv, np.float64)
@@ -245,6 +293,9 @@ class ObjectiveHessianArg(DiscreteArgBase[np.float64], Protected):
 
     hessian: dict[OHSTerm, float]
     """Dictionary mapping terms to Hessian values of type T."""
+
+    _callback = "objective_hessian"
+    _results_in = "arg.hessian[key] = ..."
 
     def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
         # Initialize the base class with the provided problem and dv
@@ -270,6 +321,13 @@ class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
     discrete : NDArray[T]
         Array holding the discrete values to be passed to the constraint function.
     """
+
+    _callback = "discrete"
+    _results_in = "arg.discrete[i] = ..."
+
+    def _reset(self) -> None:
+        """Return every discrete constraint value to zero and unassigned."""
+        self._discrete.reset()
 
     def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
         super().__init__(problem, dv, dtype)
@@ -313,6 +371,9 @@ class DiscreteJacobianArg(DiscreteArgBase[np.float64], Protected):
         Dictionary representing the Jacobian structure with values of type T.
     """
 
+    _callback = "discrete_jacobian"
+    _results_in = "arg.jacobian[key] = ..."
+
     def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
         # Initialize the superclass with problem and dv
         super().__init__(problem, dv, np.float64)
@@ -338,6 +399,9 @@ class DiscreteHessianArg(DiscreteArgBase[np.float64], Protected):
     hessian : dict[tuple[DFIndex, DVKey, DVKey], T]
         Dictionary representing the Hessian structure with values of type T.
     """
+
+    _callback = "discrete_hessian"
+    _results_in = "arg.hessian[key] = ..."
 
     def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
         # Initialize the superclass with problem and dv
@@ -367,6 +431,15 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         states and controls as views of ``dv``.
     """
 
+    _callback = "continuous"
+    _results_in = "arg.phase[p].dynamics[i] = ..."
+
+    def _reset(self) -> None:
+        """Return every output row of every phase to zero and unassigned."""
+        for storage, written in self._output_buffers:
+            storage.fill(0)
+            written[:] = False
+
     def __init__(
         self,
         problem: yapss.Problem,
@@ -392,6 +465,14 @@ class ContinuousArg(BaseArg[T], Protected, Generic[T]):
         )
         # Initialize phase list based on problem.np
         self._phase_list: tuple[int, ...] = tuple(range(problem.np))
+        # `_reset` runs before every call of the callback, so it works on the buffers
+        # directly: an output with no rows has nothing to clear and is left out
+        self._output_buffers: tuple[tuple[NDArray[T], NDArray[np.bool_]], ...] = tuple(
+            (output._storage, output._written)
+            for phase in self._phase
+            for output in phase._outputs.values()
+            if output.shape[0]
+        )
 
     def _sync(self, z: NDArray[np.float64]) -> None:
         """Synchronize numeric continuous inputs with an NLP decision vector."""
@@ -540,9 +621,25 @@ class ContinuousPhase(Protected, Generic[T]):
 class ContinuousJacobianArg(ContinuousArg[np.float64]):
     """Continuous argument for user-defined continuous constraint Jacobian function."""
 
+    _callback = "continuous_jacobian"
+    _results_in = "arg.phase[p].jacobian[key] = ..."
+
+    def _reset(self) -> None:
+        """Keep the outputs: they belong to the continuous callback.
+
+        The NLP's shared evaluator passes one argument to all three continuous callbacks, and
+        the function values it holds must survive a Jacobian or Hessian call.
+        """
+
 
 class ContinuousHessianArg(ContinuousArg[np.float64]):
     """Continuous argument for user-defined continuous constraint Hessian function."""
+
+    _callback = "continuous_hessian"
+    _results_in = "arg.phase[p].hessian[key] = ..."
+
+    def _reset(self) -> None:
+        """Keep the outputs: they belong to the continuous callback."""
 
 
 # Define function type aliases with generics

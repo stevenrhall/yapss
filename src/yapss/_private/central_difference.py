@@ -40,6 +40,7 @@ from .input_args import (
     ObjectiveHessianArg,
     ObjectiveHessianFunction,
     ProblemFunctions,
+    call_callback,
 )
 from .structure import DVStructure, get_nlp_dv_structure
 from .types_ import CFKey, PhaseIndex, set_private
@@ -162,7 +163,7 @@ def make_objective_gradient(
             d: np.float64 = scale[dv_key] * DELTA1
             for i in (-1, 1):
                 var[0] = w + i * d
-                objective_function(arg1)
+                call_callback(objective_function, arg1)
                 delta_objective += i * arg1.objective
                 arg.gradient[dv_key] = float(delta_objective / (2 * d))
 
@@ -230,7 +231,7 @@ def make_continuous_jacobian(
 
                 for j in (-1, 1):
                     var[:] = w + j * d
-                    continuous(arg2)
+                    call_callback(continuous, arg2)
 
                     for cf_key in cf_keys:
                         var1, i = cf_key
@@ -285,7 +286,7 @@ def make_discrete_jacobian(problem: yapss.Problem, djfds: DJFDS) -> DiscreteJaco
 
             for j in (-1, 1):
                 var[0] = w + j * d
-                discrete(discrete_arg)
+                call_callback(discrete, discrete_arg)
                 for i in df_index:
                     arg.jacobian[i, dv_key] += j * discrete_arg.discrete[i] / (2 * d)
 
@@ -335,13 +336,13 @@ def make_objective_hessian(problem: yapss.Problem, ogs: OGS) -> ObjectiveHessian
                     # land on the unperturbed point, so it is f(w+2d) - 2 f(w) + f(w-2d)
                     # over 4 d^2, with f(w) evaluated once for every diagonal pair.
                     if f0 is None:
-                        objective_function(objective_arg)
+                        call_callback(objective_function, objective_arg)
                         f0 = float(objective_arg.objective)
                     var1[0] = w1 + 2 * d1
-                    objective_function(objective_arg)
+                    call_callback(objective_function, objective_arg)
                     fp = float(objective_arg.objective)
                     var1[0] = w1 - 2 * d1
-                    objective_function(objective_arg)
+                    call_callback(objective_function, objective_arg)
                     fm = float(objective_arg.objective)
                     var1[0] = w1
                     arg.hessian[dv_key1, dv_key2] = float((fp - 2 * f0 + fm) / (4 * d1 * d1))
@@ -358,7 +359,7 @@ def make_objective_hessian(problem: yapss.Problem, ogs: OGS) -> ObjectiveHessian
                     for i2 in (+1, -1):
                         var1[0] += i1 * d1
                         var2[0] += i2 * d2
-                        objective_function(objective_arg)
+                        call_callback(objective_function, objective_arg)
                         h += i1 * i2 * objective_arg.objective
                         var1[0] = w1
                         var2[0] = w2
@@ -431,7 +432,7 @@ def make_continuous_hessian(
                     # land on the unperturbed point, so it is f(w+2d) - 2 f(w) + f(w-2d)
                     # over 4 d^2, with f(w) evaluated once per phase.
                     if base is None:
-                        continuous(arg2)
+                        call_callback(continuous, arg2)
                         base = {
                             fcn: arg2[p, *fcn].copy()
                             for diag_key in chfds[p]
@@ -439,10 +440,10 @@ def make_continuous_hessian(
                             for fcn in diag_key[1]
                         }
                     var1[:] = w1 + 2 * d1
-                    continuous(arg2)
+                    call_callback(continuous, arg2)
                     plus = {fcn: arg2[p, *fcn].copy() for fcn in fcn_list}
                     var1[:] = w1 - 2 * d1
-                    continuous(arg2)
+                    call_callback(continuous, arg2)
                     den = 4 * d1 * d1
                     for fcn in fcn_list:
                         hessian[fcn, (v1, i1), (v2, i2)] = (
@@ -464,7 +465,7 @@ def make_continuous_hessian(
                     for j in (+1, -1):
                         var1[:] += i * d1
                         var2[:] += j * d2
-                        continuous(arg2)
+                        call_callback(continuous, arg2)
                         den = 4 * d1 * d2
                         for f, k in fcn_list:
                             delta_hessian = i * j * arg2[p, f, k] / den
@@ -524,13 +525,13 @@ def make_discrete_hessian(
                 if dv_key2 == dv_key1:
                     # Diagonal pair: see objective_hessian
                     if g0 is None:
-                        discrete(discrete_arg)
+                        call_callback(discrete, discrete_arg)
                         g0 = discrete_arg._discrete.copy()
                     var1[0] = w1 + 2 * d1
-                    discrete(discrete_arg)
+                    call_callback(discrete, discrete_arg)
                     gp = discrete_arg._discrete.copy()
                     var1[0] = w1 - 2 * d1
-                    discrete(discrete_arg)
+                    call_callback(discrete, discrete_arg)
                     h = (gp - 2 * g0 + discrete_arg._discrete) / (4 * d1 * d1)
                     var1[0] = w1
                     for d in discrete_index_list:
@@ -546,7 +547,7 @@ def make_discrete_hessian(
                 for i1, i2 in product((+1, -1), (+1, -1)):
                     var1[0] += i1 * d1
                     var2[0] += i2 * d2
-                    discrete(discrete_arg)
+                    call_callback(discrete, discrete_arg)
                     h += i1 * i2 * discrete_arg._discrete / (4 * d1 * d2)
                     var1[0] = w1
                     var2[0] = w2

@@ -24,6 +24,7 @@ from .input_args import (
     ObjectiveGradientArg,
     ObjectiveHessianArg,
     ProblemFunctions,
+    call_callback,
 )
 from .structure import DVStructure, get_nlp_dv_structure
 
@@ -142,7 +143,7 @@ def make_user_functions(
     # objective gradient
     objective_gradient_arg = ObjectiveGradientArg(problem, dv)
     if problem.functions.objective_gradient is not None:
-        problem.functions.objective_gradient(objective_gradient_arg)
+        call_callback(problem.functions.objective_gradient, objective_gradient_arg)
     else:
         msg = "'functions.objective_gradient' function is required for 'user' method."
         raise ValueError(msg)
@@ -155,7 +156,7 @@ def make_user_functions(
     discrete_jacobian_arg = DiscreteJacobianArg(problem, dv)
     if problem.nd > 0:
         if problem.functions.discrete_jacobian is not None:
-            problem.functions.discrete_jacobian(discrete_jacobian_arg)
+            call_callback(problem.functions.discrete_jacobian, discrete_jacobian_arg)
         else:
             msg = "'functions.discrete_jacobian' function is required for 'user' method."
             raise ValueError(msg)
@@ -178,7 +179,7 @@ def make_user_functions(
         )
         continuous_jacobian_arg._sync(z0)
         if problem.functions.continuous_jacobian is not None:
-            problem.functions.continuous_jacobian(continuous_jacobian_arg)
+            call_callback(problem.functions.continuous_jacobian, continuous_jacobian_arg)
         else:
             msg = "'functions.continuous_jacobian' function is required for 'user' method."
             raise ValueError(msg)
@@ -206,7 +207,7 @@ def make_user_functions(
                 "'derivatives.order' option is set to 'second'."
             )
             raise ValueError(msg)
-        problem.functions.objective_hessian(objective_hessian_arg)
+        call_callback(problem.functions.objective_hessian, objective_hessian_arg)
         objective_hessian_structure = derivative_keys.objective_hessian_structure(
             problem,
             objective_hessian_arg.hessian,
@@ -231,7 +232,7 @@ def make_user_functions(
                     "'derivatives.order' option is set to 'second'."
                 )
                 raise ValueError(msg)
-            problem.functions.discrete_hessian(discrete_hessian_arg)
+            call_callback(problem.functions.discrete_hessian, discrete_hessian_arg)
             discrete_hessian_structure = derivative_keys.discrete_hessian_structure(
                 problem,
                 discrete_hessian_arg.hessian,
@@ -261,7 +262,7 @@ def make_user_functions(
             )
             continuous_hessian_arg._sync(z0)
             if problem.functions.continuous_hessian is not None:
-                problem.functions.continuous_hessian(continuous_hessian_arg)
+                call_callback(problem.functions.continuous_hessian, continuous_hessian_arg)
             else:
                 msg = (
                     "'functions.continuous_hessian' function is required for 'user' method "

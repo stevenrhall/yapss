@@ -198,8 +198,9 @@ the attributes:
 - ``arg.phase[p].integrand``
 
 Each of these outputs is a stack of rows, one for each state, path constraint, or integral,
-with a value at every point in the ``time`` attribute of the phase. The outputs start at
-zero, and are assigned **one whole row at a time**:
+with a value at every point in the ``time`` attribute of the phase. The outputs start every
+call at zero --- nothing a previous call assigned is carried over --- and are assigned
+**one whole row at a time**:
 
 .. code-block:: python
 
@@ -228,6 +229,14 @@ over several points), a row that does not exist, or writing into an output with
 
     Outputs are assigned by whole rows only; element, partial-row, and column writes, and
     shapes that fit only by broadcasting, now raise.
+
+A callback assigns its results and returns nothing. Returning a value instead raises
+``TypeError`` naming the callback and the assignment to make, since YAPSS never looks at
+what a callback returns and the results would otherwise be silently zero.
+
+.. versionchanged:: 0.3.0
+
+    Outputs are cleared before every call, and a callback that returns a value raises.
 
 Each output at a point may depend only on the inputs **at that point** --- the time, states,
 and controls there --- and on the parameters. A callback that reaches across points, with

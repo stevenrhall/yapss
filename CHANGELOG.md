@@ -43,6 +43,16 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   reveals, and accepts differences below 1e-7 relative. `Problem.solve()` also reports
   non-finite objective gradients and constraint Jacobians as before, now in a message of their
   own.
+- Every callback now starts from a clean argument, and must assign its results rather than
+  return them. The outputs a continuous or discrete callback receives are zero and unassigned
+  at the start of every call, so a row the callback does not assign on a given call is zero
+  there rather than whatever an earlier call left behind; the same holds for `arg.objective`.
+  Before, one argument object was reused across calls without being cleared, so a row assigned
+  only under some condition silently kept a previous point's values. A callback that returns
+  its result instead of assigning it now raises `TypeError` naming the callback and the
+  assignment to make (`arg.objective = ...`); before, the returned value was discarded and the
+  problem solved as if the callback had assigned zeros.
+
 - Callback outputs are assigned by whole rows. `arg.phase[p].dynamics`, `integrand`, and
   `path` accept a whole output, a slice of rows (any step), or one row (negative indices
   count from the end), with each row a scalar constant, an expression over the points, or a

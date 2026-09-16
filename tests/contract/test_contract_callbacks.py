@@ -11,6 +11,8 @@ What a user may do
     - Loop over `arg.phase_list`, read `arg.auxdata`, and use `yapss.math` or NumPy's
       element-wise functions.
     - Get the same optimal control problem under every derivative method.
+    - Rely on every call starting from a clean argument: outputs are zero and unassigned, and
+      the objective is zero, so nothing a previous call wrote can be read or left in place.
     - Under `"user"`, supply derivative entries as scalar expressions or constants.
 
 What a user may get wrong
@@ -24,6 +26,8 @@ What a user may get wrong
       the points into several rows): `ValueError` at the assignment. A row index out of
       range: `IndexError` naming the count.
     - A misspelled output, or an assignment to an input: `AttributeError` at the line.
+    - A callback that returns its result instead of assigning it: `TypeError` naming the
+      callback and the assignment to make.
     - A Python `if` on a problem variable: `TypeError` under `"auto"` (pointing to
       `yapss.math.where`), `ValueError` in the continuous callback under the numeric
       methods.
@@ -506,6 +510,90 @@ def test_functions_not_finite_at_the_initial_guess_raise_naming_the_output(metho
         callback_problem(method, continuous=continuous).solve()
 
 
+@pytest.mark.parametrize("method", METHODS)
+def test_returning_the_objective_raises(method):
+    """A callback assigns its result; returning it is the commonest way to get nothing."""
+
+    def objective(arg):
+        return arg.phase[0].final_time
+
+    with raises(TypeError, "arg.objective"):
+        callback_problem(method, objective=objective).solve()
+
+
+@pytest.mark.parametrize("callback", ["continuous", "discrete"])
+def test_returning_from_continuous_or_discrete_raises(callback):
+    def continuous(arg):
+        default_continuous(arg)
+        return arg.phase[0].dynamics
+
+    def discrete(arg):
+        return (arg.phase[0].final_state[1],)
+
+    with raises(TypeError, callback):
+        callback_problem(
+            **{callback: {"continuous": continuous, "discrete": discrete}[callback]}
+        ).solve()
+
+
+def test_every_call_starts_from_a_clean_argument():
+    """Nothing a previous call wrote is visible to the next one."""
+    entry_values = []
+    entry_written = []
+
+    def continuous(arg):
+        phase = arg.phase[0]
+        entry_values.append(float(np.max(np.abs(phase.dynamics.view(np.ndarray)))))
+        entry_written.append(bool(phase.dynamics.written.any() or phase.path.written.any()))
+        default_continuous(arg)
+
+    def objective(arg):
+        entry_values.append(float(arg.objective))
+        arg.objective = arg.phase[0].final_time
+
+    ocp = callback_problem("central-difference", continuous=continuous, objective=objective)
+    ocp.solve()
+    assert len(entry_values) > 10  # the callbacks really did run many times
+    assert set(entry_values) == {0.0}
+    assert not any(entry_written)
+
+
+def test_a_row_assigned_on_one_call_only_does_not_persist():
+    """A conditional assignment leaves zero on the calls that skip it, not the old values."""
+    problem = Problem(name="clean", nx=[1], nu=[1], nh=[1])
+    problem.ipopt_options.print_level = 0
+    # a numeric method, so the user's callback runs with floats at every iterate; under
+    # "auto" it is traced once and the question of a second call does not arise
+    problem.derivatives.method = "central-difference"
+    seen = []
+    spiked = set()
+
+    def continuous(arg):
+        # keyed on the argument itself: the value must not survive to this argument's own
+        # next call, which is what a shared, reused argument would otherwise carry over
+        (u,) = arg.phase[0].control
+        arg.phase[0].dynamics[0] = u
+        if id(arg) not in spiked:
+            spiked.add(id(arg))
+            arg.phase[0].path[0] = u + 1000.0
+        else:
+            seen.append(float(np.max(np.abs(arg.phase[0].path.view(np.ndarray)))))
+            arg.phase[0].path[0] = u
+
+    problem.functions.objective = lambda arg: setattr(arg, "objective", arg.phase[0].final_time)
+    problem.functions.continuous = continuous
+    bounds = problem.bounds.phase[0]
+    bounds.initial_time.lower = bounds.initial_time.upper = 0.0
+    bounds.final_time.lower, bounds.final_time.upper = 1.0, 2.0
+    problem.guess.phase[0].time = [0.0, 1.0]
+    problem.guess.phase[0].state = [[0.0, 1.0]]
+    problem.guess.phase[0].control = [[1.0, 1.0]]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", yapss.IpoptConvergenceWarning)
+        problem.solve()
+    assert seen and set(seen) == {0.0}
+
+
 # ------------------------------------------------------------------- user derivative keys
 
 
@@ -691,35 +779,6 @@ def test_numpy_integer_indices_are_accepted():
 
 
 # ----------------------------------------------------------------- not yet met: outputs
-
-
-@pytest.mark.filterwarnings("ignore::yapss._private.setup_check.UnsetOutputWarning")
-@not_yet("E1", "a callback that returns a value raises TypeError showing the assignment idiom")
-@pytest.mark.parametrize("method", METHODS)
-def test_returning_the_objective_raises(method):
-    def objective(arg):
-        return arg.phase[0].final_time
-
-    with raises(TypeError, "arg.objective"):
-        callback_problem(method, objective=objective).solve()
-
-
-@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
-@pytest.mark.filterwarnings("ignore::yapss._private.setup_check.UnsetOutputWarning")
-@not_yet("E1", "a continuous or discrete callback that returns a value raises TypeError")
-@pytest.mark.parametrize("callback", ["continuous", "discrete"])
-def test_returning_from_continuous_or_discrete_raises(callback):
-    def continuous(arg):
-        default_continuous(arg)
-        return arg.phase[0].dynamics
-
-    def discrete(arg):
-        return (arg.phase[0].final_state[1],)
-
-    with raises(TypeError):
-        callback_problem(
-            **{callback: {"continuous": continuous, "discrete": discrete}[callback]}
-        ).solve()
 
 
 @not_yet("W5", "a non-scalar objective raises naming arg.objective")

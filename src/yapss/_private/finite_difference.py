@@ -45,6 +45,7 @@ from .input_args import (
     ObjectiveArg,
     ObjectiveFunctionFloat,
     ProblemFunctions,
+    call_callback,
 )
 from .structure import DVStructure, get_nlp_dv_structure
 from .types_ import set_private
@@ -169,7 +170,7 @@ def get_continuous_jacobian_structure_nan(
                 v[j][:] = nan
 
                 # pass to continuous and see which outputs are affected
-                continuous(arg)
+                call_callback(continuous, arg)
 
                 for i in range(nx):
                     if numpy.any(numpy.isnan(phase.dynamics[i])):
@@ -245,7 +246,7 @@ def get_objective_gradient_structure_nan(
             for j in range(n):
                 z = var[j]
                 var[j] = nan
-                objective_function(arg)
+                call_callback(objective_function, arg)
                 objective = arg.objective
 
                 if math.isnan(objective):
@@ -253,7 +254,7 @@ def get_objective_gradient_structure_nan(
 
                 if problem.nd > 0:
                     discrete_function = cast(DiscreteFunctionFloat, problem.functions.discrete)
-                    discrete_function(discrete_arg)
+                    call_callback(discrete_function, discrete_arg)
                     discrete = discrete_arg.discrete
 
                     for i, d in enumerate(discrete):
@@ -270,7 +271,7 @@ def get_objective_gradient_structure_nan(
         arg.parameter[j] = nan
 
         # determine if objective is affected
-        objective_function(arg)
+        call_callback(objective_function, arg)
         objective = arg.objective
         if math.isnan(objective):
             ogs.append((0, "s", j))
@@ -278,7 +279,7 @@ def get_objective_gradient_structure_nan(
         # determine which discrete constraints are affected
         if problem.nd > 0:
             discrete_function = cast(DiscreteFunctionFloat, problem.functions.discrete)
-            discrete_function(discrete_arg)
+            call_callback(discrete_function, discrete_arg)
             discrete = discrete_arg.discrete
 
             for i, d in enumerate(discrete):

@@ -190,7 +190,7 @@ class OutputArray(_Protected, np.ndarray[Any, np.dtype[T]], Generic[T]):
 
     def reset(self) -> None:
         """Set every value to zero and mark every row unwritten."""
-        self._storage[...] = 0
+        self._storage.fill(0)
         self._written[:] = False
 
     def __getitem__(self, index: Any) -> Any:

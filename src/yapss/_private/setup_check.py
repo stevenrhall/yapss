@@ -48,7 +48,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, assert_never, cast
 import numpy as np
 
 from .exceptions import YapssWarning
-from .input_args import ContinuousArg, DiscreteArg, ObjectiveArg
+from .input_args import ContinuousArg, DiscreteArg, ObjectiveArg, call_callback
 from .structure import get_nlp_dv_structure, nlp_constraint_keys, nlp_variable_keys
 
 if TYPE_CHECKING:
@@ -239,7 +239,7 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
 
     objective_function = cast("ObjectiveFunctionFloat", functions.objective)
     objective_arg: ObjectiveArg[np.float64] = ObjectiveArg(problem, dv, np.float64)
-    objective_function(objective_arg)
+    call_callback(objective_function, objective_arg)
     if not objective_arg._objective_written:
         _warn_unset(objective_function, "objective", "arg.objective")
     objective = np.asarray(objective_arg.objective, dtype=np.float64)
@@ -249,7 +249,7 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
     if problem.nd > 0 and functions.discrete is not None:
         discrete_function = cast("DiscreteFunctionFloat", functions.discrete)
         discrete_arg: DiscreteArg[np.float64] = DiscreteArg(problem, dv, np.float64)
-        discrete_function(discrete_arg)
+        call_callback(discrete_function, discrete_arg)
         discrete = discrete_arg.discrete
         for row in np.flatnonzero(~discrete.written):
             _warn_unset(discrete_function, "discrete", f"arg.discrete[{row}]")
@@ -265,7 +265,7 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
         continuous_function = cast("ContinuousFunctionFloat", functions.continuous)
         base: ContinuousArg[np.float64] = ContinuousArg(problem, dv, np.float64, tau_u=mesh.tau_u)
         base._sync(z0)
-        continuous_function(base)
+        call_callback(continuous_function, base)
         for p, phase in enumerate(base.phase):
             for name in OUTPUTS:
                 output = getattr(phase, name)
@@ -329,7 +329,7 @@ def _pointwise_findings(
     )
     reversed_arg._sync(z0)
     try:
-        continuous(reversed_arg)
+        call_callback(continuous, reversed_arg)
     except Exception as exc:  # noqa: BLE001 -- the base call succeeded; report this as a finding
         return [f"the call raised {type(exc).__name__}: {exc}"], exc
 

@@ -46,6 +46,7 @@ from .input_args import (
     ObjectiveFunctionFloat,
     ObjectiveGradientArg,
     ProblemFunctions,
+    call_callback,
 )
 from .jacobian import make_nlp_jacobian
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
@@ -255,7 +256,7 @@ def make_nlp_objective(nlp: NLP) -> Callable[[FloatArray], float]:
 
     def eval_nlp_objective(z: FloatArray) -> float:
         dv.z[:] = z
-        objective_function(arg)
+        call_callback(objective_function, arg)
 
         return float(arg.objective)
 
@@ -348,7 +349,7 @@ def make_nlp_constraints(
 
         # call the user-defined discrete function
         if problem.nd > 0:
-            discrete_function(di)
+            call_callback(discrete_function, di)
             cf.discrete[:] = di.discrete
 
         result: FloatArray = cf.c.copy()
@@ -465,20 +466,24 @@ class ContinuousEvaluator:
         if self._order_done < 0:
             set_private(arg, "_phase_list", tuple(range(self._np)))
             if self._np > 0:
-                cast(ContinuousFunctionFloat, self._functions.continuous)(arg)
+                call_callback(cast(ContinuousFunctionFloat, self._functions.continuous), arg)
             self._order_done = 0
 
         if order >= 1 and self._order_done < 1:
             set_private(arg, "_phase_list", tuple(range(self._np)))
             for p in range(self._np):
                 arg.phase[p].jacobian.clear()
-            self._functions.continuous_jacobian(cast(ContinuousJacobianArg, arg))
+            call_callback(
+                self._functions.continuous_jacobian, cast(ContinuousJacobianArg, arg), reset=False
+            )
             self._order_done = 1
 
         if order >= 2 and self._order_done < 2:  # noqa: PLR2004
             for p in range(self._np):
                 arg.phase[p].hessian.clear()
-            self._functions.continuous_hessian(cast(ContinuousHessianArg, arg))
+            call_callback(
+                self._functions.continuous_hessian, cast(ContinuousHessianArg, arg), reset=False
+            )
             self._order_done = 2
 
         return arg

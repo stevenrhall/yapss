@@ -42,6 +42,7 @@ from .input_args import (
     ObjectiveHessianArg,
     ObjectiveHessianFunction,
     ProblemFunctions,
+    call_callback,
 )
 from .structure import DVPhase, DVStructure
 
@@ -237,7 +238,7 @@ def make_discrete_derivatives(
 
     # objective function
     objective_function_ = cast(ObjectiveFunctionObject, problem.functions.objective)
-    objective_function_(objective_arg)
+    call_callback(objective_function_, objective_arg)
     objective_out = SXW(objective_arg.objective)
     objective_function = Function(
         "objective",
@@ -271,7 +272,7 @@ def make_discrete_derivatives(
     discrete_out: NDArray[Any]
     if problem.nd > 0:
         discrete_function_ = cast(DiscreteFunctionObject, problem.functions.discrete)
-        discrete_function_(discrete_arg)
+        call_callback(discrete_function_, discrete_arg)
         discrete_out = discrete_arg._discrete
     else:
         discrete_out = np.array([], dtype=object)
@@ -455,7 +456,7 @@ def make_continuous_derivatives(
     # call the continuous function callback with symbolic args to get symbolic expressions
     # for the functions
     continuous_function_ = cast(ContinuousFunctionObject, problem.functions.continuous)
-    continuous_function_(arg)
+    call_callback(continuous_function_, arg)
 
     for p in range(problem.np):
         phase = arg.phase[p]
