@@ -26,8 +26,7 @@ The rules, decided 2026-09-16:
   way is converted by NumPy and cannot be detected afterward.
 - **A deep-copied problem keeps its checks:** `copy.deepcopy` is how `Solution` records the
   problem it solved. Pickling is not supported: YAPSS makes no promise that a pickled problem
-  loads, or keeps its checks, in any version (decided 2026-09-17, with 0.3.0 the last release
-  of this API).
+  loads, or keeps its checks, in any version.
 
 Checks relating several values, such as a lower bound above its upper bound, belong to
 ``validate()``: the user must be free to assign ``lower`` and ``upper`` in either order.

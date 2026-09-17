@@ -17,8 +17,9 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ## [Unreleased]
 
-0.3.0 is the last release of the current API. Its successor will change how problems and
-callbacks are written; 0.3.x will receive fixes in the meantime.
+0.3.0 is expected to be the last release of the current API: a redesign is in progress
+that would change how problems and callbacks are written, and would not be
+source-compatible. Pin to `yapss>=0.3,<0.4` to stay on this API.
 
 ### Upgrading from 0.2.x
 

@@ -46,6 +46,20 @@ $ conda activate yapss-env
 (yapss-env) $ conda install -c conda-forge yapss
 ```
 
+### Pinning the Version
+
+YAPSS is in initial development (0.x), so a minor-version bump may change the API. Pin to
+the minor version you developed against:
+
+```text
+yapss>=0.3,<0.4
+```
+
+This is worth doing deliberately for 0.3: it is expected to be the last release of the
+current API. A redesign is in progress that would not be source-compatible -- code written
+against 0.3 would be rewritten rather than adjusted. See
+[Project Status](project_status.rst) for what is changing and what is not.
+
 ### Verify the Installation
 
 Run the HS071 example, a small constrained optimization problem:
@@ -138,6 +152,7 @@ scripts/index.rst
 :caption: Project Information
 :maxdepth: 1
 
+project_status.rst
 license.rst
 CHANGELOG.md
 CONTRIBUTING.md
