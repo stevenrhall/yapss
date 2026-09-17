@@ -90,7 +90,9 @@ as scalars. A derivative that happens to be constant is simply a number -- for a
 element ``x * u``, the entries are ``jacobian[("f", 0), ("x", 0)] = u`` and
 ``jacobian[("f", 0), ("u", 0)] = x``, and the mixed second derivative is
 ``hessian[("f", 0), ("x", 0), ("u", 0)] = 1.0``. An array over the time grid is accepted
-wherever a scalar is, but it is never required.
+wherever a scalar is, but it is never required; an array must have one value per evaluation
+point, and any other shape (including a single-element array) raises ``ValueError`` naming the
+entry.
 
 Which keys you set *is* the sparsity structure. YAPSS deduces it from one call at the
 initial guess and builds the NLP around it, so **every call must set the same keys**. There

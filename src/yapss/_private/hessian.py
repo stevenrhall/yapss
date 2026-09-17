@@ -249,10 +249,13 @@ def continuous_hessian_block(
     t0_view, tf_view = geometry.t0_view, geometry.tf_view
     tau_index = geometry.tau[index]
     n_points = len(geometry.tau)
+    points_shape = (n_points,)
 
     def term_values(context: HessianContext) -> FloatArray:
         dt = tf_view[0] - t0_view[0]
-        term = over_points(context.continuous_phase(p).hessian[chs_term], n_points)
+        term = over_points(
+            context.continuous_phase(p).hessian[chs_term], points_shape, p, "hessian", chs_term
+        )
         return term[index] * scale(dt)
 
     def mixed_block(var_rows: tuple[int, ...]) -> HessianBlock:
@@ -316,19 +319,32 @@ def chain_rule_block(
     i_t0, i_tf = geometry.i_t0, geometry.i_tf
     tau_index = geometry.tau[index]
     n_points = len(geometry.tau)
+    points_shape = (n_points,)
 
     if cf_name == "f":
         lam_defect = lambda_.phase[p].defect[jj]
 
         def term_values(context: HessianContext) -> FloatArray:
-            jac = over_points(context.continuous_phase(p).jacobian[cjs_term], n_points)
+            jac = over_points(
+                context.continuous_phase(p).jacobian[cjs_term],
+                points_shape,
+                p,
+                "jacobian",
+                cjs_term,
+            )
             return lam_defect * jac[index]
 
     else:
         lam_integral = lambda_.phase[p].integral
 
         def term_values(context: HessianContext) -> FloatArray:
-            jac = over_points(context.continuous_phase(p).jacobian[cjs_term], n_points)
+            jac = over_points(
+                context.continuous_phase(p).jacobian[cjs_term],
+                points_shape,
+                p,
+                "jacobian",
+                cjs_term,
+            )
             return np.asarray(lam_integral[jj] * w * jac, dtype=np.float64)
 
     if cv_name == "t":
@@ -351,14 +367,26 @@ def chain_rule_block(
     if cf_name == "f":
 
         def evaluate(context: HessianContext) -> FloatArray:
-            jac = over_points(context.continuous_phase(p).jacobian[cjs_term], n_points)
+            jac = over_points(
+                context.continuous_phase(p).jacobian[cjs_term],
+                points_shape,
+                p,
+                "jacobian",
+                cjs_term,
+            )
             rhs = 0.5 * jac[index] * lam_defect
             return np.concatenate((-rhs, rhs))
 
     else:
 
         def evaluate(context: HessianContext) -> FloatArray:
-            jac = over_points(context.continuous_phase(p).jacobian[cjs_term], n_points)
+            jac = over_points(
+                context.continuous_phase(p).jacobian[cjs_term],
+                points_shape,
+                p,
+                "jacobian",
+                cjs_term,
+            )
             rhs = 0.5 * jac[index] * (w * lam_integral[jj])
             return np.concatenate((-rhs, rhs))
 

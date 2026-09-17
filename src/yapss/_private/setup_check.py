@@ -48,7 +48,14 @@ from typing import TYPE_CHECKING, Any, TypeVar, assert_never, cast
 
 import numpy as np
 
-from .input_args import ContinuousArg, ContinuousStore, DiscreteArg, ObjectiveArg, call_callback
+from .input_args import (
+    ContinuousArg,
+    ContinuousStore,
+    DiscreteArg,
+    ObjectiveArg,
+    call_callback,
+    callback_location,
+)
 from .structure import get_nlp_dv_structure, nlp_constraint_keys, nlp_variable_keys
 
 if TYPE_CHECKING:
@@ -177,20 +184,6 @@ def _points(count: int, total: int) -> str:
     return "its one point" if total == 1 else f"{count} of {total} points"
 
 
-def _callback_location(function: Callable[..., Any]) -> str:
-    """Name a callback and, when it has one, the file and line of its ``def``.
-
-    A callable object is named by its class, at the ``def`` of its ``__call__``: its ``repr``
-    carries a memory address, which names nothing a user can find.
-    """
-    code = getattr(function, "__code__", None)
-    name = getattr(function, "__qualname__", None)
-    if name is None:
-        name = type(function).__qualname__
-        code = getattr(type(function).__call__, "__code__", None)
-    return name if code is None else f"{name} ({code.co_filename}, line {code.co_firstlineno})"
-
-
 def _list(lines: list[str]) -> str:
     shown = lines[:_MAX_REPORTED]
     if len(lines) > _MAX_REPORTED:
@@ -273,7 +266,7 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
 
     if unset:
         entries = [
-            f"functions.{attribute} = {_callback_location(function)}: {', '.join(outputs)}"
+            f"functions.{attribute} = {callback_location(function)}: {', '.join(outputs)}"
             for function, (attribute, outputs) in unset.items()
         ]
         msg = (
@@ -295,7 +288,7 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
         )
     if pointwise:
         sections.append(
-            f"The continuous callback {_callback_location(continuous_function)} is not "
+            f"The continuous callback {callback_location(continuous_function)} is not "
             "pointwise: evaluated on all points of each phase but the last, in reverse order, "
             f"its outputs changed:\n\n{_list(pointwise)}\n\n"
             "Each output at a point may depend only on the inputs at that point (time, state, "

@@ -86,7 +86,8 @@ the solver's own array.
     the other endpoint values changed a copy and had no effect, while writing into
     ``arg.parameter`` changed the solver's decision vector.
 
-The value of the objective function is assigned to the ``arg.objective`` attribute.
+The value of the objective function is assigned to the ``arg.objective`` attribute. It must be a
+scalar: assigning an array, even one with a single element, raises ``TypeError`` at that line.
 
 In addition, the ``arg`` object has the attribute ``arg.auxdata``, which is a
 :class:`~types.SimpleNamespace` object that can be used to store any auxiliary data for the
@@ -335,6 +336,22 @@ example above can be rewritten as:
         arg.discrete[1:4] = phase[0].final_state - phase[1].initial_state
         arg.discrete[4] = phase[1].final_time - phase[2].initial_time
         arg.discrete[5:8] = phase[1].final_state - phase[2].initial_state
+
+Errors Raised in a Callback
+---------------------------
+
+An exception raised inside one of your callbacks reaches you unchanged, with its own message
+and traceback, and with a note naming the callback YAPSS was calling and the line of its
+``def``, since the traceback alone does not say which of your functions was running:
+
+.. code-block:: pycon
+
+   ValueError: math domain error
+   Raised in functions.continuous = continuous (my_problem.py, line 12).
+
+Under the ``"auto"`` derivative method each callback is first called with symbolic inputs. A
+function that needs a float, such as ``math.sin``, fails there with a ``TypeError``, and a second
+note says to use the functions of ``yapss.math`` instead, which the next section describes.
 
 Mathematical Functions
 ----------------------

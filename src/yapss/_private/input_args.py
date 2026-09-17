@@ -117,25 +117,58 @@ def require_keys(arg: Any, structure: Any, *, per_phase: bool = False) -> None:
     set_private(arg, "_expected_keys", groups)
 
 
-def call_callback(function: Any, arg: Any, *, reset: bool = True) -> None:
+def callback_location(function: Callable[..., Any]) -> str:
+    """Name a callback and, when it has one, the file and line of its ``def``.
+
+    A callable object is named by its class, at the ``def`` of its ``__call__``: its ``repr``
+    carries a memory address, which names nothing a user can find.
+    """
+    code = getattr(function, "__code__", None)
+    name = getattr(function, "__qualname__", None)
+    if name is None:
+        name = type(function).__qualname__
+        code = getattr(type(function).__call__, "__code__", None)
+    return name if code is None else f"{name} ({code.co_filename}, line {code.co_firstlineno})"
+
+
+_SYMBOLIC_HINT = (
+    'Under the "auto" derivative method the callback is called with symbolic inputs, which '
+    "functions from math and other numeric libraries cannot take. Use the functions of "
+    "yapss.math instead."
+)
+
+
+def call_callback(function: Any, arg: Any) -> None:
     """Call one user callback, under the rules every callback obeys.
 
-    The callback's outputs are cleared first, so a row the callback does not assign on this
-    call is zero rather than whatever the previous call left there, and a value returned
-    instead of assigned is refused, naming the idiom to use.
+    Every call of a user-supplied function goes through here. The callback's outputs are
+    cleared first, so a row the callback does not assign on this call is zero rather than
+    whatever the previous call left there. A value returned instead of assigned is refused,
+    naming the idiom to use. Each argument clears only its own outputs (E7c), and a derivative
+    callback's key set must be the same on every call (E7b), checked after the call.
 
-    Every call of a user-supplied function goes through here. Derivative arguments keep their
-    ``jacobian``/``hessian`` dictionaries across calls; whether a key may first appear on a
-    later call is an open question (E7b), so `BaseArg._reset` leaves them alone.
-
-    ``reset=False`` is for the NLP's shared continuous evaluator alone: it passes one
-    `ContinuousArg` to all three continuous callbacks, so the outputs a Jacobian or Hessian
-    call finds there belong to the continuous callback and must survive. Distinct runtime
-    classes (E7c) would carry that in `ContinuousJacobianArg._reset` and retire the argument.
+    An exception raised by the callback propagates unchanged -- same object, message, and
+    traceback -- with a note naming the callback and the line of its ``def``, since the
+    traceback alone does not say which of the user's functions YAPSS was calling. When the
+    call was the symbolic trace of the ``"auto"`` method and the error is the kind a
+    float-only function raises on a symbol, a second note points to `yapss.math`.
     """
-    if reset:
-        arg._reset()
-    result = function(arg)
+    arg._reset()
+    try:
+        result = function(arg)
+    except Exception as exc:
+        # YAPSS's own derivative functions pass through here too (central difference wraps
+        # the user's callbacks); the note is for the user's function, which is innermost
+        if getattr(function, "__module__", "").startswith("yapss._private"):
+            raise
+        exc.add_note(f"Raised in functions.{arg._callback} = {callback_location(function)}.")
+        if (
+            arg._dtype is np.object_
+            and isinstance(exc, (TypeError, NotImplementedError))
+            and "yapss.math" not in str(exc)
+        ):
+            exc.add_note(_SYMBOLIC_HINT)
+        raise
     if arg._expected_keys is not None:
         _check_keys(arg)
     if result is not None:
@@ -320,6 +353,11 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
 
     @objective.setter
     def objective(self, value: T) -> None:
+        # an array here fails much later, inside the derivative method, with a message that
+        # names neither the objective nor the line that set it
+        if np.ndim(value) != 0:
+            msg = f"arg.objective must be a scalar, got a value of shape {np.shape(value)}."
+            raise TypeError(msg)
         set_private(self, "_objective", value)
         set_private(self, "_objective_written", value=True)
 

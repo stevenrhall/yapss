@@ -42,7 +42,7 @@ def _record(exc: BaseException, statement: str, test: str, area: str) -> None:
     entry = {
         "area": area,
         "type": type(exc).__name__,
-        "message": str(exc),
+        "message": "\n".join([str(exc), *getattr(exc, "__notes__", [])]),
         "statement": statement.strip(),
         "test": test,
     }
@@ -71,7 +71,10 @@ def proposed(clause: str) -> pytest.MarkDecorator:
 
 @contextmanager
 def raises(exc: type[BaseException], *fragments: str, at: str | None = None) -> Iterator[Any]:
-    """Assert that the block raises `exc` with every fragment in its message.
+    """Assert that the block raises `exc` with every fragment in its message or its notes.
+
+    Notes count as message: Python prints them directly under the message, which is where a
+    user reads them (YAPSS adds one naming the callback an exception came from).
 
     With `at`, also assert that the exception was raised by the statement in the block
     whose source contains `at` -- that is, the traceback's last frame in the calling test
@@ -81,7 +84,7 @@ def raises(exc: type[BaseException], *fragments: str, at: str | None = None) -> 
     caller_file = caller.f_code.co_filename
     with pytest.raises(exc) as info:
         yield info
-    message = str(info.value)
+    message = "\n".join([str(info.value), *getattr(info.value, "__notes__", [])])
     missing = [fragment for fragment in fragments if fragment not in message]
     assert not missing, f"message {message!r} lacks {missing!r}"
     frames = [

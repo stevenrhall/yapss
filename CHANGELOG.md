@@ -30,6 +30,20 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- An exception raised inside a callback now carries a note naming the callback YAPSS was
+  calling and the line of its `def`, as in `Raised in functions.continuous = continuous
+  (my_problem.py, line 12).` The exception itself is unchanged. Under the `"auto"`
+  derivative method, a `TypeError` from a function that cannot take a symbolic input, such as
+  `math.sin`, carries a second note pointing to `yapss.math`.
+- Assigning a value with a dimension to `arg.objective`, even a single-element array, raises
+  `TypeError` at the assignment. It used to fail later, inside the derivative method, with a
+  message naming neither the objective nor the line (`only 0-dimensional arrays can be
+  converted to Python scalars` under central difference, a CasADi prototype list under
+  `"auto"`).
+- A user derivative entry that is an array must have one value per evaluation point. Any
+  other shape raises `ValueError` naming the entry, such as
+  `arg.phase[0].hessian[('f', 2), ('u', 0), ('u', 0)] has shape (1,)`; it used to fail as an
+  `IndexError` inside the Hessian assembly.
 - Setting both orders of one Hessian variable pair in a user derivative callback, such as
   `hessian[("f", 0), ("x", 2), ("u", 0)]` and `hessian[("f", 0), ("u", 0), ("x", 2)]`, now
   raises `ValueError`, as announced in 0.2.2. The two entries used to be summed, which

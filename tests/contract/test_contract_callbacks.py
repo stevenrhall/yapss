@@ -845,7 +845,6 @@ def test_numpy_integer_indices_are_accepted():
 # ----------------------------------------------------------------- not yet met: outputs
 
 
-@not_yet("W5", "a non-scalar objective raises naming arg.objective")
 def test_non_scalar_objective_raises():
     def objective(arg):
         arg.objective = arg.phase[0].final_state
@@ -859,7 +858,6 @@ def test_non_scalar_objective_raises():
 
 # NumPy < 2.3 warns before raising here; newer NumPy raises directly
 @pytest.mark.filterwarnings("ignore:Conversion of an array with ndim > 0:DeprecationWarning")
-@not_yet("W5", "a non-yapss.math function on a symbol raises naming yapss.math")
 def test_math_module_function_on_a_symbol_raises_helpfully():
     def continuous(arg):
         default_continuous(arg)
@@ -869,7 +867,6 @@ def test_math_module_function_on_a_symbol_raises_helpfully():
         callback_problem("auto", continuous=continuous).solve()
 
 
-@not_yet("W5", "an exception raised in a callback carries a note naming the callback")
 def test_exception_in_a_callback_has_a_context_note():
     def continuous(arg):
         raise ValueError("user error")
@@ -899,7 +896,6 @@ def test_callback_with_defaulted_extra_parameter_is_accepted():
 # -------------------------------------------------------- not yet met: user derivatives
 
 
-@not_yet("W5", "a length-1 array entry in a user Hessian raises ValueError naming the key")
 def test_length_one_array_hessian_entry_raises_naming_it():
     ocp = brachistochrone.setup()
     hessian = ocp.functions.continuous_hessian

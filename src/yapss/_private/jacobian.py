@@ -221,6 +221,7 @@ def continuous_jacobian_block(
     cf_phase = geometry.twins.cf.phase[p]
     w = geometry.w
     nw = geometry.nw
+    shape_w = (nw,)
     t0_view, tf_view = geometry.t0_view, geometry.tf_view
     n, index = geometry.span(cf_name)
 
@@ -242,7 +243,9 @@ def continuous_jacobian_block(
         (tf - t0)/2; path rows are not. The Jacobian value may be a scalar (a
         constant derivative), so it is broadcast over the evaluation points first.
         """
-        values = over_points(context.continuous_phase(p).jacobian[cjs_term], nw)
+        values = over_points(
+            context.continuous_phase(p).jacobian[cjs_term], shape_w, p, "jacobian", cjs_term
+        )
         if cf_name == "f":
             return np.asarray(0.5 * (tf_view[0] - t0_view[0]) * values[index], dtype=np.float64)
         if cf_name == "g":
