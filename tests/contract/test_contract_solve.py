@@ -276,7 +276,6 @@ def test_option_container_methods_are_reserved():
         ocp.ipopt_options.reset = 5
 
 
-@not_yet("E4", "a status with no iterate (-10, too few degrees of freedom) raises ValueError")
 @pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
 def test_status_without_an_iterate_raises():
     """Two equality constraints on one variable: Ipopt stops before iterating (status -10).
@@ -296,18 +295,25 @@ def test_status_without_an_iterate_raises():
         ocp.solve()
 
 
-@not_yet("E4", "yapss.IpoptStatus is a public IntEnum and solution.status uses it")
 def test_status_enum_and_top_level_status():
     solution = callback_problem().solve()
     assert solution.status == yapss.IpoptStatus(0)
     assert solution.status == 0
 
 
-@not_yet("E4", "solution.converged is true for statuses 0, 1, and 6 and false otherwise")
 @pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
 def test_converged_flag():
     assert callback_problem().solve().converged is True
     assert unconverged().solve().converged is False
+
+
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
+def test_status_names_the_outcome_and_is_the_nlp_info_status():
+    solution = unconverged().solve()
+    assert solution.status is yapss.IpoptStatus.MAXIMUM_ITERATIONS_EXCEEDED
+    assert solution.status.message == "Maximum Number of Iterations Exceeded."
+    assert solution.status.converged is False
+    assert solution.nlp_info.ipopt_status is solution.status
 
 
 def test_yapss_warning_hierarchy():

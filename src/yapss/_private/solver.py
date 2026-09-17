@@ -26,6 +26,7 @@ from .central_difference import make_cd_functions
 from .config import get_conda_prefix, warn_if_ipopt_source_env_set
 from .guess import make_initial_guess_nlp
 from .ipopt_options import IpoptOptionSettingWarning, explain_refusal
+from .ipopt_status import status_or_raise
 from .mesh import Mesh
 from .mseipopt import bare_np, initialize_ipopt
 from .nlp import NLP
@@ -240,6 +241,9 @@ def solve(problem: yapss.Problem) -> Solution:
         # must still release the native problem on that propagation path.
         ipopt_problem.close()
 
+    # A status without an iterate raises here, in the internal solve, so that a loop of
+    # solves (mesh refinement) raises too; the convergence warning is for the public boundary.
+    nlp_info["status"] = status_or_raise(nlp_info["status"])
     nlp_info["x"] = z
     return make_solution_object(problem, mesh, nlp_temp, nlp_info)
 

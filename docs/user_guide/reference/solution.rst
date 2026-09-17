@@ -39,8 +39,8 @@ warning appears as soon as ``solve()`` returns:
    >>> solution = problem.solve()
    IpoptConvergenceWarning: Ipopt did not converge. Status -1: "Maximum Number of Iterations
    Exceeded." The returned solution does not satisfy Ipopt's convergence criteria and should
-   not be treated as an optimal trajectory. Check solution.nlp_info.ipopt_status and the
-   Ipopt output before using these results.
+   not be treated as an optimal trajectory. Check solution.status and the Ipopt output
+   before using these results.
 
 This illustration is not itself doctested, since the warning text goes to ``stderr``
 rather than ``stdout`` and capturing it would need the same ``warnings`` bookkeeping this
@@ -84,9 +84,9 @@ at whatever iterate it had reached, reported as status ``5``. The warning tells 
 not converge, and that is the only thing it tells you.
 
 **Branch on the status, not on the warning.** Warnings are for people reading output.
-Code that needs to know should test ``solution.nlp_info.ipopt_status``, described under
-`Information from Ipopt Solver`_ below, which is unaffected by warning filters and
-distinguishes the failure modes from one another.
+Code that needs to know should test ``solution.converged``, or ``solution.status`` to tell
+the failure modes apart. Both are described under `Information from Ipopt Solver`_ below,
+and neither is affected by warning filters.
 
 **Only** ``Problem.solve()`` **warns.** The check is deliberately placed at the public
 boundary rather than inside the solver, so that the reported source location is your own
@@ -226,9 +226,33 @@ multipliers, is also available:
 Information from Ipopt Solver
 -----------------------------
 
+.. versionadded:: 0.3.0
+
+    ``solution.status``, ``solution.converged``, and :class:`yapss.IpoptStatus`.
+
+Two attributes summarize how the solve ended:
+
+-  **status** (:class:`~yapss.IpoptStatus`): The status Ipopt reported. ``IpoptStatus`` is an
+   ``IntEnum`` naming Ipopt's return codes, so ``solution.status == 0`` and
+   ``solution.status == yapss.IpoptStatus.SOLVE_SUCCEEDED`` are the same test.
+   ``solution.status.message`` is Ipopt's own description, as printed on its ``EXIT:``
+   line.
+-  **converged** (*bool*): Whether Ipopt reported a converged solution: status ``0``,
+   ``1``, or ``6``.
+
+A solve returns a ``Solution`` only when Ipopt has an iterate to report. For the statuses
+where it has none, ``solve()`` raises instead of returning a solution made of placeholder
+values: ``ValueError`` for too few degrees of freedom (``-10``), inconsistent bounds
+(``-11``), an invalid option (``-12``), or a NaN or Inf returned by a callback or its
+derivative during the solve (``-13``); ``MemoryError`` when Ipopt runs out of memory
+(``-102``); and ``RuntimeError`` for a failure inside Ipopt itself. With status ``-13``,
+Ipopt reports the point it had reached but sets every constraint value and multiplier to
+zero, so a solution built from it would show costates and multipliers that are not.
+
 The `nlp_info` attribute provides detailed information from the Ipopt solver, including:
 
--  **ipopt_status** (*int*): The Ipopt status code.
+-  **ipopt_status** (:class:`~yapss.IpoptStatus`): The Ipopt status code, the same object
+   as ``solution.status``.
 -  **ipopt_status_message** (*str*): The corresponding status message.
 -  **obj_val** (*float*): Objective function value at the optimal solution.
 -  **x** (*np.ndarray*): Optimal values of the NLP decision variables, combining all
@@ -246,6 +270,13 @@ Lagrange multipliers associated with variable bounds and constraints:
 
 .. autoclass:: yapss.Solution
     :members:
+
+``IpoptStatus`` Class Reference
+-------------------------------
+
+.. autoclass:: yapss.IpoptStatus
+    :members: message, converged
+    :undoc-members:
 
 ``IpoptConvergenceWarning`` Class Reference
 -------------------------------------------

@@ -19,6 +19,7 @@ from scipy.sparse import csr_matrix
 
 # package imports
 from .exceptions import YapssWarning
+from .ipopt_status import IpoptStatus
 from .layout import problem_layout
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
 
@@ -58,45 +59,12 @@ class IpoptConvergenceWarning(YapssWarning):
     """
 
 
-# Ipopt statuses that do NOT warrant a warning.
-#
-#   0  Optimal Solution Found
-#   1  Solved To Acceptable Level
-#   6  Feasible point for square problem found
-#
-# 1 is deliberately included. It is the normal outcome when pushing tolerances hard --
-# the answer is routinely correct to many more digits than requested -- and warning on
-# it would train users to ignore the warning, which destroys its value for the cases
-# that matter. CasADi raises on 1, and it is a known annoyance.
-QUIET_IPOPT_STATUSES = frozenset({0, 1, 6})
-
-# Ipopt status messages, transcribed from the `EXIT:` lines Ipopt itself prints in
-# `IpIpoptApplication.cpp::call_optimize`. They are reproduced verbatim, punctuation
-# included, so that the message YAPSS reports and the message in the console output
-# directly above it are the same string. Status -101 is the exception: that branch
-# reports the exception and prints no `EXIT:` line, so the text below is YAPSS's own.
-ipopt_status_messages = {
-    0: "Optimal Solution Found.",
-    1: "Solved To Acceptable Level.",
-    2: "Converged to a point of local infeasibility. Problem may be infeasible.",
-    3: "Search Direction is becoming Too Small.",
-    4: "Iterates diverging; problem might be unbounded.",
-    5: "Stopping optimization at current point as requested by user.",
-    6: "Feasible point for square problem found.",
-    -1: "Maximum Number of Iterations Exceeded.",
-    -2: "Restoration Failed!",
-    -3: "Error in step computation!",
-    -4: "Maximum CPU time exceeded.",
-    -5: "Maximum wallclock time exceeded.",
-    -10: "Problem has too few degrees of freedom.",
-    -11: "Problem has inconsistent variable bounds or constraint sides.",
-    -12: "Invalid option encountered.",
-    -13: "Invalid number in NLP function or derivative detected.",
-    -100: "Some uncaught Ipopt exception encountered.",
-    -101: "An exception not raised by Ipopt was caught during the solve.",
-    -102: "Not enough memory.",
-    -199: "INTERNAL ERROR: Unknown SolverReturn value - Notify IPOPT Authors.",
-}
+# The statuses that do not warn are the converged ones, 0, 1, and 6. 1 is deliberately
+# included: it is the normal outcome when pushing tolerances hard -- the answer is routinely
+# correct to many more digits than requested -- and warning on it would train users to ignore
+# the warning, which destroys its value for the cases that matter. CasADi raises on 1, and it
+# is a known annoyance.
+QUIET_IPOPT_STATUSES = frozenset(status for status in IpoptStatus if status.converged)
 
 _dataclass_msg = "All attributes must be provided, and cannot be None"
 
@@ -129,13 +97,17 @@ def warn_if_not_converged(solution: Solution, stacklevel: int = 2) -> None:
     # punctuation varies, so interpolating it mid-sentence produced run-ons. The
     # explanation is left as one paragraph rather than hard-wrapped, so that it wraps
     # to the reader's terminal instead of to a width guessed here.
-    message = ipopt_status_messages.get(status, "Unknown status code.")
+    # not `status in IpoptStatus`: on Python 3.11 an int in an enum class raises TypeError
+    try:
+        message = IpoptStatus(status).message
+    except ValueError:
+        message = "Unknown status code."
     _forget_previous_warning(stacklevel)
     warn(
         f'Ipopt did not converge. Status {status}: "{message}"\n'
         f"The returned solution does not satisfy Ipopt's convergence criteria and "
         f"should not be treated as an optimal trajectory. Check "
-        f"solution.nlp_info.ipopt_status and the Ipopt output before using these "
+        f"solution.status and the Ipopt output before using these "
         f"results.",
         category=IpoptConvergenceWarning,
         stacklevel=stacklevel,
@@ -239,12 +211,12 @@ def make_solution_object(
         raise TypeError(msg)
 
     if isinstance(status_, int):
-        status = status_
+        status = IpoptStatus(status_)
     else:
         msg = f"Expected int, got {type(status_)}"
         raise TypeError(msg)
 
-    status_message: str = ipopt_status_messages.get(status, "Unknown status code")
+    status_message: str = status.message
 
     # initialize data views
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
@@ -536,13 +508,17 @@ class Solution:
         hamiltonian : numpy.ndarray
             Hamiltonian values at the collocation time points.
 
+    status : IpoptStatus
+        The status Ipopt reported, an `IntEnum` that compares equal to Ipopt's integer code.
+        A status with no iterate to report raises from `Problem.solve` instead.
+    converged : bool
+        Whether Ipopt reported a converged solution: status 0, 1, or 6.
     nlp_info : NLPInfo
         Information about the NLP solver status and results, including the final values of
         decision variables, constraint multipliers, and other information. The attributes are:
 
-        ipopt_status : int
-            The status code returned by Ipopt, indicating the success or failure of the
-            optimization.
+        ipopt_status : IpoptStatus
+            The status code returned by Ipopt, the same object as ``status``.
         ipopt_status_message : str
             A human-readable message corresponding to the status code. In most cases, it's
             the same message as that printed in the console by Ipopt.
@@ -585,6 +561,16 @@ class Solution:
         if any(attr is None for attr in attributes):
             raise ValueError(_dataclass_msg)
 
+    @property
+    def status(self) -> IpoptStatus:
+        """The status Ipopt reported, as an `IpoptStatus` (an `IntEnum`)."""
+        return self.nlp_info.ipopt_status
+
+    @property
+    def converged(self) -> bool:
+        """Whether Ipopt reported a converged solution: status 0, 1, or 6."""
+        return self.nlp_info.ipopt_status.converged
+
     def __repr__(self) -> str:
         return f"<{__name__}.Solution: '{self.name}'>"
 
@@ -602,7 +588,7 @@ class Solution:
 class NLPInfo:
     """Container for NLP solver information."""
 
-    ipopt_status: int
+    ipopt_status: IpoptStatus
     ipopt_status_message: str
     g: NDArray[np.float64]
     obj_val: float

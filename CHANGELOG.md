@@ -19,6 +19,10 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Added
 
+- `solution.status`, a `yapss.IpoptStatus`, and `solution.converged`, true for Ipopt
+  statuses 0, 1, and 6. `IpoptStatus` is an `IntEnum` naming Ipopt's return codes, with
+  Ipopt's description of each as `.message`, so `solution.status == 0` keeps working.
+  `solution.nlp_info.ipopt_status` is the same object.
 - `problem.guess.reset()` and `problem.guess.phase[p].reset()` return the guess, or one
   phase's, to its state when the problem was created: time, state, and control unset, and
   integral and parameter zeros. `problem.scale.reset()` and `problem.scale.phase[p].reset()`
@@ -26,6 +30,13 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- A solve that ends without an iterate to report now raises instead of returning a
+  `Solution` of placeholder values with an `IpoptConvergenceWarning`: `ValueError` for too
+  few degrees of freedom (status -10), inconsistent bounds (-11), an invalid option (-12),
+  or a NaN or Inf from a callback or derivative during the solve (-13); `MemoryError` for
+  -102; `RuntimeError` for a failure inside Ipopt. For these statuses Ipopt reports no
+  constraint values or multipliers -- they are left as passed in or set to zero -- so the
+  returned solution's costates and multipliers were meaningless while looking normal.
 - A bound or scale factor that is wrong on its own now raises `ValueError` where it is
   written, however it is written: a whole array, an element, a slice, a mask, a view, an
   in-place operator such as `+=` or `*=`, or `fill`. For bounds that means NaN, `+inf` as a

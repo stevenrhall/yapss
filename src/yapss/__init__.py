@@ -14,6 +14,7 @@ from ._private.input_args import DiscreteHessianArg, DiscreteJacobianArg
 from ._private.input_args import ObjectiveArg as ObjectiveArg_
 from ._private.input_args import ObjectiveGradientArg, ObjectiveHessianArg
 from ._private.ipopt_options import IpoptOptionSettingWarning
+from ._private.ipopt_status import IpoptStatus
 from ._private.problem import LargeSegmentWarning, Problem
 from ._private.setup_check import UnsetOutputWarning
 from ._private.solution import IpoptConvergenceWarning, Solution
@@ -32,6 +33,7 @@ __all__ = [
     "DiscreteJacobianArg",
     "IpoptConvergenceWarning",
     "IpoptOptionSettingWarning",
+    "IpoptStatus",
     "LargeSegmentWarning",
     "MirroredHessianPairWarning",
     "ObjectiveArg",

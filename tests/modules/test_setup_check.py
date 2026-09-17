@@ -281,7 +281,8 @@ def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
     Runs in a subprocess: this is the configuration that crashed with SIGBUS before the
     `check_derivatives_for_naninf` default, and a regression must not kill pytest. The
     assertion is the status Ipopt returns, -13 (Invalid_Number_Detected), not merely that
-    the process survived.
+    the process survived. Since 0.3.0 that status raises `ValueError`, because Ipopt reports
+    no constraint values or multipliers with it.
     """
     script = textwrap.dedent("""
         import warnings
@@ -291,8 +292,10 @@ def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
         solver.check_callbacks = lambda *args: None
         solver.check_derivatives = lambda *args: None
         problem = _brachistochrone("central-difference", "nan-value")
-        solution = problem.solve()
-        print("STATUS", solution.nlp_info.ipopt_status)
+        try:
+            problem.solve()
+        except ValueError as error:
+            print("RAISED", error)
         """)
     process = subprocess.run(
         [sys.executable, "-c", script],
@@ -303,4 +306,6 @@ def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
     )
     output = process.stdout + process.stderr
     assert process.returncode == 0, f"exit {process.returncode}:\n{output}"
-    assert "STATUS -13" in process.stdout, output
+    assert 'RAISED Ipopt stopped without a solution. Status -13: "Invalid number' in (
+        process.stdout
+    ), output

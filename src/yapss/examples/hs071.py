@@ -87,7 +87,7 @@ def main() -> None:
     print_solution(solution)
 
     # smoke test that raises an exception during user installation test
-    if solution.nlp_info.ipopt_status not in (0, 1):
+    if not solution.converged:
         msg = "YAPSS did not converge to an optimal solution."
         raise RuntimeError(msg)
     if not np.isclose(solution.objective, 17.01401714, rtol=1e-6):
