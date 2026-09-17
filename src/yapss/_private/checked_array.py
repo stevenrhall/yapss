@@ -24,8 +24,10 @@ The rules, decided 2026-09-16:
   ``a.flat[...] = ``, ``a.view(np.ndarray)[...] = ``, and ``ufunc.at``. They reach the stored
   values without the checks, and ``validate()`` reports what it can. A bool written that
   way is converted by NumPy and cannot be detected afterward.
-- **A copied or unpickled problem keeps its checks** (provisional, pending the design of
-  `Solution`): `copy.deepcopy` and `pickle` preserve them.
+- **A deep-copied problem keeps its checks:** `copy.deepcopy` is how `Solution` records the
+  problem it solved. Pickling is not supported: YAPSS makes no promise that a pickled problem
+  loads, or keeps its checks, in any version (decided 2026-09-17, with 0.3.0 the last release
+  of this API).
 
 Checks relating several values, such as a lower bound above its upper bound, belong to
 ``validate()``: the user must be free to assign ``lower`` and ``upper`` in either order.
@@ -35,7 +37,7 @@ Checks relating several values, such as a lower bound above its upper bound, bel
 from __future__ import annotations
 
 # standard imports
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol
 
 # third party imports
 import numpy as np
@@ -51,10 +53,7 @@ __all__ = ["Check", "CheckedArray", "raise_if_invalid"]
 
 
 class Check(Protocol):
-    """What one attribute allows, element by element.
-
-    Implementations are module-level classes so that a checked array can be pickled.
-    """
+    """What one attribute allows, element by element."""
 
     def invalid(self, values: NDArray[np.float64]) -> NDArray[np.bool_]:
         """Return a mask of the elements the attribute does not allow."""
@@ -248,20 +247,6 @@ class CheckedArray(np.ndarray):
         if self._root is not self or self._label is None or self._check is None:
             return self.copy()
         return CheckedArray.create(self.view(np.ndarray), self._label, self._check)
-
-    def __reduce__(self) -> tuple[Any, ...]:
-        """Pickle a root with its label and check."""
-        reconstruct, arguments, state = cast("tuple[Any, Any, Any]", super().__reduce__())
-        root = self._root is self
-        return reconstruct, arguments, (state, self._label if root else None, self._check)
-
-    def __setstate__(self, state: Any) -> None:
-        array_state, label, check = state
-        super().__setstate__(array_state)
-        if label is not None:
-            self._label = label
-            self._check = check
-            self._root = self
 
     # ------------------------------------------------------------------- printing
 

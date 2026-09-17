@@ -34,7 +34,6 @@ What a user may get wrong
 from __future__ import annotations
 
 import copy
-import pickle
 
 import numpy as np
 import pytest
@@ -362,15 +361,10 @@ def test_a_scale_array_prints_like_an_ndarray():
     assert str(state) == "[1. 1.]"
 
 
-# Provisional (2026-09-16): a copied or unpickled problem keeps its checks. Depends on the
-# Solution design, which may stop Solution from holding a problem at all.
-@pytest.mark.parametrize(
-    "duplicate",
-    [copy.deepcopy, lambda p: pickle.loads(pickle.dumps(p))],
-    ids=["deepcopy", "pickle"],
-)
-def test_a_duplicated_problem_keeps_its_checks(duplicate):
-    ocp = duplicate(problem())
+# A deep-copied problem keeps its checks: deepcopy is how Solution records the problem it
+# solved. Pickling is not part of the contract (decided 2026-09-17).
+def test_a_deep_copied_problem_keeps_its_checks():
+    ocp = copy.deepcopy(problem())
     with raises(ValueError, "scale.phase[0].state"):
         ocp.scale.phase[0].state[0] = 0.0
 
