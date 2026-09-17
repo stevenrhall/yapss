@@ -320,13 +320,10 @@ def test_yapss_warning_hierarchy():
     for category in (
         yapss.IpoptConvergenceWarning,
         yapss.IpoptOptionSettingWarning,
-        yapss.MirroredHessianPairWarning,
-        yapss.UnsupportedMathFunctionWarning,
         yapss.UnsetOutputWarning,
     ):
         assert issubclass(category, yapss.YapssWarning)
     assert issubclass(yapss.YapssWarning, UserWarning)
-    assert issubclass(yapss.MirroredHessianPairWarning, FutureWarning)
     assert issubclass(yapss.YapssDeprecationWarning, FutureWarning)
 
 

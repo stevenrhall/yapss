@@ -132,9 +132,13 @@ mixed partial derivative the two variable keys may be given in either order, but
 pair must be supplied **exactly once**: ``hessian[("f", 0), ("x", 2), ("u", 0)]`` and
 ``hessian[("f", 0), ("u", 0), ("x", 2)]`` name the same second derivative, and only one of them
 may be set. Do not split one derivative across the two orders, and do not supply both triangles
-of a symmetric Hessian. Setting both orders of a pair emits
-:class:`~yapss.MirroredHessianPairWarning` and will raise ``ValueError`` in version 0.3.0. The
-same rule applies to the objective and discrete Hessians below.
+of a symmetric Hessian. Setting both orders of a pair raises ``ValueError`` when the problem is
+solved. The same rule applies to the objective and discrete Hessians below.
+
+.. versionchanged:: 0.3.0
+
+    Setting both orders of a pair raises ``ValueError``. Through 0.2.x it emitted
+    ``MirroredHessianPairWarning`` and the two entries were summed.
 
 The Objective Gradient and Hessian
 ----------------------------------
@@ -194,7 +198,3 @@ the objective derivative functions. Finally, the ``arg.hessian`` keys have the f
 
    ``(k, (p1, var1, i1), (p2, var2, i2))``
 
-``MirroredHessianPairWarning`` Class Reference
-----------------------------------------------
-
-.. autoexception:: yapss.MirroredHessianPairWarning

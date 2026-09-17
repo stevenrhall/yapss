@@ -38,7 +38,7 @@ import numpy as np
 from casadi import SX
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
-from yapss._private.exceptions import YapssDeprecationWarning, YapssError
+from yapss._private.exceptions import YapssError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -54,23 +54,11 @@ class UnsupportedMathFunctionError(YapssError, TypeError):
     """
 
 
-class UnsupportedMathFunctionWarning(YapssDeprecationWarning):
-    """An unsupported function was called on real arguments; it will raise from 0.3.0.
-
-    These functions have no symbolic equivalent, so they already fail under the ``"auto"``
-    derivative method. On real arguments they still evaluate, which lets a formulation depend
-    on the derivative method chosen; from 0.3.0 they raise `UnsupportedMathFunctionError` on
-    both paths.
-    """
-
-
-# Functions with no meaning on a symbolic value, with the reason. A symbolic argument raises,
-# as it already did before 0.2.2 -- numpy itself raised TypeError -- and a real argument
-# warns and evaluates. Rejecting both paths is the goal: a function that works under one
-# derivative method and fails under another lets a formulation depend on the derivative
-# method, which is the class of defect this module exists to prevent. But the real path
-# worked through 0.2.1, so it may not be taken away in a patch release; the warning says so
-# and 0.3.0 raises. Use numpy directly if one of these is needed outside a callback.
+# Functions with no meaning on a symbolic value, with the reason. They raise on every argument:
+# a function that worked under central differences and failed under "auto" would let a
+# formulation depend on the derivative method, which is the class of defect this module
+# exists to prevent. A real argument warned and evaluated through 0.2.x, since it had worked
+# through 0.2.1; 0.3.0 raises. Use numpy directly if one of these is needed outside a callback.
 REJECTED: dict[str, str] = {
     "nextafter": "steps between adjacent floating-point values",
     "signbit": "reads the floating-point sign bit, including the sign of negative zero",

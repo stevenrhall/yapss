@@ -25,6 +25,7 @@ import casadi as ca
 import numpy as np
 import pytest
 
+import yapss
 from yapss import math
 from yapss.math.wrapper import SXW, SXArray, sx_array
 
@@ -86,9 +87,8 @@ OUT_OF_SCOPE = {
 }
 
 # Exported names that YAPSS deliberately refuses in a callback, because they have no
-# symbolic equivalent. A symbolic argument raises UnsupportedMathFunctionError, as it did
-# before 0.2.2; a real argument warns and evaluates until 0.3.0, when it raises too -- see
-# test_rejected_names_warn_on_real_input, which is the test to flip then.
+# symbolic equivalent. Every argument raises UnsupportedMathFunctionError; a real argument
+# warned and evaluated through 0.2.x.
 REJECTED = ("nextafter", "signbit", "spacing")
 
 # Exported names that do not round-trip through SXW. Entries are xfail(strict=True), so
@@ -262,24 +262,20 @@ def test_rejected_names_raise_on_symbolic_input(name):
 
 
 @pytest.mark.parametrize("name", REJECTED)
-def test_rejected_names_warn_on_real_input(name):
-    """Real arguments warn and still evaluate; flip this to raise in 0.3.0.
+def test_rejected_names_raise_on_real_input(name):
+    """Real arguments raise as symbolic ones do, so no formulation depends on the method.
 
-    These worked on real arrays through 0.2.1, so a patch release may not take them
-    away. The end state is rejection on both paths, so that a formulation cannot come
-    to depend on which derivative method is selected.
+    They warned and evaluated through 0.2.x, having worked through 0.2.1.
     """
     function = getattr(math, name)
-    numpy_function = getattr(np, name)
-    arguments = (np.array([1.0, 2.0]),) * getattr(numpy_function, "nin", 1)
+    arguments = (np.array([1.0, 2.0]),) * getattr(getattr(np, name), "nin", 1)
 
-    with pytest.warns(math.UnsupportedMathFunctionWarning) as record:
-        result = function(*arguments)
+    with pytest.raises(math.UnsupportedMathFunctionError) as excinfo:
+        function(*arguments)
 
-    assert np.array_equal(result, numpy_function(*arguments))
-    message = str(record[0].message)
+    message = str(excinfo.value)
     assert name in message
-    assert "0.3.0" in message
+    assert f"numpy.{name}" in message
 
 
 def test_unsupported_error_is_a_type_error():
@@ -287,6 +283,7 @@ def test_unsupported_error_is_a_type_error():
     assert issubclass(math.UnsupportedMathFunctionError, TypeError)
 
 
-def test_unsupported_warning_is_a_future_warning():
-    """DeprecationWarning is suppressed by default outside __main__; this must not be."""
-    assert issubclass(math.UnsupportedMathFunctionWarning, FutureWarning)
+@pytest.mark.parametrize("module", [yapss, math], ids=["yapss", "yapss.math"])
+def test_the_removed_warning_says_what_replaced_it(module):
+    with pytest.raises(AttributeError, match="removed in 0.3.0.*now raise"):
+        _ = module.UnsupportedMathFunctionWarning

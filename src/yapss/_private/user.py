@@ -7,7 +7,6 @@ Collect user-defined functions and deduce their derivatives structures.
 # standard library
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any
 
 # third party imports
@@ -15,7 +14,6 @@ import numpy as np
 
 # package imports
 from . import derivative_keys
-from .exceptions import YapssDeprecationWarning
 from .input_args import (
     ContinuousStore,
     DiscreteHessianArg,
@@ -40,29 +38,19 @@ if TYPE_CHECKING:
     from .types_ import CHS, CJS
 
 
-class MirroredHessianPairWarning(YapssDeprecationWarning):
-    """A user-defined Hessian callback set both orders of one variable pair.
-
-    Each unordered pair of variables is one second partial derivative and must be
-    supplied exactly once, in either order. Both orders currently assemble as two
-    entries that are summed; from 0.3.0 this raises `ValueError`.
-    """
-
-
-def _warn_mirrored_pairs(
+def _refuse_mirrored_pairs(
     entries: dict[Any, Any],
     what: str,
     *,
     context: bool,
 ) -> None:
-    """Warn when a Hessian structure sets both orders of one variable pair.
+    """Raise when a Hessian structure sets both orders of one variable pair.
 
-    The two orders assemble as mirrored coordinates that the structure fold sums. That
-    is the right answer for a user who split one derivative across the two keys and
-    the wrong answer (doubled) for a user who supplied both triangles of a symmetric
-    Hessian, and nothing downstream can tell which was meant -- so the ambiguity is
-    refused, by a warning in 0.2.x and an error from 0.3.0. The behavior in 0.2.x is
-    unchanged so that the first kind of user is not broken by a patch release.
+    The two orders would assemble as mirrored coordinates that the structure fold sums. That
+    is the right answer for a user who split one derivative across the two keys and the
+    wrong answer (doubled) for a user who supplied both triangles of a symmetric Hessian, and
+    nothing downstream can tell which was meant, so the ambiguity is refused. It warned with
+    `MirroredHessianPairWarning` through 0.2.x and raises from 0.3.0.
 
     Parameters
     ----------
@@ -74,6 +62,11 @@ def _warn_mirrored_pairs(
         Which Hessian, for the message.
     context : bool
         Whether the keys carry a leading function-index element.
+
+    Raises
+    ------
+    ValueError
+        If two keys name the same unordered pair of variables.
     """
     seen: dict[Any, tuple[Any, Any]] = {}
     for key, value in entries.items():
@@ -92,20 +85,18 @@ def _warn_mirrored_pairs(
         if same_values:
             diagnosis = (
                 "The two entries have equal values, which looks like both triangles of a "
-                "symmetric Hessian: the entries are summed, doubling the term. Remove one."
+                "symmetric Hessian. Remove one."
             )
         else:
             diagnosis = (
-                "The two entries are summed. If that is intended, combine them into a single "
+                "If the two entries are parts of one derivative, add them into a single "
                 "entry; if not, remove one."
             )
         msg = (
             f"The {what} sets both {first} and {key}, which are the same second derivative. "
-            f"{diagnosis} Supplying both orders of a pair will raise ValueError in 0.3.0."
+            f"Each unordered pair of variables must be set once, in either order. {diagnosis}"
         )
-        # stacklevel: this helper <- make_user_functions <- solver.solve <- Problem.solve
-        # <- the user's call
-        warnings.warn(msg, MirroredHessianPairWarning, stacklevel=5)
+        raise ValueError(msg)
 
 
 def make_user_functions(
@@ -212,7 +203,7 @@ def make_user_functions(
             problem,
             objective_hessian_arg.hessian,
         )
-        _warn_mirrored_pairs(
+        _refuse_mirrored_pairs(
             dict(
                 zip(
                     objective_hessian_structure, objective_hessian_arg.hessian.values(), strict=True
@@ -237,7 +228,7 @@ def make_user_functions(
                 problem,
                 discrete_hessian_arg.hessian,
             )
-            _warn_mirrored_pairs(
+            _refuse_mirrored_pairs(
                 dict(
                     zip(
                         discrete_hessian_structure,
@@ -274,7 +265,7 @@ def make_user_functions(
             for p in range(problem.np):
                 entries = continuous_hessian_arg.phase[p].hessian
                 chs_phase = derivative_keys.continuous_hessian_structure(problem, p, entries)
-                _warn_mirrored_pairs(
+                _refuse_mirrored_pairs(
                     dict(zip(chs_phase, entries.values(), strict=True)),
                     f"continuous Hessian of phase {p}",
                     context=True,

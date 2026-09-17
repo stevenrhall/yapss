@@ -10,7 +10,6 @@ or by having no symbolic meaning at all.
 
 """
 
-import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -20,7 +19,6 @@ from .wrapper import (
     REDUCTIONS,
     REJECTED,
     UnsupportedMathFunctionError,
-    UnsupportedMathFunctionWarning,
     _round,
     apply_ufunc,
     is_symbolic,
@@ -31,7 +29,6 @@ from .wrapper import (
 
 __all__ = [
     "UnsupportedMathFunctionError",
-    "UnsupportedMathFunctionWarning",
     "all",
     "amax",
     "amin",
@@ -107,29 +104,15 @@ def _reduction(name: str) -> Callable[..., Any]:
 
 def _rejected(name: str) -> Callable[..., Any]:
     """Build a stub that rejects `name`, which is unsupported in a YAPSS callback."""
-    numpy_function = getattr(np, name)
     message = rejected_message(name)
 
-    def rejected(*args: Any, **kwargs: Any) -> Any:
-        try:
-            for arg in args:
-                np.array(arg, dtype=np.float64)
-        except TypeError:
-            # A symbolic argument. This raised before 0.2.2 as well.
-            raise UnsupportedMathFunctionError(message) from None
-        warnings.warn(
-            f"{message} It still evaluates on real arguments, but will raise "
-            f"UnsupportedMathFunctionError in 0.3.0.",
-            UnsupportedMathFunctionWarning,
-            stacklevel=2,
-        )
-        return numpy_function(*args, **kwargs)
+    def rejected(*args: Any, **kwargs: Any) -> Any:  # noqa: ARG001
+        raise UnsupportedMathFunctionError(message)
 
     rejected.__name__ = name
     rejected.__qualname__ = name
     rejected.__doc__ = (
-        f"Raise :class:`UnsupportedMathFunctionError` on a symbolic argument, or warn "
-        f"with :class:`UnsupportedMathFunctionWarning` and evaluate on a real one; "
+        f"Raise :class:`UnsupportedMathFunctionError`, on real and symbolic arguments alike; "
         f"{name} {REJECTED[name]}."
     )
     return rejected

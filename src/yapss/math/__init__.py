@@ -6,8 +6,11 @@ Drop-in replacement for numpy, with additional support for the SXW wrapper class
 
 from __future__ import annotations
 
+import typing as _typing
+
 import numpy as _np  # noqa: ICN001
 
+from yapss._private.exceptions import REMOVED_NAMES as _REMOVED_NAMES
 from yapss.math import functions
 
 __all__ = [  # noqa: RUF022
@@ -253,4 +256,12 @@ globals()["amin"] = functions.amin
 globals()["all"] = functions.all
 globals()["any"] = functions.any
 globals()["UnsupportedMathFunctionError"] = functions.UnsupportedMathFunctionError
-globals()["UnsupportedMathFunctionWarning"] = functions.UnsupportedMathFunctionWarning
+
+# hidden from type checkers, as in yapss/__init__.py
+if not _typing.TYPE_CHECKING:
+
+    def __getattr__(name: str) -> object:
+        if name in _REMOVED_NAMES:
+            raise AttributeError(_REMOVED_NAMES[name])
+        msg = f"module 'yapss.math' has no attribute {name!r}"
+        raise AttributeError(msg)

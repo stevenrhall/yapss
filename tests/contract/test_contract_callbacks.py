@@ -913,9 +913,8 @@ def test_length_one_array_hessian_entry_raises_naming_it():
         ocp.solve()
 
 
-@pytest.mark.filterwarnings("ignore::yapss.MirroredHessianPairWarning")
-@not_yet("0.3.0 scheduled", "setting both orders of one Hessian pair raises ValueError")
 def test_mirrored_hessian_pair_raises():
+    """Both orders of one pair are one second derivative, set twice."""
     ocp = brachistochrone.setup()
     hessian = ocp.functions.continuous_hessian
 
@@ -924,7 +923,7 @@ def test_mirrored_hessian_pair_raises():
         arg.phase[0].hessian[("f", 0), ("u", 0), ("x", 2)] = 0.0
 
     ocp.functions.continuous_hessian = continuous_hessian
-    with raises(ValueError):
+    with raises(ValueError, "continuous Hessian of phase 0", "same second derivative"):
         ocp.solve()
 
 

@@ -43,9 +43,7 @@ CATEGORIES = [
     yapss.IpoptConvergenceWarning,
     yapss.LargeSegmentWarning,
     yapss.IpoptOptionSettingWarning,
-    yapss.MirroredHessianPairWarning,
     yapss.UnsetOutputWarning,
-    yapss.UnsupportedMathFunctionWarning,
 ]
 
 
@@ -109,8 +107,6 @@ def test_a_deprecation_is_also_a_future_warning():
     """FutureWarning, not DeprecationWarning: scripts and notebooks hide the latter."""
     assert issubclass(YapssDeprecationWarning, YapssWarning)
     assert issubclass(YapssDeprecationWarning, FutureWarning)
-    assert issubclass(yapss.MirroredHessianPairWarning, YapssDeprecationWarning)
-    assert issubclass(yapss.UnsupportedMathFunctionWarning, YapssDeprecationWarning)
 
 
 def test_one_line_escalates_every_yapss_warning():

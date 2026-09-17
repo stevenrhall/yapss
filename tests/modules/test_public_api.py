@@ -29,8 +29,6 @@ ARG_TYPES = [
 WARNINGS = [
     "IpoptConvergenceWarning",
     "IpoptOptionSettingWarning",
-    "MirroredHessianPairWarning",
-    "UnsupportedMathFunctionWarning",
 ]
 
 

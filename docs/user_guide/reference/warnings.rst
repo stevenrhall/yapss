@@ -19,8 +19,6 @@ The hierarchy
           ├── yapss.LargeSegmentWarning          a mesh segment has very many points
           ├── yapss.UnsetOutputWarning           a callback never assigned an output row
           └── yapss.YapssDeprecationWarning      (also a FutureWarning)
-               ├── yapss.MirroredHessianPairWarning
-               └── yapss.UnsupportedMathFunctionWarning
 
     Exception
      └── yapss.YapssError
@@ -75,8 +73,6 @@ Reference
 
 The other categories are documented where the behavior they report is described:
 :class:`~yapss.IpoptConvergenceWarning` in :doc:`solution`,
-:class:`~yapss.IpoptOptionSettingWarning` in :doc:`ipopt_options`,
-:class:`~yapss.MirroredHessianPairWarning` in :doc:`user_derivatives`, and
-``UnsupportedMathFunctionWarning`` and
-``UnsupportedMathFunctionError`` in :doc:`callbacks` (both are defined in ``yapss.math`` and
+:class:`~yapss.IpoptOptionSettingWarning` in :doc:`ipopt_options`, and
+``UnsupportedMathFunctionError`` in :doc:`callbacks` (defined in ``yapss.math`` and
 re-exported from ``yapss``).

@@ -4,7 +4,12 @@
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
-from ._private.exceptions import YapssDeprecationWarning, YapssError, YapssWarning
+from ._private.exceptions import (
+    REMOVED_NAMES,
+    YapssDeprecationWarning,
+    YapssError,
+    YapssWarning,
+)
 
 # module imports
 from ._private.input_args import ContinuousArg as ContinuousArg_
@@ -18,11 +23,10 @@ from ._private.ipopt_status import IpoptStatus
 from ._private.problem import LargeSegmentWarning, Problem
 from ._private.setup_check import UnsetOutputWarning
 from ._private.solution import IpoptConvergenceWarning, Solution
-from ._private.user import MirroredHessianPairWarning
 
 # re-exported so that every warning and error category YAPSS can raise is discoverable
 # from the top-level package; yapss.math remains their defining module
-from .math.functions import UnsupportedMathFunctionError, UnsupportedMathFunctionWarning
+from .math.functions import UnsupportedMathFunctionError
 
 __all__ = [
     "ContinuousArg",
@@ -35,7 +39,6 @@ __all__ = [
     "IpoptOptionSettingWarning",
     "IpoptStatus",
     "LargeSegmentWarning",
-    "MirroredHessianPairWarning",
     "ObjectiveArg",
     "ObjectiveGradientArg",
     "ObjectiveHessianArg",
@@ -43,7 +46,6 @@ __all__ = [
     "Solution",
     "UnsetOutputWarning",
     "UnsupportedMathFunctionError",
-    "UnsupportedMathFunctionWarning",
     "YapssDeprecationWarning",
     "YapssError",
     "YapssWarning",
@@ -70,3 +72,13 @@ else:
     ContinuousArg = ContinuousArg_
     DiscreteArg = DiscreteArg_
     ObjectiveArg = ObjectiveArg_
+
+# hidden from type checkers: a module __getattr__ makes them accept every attribute name, so
+# `yapss.Problm` would no longer be reported as a typo
+if not TYPE_CHECKING:
+
+    def __getattr__(name: str) -> object:
+        if name in REMOVED_NAMES:
+            raise AttributeError(REMOVED_NAMES[name])
+        msg = f"module 'yapss' has no attribute {name!r}"
+        raise AttributeError(msg)

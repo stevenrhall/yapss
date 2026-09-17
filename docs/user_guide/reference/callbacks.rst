@@ -582,30 +582,22 @@ the belief that half-to-even rounding could not be reproduced symbolically, is s
    * - ``spacing``
      - Returns the distance to the adjacent floating-point value.
 
-Given a symbolic value (that is, when using the ``"auto"`` derivative method), they raise
-``yapss.math.UnsupportedMathFunctionError``, a subclass of the built-in ``TypeError``, which is
-what NumPy itself raised for them before YAPSS 0.2.2.
+They raise ``yapss.math.UnsupportedMathFunctionError``, a subclass of the built-in
+``TypeError``, whatever the argument:
 
-Given a real value, they emit ``yapss.math.UnsupportedMathFunctionWarning`` and evaluate as NumPy
-does:
-
->>> import warnings
 >>> from yapss.math import spacing
->>> with warnings.catch_warnings(record=True) as caught:
-...     warnings.simplefilter("always")
-...     spacing(1.0)
-...     print(caught[0].category.__name__)
-np.float64(2.220446049250313e-16)
-UnsupportedMathFunctionWarning
+>>> spacing(1.0)
+Traceback (most recent call last):
+    ...
+yapss.math.wrapper.UnsupportedMathFunctionError: 'spacing' is not supported in YAPSS callback functions because it returns the distance to the adjacent floating-point value, which has no symbolic equivalent. Callback functions must give the same result under every derivative method. Use 'numpy.spacing' directly if you need it outside a callback.
 
-.. deprecated:: 0.2.2
-    Calling one of these on a real value will raise ``UnsupportedMathFunctionError`` in 0.3.0,
-    as a symbolic value already does.
+If one of these worked under central differences and failed under automatic differentiation, a
+formulation could come to depend on the differentiation method, which is exactly what
+``yapss.math`` exists to prevent.
 
-Rejecting on both paths is the goal. If one of these works under central differences and fails
-under automatic differentiation, a formulation can come to depend on the differentiation method,
-which is exactly what ``yapss.math`` exists to prevent. The real path is only still open because
-it worked through 0.2.1, and a patch release does not take away working code.
+.. versionchanged:: 0.3.0
+    A real argument raises, as a symbolic one already did. Through 0.2.x it emitted
+    ``UnsupportedMathFunctionWarning`` and evaluated as NumPy does.
 
 If you have a reason to use one anyway (you shouldn't!), call it directly through ``numpy``.
 

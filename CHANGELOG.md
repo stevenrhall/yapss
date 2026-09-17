@@ -30,6 +30,16 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Changed
 
+- Setting both orders of one Hessian variable pair in a user derivative callback, such as
+  `hessian[("f", 0), ("x", 2), ("u", 0)]` and `hessian[("f", 0), ("u", 0), ("x", 2)]`, now
+  raises `ValueError`, as announced in 0.2.2. The two entries used to be summed, which
+  doubled the term for a user who supplied both triangles of a symmetric Hessian.
+- `yapss.math.nextafter`, `signbit`, and `spacing` raise `UnsupportedMathFunctionError` on real
+  arguments, as announced in 0.2.2 and as they already did on symbolic ones. A function that
+  worked under one derivative method and failed under another let a formulation depend on the
+  method chosen.
+- `Problem(ns=None)` and `Problem(nd=None)` raise `TypeError`; the counts are integers, and
+  `0`, the default, means none.
 - A solve that ends without an iterate to report now raises instead of returning a
   `Solution` of placeholder values with an `IpoptConvergenceWarning`: `ValueError` for too
   few degrees of freedom (status -10), inconsistent bounds (-11), an invalid option (-12),
@@ -249,6 +259,10 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ### Removed
 
+- `yapss.MirroredHessianPairWarning` and `yapss.UnsupportedMathFunctionWarning` (also
+  `yapss.math.UnsupportedMathFunctionWarning`), which announced the two changes above.
+  Accessing either raises `AttributeError` saying so, and a warnings filter naming one can
+  be deleted. `yapss.YapssDeprecationWarning` remains, for future deprecations.
 - The cyipopt backend. In a Conda environment YAPSS now calls Ipopt through the same
   interface it uses everywhere else, and verifies the library the same way. It calls the
   same library as before, conda-forge's Ipopt package, and keeps the same Ipopt settings

@@ -189,8 +189,8 @@ class Problem(Protected):
         nu: Sequence[int] | None = None,
         nq: Sequence[int] | None = None,
         nh: Sequence[int] | None = None,
-        ns: int | None = 0,
-        nd: int | None = 0,
+        ns: int = 0,
+        nd: int = 0,
     ) -> None:
         """Initialize the optimal control problem name and dimensions.
 
@@ -216,8 +216,8 @@ class Problem(Protected):
         self._nu = nu
         self._nq = nq
         self._nh = nh
-        self.ns: int = ns if ns is not None else 0
-        self.nd: int = nd if nd is not None else 0
+        self.ns: int = ns
+        self.nd: int = nd
         self._np: int
 
         # validate input and put in canonical form

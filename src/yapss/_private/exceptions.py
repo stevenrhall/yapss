@@ -27,7 +27,25 @@ and error classes.
 
 from __future__ import annotations
 
-__all__ = ["YapssDeprecationWarning", "YapssError", "YapssWarning"]
+__all__ = ["REMOVED_NAMES", "YapssDeprecationWarning", "YapssError", "YapssWarning"]
+
+# Public names removed in 0.3.0, each with what replaced it. Accessing one through `yapss` or
+# `yapss.math` raises AttributeError with this message, rather than Python's bare "has no
+# attribute", so that a line written for an earlier version -- typically a warnings filter --
+# says why it fails. Remove the notices in 0.4.0 or after 2027-09, whichever is later.
+REMOVED_NAMES = {
+    "MirroredHessianPairWarning": (
+        "MirroredHessianPairWarning was removed in 0.3.0. Setting both orders of one Hessian "
+        "variable pair, which it warned about, now raises ValueError. A warnings filter "
+        "naming it can be deleted."
+    ),
+    "UnsupportedMathFunctionWarning": (
+        "UnsupportedMathFunctionWarning was removed in 0.3.0. yapss.math.nextafter, signbit, "
+        "and spacing, which it warned about on real arguments, now raise "
+        "UnsupportedMathFunctionError on every argument. A warnings filter naming it can be "
+        "deleted."
+    ),
+}
 
 
 class YapssWarning(UserWarning):

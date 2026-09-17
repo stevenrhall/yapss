@@ -280,7 +280,6 @@ def test_bool_count_is_rejected_helpfully(kwargs):
         Problem(name="bool", **kwargs)
 
 
-@not_yet("E7a", "ns and nd no longer accept None")
 @pytest.mark.parametrize("name", ["ns", "nd"])
 def test_none_count_is_rejected(name):
     with raises(TypeError, name):
