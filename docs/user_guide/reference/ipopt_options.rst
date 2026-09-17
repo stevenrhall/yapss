@@ -137,7 +137,8 @@ with the monotone strategy. Second, the default value of ``check_derivatives_for
 is ``"yes"`` rather than ``"no"``. Without the check, Ipopt passes a NaN or infinite
 Jacobian or Hessian entry to its linear solver, which can crash the Python process; with
 it, Ipopt stops with status -13 ("Invalid number in NLP function or derivative
-detected"). The check costs one pass over the derivative values per evaluation.
+detected"), and ``problem.solve()`` raises ``ValueError`` saying so. The check costs one pass
+over the derivative values per evaluation.
 Separately, ``problem.solve()`` raises ``ValueError`` before starting Ipopt if the
 objective, constraints, or their first derivatives are not finite at the initial guess,
 naming the quantities involved. Unlike the reserved options below, both are normal

@@ -63,8 +63,9 @@ and
 ``duration.lower`` defaults to ``0``, in which case the first condition reduces to
 ``initial_time.lower`` ≤ ``final_time.upper``. Neither duration bound may be negative.
 
-No bound may be NaN, no lower bound may be ``+inf``, and no upper bound may be ``-inf``;
-``problem.validate()``, which ``problem.solve()`` runs first, reports any of these by name.
+No bound may be NaN, no lower bound may be ``+inf``, and no upper bound may be ``-inf``. Any
+of these raises ``ValueError`` where it is written, naming the bound (see
+`Input Validation`_ below).
 
 **State Bounds**:
 

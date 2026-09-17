@@ -17,6 +17,55 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
 
 ## [Unreleased]
 
+0.3.0 is the last release of the current API. Its successor will change how problems and
+callbacks are written; 0.3.x will receive fixes in the meantime.
+
+### Upgrading from 0.2.x
+
+Most 0.2.x problems run unchanged. What does not is almost always something 0.2.x accepted
+silently and handled wrongly; each now raises at, or names, the line to change. The entries
+below give the details.
+
+- **Python 3.11 or later** is required.
+- **Delete** any `problem.ipopt_source = ...` line, and any warnings filter naming
+  `MirroredHessianPairWarning` or `UnsupportedMathFunctionWarning`.
+- **Callbacks assign their results and return nothing.** `return value` becomes
+  `arg.objective = value` (or the output row it was meant for).
+- **Callback inputs are read-only.** Where a callback modified a state, control, time, or
+  parameter array, copy it first: `x = np.array(arg.phase[0].state[0])`.
+- **Assign outputs by whole rows.** An element or column write such as
+  `arg.phase[p].dynamics[0][k] = ...` becomes a whole row,
+  `dynamics[0] = [f(x[k]) for k in range(n)]`; a single discrete constraint takes a number,
+  not an array of one.
+- **Assign every output row.** A row left unassigned at the initial guess raises; write
+  `0.0` where zero is intended.
+- **Keep the continuous callback pointwise.** An output at one point may not depend on other
+  points (`t - t[0]`, `len`, `mean`, `sum`, `cumsum`, `diff`); such a callback now raises
+  before the solve.
+- **Under `"user"` derivatives:** set the same keys on every call (a derivative that is zero at
+  some point is `0.0`, not an absent key); set each mixed second derivative once, in one
+  order; key parameters with phase 0; give an array entry one value per point, or a scalar;
+  and assign `arg.objective` a scalar.
+- **Bounds, guess values, and scale factors are real numbers.** Strings (use `np.inf`, not
+  `"inf"`), bools, `None`, and complex values raise `TypeError`. A NaN bound, a `+inf` lower
+  or `-inf` upper bound, and a negative duration bound raise `ValueError` where they are
+  written; so does a non-finite guess array, and a non-finite value written into one element
+  of a guess raises when the solve starts.
+- **Counts are integers:** `ns=0`, not `ns=None`; `collocation_points = [4]`, not `[4.0]`. Mesh
+  fractions must sum to 1 within 1e-8, no longer 0.01.
+- **Ipopt options are checked:** a value outside Ipopt's documented range, or a name close to a
+  real option, raises.
+- **A misspelled attribute raises**, including on `problem.guess` and on `arg.phase[p]` in
+  objective and discrete callbacks, where 0.2.x stored it and ignored it.
+- **A solve that ends without a solution raises** (Ipopt statuses -10 to -13 and internal
+  failures) instead of returning placeholder values. Code checking
+  `solution.nlp_info.ipopt_status` keeps working; `solution.converged` is the simpler test.
+- **`isinstance(arg, yapss.ContinuousArg)`** no longer matches the continuous Jacobian and
+  Hessian arguments. Annotate those callbacks with `yapss.ContinuousJacobianArg` and
+  `yapss.ContinuousHessianArg`; a type checker flags `ContinuousArg` there.
+- **`yapss.math.nextafter`, `signbit`, and `spacing`** raise on every argument; use NumPy
+  directly outside callbacks.
+
 ### Added
 
 - `solution.status`, a `yapss.IpoptStatus`, and `solution.converged`, true for Ipopt
@@ -79,7 +128,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   bounds, guess values, and scale factors, as a bool on its own already did, and so does a
   string or bool written into an element of a bound or scale array. NumPy converted both to
   1.0.
-
 - Every warning YAPSS issues is now a `yapss.YapssWarning` (a `UserWarning`), and every
   error class it defines is a `yapss.YapssError` alongside the built-in exception it already
   inherited, so one line filters or escalates them all: `warnings.simplefilter("error",
@@ -91,11 +139,12 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   left set and for an invalid `YAPSS_LOGGING` level have categories instead of being bare
   `UserWarning`s. Errors for ordinary bad input remain the plain built-ins. The vendored
   Ipopt interface keeps its own categories. See the new "Warnings and Errors" page.
-- Two checks now run at the start of every solve, before an Ipopt problem instance is created.
-  A callback that never assigns an output row at the initial guess raises `ValueError`, naming
-  each callback with its `def` line and every row it left unassigned (an unassigned row is
-  zero, which almost always means a missing line; assign `0.0` if zero is intended); an output that is NaN or infinite there raises
-  `ValueError` naming the output and the points; and a continuous callback that is not
+- The callbacks are checked at the start of every solve, before an Ipopt problem instance is
+  created. A callback that never assigns an output row at the initial guess raises
+  `ValueError`, naming each callback with its `def` line and every row it left unassigned (an
+  unassigned row is zero, which almost always means a missing line; assign `0.0` if zero is
+  intended); an output that is NaN or infinite there raises `ValueError` naming the output and
+  the points; and a continuous callback that is not
   pointwise -- one whose output at a point depends on other points, through `t[0]`, `len`,
   `mean`, `sum`, `cumsum`, `diff`, or indexing across points -- raises `ValueError` naming the
   output, the point, and the rule. A callback that is not pointwise describes different
@@ -112,7 +161,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   change had no effect at all, while `arg.parameter` was the solver's own decision vector, so
   a change there altered the problem being solved from that point on. Reading is unchanged,
   and each call still reads the values of the point it was called at.
-
 - Under the `"user"` derivative method, every call of a derivative callback must set the same
   keys. The keys a callback sets *are* the sparsity structure, and YAPSS deduces that structure
   from one call at the initial guess, so a key added on a later call is outside the structure
@@ -124,7 +172,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   callback, whose entries were never cleared between calls, that stale value persisted for the
   whole solve. The other derivative methods are unaffected: their callbacks are generated and
   emit their structure by construction.
-
 - Problem counts accept any sequence of integers. `nx`, `nu`, `nq` and `nh` take NumPy
   integers, arrays, `range`, and anything else `operator.index` accepts, where they previously
   required a `list` or `tuple` of Python `int`. `ns` and `nd` likewise. A `bool` is refused
@@ -145,7 +192,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   part: bounds, guess, scale, mesh, and callbacks.
 - `Problem` has a `repr` naming the problem and its counts, rather than
   `<yapss._private.problem.Problem object at 0x...>`.
-
 - An Ipopt option that Ipopt refuses is now diagnosed rather than merely reported. Ipopt says
   only that it refused an option, so YAPSS compares the value with what Ipopt's own
   documentation records for it (a generated table, scraped from a pinned Ipopt release and
@@ -168,7 +214,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   A NaN for a Number option raises `ValueError`. And the names of
   the container's own methods, `reset` and `get_options`, can no longer be assigned: doing so
   shadowed the method, so a later `reset()` failed with an int not being callable.
-
 - Mesh settings are checked where they are set. `mesh.phase[p].collocation_points` accepts
   NumPy integers and anything else `operator.index` accepts, and refuses a float --- `4.0`
   collocation points is now a `TypeError` rather than a `ValueError`, since a whole-number
@@ -189,7 +234,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   up; published hp-adaptive methods raise the degree only to about 10 per interval before
   splitting instead. Nothing fails above the threshold, so a deliberate single-segment mesh
   need only filter the warning.
-
 - Bounds, guess values, and scale factors accept real numbers and convert nothing else. Each
   used to convert whatever it was given with NumPy, which turned `"1"` into 1.0, `True` into
   1.0, `None` into NaN, and `1 + 1j` into 1.0 with a warning, so a typo or a stray comparison
@@ -201,9 +245,7 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   the length it needs, in place of NumPy's `could not broadcast input array from shape (4,) into
   shape (3,)` and of `ArrayBound must be a sequence of floats of length 2`, which named a
   private class. A bound also copies the array it is assigned from, so a later change to the
-  caller's array no longer reaches into the problem. One mixed sequence still slips through,
-  `[1, True]`, which NumPy reduces to an integer array before YAPSS sees it.
-
+  caller's array no longer reaches into the problem.
 - Each continuous callback now receives its own argument, carrying the inputs and only the
   output that callback assigns. `continuous` has `dynamics`, `integrand`, and `path`;
   `continuous_jacobian` has `jacobian`; `continuous_hessian` has `hessian`. Writing or
@@ -217,7 +259,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   subclasses of `ContinuousArg` --- an argument that must refuse `dynamics` cannot stand in
   for one that accepts it --- so an `isinstance` check against `ContinuousArg` no longer
   matches them. Type annotations on callbacks are unaffected.
-
 - Every callback now starts from a clean argument, and must assign its results rather than
   return them. The outputs a continuous or discrete callback receives are zero and unassigned
   at the start of every call, so a row the callback does not assign on a given call is zero
@@ -227,7 +268,6 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   its result instead of assigning it now raises `TypeError` naming the callback and the
   assignment to make (`arg.objective = ...`); before, the returned value was discarded and the
   problem solved as if the callback had assigned zeros.
-
 - Callback outputs are assigned by whole rows. `arg.phase[p].dynamics`, `integrand`, and
   `path` accept a whole output, a slice of rows (any step), or one row (negative indices
   count from the end), with each row a scalar constant, an expression over the points, or a
@@ -309,13 +349,13 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   zero there, and a nonzero multiplier gave +/-inf.
 - A scale factor set elementwise or by slice, such as `problem.scale.phase[0].dynamics[0] =
   0`, is now checked. The 0.2.3 check ran only when a whole scale array was assigned,
-  although the entry below says every scale factor is checked when it is set, and the
-  scaling documentation recommends setting elements. A zero element reached Ipopt as an
-  infinite scaling factor and crashed the process with no Python traceback; a negative
-  element inverted the bounds of the variable or constraint it scales, and the solve could
-  converge to the optimum of a different problem with no warning. `Problem.validate()`,
-  which `solve()` runs first, now checks every scale factor and names the offending
-  element. The Ipopt interface also refuses a non-finite or non-positive variable or
+  although the scaling documentation recommends setting elements. A zero element reached
+  Ipopt as an infinite scaling factor and crashed the process with no Python traceback; a
+  negative element inverted the bounds of the variable or constraint it scales, and the
+  solve could converge to the optimum of a different problem with no warning. Such a value
+  now raises `ValueError` where it is written (see Changed), and `Problem.validate()`, which
+  `solve()` runs first, checks every scale factor again, for values written around those
+  checks. The Ipopt interface also refuses a non-finite or non-positive variable or
   constraint scaling factor, and a zero or non-finite objective scaling factor, before
   calling Ipopt.
 - A problem whose functions are NaN or infinite at the initial guess no longer crashes
@@ -333,7 +373,8 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
     raises instead.
   - `check_derivatives_for_naninf` is now `"yes"` by default, so a non-finite Jacobian or
     Hessian at any later iterate stops Ipopt with status -13 instead of reaching the
-    linear solver. It can still be set to `"no"`.
+    linear solver, and `solve()` then raises `ValueError` (see Changed). It can still be set
+    to `"no"`.
 - A misspelled attribute on `problem.guess`, or on `arg.phase[p]` in an objective or
   discrete callback (and their derivative callbacks), now raises `AttributeError` at the
   offending line, as it already did on the rest of the problem definition and on the
@@ -341,17 +382,19 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   `arg.phase[0].objective = arg.phase[0].final_time` in place of `arg.objective = ...`
   solved to an objective of 0 with status 0, and `problem.guess.parmeter = ...` left the
   parameter guess at zero.
-- `Problem.validate()`, which `solve()` runs first, now rejects bounds that could never
-  be satisfied or compared, naming the bound and its indices:
-  - A NaN bound, including one produced by `None` in a list. NaN compares false against
-    everything, so it passed validation and was refused only inside the Ipopt interface,
-    after the NLP was built, by a message that named no bound.
+- Bounds that could never be satisfied or compared are now rejected, naming the bound:
+  - A NaN bound. NaN compares false against everything, so it passed validation and was
+    refused only inside the Ipopt interface, after the NLP was built, by a message that named
+    no bound. `None` in a list, which became NaN, is now a `TypeError`.
   - A lower bound of `+inf` or an upper bound of `-inf`, including equal infinite bounds,
     which were not detected as crossing and ended in Ipopt status -13. The crossing check
     also no longer emits a NumPy "invalid value encountered in subtract" warning.
   - A negative `duration.lower`. Only a negative `duration.upper` was rejected before;
     a negative lower bound let a phase run backward in time. This rejects a setting that
     was previously accepted.
+
+  Each raises `ValueError` where it is written (see Changed), and `Problem.validate()`, which
+  `solve()` runs first, checks the bound arrays again for values written around those checks.
 - `SolutionPhase.initial_state` and `final_state`, documented as `state[:, 0]` and
   `state[:, -1]`, did not exist. They are now read-only properties returning copies, under
   the same names as the objective and discrete callback arguments.
@@ -365,14 +408,15 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
     callback runs but can lose derivatives: sparsity is detected at the initial guess, so
     a variable used only in a branch not taken there is treated as having no effect. Use
     `yapss.math.where` and related functions under every method.
-  - The bounds reference said all bound errors are caught at assignment. Shape and type
-    errors are; conflicts between bounds are reported by `validate()`, which `solve()`
-    runs first.
+  - The bounds reference said all bound errors are caught at assignment. A value wrong on its
+    own is (see Changed); conflicts between bounds are reported by `validate()`, which
+    `solve()` runs first.
   - The mesh reference said each `fraction` element must be less than 1.0, which excluded
-    the valid single-segment `fraction = [1.0]`, and did not mention that fractions summing
-    to within 0.01 of 1.0 are rescaled.
+    the valid single-segment `fraction = [1.0]`, and did not mention that fractions are
+    rescaled to sum to exactly 1.
   - The callbacks reference called the objective and discrete callback inputs immutable.
-    Some are copies and `arg.parameter` is the solver's own array; none should be modified.
+    They were not: some were copies, and `arg.parameter` was the solver's own array. They
+    are now read-only (see Changed).
   - The `Solution` docstring omitted `discrete` and `nlp_info.g`, and named
     `nlp_info.obj_val` as `objective`.
 
