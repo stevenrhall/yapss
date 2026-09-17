@@ -17,7 +17,6 @@ The hierarchy
           ├── yapss.IpoptConvergenceWarning      Ipopt did not report a converged solution
           ├── yapss.IpoptOptionSettingWarning    Ipopt refused an option value
           ├── yapss.LargeSegmentWarning          a mesh segment has very many points
-          ├── yapss.UnsetOutputWarning           a callback never assigned an output row
           └── yapss.YapssDeprecationWarning      (also a FutureWarning)
 
     Exception
@@ -34,6 +33,20 @@ collocation points, a misspelled attribute --- are the plain built-in exceptions
 (:class:`ValueError`, :class:`TypeError`, :class:`AttributeError`, :class:`IndexError`), since
 that is what Python itself would raise.
 
+When YAPSS raises and when it warns
+-----------------------------------
+
+YAPSS **raises** when what you supplied breaks its contract: when it cannot produce a correct
+answer from it, or when it is almost certainly a mistake even though a solve could proceed. A
+callback output left unassigned is an example: the row would be zero, which almost always
+means a missing line, so the solve does not start. Where a value that looks like a mistake is
+what you mean, say so explicitly --- assign ``0.0`` to the row.
+
+YAPSS **warns** only when what you supplied is valid but something deserves your attention:
+the outcome of the solve (Ipopt did not converge), the environment (an Ipopt option your build
+does not provide, an environment variable that no longer has an effect), a choice with a cost
+(a very large mesh segment), or a notice that a behavior will change.
+
 Filtering
 ---------
 
@@ -47,7 +60,7 @@ To turn every YAPSS warning into an error, which is the strictest way to run a s
 Or one category at a time::
 
     warnings.filterwarnings("error", category=yapss.IpoptConvergenceWarning)
-    warnings.filterwarnings("ignore", category=yapss.UnsetOutputWarning)
+    warnings.filterwarnings("ignore", category=yapss.LargeSegmentWarning)
 
 The same on the command line, using the fully qualified name::
 
@@ -68,7 +81,6 @@ Reference
 .. autoexception:: yapss.YapssWarning
 .. autoexception:: yapss.YapssDeprecationWarning
 .. autoexception:: yapss.YapssError
-.. autoexception:: yapss.UnsetOutputWarning
 .. autoexception:: yapss.LargeSegmentWarning
 
 The other categories are documented where the behavior they report is described:

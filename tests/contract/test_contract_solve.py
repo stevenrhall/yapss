@@ -320,7 +320,6 @@ def test_yapss_warning_hierarchy():
     for category in (
         yapss.IpoptConvergenceWarning,
         yapss.IpoptOptionSettingWarning,
-        yapss.UnsetOutputWarning,
     ):
         assert issubclass(category, yapss.YapssWarning)
     assert issubclass(yapss.YapssWarning, UserWarning)

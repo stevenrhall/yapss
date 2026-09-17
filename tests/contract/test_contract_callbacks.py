@@ -38,9 +38,10 @@ What a user may get wrong
     - A required callback left unset: `ValueError` from `validate()` naming it. A callback
       that is not callable with one argument: `TypeError` at the assignment.
     - Functions not finite at the initial guess: `ValueError` naming the output.
-    - An output row never assigned (at the initial guess): `UnsetOutputWarning` at the
-      callback's `def` line, once per row, under every method. A row assigned zero, or
-      assigned and then updated in place, does not warn.
+    - An output row never assigned (at the initial guess): `ValueError` naming each callback
+      with its `def` line and every row it left unassigned, under every method, before the
+      other setup findings. A row assigned zero, or assigned and then updated in place, is
+      assigned.
     - A continuous callback that is not pointwise (`t - t[0]`, `len`, `mean`, `cumsum`, ...):
       `ValueError` naming the callback and output and stating the rule, under every method;
       differences below the tolerance are not reported.
@@ -62,7 +63,6 @@ import pytest
 import yapss
 import yapss.math as ym
 from yapss import Problem
-from yapss._private.setup_check import UnsetOutputWarning
 from yapss.examples import brachistochrone, goddard_problem_3_phase
 
 from ._contract import G0, METHODS, callback_problem, default_continuous, not_yet, raises
@@ -403,7 +403,7 @@ def test_callback_that_is_not_callable_with_one_argument_raises_at_the_assignmen
 @pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
 @pytest.mark.parametrize("output", ["arg.phase[0].path[0]", "arg.discrete[0]", "arg.objective"])
 @pytest.mark.parametrize("method", METHODS)
-def test_an_output_never_assigned_warns_at_the_callbacks_def_line(method, output):
+def test_an_output_never_assigned_raises_naming_the_callbacks_def_line(method, output):
     def continuous(arg):
         _, _, v = arg.phase[0].state
         (u,) = arg.phase[0].control
@@ -423,28 +423,28 @@ def test_an_output_never_assigned_warns_at_the_callbacks_def_line(method, output
     callbacks = {"continuous": continuous, "discrete": discrete, "objective": objective}
     ocp = callback_problem(method, **callbacks)
     ocp.ipopt_options.max_iter = 0
-    with pytest.warns(UnsetOutputWarning) as record:
-        ocp.solve()
-    unset = [w for w in record if issubclass(w.category, UnsetOutputWarning)]
-    assert len(unset) == 1, [str(w.message) for w in unset]
-    (warning,) = unset
-    assert f"never assigned {output}" in str(warning.message)
     owner = {"arg.phase[0].path[0]": continuous, "arg.discrete[0]": discrete}.get(output, objective)
-    assert warning.filename == owner.__code__.co_filename
-    assert warning.lineno == owner.__code__.co_firstlineno
+    attribute = {continuous: "continuous", discrete: "discrete", objective: "objective"}[owner]
+    code = owner.__code__
+    with raises(
+        ValueError,
+        "left outputs unassigned",
+        f"functions.{attribute} ",
+        f"({code.co_filename}, line {code.co_firstlineno}): {output}",
+        "assign 0.0 if zero is intended",
+    ):
+        ocp.solve()
 
 
 @pytest.mark.parametrize("method", METHODS)
-def test_a_row_assigned_zero_or_updated_in_place_does_not_warn(method):
+def test_a_row_assigned_zero_or_updated_in_place_is_assigned(method):
     def continuous(arg):
         default_continuous(arg)
         arg.phase[0].path[0] = 0.0
         arg.phase[0].path[0] += arg.phase[0].state[2]
 
     ocp = callback_problem(method, continuous=continuous)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", UnsetOutputWarning)
-        solve_objective(ocp)
+    solve_objective(ocp)
 
 
 NOT_POINTWISE = {

@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from warnings import warn
 
-from .exceptions import YapssDeprecationWarning
+from .exceptions import YapssDeprecationWarning, YapssWarning
 
 # ANSI escape codes for colors
 RED = "\033[31m"
@@ -39,7 +39,7 @@ if level:
             f"Invalid logging level: '{level}'. \n"
             f"    Valid levels are: DEBUG, INFO, WARNING, ERROR, CRITICAL."
         )
-        warn(msg, stacklevel=2)
+        warn(msg, YapssWarning, stacklevel=2)
         _package_logger.setLevel(logging.WARNING)
 
 else:

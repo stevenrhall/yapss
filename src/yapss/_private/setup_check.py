@@ -7,8 +7,10 @@ the initial guess, and the continuous callback once more on every evaluation poi
 phase but the last, in reverse order. From those two calls it reports, in terms of the user's
 code:
 
-- an output row that was never assigned, as an `UnsetOutputWarning` at the callback's ``def``
-  line (an unassigned row is zero, which is rarely intended);
+- an output row that was never assigned: an unassigned row is zero, which almost always means
+  a missing line, and the zero row would make the model carry a redundant element (a state
+  that never changes, a vacuous path constraint). It raises, naming each callback with its
+  ``def`` line; ``0.0`` assigned explicitly says zero is intended;
 - a value that is NaN or infinite;
 - a continuous function that is not pointwise -- an output at one point that depends on the
   inputs at other points (``t[0]``, ``len``, ``mean``, ``cumsum``, ...). ``"auto"`` traces the
@@ -40,14 +42,12 @@ do not exist yet, and a non-finite Hessian with finite first derivatives is left
 
 from __future__ import annotations
 
-import warnings
 from collections import defaultdict
 from collections.abc import Hashable
 from typing import TYPE_CHECKING, Any, TypeVar, assert_never, cast
 
 import numpy as np
 
-from .exceptions import YapssWarning
 from .input_args import ContinuousArg, ContinuousStore, DiscreteArg, ObjectiveArg, call_callback
 from .structure import get_nlp_dv_structure, nlp_constraint_keys, nlp_variable_keys
 
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
     from .structure import DVStructure
     from .types_ import CFViewName, DVViewName
 
-__all__ = ["UnsetOutputWarning", "check_callbacks", "check_derivatives"]
+__all__ = ["check_callbacks", "check_derivatives"]
 
 K = TypeVar("K", bound=Hashable)
 
@@ -78,15 +78,6 @@ POINTWISE_ATOL = 1e-10
 """Absolute tolerance of the pointwise check, in units of the output's scale factor."""
 
 OUTPUTS = ("dynamics", "integrand", "path")
-
-
-class UnsetOutputWarning(YapssWarning):
-    """A callback did not assign an output row at the initial guess, so the row is zero.
-
-    Public, so it can be filtered or escalated::
-
-        warnings.simplefilter("error", yapss.UnsetOutputWarning)
-    """
 
 
 def _variable_label(group: tuple[int, DVViewName, int]) -> str:
@@ -187,25 +178,17 @@ def _points(count: int, total: int) -> str:
 
 
 def _callback_location(function: Callable[..., Any]) -> str:
-    """Name a callback and, when it has one, the file and line of its ``def``."""
+    """Name a callback and, when it has one, the file and line of its ``def``.
+
+    A callable object is named by its class, at the ``def`` of its ``__call__``: its ``repr``
+    carries a memory address, which names nothing a user can find.
+    """
     code = getattr(function, "__code__", None)
-    name = getattr(function, "__qualname__", repr(function))
+    name = getattr(function, "__qualname__", None)
+    if name is None:
+        name = type(function).__qualname__
+        code = getattr(type(function).__call__, "__code__", None)
     return name if code is None else f"{name} ({code.co_filename}, line {code.co_firstlineno})"
-
-
-def _warn_unset(function: Callable[..., Any], attribute: str, output: str) -> None:
-    """Warn that ``functions.<attribute>`` never assigned ``output``, at its ``def`` line."""
-    message = (
-        f"functions.{attribute} never assigned {output} at the initial guess; an output that "
-        f"is not assigned is zero. Assign it, or assign {output} = 0.0 if zero is intended."
-    )
-    code = getattr(function, "__code__", None)
-    if code is None:
-        # a callable object: point at the user's solve() call instead
-        # (this function <- check_callbacks <- solver.solve <- Problem.solve <- user)
-        warnings.warn(message, UnsetOutputWarning, stacklevel=5)
-    else:
-        warnings.warn_explicit(message, UnsetOutputWarning, code.co_filename, code.co_firstlineno)
 
 
 def _list(lines: list[str]) -> str:
@@ -216,7 +199,7 @@ def _list(lines: list[str]) -> str:
 
 
 def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64]) -> None:
-    """Warn about unassigned output rows; raise for non-finite or non-pointwise outputs.
+    """Raise for unassigned, non-finite, or non-pointwise callback outputs at the initial guess.
 
     Parameters
     ----------
@@ -229,19 +212,22 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
     Raises
     ------
     ValueError
-        If an output is NaN or infinite at the initial guess, or the continuous function is
-        not pointwise. The message lists every finding.
+        If a callback leaves an output unassigned at the initial guess; otherwise if an output
+        is NaN or infinite there, or the continuous function is not pointwise. Each message
+        lists every finding of its kind.
     """
     functions = problem.functions
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     dv.z[:] = z0
     not_finite: list[str] = []
+    # callback -> the outputs it never assigned, in the order the callbacks run
+    unset: dict[Callable[..., Any], tuple[str, list[str]]] = {}
 
     objective_function = cast("ObjectiveFunctionFloat", functions.objective)
     objective_arg: ObjectiveArg[np.float64] = ObjectiveArg(problem, dv, np.float64)
     call_callback(objective_function, objective_arg)
     if not objective_arg._objective_written:
-        _warn_unset(objective_function, "objective", "arg.objective")
+        unset.setdefault(objective_function, ("objective", []))[1].append("arg.objective")
     objective = np.asarray(objective_arg.objective, dtype=np.float64)
     if not np.all(np.isfinite(objective)):
         not_finite.append(f"the objective is {_describe(objective)}")
@@ -252,7 +238,7 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
         call_callback(discrete_function, discrete_arg)
         discrete = discrete_arg.discrete
         for row in np.flatnonzero(~discrete.written):
-            _warn_unset(discrete_function, "discrete", f"arg.discrete[{row}]")
+            unset.setdefault(discrete_function, ("discrete", []))[1].append(f"arg.discrete[{row}]")
         constraints = discrete.view(np.ndarray)
         not_finite.extend(
             f"discrete[{row}] is {_describe(constraints[row : row + 1])}"
@@ -273,8 +259,8 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
                 values = output.view(np.ndarray)
                 for i in range(output.shape[0]):
                     if not output.written[i]:
-                        _warn_unset(
-                            continuous_function, "continuous", f"arg.phase[{p}].{name}[{i}]"
+                        unset.setdefault(continuous_function, ("continuous", []))[1].append(
+                            f"arg.phase[{p}].{name}[{i}]"
                         )
                     bad = ~np.isfinite(values[i])
                     if bad.any():
@@ -282,7 +268,20 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
                             f"phase {p} {name}[{i}] is {_describe(values[i][bad])} at "
                             f"{_points(int(bad.sum()), bad.size)}"
                         )
-        pointwise, failure = _pointwise_findings(problem, mesh, z0, base, continuous_function)
+        if not unset:  # an unassigned row is the likelier cause of anything reported next
+            pointwise, failure = _pointwise_findings(problem, mesh, z0, base, continuous_function)
+
+    if unset:
+        entries = [
+            f"functions.{attribute} = {_callback_location(function)}: {', '.join(outputs)}"
+            for function, (attribute, outputs) in unset.items()
+        ]
+        msg = (
+            f"Callbacks left outputs unassigned at the initial guess:\n\n{_list(entries)}\n\n"
+            "An output that is not assigned is zero, which almost always means a missing line. "
+            "Assign each one, or assign 0.0 if zero is intended."
+        )
+        raise ValueError(msg)
 
     sections: list[str] = []
     if not_finite:

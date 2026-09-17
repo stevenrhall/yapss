@@ -263,9 +263,11 @@ useful rather than complete: it can only see what the initial guess reveals --- 
 an input that is constant along the guess --- and it accepts differences below a relative
 tolerance of 1e-7, since reordering can change floating-point rounding.
 
-The same setup check warns (``UnsetOutputWarning``) when a callback never assigns an output
-row at the initial guess, since an unassigned row is zero, and raises ``ValueError`` if an
-output is NaN or infinite there, naming the output and the number of points.
+The same setup check raises ``ValueError`` when a callback never assigns an output row at the
+initial guess, naming the callback, the line of its ``def``, and every row it left unassigned.
+An unassigned row is zero, which almost always means a missing line; if zero is intended,
+assign ``0.0`` explicitly. The check also raises ``ValueError`` if an output is NaN or infinite
+there, naming the output and the number of points.
 
 .. note::
     Always iterate over `arg.phase_list` instead of, say, `range(3)`. It’s essential to

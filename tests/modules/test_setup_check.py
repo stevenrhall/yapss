@@ -28,7 +28,6 @@ import pytest
 from yapss import Problem
 from yapss._private.ipopt_options import DEFAULT_IPOPT_OPTIONS
 from yapss._private.setup_check import (
-    UnsetOutputWarning,
     _constraint_label,
     _labels,
     _variable_label,
@@ -151,8 +150,8 @@ def test_every_nlp_entry_has_a_label(spectral_method):
 
 
 @pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")
-def test_a_callable_object_callback_warns_at_the_users_solve_call():
-    """A callback without a `def` line (a callable object) points the warning at solve()."""
+def test_a_callable_object_callback_is_named_without_a_def_line():
+    """A callable object is named by its class, at the `def` line of its `__call__`."""
 
     class Continuous:
         def __call__(self, arg):
@@ -164,11 +163,10 @@ def test_a_callable_object_callback_warns_at_the_users_solve_call():
     problem = brachistochrone_minimal.setup()
     problem.ipopt_options.print_level = 0
     problem.functions.continuous = Continuous()
-    with pytest.warns(UnsetOutputWarning, match=r"arg\.phase\[0\]\.dynamics\[2\]") as record:
-        with contextlib.suppress(Exception):
-            problem.solve()
-    (warning,) = [w for w in record if issubclass(w.category, UnsetOutputWarning)]
-    assert warning.filename == __file__
+    code = Continuous.__call__.__code__
+    location = f"Continuous ({code.co_filename}, line {code.co_firstlineno})"
+    with pytest.raises(ValueError, match=re.escape(f"{location}: arg.phase[0].dynamics[2]")):
+        problem.solve()
 
 
 def test_an_exception_in_the_reversed_call_is_reported_as_a_finding():

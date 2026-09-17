@@ -21,7 +21,6 @@ from ._private.input_args import ObjectiveGradientArg, ObjectiveHessianArg
 from ._private.ipopt_options import IpoptOptionSettingWarning
 from ._private.ipopt_status import IpoptStatus
 from ._private.problem import LargeSegmentWarning, Problem
-from ._private.setup_check import UnsetOutputWarning
 from ._private.solution import IpoptConvergenceWarning, Solution
 
 # re-exported so that every warning and error category YAPSS can raise is discoverable
@@ -44,7 +43,6 @@ __all__ = [
     "ObjectiveHessianArg",
     "Problem",
     "Solution",
-    "UnsetOutputWarning",
     "UnsupportedMathFunctionError",
     "YapssDeprecationWarning",
     "YapssError",

@@ -43,7 +43,6 @@ CATEGORIES = [
     yapss.IpoptConvergenceWarning,
     yapss.LargeSegmentWarning,
     yapss.IpoptOptionSettingWarning,
-    yapss.UnsetOutputWarning,
 ]
 
 

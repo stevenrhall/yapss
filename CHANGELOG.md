@@ -73,13 +73,14 @@ considered stable. YAPSS will follow a predictable versioning policy during 0.x 
   the user's own code through `stacklevel`, which makes a `module="yapss"` filter match none
   of them. Warnings for behavior that will change subclass `yapss.YapssDeprecationWarning`,
   which is also a `FutureWarning` rather than a `DeprecationWarning`, since Python hides the
-  latter outside `__main__`. `UnsetOutputWarning` is now public, and the notice for a
-  `YAPSS_IPOPT_SOURCE` environment variable left set has a category instead of being a bare
-  `UserWarning`. Errors for ordinary bad input remain the plain built-ins. The vendored
+  latter outside `__main__`. The notices for a `YAPSS_IPOPT_SOURCE` environment variable
+  left set and for an invalid `YAPSS_LOGGING` level have categories instead of being bare
+  `UserWarning`s. Errors for ordinary bad input remain the plain built-ins. The vendored
   Ipopt interface keeps its own categories. See the new "Warnings and Errors" page.
 - Two checks now run at the start of every solve, before an Ipopt problem instance is created.
-  A callback that never assigns an output row at the initial guess warns (an unassigned row is
-  zero), pointing at the callback's `def` line; an output that is NaN or infinite there raises
+  A callback that never assigns an output row at the initial guess raises `ValueError`, naming
+  each callback with its `def` line and every row it left unassigned (an unassigned row is
+  zero, which almost always means a missing line; assign `0.0` if zero is intended); an output that is NaN or infinite there raises
   `ValueError` naming the output and the points; and a continuous callback that is not
   pointwise -- one whose output at a point depends on other points, through `t[0]`, `len`,
   `mean`, `sum`, `cumsum`, `diff`, or indexing across points -- raises `ValueError` naming the
