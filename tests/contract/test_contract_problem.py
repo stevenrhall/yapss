@@ -392,7 +392,7 @@ def test_very_large_segment_warns():
         phase.collocation_points = [1000]
 
 
-@not_yet("F5 target", "callbacks can be registered with a decorator")
+@not_yet("redesign (F5)", "callbacks can be registered with a decorator")
 def test_callback_decorator_registration():
     ocp = callback_problem()
 

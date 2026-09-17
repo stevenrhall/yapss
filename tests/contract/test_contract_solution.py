@@ -116,20 +116,22 @@ def test_warm_start_across_mesh_and_method(solution, target_method):
 # ----------------------------------------------------------------- not yet met
 
 
-@not_yet("E2 part 1", "Solution arrays are read-only")
+@not_yet("redesign (E2 part 1)", "Solution arrays are read-only")
 def test_solution_arrays_are_read_only():
     solution = callback_problem().solve()
     with raises(ValueError, at="state[0, 0] ="):
         solution.phase[0].state[0, 0] = 99.0
 
 
-@not_yet("E7d", "reprs use the public path yapss.Solution")
+@not_yet("redesign (E7d)", "reprs use the public path yapss.Solution")
 def test_repr_uses_the_public_path():
     solution = callback_problem().solve()
     assert repr(solution).startswith("<yapss.Solution")
 
 
-@not_yet("E3", "every Solution quantity is given on `time` (control shape (nu, len(time)))")
+@not_yet(
+    "redesign (E3)", "every Solution quantity is given on `time` (control shape (nu, len(time)))"
+)
 @pytest.mark.parametrize("method", ["lgr", "lg"])  # under LGL the two grids already coincide
 def test_control_is_on_the_state_points(method):
     ocp = callback_problem()
@@ -138,7 +140,9 @@ def test_control_is_on_the_state_points(method):
     assert phase.control.shape == (1, len(phase.time))
 
 
-@not_yet("E3", "solution.phase[p].collocated indexes the collocation points within `time`")
+@not_yet(
+    "redesign (E3)", "solution.phase[p].collocated indexes the collocation points within `time`"
+)
 def test_collocated_indices():
     phase = callback_problem().solve().phase[0]
     np.testing.assert_array_equal(phase.time[phase.collocated], phase.time_c)

@@ -12,6 +12,11 @@ commit. `pytest tests/contract -rx` lists everything outstanding.
 
 A clause marked `proposed(...)` is also a strict xfail, but its behavior is not yet
 decided. Decide it, then either keep the test as `not_yet` or delete it.
+
+0.3.0 is the last release of the current API. The clauses still open when it was closed out
+name `redesign` as the item that will meet them: their behavior is wanted, but it belongs to
+the successor API (`development/API_DESIGN_SPEC.md`, local), where each is to be translated
+rather than met on this line. No clause names a 0.3.x item.
 """
 
 from __future__ import annotations

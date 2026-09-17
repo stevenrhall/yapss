@@ -281,7 +281,7 @@ def test_non_finite_time_raises_at_the_assignment(bad):
         ocp.guess.phase[0].time = [0.0, bad]
 
 
-@not_yet("W4", "columns are checked at the assignment once time is set")
+@not_yet("redesign (W4)", "columns are checked at the assignment once time is set")
 def test_state_with_wrong_number_of_columns_raises_at_the_assignment():
     ocp = timed()
     with raises(ValueError, "guess.phase[0].state", at="state ="):
@@ -294,7 +294,9 @@ def test_integral_of_wrong_length_message_names_the_attribute():
         ocp.guess.phase[0].integral = [1.0, 2.0]
 
 
-@not_yet("W4 from_solution", "a warm start from something that is not a Solution says so")
+@not_yet(
+    "redesign (W4 from_solution)", "a warm start from something that is not a Solution says so"
+)
 def test_warm_start_from_a_non_solution_raises_helpfully():
     ocp = problem()
     with raises(TypeError, "Solution"):
@@ -302,7 +304,8 @@ def test_warm_start_from_a_non_solution_raises_helpfully():
 
 
 @not_yet(
-    "W4 from_solution", "a warm start from a mismatched problem raises before changing the guess"
+    "redesign (W4 from_solution)",
+    "a warm start from a mismatched problem raises before changing the guess",
 )
 def test_warm_start_from_a_mismatched_solution_changes_nothing():
     source = brachistochrone_minimal.setup()
@@ -405,7 +408,9 @@ def test_non_finite_guess_raises_at_the_assignment(target, bad):
         setattr(owner(ocp.guess), name, values)
 
 
-@not_yet("W4", "a non-finite value written into a guess element is reported by validate()")
+@not_yet(
+    "redesign (W4)", "a non-finite value written into a guess element is reported by validate()"
+)
 @pytest.mark.parametrize("bad", [np.nan, np.inf], ids=["NaN", "inf"])
 @pytest.mark.parametrize("target", ["state", "control", "integral", "parameter"])
 def test_non_finite_guess_element_is_reported_by_validate(target, bad):

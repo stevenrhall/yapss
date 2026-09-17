@@ -876,7 +876,7 @@ def test_exception_in_a_callback_has_a_context_note():
     assert any("continuous" in note for note in getattr(info.value, "__notes__", []))
 
 
-@not_yet("B7", "a derivative callback the chosen method does not use warns, naming it")
+@not_yet("redesign (B7)", "a derivative callback the chosen method does not use warns, naming it")
 def test_unused_derivative_callback_warns():
     ocp = callback_problem("auto")
     ocp.functions.continuous_jacobian = lambda arg: None
@@ -1119,7 +1119,7 @@ def test_continuous_family_arguments_have_no_foreign_outputs(callback):
     assert not any(seen.values()), seen
 
 
-@not_yet("F7 target", "every callback argument reports why it is called in arg.evaluation")
+@not_yet("redesign (F7)", "every callback argument reports why it is called in arg.evaluation")
 def test_arg_evaluation_names_the_kind_of_call():
     kinds = set()
 
