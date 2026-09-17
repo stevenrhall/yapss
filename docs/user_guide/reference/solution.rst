@@ -92,8 +92,8 @@ and neither is affected by warning filters.
 boundary rather than inside the solver, so that the reported source location is your own
 call. Internal routines that solve repeatedly do not warn on each attempt.
 
-Incomplete and Unverified Multipliers
---------------------------------------
+Multiplier Coverage and Verification
+------------------------------------
 
 .. warning::
 
@@ -107,13 +107,40 @@ Incomplete and Unverified Multipliers
     instead. Working out that logic is planned for a future release. See :doc:`bounds`
     for the related discussion of state bounds used as path constraints.
 
-    **The multipliers YAPSS returns have limited test coverage.** This is a research code in
-    active development, and Lagrange multipliers are the least exercised part of it.
-    ``control_multiplier`` was wrong in every release through 0.1.1, and ``control_multiplier``
-    and ``path_multiplier`` were scaled wrongly on any phase whose duration was not 2 through
-    0.2.2; both were caught by inspection. Since 0.2.3 a test checks them against the costate
-    on a problem with a known solution. Treat multiplier values as provisional until you have
-    checked them against a known solution for your problem.
+The multipliers YAPSS *does* return are checked against objective sensitivities. A
+multiplier is a derivative of the optimal objective with respect to the constraint or
+bound it belongs to, so perturbing that constraint and re-solving measures it
+independently of the transcription; for a density the prediction is its integral over
+the phase, :math:`\sum_k h w_k \mu_k`. Before the 0.3.0 release every reported
+multiplier kind was measured this way across the three spectral methods, single and
+multi-segment meshes, unit and non-unit ``problem.scale.*``, and both senses, agreeing
+to a worst relative error of :math:`10^{-8}`. The costate was also checked against a
+closed form, where it converges spectrally, and the identities were confirmed on the
+brachistochrone, isoperimetric, and three-phase Goddard examples. A subset of these
+checks is pinned in the test suite.
+
+The checks exist because the history warranted them: ``control_multiplier`` was wrong in
+every release through 0.1.1, and ``control_multiplier`` and ``path_multiplier`` were
+scaled wrongly on any phase whose duration was not 2 through 0.2.2. Both were found by
+inspection rather than by a test.
+
+Three situations remain in which a reported multiplier is correct but is *not* an
+objective sensitivity. All three are properties of the problem, not of YAPSS:
+
+-  **A degenerate optimum.** Where the optimum is a manifold rather than a point, or the
+   gradients of the active constraints are linearly dependent, the split among the
+   multipliers is not determined, and Ipopt's choice among the valid ones is arbitrary.
+   Only quantities invariant under that choice --- typically a sum, or the norm of a
+   group --- are meaningful. The isoperimetric example is one: its optimum is invariant
+   under rotation, and the two closure multipliers vary with the initial guess while
+   their norm does not.
+-  **A one-sided sensitivity.** Where a perturbation is feasible in one direction only,
+   as when a state sits exactly on a bound, the optimal objective has a kink and only
+   the one-sided derivative agrees with the multiplier.
+-  **A collocated endpoint.** How a multiplier at an endpoint divides between the
+   costate, a path constraint, and an endpoint condition is a matter of convention.
+   ``costate[:, 0]`` is the costate at ``time_c[0]``, which under LG is not
+   :math:`t_0`.
 
 Multiplier and Costate Scaling
 ------------------------------
@@ -121,8 +148,9 @@ Multiplier and Costate Scaling
 The costate, ``control_multiplier``, and ``path_multiplier`` are approximations to the
 continuous-time multipliers of the optimal control problem: densities in time, so that
 the Hamiltonian is :math:`H = \lambda^T f + \mu_q^T g` and stationarity in the control
-reads :math:`\partial H / \partial u + \mu_u = 0` with :math:`\mu_u` the control-bound
-multiplier. The raw Ipopt multipliers are on the discrete rows and bounds; YAPSS divides
+reads :math:`\partial H / \partial u + \mu_u + \mu_h^T \partial h / \partial u = 0`,
+with :math:`\mu_u` the control-bound multiplier and :math:`\mu_h` the path multiplier.
+The last term is absent wherever no path constraint is active. The raw Ipopt multipliers are on the discrete rows and bounds; YAPSS divides
 out the quadrature weight and the phase half-duration :math:`(t_f - t_0)/2` to report
 them per unit time. On a phase of zero duration these densities are undefined, and
 ``control_multiplier`` and ``path_multiplier`` are NaN there.
@@ -220,8 +248,21 @@ Lagrange multipliers for constraints are also stored:
 The Hamiltonian function, derived from the costates, dynamics, integrands, and integral
 multipliers, is also available:
 
--  **hamiltonian** (*np.ndarray*): Values of the Hamiltonian function, evaluated at collocation
-   points.
+-  **hamiltonian** (*np.ndarray*): Values of the Hamiltonian function
+   :math:`H = \lambda^T f + \mu_q^T g`, evaluated at collocation points.
+
+There is no path-constraint term in :math:`H`, by construction rather than by omission.
+Written in the standard form :math:`h - h_\text{bound} \le 0`, the augmented Hamiltonian
+adds :math:`\mu_h^T (h - h_\text{bound})`, and complementary slackness makes that term
+zero on-shell: :math:`\mu_h` vanishes wherever the constraint is inactive, and the
+residual vanishes wherever it is active. So the reported :math:`H` *is* the augmented
+Hamiltonian in value along the solution, and it is the quantity that is constant along an
+autonomous trajectory and that vanishes at a free, interior final time --- with or without
+an active path constraint.
+
+The two agree in value, not in derivative. Off the solution the term is a function of
+:math:`u` like any other, which is why the stationarity condition above keeps its
+:math:`\mu_h` term on a constrained arc.
 
 Information from Ipopt Solver
 -----------------------------

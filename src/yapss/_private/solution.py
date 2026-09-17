@@ -301,7 +301,10 @@ def make_solution_object(
         integrand = np.array(c_arg.phase[p].integrand)
         path = np.array(c_arg.phase[p].path)
 
-        # calculate the Hamiltonian
+        # calculate the Hamiltonian, lambda.f + nu.g. The path constraints contribute no
+        # term: the augmented Hamiltonian adds mu_h.(h - h_bound), which complementary
+        # slackness makes zero on-shell, so the two agree in value along the solution --
+        # though not in derivative. The class docstring says so where a user will read it.
         hamiltonian = (integrand * integral_multiplier[:, np.newaxis]).sum(axis=0)
         if dynamics.shape[0] > 0:
             hamiltonian += (costate * dynamics).sum(axis=0)
@@ -436,7 +439,7 @@ class SolutionPhase:
 
 @dataclass(frozen=True)
 class Solution:
-    """Represents the solution of an optimal control problem.
+    r"""Represents the solution of an optimal control problem.
 
     A Solution object encapsulates the solution to an optimal control problem, including
     the optimal state, control, and parameter decision variables, the objective value,
@@ -506,7 +509,15 @@ class Solution:
         integral_multiplier : numpy.ndarray
             Lagrange multipliers for the integral constraints.
         hamiltonian : numpy.ndarray
-            Hamiltonian values at the collocation time points.
+            Hamiltonian values at the collocation time points,
+            :math:`\mathcal{H} = \lambda^T f + \nu^T g`, where :math:`f` is the
+            dynamics and :math:`g` the integrand. There is no path-constraint term, by
+            construction rather than by omission: written in the standard form
+            :math:`h - h_\text{bound} \le 0`, the augmented Hamiltonian's term
+            :math:`\mu_h^T (h - h_\text{bound})` is zero on-shell by complementary
+            slackness, so the value reported here is the augmented Hamiltonian's.
+            Its *derivative* is not: stationarity in the control still carries the
+            path multiplier.
 
     status : IpoptStatus
         The status Ipopt reported, an `IntEnum` that compares equal to Ipopt's integer code.
