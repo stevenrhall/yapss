@@ -176,10 +176,9 @@ def _hand_over(data: Any, name: str, vector: Any) -> None:
     vector : Vector
         The output the callback filled.
     """
-    buffer, written = data.output_storage(name)
+    buffer = data.output_storage(name)
     for row, value in enumerate(vector._row_values()):
         buffer[row] = value
-    written[:] = True
 
 
 class _EndpointMakers:
@@ -284,10 +283,9 @@ def _make_discrete(
         result = callback(makers.arg(arg), out)
         _check_return(result, out, callback, "discrete callback")
         _check_complete(out, callback, "discrete callback")
-        buffer, written = arg.output_storage()
+        buffer = arg.output_storage()
         for row, value in enumerate(out.discrete._row_values()):
             buffer[row] = value
-        written[:] = True
 
     return discrete
 

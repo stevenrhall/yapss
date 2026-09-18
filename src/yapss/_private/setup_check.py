@@ -57,6 +57,7 @@ from .input_args import (
     callback_location,
 )
 from .structure import get_nlp_dv_structure, nlp_constraint_keys, nlp_variable_keys
+from .types_ import set_private
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -190,6 +191,25 @@ def _list(lines: list[str]) -> str:
     return "\n".join(f"  - {line}" for line in shown)
 
 
+def _again(function: Callable[..., Any], arg: Any, read: Callable[[], Any]) -> Any:
+    """Call `function` again with its outputs blanked to zero, and return what `read` gives.
+
+    Outputs are blanked to NaN before every call, so after one call a NaN says one of two
+    things: the callback never assigned that row, or it assigned a value that is NaN. The two
+    are told apart by calling once more from a blank of zero, which is what an unassigned row
+    used to hold: a row the callback assigns is NaN again, and one it does not is zero.
+
+    This runs only when something was not finite, which is to say only on the way to raising.
+    Nothing is paid for it in a solve that is going to start.
+    """
+    set_private(arg, "_blank", 0.0)
+    try:
+        call_callback(function, arg)
+        return read()
+    finally:
+        set_private(arg, "_blank", np.nan)
+
+
 def check_callbacks(problem: ProblemSpec, mesh: Mesh, z0: NDArray[np.float64]) -> None:
     """Raise for unassigned, non-finite, or non-pointwise callback outputs at the initial guess.
 
@@ -218,24 +238,31 @@ def check_callbacks(problem: ProblemSpec, mesh: Mesh, z0: NDArray[np.float64]) -
     objective_function = cast("ObjectiveFunctionFloat", functions.objective)
     objective_arg: ObjectiveArg[np.float64] = ObjectiveArg(problem, dv, np.float64)
     call_callback(objective_function, objective_arg)
-    if not objective_arg._objective_written:
-        unset.setdefault(objective_function, ("objective", []))[1].append("arg.objective")
     objective = np.asarray(objective_arg.objective, dtype=np.float64)
     if not np.all(np.isfinite(objective)):
-        not_finite.append(f"the objective is {_describe(objective)}")
+        objective = _again(objective_function, objective_arg, lambda: objective_arg.objective)
+        if np.all(np.isfinite(objective)):
+            unset.setdefault(objective_function, ("objective", []))[1].append("arg.objective")
+        else:
+            not_finite.append(f"the objective is {_describe(objective)}")
 
     if problem.nd > 0 and functions.discrete is not None:
         discrete_function = cast("DiscreteFunctionFloat", functions.discrete)
         discrete_arg: DiscreteArg[np.float64] = DiscreteArg(problem, dv, np.float64)
         call_callback(discrete_function, discrete_arg)
-        discrete = discrete_arg.discrete
-        for row in np.flatnonzero(~discrete.written):
-            unset.setdefault(discrete_function, ("discrete", []))[1].append(f"arg.discrete[{row}]")
-        constraints = discrete.view(np.ndarray)
-        not_finite.extend(
-            f"discrete[{row}] is {_describe(constraints[row : row + 1])}"
-            for row in np.flatnonzero(~np.isfinite(constraints))
-        )
+        constraints = discrete_arg.discrete.view(np.ndarray)
+        suspect = np.flatnonzero(~np.isfinite(constraints))
+        if suspect.size:
+            constraints = _again(
+                discrete_function, discrete_arg, lambda: discrete_arg.discrete.view(np.ndarray)
+            )
+            for row in suspect:
+                if np.isfinite(constraints[row]):
+                    unset.setdefault(discrete_function, ("discrete", []))[1].append(
+                        f"arg.discrete[{row}]"
+                    )
+                else:
+                    not_finite.append(f"discrete[{row}] is {_describe(constraints[row : row + 1])}")
 
     pointwise: list[str] = []
     failure: Exception | None = None
@@ -245,21 +272,28 @@ def check_callbacks(problem: ProblemSpec, mesh: Mesh, z0: NDArray[np.float64]) -
         store._sync(z0)
         base = store.value_arg
         call_callback(continuous_function, base)
-        for p, phase in enumerate(base.phase):
-            for name in OUTPUTS:
-                output = getattr(phase, name)
-                values = output.view(np.ndarray)
-                for i in range(output.shape[0]):
-                    if not output.written[i]:
-                        unset.setdefault(continuous_function, ("continuous", []))[1].append(
-                            f"arg.phase[{p}].{name}[{i}]"
-                        )
-                    bad = ~np.isfinite(values[i])
-                    if bad.any():
-                        not_finite.append(
-                            f"phase {p} {name}[{i}] is {_describe(values[i][bad])} at "
-                            f"{_points(int(bad.sum()), bad.size)}"
-                        )
+        suspect_rows = [
+            (p, name, i)
+            for p, phase in enumerate(base.phase)
+            for name in OUTPUTS
+            for i in range(getattr(phase, name).shape[0])
+            if not np.all(np.isfinite(getattr(phase, name).view(np.ndarray)[i]))
+        ]
+        if suspect_rows:
+            _again(continuous_function, base, lambda: None)
+            for p, name, i in suspect_rows:
+                values = getattr(base.phase[p], name).view(np.ndarray)[i]
+                bad = ~np.isfinite(values)
+                if not bad.any():
+                    unset.setdefault(continuous_function, ("continuous", []))[1].append(
+                        f"arg.phase[{p}].{name}[{i}]"
+                    )
+                else:
+                    not_finite.append(
+                        f"phase {p} {name}[{i}] is {_describe(values[bad])} at "
+                        f"{_points(int(bad.sum()), bad.size)}"
+                    )
+            call_callback(continuous_function, base)  # restore the blanked call's values
         if not unset:  # an unassigned row is the likelier cause of anything reported next
             pointwise, failure = _pointwise_findings(problem, mesh, z0, base, continuous_function)
 
@@ -338,7 +372,8 @@ def _pointwise_findings(
         for name in OUTPUTS:
             whole = getattr(whole_phase, name)
             part = getattr(part_phase, name).view(np.ndarray)
-            for i in np.flatnonzero(whole.written):
+            # every row: this runs only when nothing was left unassigned
+            for i in range(whole.shape[0]):
                 a = whole.view(np.ndarray)[i, selected]
                 b = part[i]
                 tolerance = POINTWISE_RTOL * np.maximum(np.abs(a), np.abs(b))

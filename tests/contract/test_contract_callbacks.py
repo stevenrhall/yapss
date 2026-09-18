@@ -534,29 +534,32 @@ def test_returning_from_continuous_or_discrete_raises(callback):
 
 
 def test_every_call_starts_from_a_clean_argument():
-    """Nothing a previous call wrote is visible to the next one."""
-    entry_values = []
-    entry_written = []
+    """Nothing a previous call wrote is visible to the next one.
+
+    Under the numeric methods an output is blanked to NaN before each call, which is both how
+    the previous call's values are cleared and how a row that is never assigned is recognized
+    at the initial guess.
+    """
+    entry = []
 
     def continuous(arg):
         phase = arg.phase[0]
-        entry_values.append(float(np.max(np.abs(phase.dynamics.view(np.ndarray)))))
-        entry_written.append(bool(phase.dynamics.written.any() or phase.path.written.any()))
+        entry.append(np.isnan(phase.dynamics.view(np.ndarray)).all())
+        entry.append(np.isnan(phase.path.view(np.ndarray)).all())
         default_continuous(arg)
 
     def objective(arg):
-        entry_values.append(float(arg.objective))
+        entry.append(bool(np.isnan(arg.objective)))
         arg.objective = arg.phase[0].final_time
 
     ocp = callback_problem("central-difference", continuous=continuous, objective=objective)
     ocp.solve()
-    assert len(entry_values) > 10  # the callbacks really did run many times
-    assert set(entry_values) == {0.0}
-    assert not any(entry_written)
+    assert len(entry) > 10  # the callbacks really did run many times
+    assert all(entry)
 
 
 def test_a_row_assigned_on_one_call_only_does_not_persist():
-    """A conditional assignment leaves zero on the calls that skip it, not the old values."""
+    """A conditional assignment leaves the blank on the calls that skip it, not the old values."""
     problem = Problem(name="clean", nx=[1], nu=[1], nh=[1])
     problem.ipopt_options.print_level = 0
     # a numeric method, so the user's callback runs with floats at every iterate; under
@@ -574,7 +577,7 @@ def test_a_row_assigned_on_one_call_only_does_not_persist():
             spiked.append(arg)
             arg.phase[0].path[0] = u + 1000.0
         else:
-            seen.append(float(np.max(np.abs(arg.phase[0].path.view(np.ndarray)))))
+            seen.append(bool(np.isnan(arg.phase[0].path.view(np.ndarray)).all()))
             arg.phase[0].path[0] = u
 
     problem.functions.objective = lambda arg: setattr(arg, "objective", arg.phase[0].final_time)
@@ -588,7 +591,7 @@ def test_a_row_assigned_on_one_call_only_does_not_persist():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", yapss.IpoptConvergenceWarning)
         problem.solve()
-    assert seen and set(seen) == {0.0}
+    assert seen and all(seen)
 
 
 @pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")

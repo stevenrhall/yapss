@@ -11,15 +11,20 @@ way to change it is to assign whole rows:
   2-D array with one row per selected row, or a scalar constant for every selected row;
 - ``out[i] = value`` (negative ``i`` counts from the end): a row value -- a scalar constant, an
   expression over the points, or a list with one value per point;
-- ``out[i] += value`` and the other in-place operators, on a row or on the whole output.
+- ``out[i] += value`` and the other in-place operators, on a row or on the whole output, once
+  the row has been assigned.
 
 Anything else -- a write into part of a row (``out[i][k] = ...``), a column (``out[:, k] =
 ...``), a mask or fancy index, ``np.copyto``, or a ufunc's ``out=`` -- is refused at the line,
 and so is a value whose shape fits only by broadcasting: an expression over the points assigned
 to several rows, or a length-1 array over several points.
 
-Every successful write passes through `OutputArray.__setitem__`, which knows its rows, so the
-array records exactly which rows were written.
+An output carries no record of which rows were written, because nothing during a solve asks.
+The one question ever asked -- did the callback assign every row at the initial guess? -- is
+answered once, in `yapss._private.setup_check`, from the values themselves: the outputs are
+blanked to NaN before each call under the float methods, so a row that was never assigned is
+NaN, and the scan for non-finite values that runs there anyway finds it. That is why an
+in-place operator on a row that has not been assigned reads as unassigned: it is.
 """
 
 # future imports
@@ -135,7 +140,6 @@ class OutputArray(_Protected, np.ndarray[Any, np.dtype[T]], Generic[T]):
     """
 
     _storage: NDArray[T]
-    _written: NDArray[np.bool_]
     _label: str
     _count: str
     _scalar_rows: bool
@@ -161,7 +165,6 @@ class OutputArray(_Protected, np.ndarray[Any, np.dtype[T]], Generic[T]):
         storage: NDArray[T] = np.zeros(shape, dtype=dtype)
         output = cast("OutputArray[T]", storage.view(cls))
         output._storage = storage
-        output._written = np.zeros(shape[0], dtype=bool)
         output._label = label
         output._count = count
         output._scalar_rows = len(shape) == 1
@@ -183,15 +186,9 @@ class OutputArray(_Protected, np.ndarray[Any, np.dtype[T]], Generic[T]):
         return self._label if self._is_output else (self._view_of or "an output")
 
     # ----------------------------------------------------------------------- reads
-    @property
-    def written(self) -> NDArray[np.bool_]:
-        """Which rows have been assigned since the output was created or reset."""
-        return self._written.copy()
-
-    def reset(self) -> None:
-        """Set every value to zero and mark every row unwritten."""
-        self._storage.fill(0)
-        self._written[:] = False
+    def blank(self, value: Any) -> None:
+        """Set every value to `value`, which a callback is expected to overwrite."""
+        self._storage.fill(value)
 
     def __getitem__(self, index: Any) -> Any:
         """Read; a row of a continuous output is returned as a read-only `OutputRow`."""
@@ -220,7 +217,6 @@ class OutputArray(_Protected, np.ndarray[Any, np.dtype[T]], Generic[T]):
         if _is_row_index(index):
             row = self._row(index)
             self._storage[row] = self._row_value(value, index)
-            self._written[row] = True
             return
         if isinstance(index, slice):
             rows = range(*index.indices(self.shape[0]))
@@ -232,7 +228,6 @@ class OutputArray(_Protected, np.ndarray[Any, np.dtype[T]], Generic[T]):
             else:
                 for row, row_value in zip(rows, self._rows_value(value, rows, index), strict=True):
                     storage[row] = row_value
-            self._written[index] = True
             return
         msg = f"cannot assign {self._label}[{_show(index)}]: {WHOLE_ROWS}"
         raise TypeError(msg)
@@ -340,7 +335,6 @@ class OutputArray(_Protected, np.ndarray[Any, np.dtype[T]], Generic[T]):
         rows = range(self.shape[0])
         for row, row_value in zip(rows, self._rows_value(value, rows, slice(None)), strict=True):
             self._storage[row] = op(self._storage[row], row_value)
-        self._written[:] = True
         return self
 
 

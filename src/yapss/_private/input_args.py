@@ -142,10 +142,15 @@ def call_callback(function: Any, arg: Any) -> None:
     """Call one user callback, under the rules every callback obeys.
 
     Every call of a user-supplied function goes through here. The callback's outputs are
-    cleared first, so a row the callback does not assign on this call is zero rather than
-    whatever the previous call left there. A value returned instead of assigned is refused,
-    naming the idiom to use. Each argument clears only its own outputs (E7c), and a derivative
-    callback's key set must be the same on every call (E7b), checked after the call.
+    blanked first, so a row the callback does not assign on this call holds the blank value
+    rather than whatever the previous call left there. Under the float methods that value is
+    NaN, which is what makes an unassigned row visible to `yapss._private.setup_check` without
+    anything having to be recorded as the callback writes; under the symbolic trace it is
+    zero, since a NaN constant has no business in a CasADi graph.
+
+    A value returned instead of assigned is refused, naming the idiom to use. Each argument
+    blanks only its own outputs (E7c), and a derivative callback's key set must be the same on
+    every call (E7b), checked after the call.
 
     An exception raised by the callback propagates unchanged -- same object, message, and
     traceback -- with a note naming the callback and the line of its ``def``, since the
@@ -191,6 +196,17 @@ def read_only(array: NDArray[Any]) -> NDArray[Any]:
     return view
 
 
+def blank_value(dtype: Any) -> Any:
+    """Return what an output holds before a callback runs.
+
+    NaN under the float methods, so that a row the callback never assigns is NaN afterwards and
+    the setup check can tell it apart from one the callback assigned. Zero under the symbolic
+    trace, which is what it has always been: the trace is not what the check runs on, and a NaN
+    constant would propagate into the CasADi graph.
+    """
+    return np.nan if dtype is np.float64 else 0
+
+
 class BaseArg(Generic[T]):
     """Base class for all argument classes.
 
@@ -227,6 +243,7 @@ class BaseArg(Generic[T]):
         self._dv: DVStructure[T] = dv
         self._parameter: NDArray[T] = read_only(dv.s)
         self._dtype: type[T] = dtype
+        self._blank: Any = blank_value(dtype)
 
     @property
     def parameter(self) -> NDArray[T]:
@@ -330,21 +347,19 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
     def __init__(self, problem: ProblemSpec, dv: DVStructure[T], dtype: type[T]) -> None:
         # Initialize the DiscreteArgBase with problem and dv
         DiscreteArgBase.__init__(self, problem, dv, dtype)
-        # the objective starts at zero and unassigned
+        # the objective starts blank: NaN under the float methods, a symbolic zero under the
+        # trace, so that a callback which never assigns it leaves a value the setup check can
+        # tell apart from one it did assign
         if dtype == np.object_:
-            self._objective = cast(T, SXW(0.0))
-        elif dtype == np.float64:
-            self._objective = cast(T, 0.0)
-        else:
+            self._blank = cast(T, SXW(0.0))
+        elif dtype != np.float64:
             msg = f"Unsupported type for objective: {dtype}"
             raise TypeError(msg)
-        self._objective_written = False
-        self._objective_zero = self._objective
+        self._objective = cast(T, self._blank)
 
     def _reset(self) -> None:
-        """Return the objective to zero and unassigned."""
-        set_private(self, "_objective", self._objective_zero)
-        set_private(self, "_objective_written", value=False)
+        """Return the objective to the blank value."""
+        set_private(self, "_objective", self._blank)
 
     @property
     def objective(self) -> T:
@@ -359,7 +374,6 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
             msg = f"arg.objective must be a scalar, got a value of shape {np.shape(value)}."
             raise TypeError(msg)
         set_private(self, "_objective", value)
-        set_private(self, "_objective_written", value=True)
 
 
 class ObjectiveGradientArg(DiscreteArgBase[np.float64], Protected):
@@ -452,8 +466,8 @@ class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
     _results_in = "arg.discrete[i] = ..."
 
     def _reset(self) -> None:
-        """Return every discrete constraint value to zero and unassigned."""
-        self._discrete.reset()
+        """Blank every discrete constraint value."""
+        self._discrete.blank(self._blank)
 
     def __init__(self, problem: ProblemSpec, dv: DVStructure[T], dtype: type[T]) -> None:
         super().__init__(problem, dv, dtype)
@@ -478,18 +492,18 @@ class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
         """Assign every discrete constraint value."""
         self._discrete[:] = value
 
-    def output_storage(self) -> tuple[NDArray[T], NDArray[np.bool_]]:
-        """Return the writable array of the discrete constraint values, and its written flags.
+    def output_storage(self) -> NDArray[T]:
+        """Return the writable array of the discrete constraint values.
 
         For a front end that fills the outputs through its own objects rather than through
         `OutputArray`; see `ContinuousPhase.output_storage`.
 
         Returns
         -------
-        tuple[numpy.ndarray, numpy.ndarray]
-            The ``(nd,)`` storage, and the ``(nd,)`` written flags.
+        numpy.ndarray
+            The ``(nd,)`` storage.
         """
-        return self._discrete._storage, self._discrete._written
+        return self._discrete._storage
 
 
 class DiscreteJacobianArg(DiscreteArgBase[np.float64], Protected):
@@ -610,9 +624,9 @@ class ContinuousStore(BaseArg[T], Generic[T]):
         # Initialize phase list based on problem.np
         self._phase_list: tuple[int, ...] = tuple(range(problem.np))
         # `_reset` runs before every call of the callback, so it works on the buffers
-        # directly: an output with no rows has nothing to clear and is left out
-        self._output_buffers: tuple[tuple[NDArray[T], NDArray[np.bool_]], ...] = tuple(
-            (output._storage, output._written)
+        # directly: an output with no rows has nothing to blank and is left out
+        self._output_buffers: tuple[NDArray[T], ...] = tuple(
+            output._storage
             for phase in self._phase
             for output in phase._outputs.values()
             if output.shape[0]
@@ -849,14 +863,14 @@ class ContinuousPhase(_ContinuousPhaseInputs[T], Protected, Generic[T]):
         super().__init__(data)
         self._outputs: dict[str, OutputArray[T]] = data._outputs
 
-    def output_storage(self, name: str) -> tuple[NDArray[T], NDArray[np.bool_]]:
-        """Return the writable array of one output, and its per-row written flags.
+    def output_storage(self, name: str) -> NDArray[T]:
+        """Return the writable array of one output.
 
         For a front end that fills the outputs through its own objects rather than through
-        `OutputArray`. Writing a row here and marking it written is what `OutputArray` does, so
-        everything downstream -- the assembly, the setup check, the solution -- reads the same
-        array and the same flags either way. The array is cleared before every call, as the
-        outputs always are.
+        `OutputArray`. Writing a row here is what `OutputArray` does, so everything downstream
+        -- the assembly, the setup check, the solution -- reads the same array either way. The
+        array is blanked before every call, as the outputs always are, so a row this front end
+        leaves alone is caught exactly as one the released API leaves alone.
 
         Parameters
         ----------
@@ -865,11 +879,10 @@ class ContinuousPhase(_ContinuousPhaseInputs[T], Protected, Generic[T]):
 
         Returns
         -------
-        tuple[numpy.ndarray, numpy.ndarray]
-            The ``(rows, points)`` storage, and the ``(rows,)`` written flags.
+        numpy.ndarray
+            The ``(rows, points)`` storage.
         """
-        output = self._outputs[name]
-        return output._storage, output._written
+        return self._outputs[name]._storage
 
 
 class ContinuousJacobianPhase(_ContinuousPhaseInputs[np.float64], Protected):
@@ -907,6 +920,7 @@ class _ContinuousArgBase(BaseArg[T], Generic[T]):
         self._dv = store._dv
         self._parameter = store._parameter
         self._dtype = store._dtype
+        self._blank: Any = blank_value(store._dtype)
         self._phase = phase
 
     @property
@@ -927,10 +941,10 @@ class ContinuousArg(_ContinuousArgBase[T], Protected, Generic[T]):
     _results_in = "arg.phase[p].dynamics[i] = ..."
 
     def _reset(self) -> None:
-        """Return every output row of every phase to zero and unassigned."""
-        for storage, written in self._store._output_buffers:
-            storage.fill(0)
-            written[:] = False
+        """Blank every output row of every phase."""
+        blank = self._blank
+        for storage in self._store._output_buffers:
+            storage.fill(blank)
 
 
 class ContinuousJacobianArg(_ContinuousArgBase[np.float64], Protected):
