@@ -692,7 +692,7 @@ def test_a_problem_without_discrete_constraints_needs_neither(problem):
     assert "discrete_hessian" not in message
 
 
-# ------------------------------------------------------------------ block fields, stage 1
+# --------------------------------------------------- block fields: what the row index does
 
 
 class BlockPhases(yapss.Phases):
@@ -714,26 +714,55 @@ def _block_jacobian():
     return ContinuousJacobian(Structure("jacobian"), phase_columns(spec.phases[0], spec.parameter))
 
 
-def test_a_block_field_is_refused_for_now():
-    """Block-field rows take an index on either side, which stage 1 does not build."""
+def test_a_block_row_without_an_index_says_so():
+    """A block names as many rows as it has, so it names no single one."""
     jacobian = _block_jacobian()
-    with pytest.raises(AttributeError, match=r"block field, which derivatives supplied by hand"):
+    with pytest.raises(AttributeError, match=r"block field of 3 rows.*Give the row"):
         jacobian.dynamics.r.u = 1.0
 
 
-def test_a_block_field_is_refused_as_a_variable_too():
-    """The refusal covers the column side as well as the row side."""
-    from yapss._next.derivatives import ContinuousJacobian, Structure, phase_columns
-
+def test_a_block_variable_without_an_index_says_so():
     jacobian = _block_jacobian()
-    with pytest.raises(AttributeError, match=r"block field, which derivatives supplied by hand"):
+    with pytest.raises(AttributeError, match=r"block field of 3 rows.*Give the row"):
         jacobian.dynamics.m.r = 1.0
 
 
-def test_a_scalar_beside_a_block_still_works():
-    """Refusing the block does not refuse the scalars declared beside it."""
+def test_a_row_index_out_of_range_is_refused():
+    jacobian = _block_jacobian()
+    with pytest.raises(IndexError, match=r"out of range for a block field of 3 rows"):
+        jacobian.dynamics.r[3].u = 1.0
+
+
+def test_a_negative_row_index_is_refused():
+    """Wrapping would give one row two spellings, and so one derivative two names."""
+    jacobian = _block_jacobian()
+    with pytest.raises(IndexError, match=r"out of range"):
+        jacobian.dynamics.r[-1].u = 1.0
+
+
+def test_a_row_index_must_be_an_integer():
+    jacobian = _block_jacobian()
+    with pytest.raises(TypeError, match=r"takes a row index, an integer from 0 to 2"):
+        jacobian.dynamics.r["x"].u = 1.0
+
+
+def test_a_boolean_is_not_a_row_index():
+    """`True` is an int to Python, and would silently mean row 1."""
+    jacobian = _block_jacobian()
+    with pytest.raises(TypeError, match=r"takes a row index"):
+        jacobian.dynamics.r[True].u = 1.0
+
+
+def test_a_scalar_beside_a_block_takes_no_index():
     jacobian = _block_jacobian()
     jacobian.dynamics.m.u = 1.0
+
+
+def test_a_block_row_is_suggested_on_a_typo():
+    """A block field's name is offered like any other, though it is not in the scalar map."""
+    jacobian = _block_jacobian()
+    with pytest.raises(AttributeError, match=r"Did you mean 'r'"):
+        _ = jacobian.dynamics.rr
 
 
 # ----------------------------------------------------------------- what validate() requires

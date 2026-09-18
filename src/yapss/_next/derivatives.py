@@ -25,14 +25,18 @@ split across classes and modes so that each node refuses what it cannot do with 
 naming the form that works: a Jacobian row assigns and cannot be navigated further, a Hessian
 row navigates and cannot be assigned.
 
-Stage 1 reaches scalar fields only. A block field is refused by name, since its rows are
-addressed with an index (``jacobian.dynamics.r[0].v[1]``) that is not built yet.
+A block field is addressed a row at a time, with an index on whichever side it appears:
+``jacobian.dynamics.r[0].v[1]``. The index lands on a `_Block` node, which knows only where
+the block starts and how long it is; what follows the row -- more of the derivative, or the
+end of it -- belongs to the site that built the node, not to the index.
 
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+
+import numpy as np
 
 from .containers import suggest
 
@@ -61,15 +65,44 @@ _DYNAMICS, _INTEGRAND, _PATH = "f", "g", "h"
 
 _ENDS = ("initial", "final", "integral")
 
-_BLOCKED = (
-    "{spelling}: '{name}' is a block field, which derivatives supplied by hand do not yet "
-    "reach. Use 'auto' or a central-difference method for this problem."
+_NEEDS_ROW = (
+    "{spelling} is a block field of {size} rows, so it names no single one. Give the row, "
+    "'{spelling}[0]'."
 )
+
+_ROW_RANGE = "{spelling}[{index}] is out of range for a block field of {size} rows."
+
+_NOT_A_BLOCK = "{spelling} has one row, so it takes no row index; write '{spelling}' alone."
 
 
 def _rows_of(declaration: type[Vector], group: str) -> dict[str, tuple[str, int]]:
     """Return the key of each scalar field of `declaration`, under the group name `group`."""
     return {name: (group, row) for name, row in declaration._single.items()}
+
+
+def _blocks_of(declaration: type[Vector], group: str) -> dict[str, tuple[str, int, int]]:
+    """Return `(group, offset, size)` for each block field of `declaration`.
+
+    A block field names as many rows as it has, so it becomes a key only once a row index has
+    been given. The offset is where its first row sits in the flat vector, which is what the
+    index is added to; the group is what the key is built with once it is.
+    """
+    return {name: (group, offset, size) for name, (offset, size) in declaration._block.items()}
+
+
+def _row(offset: int, size: int, index: Any, spelling: str) -> int:
+    """Return the flat row that `index` picks out of a block field, or refuse the index.
+
+    A negative index is refused rather than wrapped: it would name the same row as a
+    non-negative one under a second spelling, and the two would be two names for one
+    derivative -- which `Structure.store` catches, but later and less clearly.
+    """
+    if not isinstance(index, (int, np.integer)) or isinstance(index, bool):
+        msg = f"{spelling} takes a row index, an integer from 0 to {size - 1}; got {index!r}"
+        raise TypeError(msg)
+    if not 0 <= int(index) < size:
+        raise IndexError(_ROW_RANGE.format(spelling=spelling, index=index, size=size))
+    return offset + int(index)
 
 
 # --------------------------------------------------------------- the namespaces, per solve
@@ -91,11 +124,12 @@ class PhaseColumns:
         Each variable name, mapped to the column key the transcription uses.
     outputs : dict
         Each output group, mapped to its rows by name.
-    blocked : tuple of str
-        Names that exist but are block fields, which stage 1 does not reach.
+    blocks : dict
+        Each block field, mapped to the group its key is built with, where its first row sits
+        in the flat vector, and how many rows it has.
     """
 
-    __slots__ = ("blocked", "label", "outputs", "variables")
+    __slots__ = ("blocks", "label", "output_blocks", "outputs", "variables")
 
     def __init__(self, phase: PhaseSpec, parameter: type[Vector]) -> None:
         self.label = f"phase '{phase.name}'"
@@ -105,16 +139,21 @@ class PhaseColumns:
             phase.independent: (_INDEPENDENT, 0),
             **_rows_of(parameter, _PARAMETER),
         }
+        self.blocks: dict[str, tuple[str, int, int]] = {
+            **_blocks_of(phase.state, _STATE),
+            **_blocks_of(phase.control, _CONTROL),
+            **_blocks_of(parameter, _PARAMETER),
+        }
         self.outputs: dict[str, dict[str, tuple[str, int]]] = {
             "dynamics": _rows_of(phase.state, _DYNAMICS),
             "integrand": _rows_of(phase.integral, _INTEGRAND),
             "path": _rows_of(phase.path, _PATH),
         }
-        self.blocked = tuple(
-            name
-            for declaration in (phase.state, phase.control, phase.integral, phase.path, parameter)
-            for name in declaration._block
-        )
+        self.output_blocks: dict[str, dict[str, tuple[str, int, int]]] = {
+            "dynamics": _blocks_of(phase.state, _DYNAMICS),
+            "integrand": _blocks_of(phase.integral, _INTEGRAND),
+            "path": _blocks_of(phase.path, _PATH),
+        }
 
 
 def phase_columns(phase: PhaseSpec, parameter: type[Vector]) -> PhaseColumns:
@@ -138,7 +177,15 @@ def phase_columns(phase: PhaseSpec, parameter: type[Vector]) -> PhaseColumns:
 class PhaseEndpointNames:
     """One phase's endpoint variables, grouped by the end they are read at."""
 
-    __slots__ = ("blocked", "final", "independent", "initial", "integral", "label", "name")
+    __slots__ = (
+        "blocks",
+        "final",
+        "independent",
+        "initial",
+        "integral",
+        "label",
+        "name",
+    )
 
     def __init__(self, phase: PhaseSpec) -> None:
         self.name = phase.name
@@ -156,7 +203,23 @@ class PhaseEndpointNames:
         self.integral: dict[str, Any] = {
             name: (index, "q", row) for name, row in phase.integral._single.items()
         }
-        self.blocked = (*phase.state._block, *phase.integral._block)
+        # A block field's key is built once its row is known, so what is kept here is where
+        # the block starts and how long it is, per end. The phase index leads every endpoint
+        # key, so it is folded into the group name rather than carried separately.
+        self.blocks: dict[str, dict[str, tuple[Any, int, int]]] = {
+            "initial": {
+                name: ((index, "x0"), offset, size)
+                for name, (offset, size) in phase.state._block.items()
+            },
+            "final": {
+                name: ((index, "xf"), offset, size)
+                for name, (offset, size) in phase.state._block.items()
+            },
+            "integral": {
+                name: ((index, "q"), offset, size)
+                for name, (offset, size) in phase.integral._block.items()
+            },
+        }
 
 
 class EndpointColumns:
@@ -177,10 +240,10 @@ class EndpointColumns:
 
     __slots__ = (
         "discrete",
-        "discrete_blocked",
+        "discrete_blocks",
         "example",
         "parameter",
-        "parameter_blocked",
+        "parameter_blocks",
         "phases",
     )
 
@@ -197,9 +260,14 @@ class EndpointColumns:
         self.parameter: dict[str, Any] = {
             name: (0, _PARAMETER, row) for name, row in parameter._single.items()
         }
-        self.parameter_blocked = tuple(parameter._block)
+        self.parameter_blocks: dict[str, tuple[Any, int, int]] = {
+            name: ((0, _PARAMETER), offset, size)
+            for name, (offset, size) in parameter._block.items()
+        }
         self.discrete: dict[str, int] = dict(discrete._single) if discrete is not None else {}
-        self.discrete_blocked = tuple(discrete._block) if discrete is not None else ()
+        self.discrete_blocks: dict[str, tuple[int, int]] = (
+            dict(discrete._block) if discrete is not None else {}
+        )
 
     def lookup(self, handle: Any, spelling: str) -> PhaseEndpointNames:
         """Return the endpoint namespace `handle` names, or refuse what is not a handle."""
@@ -325,18 +393,109 @@ class Structure:
 
 
 def _variable(name: str, columns: PhaseColumns, spelling: str) -> tuple[str, int]:
-    """Return the column `name` addresses, or refuse it."""
+    """Return the column `name` addresses, or refuse it.
+
+    A block field reaches this only when it was written without a row index, which is why the
+    message names the form that works rather than saying the name is unknown.
+    """
     column = columns.variables.get(name)
     if column is not None:
         return column
-    if name in columns.blocked:
-        raise AttributeError(_BLOCKED.format(spelling=spelling, name=name))
+    block = columns.blocks.get(name)
+    if block is not None:
+        raise AttributeError(_NEEDS_ROW.format(spelling=spelling, size=block[2]))
     msg = (
         f"{spelling}: {columns.label} has no variable '{name}'."
-        f"{suggest(name, tuple(columns.variables))} A derivative names a variable on its "
-        f"own: the phase's state, its control, its independent variable, or a parameter."
+        f"{suggest(name, (*columns.variables, *columns.blocks))} A derivative names a "
+        f"variable on its own: the phase's state, its control, its independent variable, or "
+        f"a parameter."
     )
     raise AttributeError(msg)
+
+
+class _Block:
+    """A block field awaiting the row index that picks one of its rows.
+
+    Every place a block field can be named produces one of these. What follows the index
+    differs -- another piece of the derivative, or the end of it -- which is the difference
+    between the two subclasses, and it is decided by the site rather than by the index: a
+    block output row is always stepped through, a block second variable is always written to.
+    """
+
+    __slots__ = ("_offset", "_size", "_spelling", "_then")
+
+    def __init__(self, offset: int, size: int, spelling: str, then: Any) -> None:
+        object.__setattr__(self, "_offset", offset)
+        object.__setattr__(self, "_size", size)
+        object.__setattr__(self, "_spelling", spelling)
+        object.__setattr__(self, "_then", then)
+
+    def _resolve(self, index: Any) -> tuple[int, str]:
+        """Return the flat row `index` picks, and how that row is spelled."""
+        spelling: str = object.__getattribute__(self, "_spelling")
+        row = _row(
+            object.__getattribute__(self, "_offset"),
+            object.__getattribute__(self, "_size"),
+            index,
+            spelling,
+        )
+        return row, f"{spelling}[{index}]"
+
+    def _needs_row(self) -> AttributeError:
+        return AttributeError(
+            _NEEDS_ROW.format(
+                spelling=object.__getattribute__(self, "_spelling"),
+                size=object.__getattribute__(self, "_size"),
+            )
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        """Refuse a name written where a row index belongs."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        raise self._needs_row()
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse an assignment written where a row index belongs."""
+        del name, value
+        raise self._needs_row()
+
+
+class _BlockStep(_Block):
+    """A block field whose row leads on to the rest of the derivative."""
+
+    __slots__ = ()
+
+    def __getitem__(self, index: Any) -> Any:
+        """Return whatever follows the row `index`."""
+        row, spelling = self._resolve(index)
+        return object.__getattribute__(self, "_then")(row, spelling)
+
+    def __setitem__(self, index: Any, value: Any) -> None:
+        """Refuse an assignment where more of the derivative is still expected."""
+        del value
+        _row_, spelling = self._resolve(index)
+        del _row_
+        msg = f"{spelling} names part of a derivative; more of it is expected before the '='."
+        raise TypeError(msg)
+
+
+class _BlockWrite(_Block):
+    """A block field whose row ends the derivative, so the row is assigned."""
+
+    __slots__ = ()
+
+    def __setitem__(self, index: Any, value: Any) -> None:
+        """Record the derivative at the row `index`."""
+        row, spelling = self._resolve(index)
+        object.__getattribute__(self, "_then")(row, spelling, value)
+
+    def __getitem__(self, index: Any) -> Any:
+        """Refuse a read: a row of this block is written, not navigated."""
+        _row_, spelling = self._resolve(index)
+        del _row_
+        msg = f"{spelling} is the whole of the derivative; write '{spelling} = ...'."
+        raise TypeError(msg)
 
 
 # -------------------------------------------------------------- the continuous derivatives
@@ -361,10 +520,21 @@ class _JacobianRow:
         store.store((object.__getattribute__(self, "_row"), column), spelling, value)
 
     def __getattr__(self, name: str) -> Any:
-        """Refuse navigating past a first derivative, naming the callback that chains."""
+        """Return a block variable awaiting its row, or refuse a chained name."""
         if name.startswith("_"):
             raise AttributeError(name)
+        columns: PhaseColumns = object.__getattribute__(self, "_columns")
         spelling = f"{object.__getattribute__(self, '_spelling')}.{name}"
+        block = columns.blocks.get(name)
+        if block is not None:
+            store: Structure = object.__getattribute__(self, "_store")
+            row = object.__getattribute__(self, "_row")
+            group, offset, size = block
+
+            def write(column_row: int, at: str, value: Any) -> None:
+                store.store((row, (group, column_row)), at, value)
+
+            return _BlockWrite(offset, size, spelling, write)
         msg = (
             f"{spelling} is a first derivative and is written by assigning it, "
             f"'{spelling} = ...'. A second derivative chains one more name and belongs in "
@@ -397,10 +567,23 @@ class _HessianPair:
         store.store_pair((row, first, second), (row, *sorted((first, second))), spelling, value)
 
     def __getattr__(self, name: str) -> Any:
-        """Refuse a third name: a second derivative relates two variables, not three."""
+        """Return a block second variable awaiting its row, or refuse a third name."""
         if name.startswith("_"):
             raise AttributeError(name)
         spelling: str = object.__getattribute__(self, "_spelling")
+        columns: PhaseColumns = object.__getattribute__(self, "_columns")
+        block = columns.blocks.get(name)
+        if block is not None:
+            store: Structure = object.__getattribute__(self, "_store")
+            row = object.__getattribute__(self, "_row")
+            first = object.__getattribute__(self, "_first")
+            group, offset, size = block
+
+            def write(column_row: int, at: str, value: Any) -> None:
+                second = (group, column_row)
+                store.store_pair((row, first, second), (row, *sorted((first, second))), at, value)
+
+            return _BlockWrite(offset, size, f"{spelling}.{name}", write)
         msg = (
             f"{spelling}.{name}: a second derivative names two variables, so "
             f"'{spelling} = ...' is the whole of it."
@@ -425,14 +608,18 @@ class _HessianRow:
             raise AttributeError(name)
         columns: PhaseColumns = object.__getattribute__(self, "_columns")
         spelling = f"{object.__getattribute__(self, '_spelling')}.{name}"
-        first = _variable(name, columns, spelling)
-        return _HessianPair(
-            object.__getattribute__(self, "_store"),
-            columns,
-            object.__getattribute__(self, "_row"),
-            first,
-            spelling,
-        )
+        store: Structure = object.__getattribute__(self, "_store")
+        row = object.__getattribute__(self, "_row")
+        block = columns.blocks.get(name)
+        if block is not None:
+            group, offset, size = block
+            return _BlockStep(
+                offset,
+                size,
+                spelling,
+                lambda column_row, at: _HessianPair(store, columns, row, (group, column_row), at),
+            )
+        return _HessianPair(store, columns, row, _variable(name, columns, spelling), spelling)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse assigning after one variable: a second derivative needs two."""
@@ -469,14 +656,23 @@ class _OutputGroup:
         what: str = object.__getattribute__(self, "_what")
         group: str = object.__getattribute__(self, "_group")
         spelling = f"{what}.{group}.{name}"
-        row = rows.get(name)
-        if row is None:
-            if name in columns.blocked:
-                raise AttributeError(_BLOCKED.format(spelling=spelling, name=name))
-            msg = f"{what}.{group} has no '{name}'.{suggest(name, tuple(rows))}"
-            raise AttributeError(msg)
         node: Any = object.__getattribute__(self, "_node")
-        return node(object.__getattribute__(self, "_store"), columns, row, spelling)
+        store: Structure = object.__getattribute__(self, "_store")
+        row = rows.get(name)
+        if row is not None:
+            return node(store, columns, row, spelling)
+        block = columns.output_blocks[group].get(name)
+        if block is not None:
+            group_name, offset, size = block
+            return _BlockStep(
+                offset,
+                size,
+                spelling,
+                lambda output_row, at: node(store, columns, (group_name, output_row), at),
+            )
+        blocks = columns.output_blocks[group]
+        msg = f"{what}.{group} has no '{name}'.{suggest(name, (*rows, *blocks))}"
+        raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse assigning an output row, which names no variable to differentiate by."""
@@ -621,35 +817,53 @@ class _Context:
 class _EndpointEnd:
     """One end of one phase -- its state there, its independent variable, or its integrals."""
 
-    __slots__ = ("_context", "_first", "_names", "_phase", "_spelling")
+    __slots__ = ("_context", "_end", "_first", "_names", "_phase", "_spelling")
 
     def __init__(
         self,
         context: _Context,
         phase: PhaseEndpointNames,
-        names: dict[str, Any],
+        end: str,
         spelling: str,
         first: Any,
     ) -> None:
         for attribute, value in (
             ("_context", context),
             ("_phase", phase),
-            ("_names", names),
+            ("_end", end),
+            ("_names", getattr(phase, end)),
             ("_spelling", spelling),
             ("_first", first),
         ):
             object.__setattr__(self, attribute, value)
 
+    def _blocks(self) -> dict[str, tuple[Any, int, int]]:
+        phase: PhaseEndpointNames = object.__getattribute__(self, "_phase")
+        return phase.blocks[object.__getattribute__(self, "_end")]
+
     def _key(self, name: str, spelling: str) -> Any:
+        """Return the column `name` addresses, for a scalar field only."""
         names: dict[str, Any] = object.__getattribute__(self, "_names")
         key = names.get(name)
         if key is not None:
             return key
+        blocks = self._blocks()
+        if name in blocks:
+            raise AttributeError(_NEEDS_ROW.format(spelling=spelling, size=blocks[name][2]))
         phase: PhaseEndpointNames = object.__getattribute__(self, "_phase")
-        if name in phase.blocked:
-            raise AttributeError(_BLOCKED.format(spelling=spelling, name=name))
-        msg = f"{spelling}: {phase.label} has no '{name}'.{suggest(name, tuple(names))}"
+        msg = f"{spelling}: {phase.label} has no '{name}'." f"{suggest(name, (*names, *blocks))}"
         raise AttributeError(msg)
+
+    def _store(self, key: Any, spelling: str, value: Any) -> None:
+        """Record a derivative by this endpoint variable, first or only."""
+        context: _Context = object.__getattribute__(self, "_context")
+        first = object.__getattribute__(self, "_first")
+        if first is None:
+            context.store.store(context.key(key), spelling, value)
+        else:
+            context.store.store_pair(
+                context.key(first, key), context.canonical(first, key), spelling, value
+            )
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Record the derivative, unless a second variable is still expected."""
@@ -662,21 +876,30 @@ class _EndpointEnd:
                 f"'{spelling}[phase].final.<name> = ...'."
             )
             raise AttributeError(msg)
-        key = self._key(name, spelling)
-        first = object.__getattribute__(self, "_first")
-        if first is None:
-            context.store.store(context.key(key), spelling, value)
-        else:
-            context.store.store_pair(
-                context.key(first, key), context.canonical(first, key), spelling, value
-            )
+        self._store(self._key(name, spelling), spelling, value)
 
     def __getattr__(self, name: str) -> Any:
-        """Return the node awaiting the second variable, when one is expected."""
+        """Return a block awaiting its row, or the node awaiting the second variable."""
         if name.startswith("_"):
             raise AttributeError(name)
         spelling = f"{object.__getattribute__(self, '_spelling')}.{name}"
         context: _Context = object.__getattribute__(self, "_context")
+        block = self._blocks().get(name)
+        if block is not None:
+            prefix, offset, size = block
+            if context.mode == "first":
+                return _BlockStep(
+                    offset,
+                    size,
+                    spelling,
+                    lambda row, at: _FirstNamed(context, (*prefix, row), at),
+                )
+            return _BlockWrite(
+                offset,
+                size,
+                spelling,
+                lambda row, at, value: self._store((*prefix, row), at, value),
+            )
         if context.mode != "first":
             msg = f"{spelling} is the whole of the derivative; write '{spelling} = ...'."
             raise AttributeError(msg)
@@ -711,7 +934,7 @@ class _Endpoint:
         return _EndpointEnd(
             object.__getattribute__(self, "_context"),
             phase,
-            getattr(phase, name),
+            name,
             f"{spelling}.{name}",
             object.__getattribute__(self, "_first"),
         )
@@ -761,10 +984,23 @@ class _FirstNamed:
         )
 
     def __getattr__(self, name: str) -> Any:
-        """Refuse a bare name: the second variable is reached through its phase."""
+        """Return a block parameter as the second variable, or refuse a bare name."""
         if name.startswith("_"):
             raise AttributeError(name)
         spelling: str = object.__getattribute__(self, "_spelling")
+        context: _Context = object.__getattribute__(self, "_context")
+        block = context.columns.parameter_blocks.get(name)
+        if block is not None:
+            prefix, offset, size = block
+            first = object.__getattribute__(self, "_first")
+
+            def write(row: int, at: str, value: Any) -> None:
+                second = (*prefix, row)
+                context.store.store_pair(
+                    context.key(first, second), context.canonical(first, second), at, value
+                )
+
+            return _BlockWrite(offset, size, f"{spelling}.{name}", write)
         msg = (
             f"{spelling}.{name}: the second variable of an endpoint Hessian is reached "
             f"through its phase, '{spelling}[phase].final.{name} = ...', or named directly "
@@ -774,16 +1010,17 @@ class _FirstNamed:
 
 
 def _parameter(name: str, columns: EndpointColumns, spelling: str, what: str) -> Any:
-    """Return the column the parameter `name` addresses, or refuse it."""
+    """Return the column the parameter `name` addresses, for a scalar parameter only."""
     key = columns.parameter.get(name)
     if key is not None:
         return key
-    if name in columns.parameter_blocked:
-        raise AttributeError(_BLOCKED.format(spelling=spelling, name=name))
+    block = columns.parameter_blocks.get(name)
+    if block is not None:
+        raise AttributeError(_NEEDS_ROW.format(spelling=spelling, size=block[2]))
     msg = (
         f"{spelling}: there is no parameter '{name}'."
-        f"{suggest(name, tuple(columns.parameter))} An endpoint variable is reached through "
-        f"its phase, '{what}[phase].final.{name} = ...'."
+        f"{suggest(name, (*columns.parameter, *columns.parameter_blocks))} An endpoint "
+        f"variable is reached through its phase, '{what}[phase].final.{name} = ...'."
     )
     raise AttributeError(msg)
 
@@ -823,11 +1060,27 @@ class _EndpointTarget:
         context.store.store(context.key(key), spelling, value)
 
     def __getattr__(self, name: str) -> Any:
-        """Return a parameter's node for a Hessian; for a gradient, nothing is read."""
+        """Return a parameter's node: a block awaiting its row, or a Hessian's first half."""
         if name.startswith("_"):
             raise AttributeError(name)
         context: _Context = object.__getattribute__(self, "_context")
         spelling = f"{context.what}.{name}"
+        block = context.columns.parameter_blocks.get(name)
+        if block is not None:
+            prefix, offset, size = block
+            if context.mode == "first":
+                return _BlockStep(
+                    offset,
+                    size,
+                    spelling,
+                    lambda row, at: _FirstNamed(context, (*prefix, row), at),
+                )
+            return _BlockWrite(
+                offset,
+                size,
+                spelling,
+                lambda row, at, value: context.store.store(context.key((*prefix, row)), at, value),
+            )
         if context.mode != "first":
             msg = (
                 f"{spelling} is written, not read. A derivative by an endpoint variable is "
@@ -862,12 +1115,20 @@ class _DiscreteGroups:
         context: _Context = object.__getattribute__(self, "_context")
         spelling = f"{context.what}.discrete.{name}"
         row = rows.get(name)
-        if row is None:
-            if name in context.columns.discrete_blocked:
-                raise AttributeError(_BLOCKED.format(spelling=spelling, name=name))
-            msg = f"{context.what}.discrete has no group '{name}'.{suggest(name, tuple(rows))}"
-            raise AttributeError(msg)
-        return _EndpointTarget._over(context.at((row,), spelling))
+        if row is not None:
+            return _EndpointTarget._over(context.at((row,), spelling))
+        blocks = context.columns.discrete_blocks
+        block = blocks.get(name)
+        if block is not None:
+            offset, size = block
+            return _BlockStep(
+                offset,
+                size,
+                spelling,
+                lambda group_row, at: _EndpointTarget._over(context.at((group_row,), at)),
+            )
+        msg = f"{context.what}.discrete has no group '{name}'." f"{suggest(name, (*rows, *blocks))}"
+        raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse assigning a group, which names no variable to differentiate by."""
