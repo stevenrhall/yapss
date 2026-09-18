@@ -1,0 +1,354 @@
+"""
+
+Phase declarations and the setup aspects reached from a phase.
+
+A phase is declared by naming the vector classes it uses::
+
+    class Phases(yapss.Phases):
+        boost = yapss.phase(state=Rocket, control=Thrust)
+        singular = yapss.phase(state=Rocket, control=Thrust, path=SingularArc)
+
+The declaration fixes what every aspect of that phase contains, so ``ph.state.bounds``,
+``ph.state.guess``, and the ``dynamics`` a callback fills all carry the same field names.
+
+"""
+
+from __future__ import annotations
+
+import inspect
+from typing import TYPE_CHECKING, Any, cast
+
+from .containers import Container, is_callable, is_subclass, suggest
+from .kinds import Bounds, Guess, ScalarGuess, Scale
+from .mesh import Mesh
+from .vector import Empty, Vector
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
+__all__ = ["Phase", "Phases", "phase"]
+
+
+class PhaseDeclaration:
+    """What `phase` records. Replaced by a `Phase` when the problem is built."""
+
+    __slots__ = ("control", "integral", "path", "state")
+
+    def __init__(
+        self,
+        state: type[Vector],
+        control: type[Vector],
+        path: type[Vector],
+        integral: type[Vector],
+    ) -> None:
+        self.state = state
+        self.control = control
+        self.path = path
+        self.integral = integral
+
+
+def _vector_class(value: object, argument: str) -> type[Vector]:
+    if not is_subclass(value, Vector):
+        msg = (
+            f"phase({argument}=) takes a vector class declared with 'class X(yapss.Vector)'; "
+            f"got {value!r}"
+        )
+        raise TypeError(msg)
+    return cast("type[Vector]", value)
+
+
+def phase(
+    *,
+    state: type[Vector],
+    control: type[Vector] = Empty,
+    path: type[Vector] = Empty,
+    integral: type[Vector] = Empty,
+) -> Any:
+    """Declare one phase of a problem.
+
+    Parameters
+    ----------
+    state : type[Vector]
+        The class naming the phase's states.
+    control : type[Vector], optional
+        The class naming the phase's controls.
+    path : type[Vector], optional
+        The class naming the phase's path constraints.
+    integral : type[Vector], optional
+        The class naming the phase's integrals.
+
+    Returns
+    -------
+    Any
+        A marker recording the declaration. YAPSS replaces it with a `Phase` when the problem
+        is built, so it is never seen again.
+    """
+    return PhaseDeclaration(
+        _vector_class(state, "state"),
+        _vector_class(control, "control"),
+        _vector_class(path, "path"),
+        _vector_class(integral, "integral"),
+    )
+
+
+class Phases:
+    """Base of a problem's phase declaration. Subclass it and name the phases.
+
+    The subclass is passed to `Problem`, which instantiates it; each name then gives the
+    `Phase` handle used to set that phase up and to reach it in callbacks and solutions.
+    """
+
+    _declared: dict[str, PhaseDeclaration] = {}  # noqa: RUF012
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Collect the declared phases, in declaration order."""
+        super().__init_subclass__(**kwargs)
+        for base in cls.__bases__:
+            if base is not Phases and issubclass(base, Phases) and base._declared:
+                msg = f"{cls.__name__} cannot inherit from the phase declaration {base.__name__}"
+                raise TypeError(msg)
+        annotated = [n for n in inspect.get_annotations(cls) if not n.startswith("_")]
+        if annotated:
+            msg = (
+                f"{cls.__name__}.{annotated[0]} is annotated. Phases are declared without "
+                f"annotations: write '{annotated[0]} = yapss.phase(state=...)'."
+            )
+            raise TypeError(msg)
+        declared: dict[str, PhaseDeclaration] = {}
+        for name, value in list(cls.__dict__.items()):
+            if name.startswith("_"):
+                continue
+            if not isinstance(value, PhaseDeclaration):
+                msg = (
+                    f"{cls.__name__}.{name} is not a phase. A phase declaration holds only "
+                    f"phases; write '{name} = yapss.phase(state=...)'."
+                )
+                raise TypeError(msg)
+            declared[name] = value
+        for name in declared:
+            delattr(cls, name)
+        if not declared:
+            msg = f"{cls.__name__} declares no phases"
+            raise TypeError(msg)
+        cls._declared = declared
+
+    def __init__(self) -> None:
+        """Build one `Phase` per declared name. Called by `Problem`."""
+        handles = {
+            name: Phase(name, index, declaration)
+            for index, (name, declaration) in enumerate(type(self)._declared.items())
+        }
+        object.__setattr__(self, "_handles", handles)
+
+    def __getattr__(self, name: str) -> Phase:
+        """Return the phase of that name."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        handles: dict[str, Phase] = object.__getattribute__(self, "_handles")
+        if name not in handles:
+            msg = f"{type(self).__name__} has no phase '{name}'." f"{suggest(name, tuple(handles))}"
+            raise AttributeError(msg)
+        return handles[name]
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse every assignment: phases are declared, not assigned."""
+        del value
+        msg = f"{type(self).__name__}.{name} cannot be assigned; phases are declared"
+        raise AttributeError(msg)
+
+    def _all(self) -> dict[str, Phase]:
+        handles: dict[str, Phase] = object.__getattribute__(self, "_handles")
+        return handles
+
+    def __iter__(self) -> Iterator[Phase]:
+        """Iterate over the phases, in declaration order."""
+        return iter(self._all().values())
+
+    def __len__(self) -> int:
+        """Return the number of phases."""
+        return len(self._all())
+
+    def __getitem__(self, index: int) -> Phase:
+        """Return the phase at `index`, in declaration order."""
+        return list(self._all().values())[index]
+
+
+# -- aspects ---------------------------------------------------------------------------------
+
+
+class StateAspects(Container):
+    """The state of one phase: its bounds, its endpoint bounds, its guess, and its scales.
+
+    There are two scales. ``scale`` says how large the state itself typically is; while
+    ``defect_scale`` says how large the collocation defect is -- the residual of the dynamics,
+    which is a constraint rather than a variable and can be of a quite different size.
+    """
+
+    _held = ("bounds", "initial", "final", "guess", "scale", "defect_scale")
+
+
+class ControlAspects(Container):
+    """The control of one phase: its bounds, its guess, and its scale."""
+
+    _held = ("bounds", "guess", "scale")
+
+
+class PathAspects(Container):
+    """The path constraints of one phase: their bounds and their scales."""
+
+    _held = ("bounds", "scale")
+
+
+class IntegralAspects(Container):
+    """The integrals of one phase: their bounds, their guesses, and their scales."""
+
+    _held = ("bounds", "guess", "scale")
+
+
+class TimeAspects(Container):
+    """The initial and final time of one phase, and the guess for them.
+
+    ``initial`` and ``final`` are bounds, written the same way as any other bound. ``guess`` is
+    a ``(t0, tf)`` pair, and is the only source of the phase's guessed duration, so a sampled
+    guess carries no times of its own.
+    """
+
+    _settable = ("initial", "final", "guess", "scale")
+
+    def __init__(self, label: str) -> None:
+        self._label = label
+        self._hold("initial", Bounds.default)
+        self._hold("final", Bounds.default)
+        self._hold("guess", None)
+        self._hold("scale", 1.0)
+
+    def _check(self, name: str, value: Any) -> Any:
+        if name == "guess":
+            return self._check_guess(value)
+        if name == "scale":
+            return Scale.check(value, label=self._label, name=name, npoints=None)
+        return Bounds.check(value, label=self._label, name=name, npoints=None)
+
+    def _check_guess(self, value: Any) -> tuple[float, float]:
+        if not isinstance(value, tuple) or len(value) != 2:  # noqa: PLR2004
+            msg = f"{self._label} guess is a (t0, tf) pair; got {value!r}"
+            raise TypeError(msg)
+        t0, tf = (Bounds.check(v, label=self._label, name="guess", npoints=None)[0] for v in value)
+        if not t0 < tf:
+            msg = f"{self._label} guess: t0 {t0} is not less than tf {tf}"
+            raise ValueError(msg)
+        return (t0, tf)
+
+
+class Phase(Container):
+    """One phase of a problem: its aspects, its mesh, and its continuous callback."""
+
+    _held = ("state", "control", "path", "integral", "time")
+    _settable = ("mesh",)
+
+    def __init__(self, name: str, index: int, declaration: PhaseDeclaration) -> None:
+        self._name = name
+        self._index = index
+        self._declaration = declaration
+        self._continuous: Callable[..., Any] | None = None
+        self._label = f"phase '{name}'"
+        self._hold("mesh", Mesh.uniform())
+
+        state = StateAspects()
+        state._label = f"{self._label} state"
+        for aspect, kind in (
+            ("bounds", Bounds),
+            ("initial", Bounds),
+            ("final", Bounds),
+            ("guess", Guess),
+            ("scale", Scale),
+            ("defect_scale", Scale),
+        ):
+            state._hold(aspect, declaration.state._new(kind, f"{state._label} {aspect}"))
+        self._hold("state", state)
+
+        control = ControlAspects()
+        control._label = f"{self._label} control"
+        control._hold("bounds", declaration.control._new(Bounds, f"{control._label} bounds"))
+        control._hold("guess", declaration.control._new(Guess, f"{control._label} guess"))
+        control._hold("scale", declaration.control._new(Scale, f"{control._label} scale"))
+        self._hold("control", control)
+
+        path = PathAspects()
+        path._label = f"{self._label} path"
+        path._hold("bounds", declaration.path._new(Bounds, f"{path._label} bounds"))
+        path._hold("scale", declaration.path._new(Scale, f"{path._label} scale"))
+        self._hold("path", path)
+
+        integral = IntegralAspects()
+        integral._label = f"{self._label} integral"
+        integral._hold("bounds", declaration.integral._new(Bounds, f"{integral._label} bounds"))
+        integral._hold("guess", declaration.integral._new(ScalarGuess, f"{integral._label} guess"))
+        integral._hold("scale", declaration.integral._new(Scale, f"{integral._label} scale"))
+        self._hold("integral", integral)
+
+        self._hold("time", TimeAspects(f"{self._label} time"))
+
+    @property
+    def name(self) -> str:
+        """str: The name the phase was declared with."""
+        return self._name
+
+    @property
+    def index(self) -> int:
+        """int: The position of the phase in declaration order."""
+        return self._index
+
+    def _check(self, name: str, value: Any) -> Any:
+        del name
+        if not isinstance(value, Mesh):
+            msg = (
+                f"{self._label} mesh must be a Mesh, for example "
+                f"'yapss.Mesh.uniform(segments=10, points=10)'; got {value!r}"
+            )
+            raise TypeError(msg)
+        return value
+
+    def continuous(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the phase's continuous callback, as a decorator or as a call.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator, as in
+            ``@ph.continuous(replace=True)``.
+        replace : bool, default False
+            Replace a callback already registered on this phase. Registering a second callback
+            without it is refused, since it is nearly always a mistake.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+
+        def register(callback: Callable[..., Any]) -> Callable[..., Any]:
+            if not is_callable(callback):
+                msg = f"{self._label} continuous callback must be callable; got {callback!r}"
+                raise TypeError(msg)
+            if self._continuous is not None and not replace:
+                existing = getattr(self._continuous, "__qualname__", repr(self._continuous))
+                msg = (
+                    f"{self._label} already has the continuous callback '{existing}'; pass "
+                    f"replace=True to replace it"
+                )
+                raise ValueError(msg)
+            self._continuous = callback
+            return callback
+
+        return register if function is None else register(function)
+
+    def __repr__(self) -> str:
+        """Return a short representation naming the phase and its vector classes."""
+        declaration = self._declaration
+        return (
+            f"<Phase {self._name!r} index={self._index} "
+            f"state={declaration.state.__name__} control={declaration.control.__name__}>"
+        )

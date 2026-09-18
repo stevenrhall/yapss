@@ -478,6 +478,19 @@ class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
         """Assign every discrete constraint value."""
         self._discrete[:] = value
 
+    def output_storage(self) -> tuple[NDArray[T], NDArray[np.bool_]]:
+        """Return the writable array of the discrete constraint values, and its written flags.
+
+        For a front end that fills the outputs through its own objects rather than through
+        `OutputArray`; see `ContinuousPhase.output_storage`.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            The ``(nd,)`` storage, and the ``(nd,)`` written flags.
+        """
+        return self._discrete._storage, self._discrete._written
+
 
 class DiscreteJacobianArg(DiscreteArgBase[np.float64], Protected):
     """Discrete argument to be passed to user-defined discrete constraint function.
@@ -835,6 +848,28 @@ class ContinuousPhase(_ContinuousPhaseInputs[T], Protected, Generic[T]):
     def __init__(self, data: ContinuousPhaseData[T]) -> None:
         super().__init__(data)
         self._outputs: dict[str, OutputArray[T]] = data._outputs
+
+    def output_storage(self, name: str) -> tuple[NDArray[T], NDArray[np.bool_]]:
+        """Return the writable array of one output, and its per-row written flags.
+
+        For a front end that fills the outputs through its own objects rather than through
+        `OutputArray`. Writing a row here and marking it written is what `OutputArray` does, so
+        everything downstream -- the assembly, the setup check, the solution -- reads the same
+        array and the same flags either way. The array is cleared before every call, as the
+        outputs always are.
+
+        Parameters
+        ----------
+        name : str
+            One of ``"dynamics"``, ``"integrand"``, ``"path"``.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            The ``(rows, points)`` storage, and the ``(rows,)`` written flags.
+        """
+        output = self._outputs[name]
+        return output._storage, output._written
 
 
 class ContinuousJacobianPhase(_ContinuousPhaseInputs[np.float64], Protected):
