@@ -325,9 +325,11 @@ def _guess_grid(
     times = {t0, tf}
     for declaration, values in declarations:
         for name in declaration._fields:
-            guess = values[name][0]
-            if guess[0] == "sampled":
-                times.update(t for t in guess[1].time.tolist() if t0 < t < tf)
+            # Every row of a field, not just the first: a block field may be given one sampled
+            # guess per row, each with its own sample times.
+            for guess in values[name]:
+                if guess[0] == "sampled":
+                    times.update(t for t in guess[1].time.tolist() if t0 < t < tf)
     return np.array(sorted(times), dtype=float)
 
 

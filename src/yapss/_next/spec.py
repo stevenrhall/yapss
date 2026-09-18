@@ -132,12 +132,14 @@ def _uncovered(guess: Vector, time_guess: tuple[float, float], label: str) -> li
     """
     complaints = []
     for name in guess._fields:
-        element = guess._elements(name)[0]
-        if element[0] != "sampled":
-            continue
-        complaint = coverage_complaint(element[1], time_guess, label, name)
-        if complaint is not None:
-            complaints.append(complaint)
+        # Every row, not just the first: a block field can be given one sampled guess per row.
+        for element in guess._elements(name):
+            if element[0] != "sampled":
+                continue
+            complaint = coverage_complaint(element[1], time_guess, label, name)
+            if complaint is not None:
+                complaints.append(complaint)
+                break
     return complaints
 
 
