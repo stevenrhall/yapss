@@ -25,7 +25,7 @@ from yapss._private.problem import UserFunctions
 from yapss._private.solver import solve
 from yapss._private.spec import PhaseSpec, ProblemSpec, frozen_array
 
-from .args import DiscreteOutput, Endpoint, EndpointArg, PhaseArg, PhaseOutput
+from .args import DiscreteOutput, Endpoint, EndpointArg, EndpointValues, PhaseArg, PhaseOutput
 from .kinds import ReadOnlyRows, Rows
 from .solution import Solution
 from .vector import Maker
@@ -188,7 +188,15 @@ class _EndpointMakers:
     objective that reads one phase does not pay for the others.
     """
 
-    __slots__ = ("_built", "final_state", "indices", "initial_state", "integral", "parameter")
+    __slots__ = (
+        "_built",
+        "final_state",
+        "independent",
+        "indices",
+        "initial_state",
+        "integral",
+        "parameter",
+    )
 
     def __init__(self, spec: ProblemSpec_) -> None:
         self._built: dict[int, tuple[Any, EndpointArg]] = {}
@@ -196,21 +204,32 @@ class _EndpointMakers:
         self.initial_state = {}
         self.final_state = {}
         self.integral = {}
+        self.independent = {}
         for phase in spec.phases:
             label = f"phase '{phase.name}'"
             handle = phase.handle
             self.initial_state[handle] = Maker(phase.state, ReadOnlyRows, f"{label} initial state")
             self.final_state[handle] = Maker(phase.state, ReadOnlyRows, f"{label} final state")
             self.integral[handle] = Maker(phase.integral, ReadOnlyRows, f"{label} integral")
+            self.independent[handle] = phase.independent
         self.parameter = Maker(spec.parameter, ReadOnlyRows, "parameter")
 
     def build(self, handle: Any, arg: Any) -> Endpoint:
         """Return the endpoint values of one phase, from what the solver passed."""
         data = arg.phase[self.indices[handle]]
+        name = self.independent[handle]
         return Endpoint(
             data,
-            self.initial_state[handle].over(data.initial_state),
-            self.final_state[handle].over(data.final_state),
+            EndpointValues(
+                self.initial_state[handle].over(data.initial_state),
+                lambda: data.initial_time,
+                name,
+            ),
+            EndpointValues(
+                self.final_state[handle].over(data.final_state),
+                lambda: data.final_time,
+                name,
+            ),
             self.integral[handle].over(data.integral),
         )
 

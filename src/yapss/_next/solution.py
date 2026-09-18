@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from .args import EndpointValues
 from .containers import suggest
 from .kinds import ReadOnlyRows
 
@@ -23,6 +24,15 @@ if TYPE_CHECKING:
     from .vector import Vector
 
 __all__ = ["PhaseSolution", "Solution"]
+
+
+def _endpoint(phase: PhaseSpec, rows: Any, independent: Any, label: str) -> EndpointValues:
+    """Return one end of a phase, read as an endpoint callback reads it."""
+    return EndpointValues(
+        _vector(phase.state, rows, f"{label} state"),
+        lambda value=independent: value,
+        phase.independent,
+    )
 
 
 def _vector(declaration: type[Vector], rows: Any, label: str) -> Any:
@@ -47,8 +57,10 @@ class PhaseSolution:
         Arrays over `time`, named by the phase's path class.
     integral : Vector
         One value per integral.
-    initial_state, final_state : Vector
-        The state at each end of the phase.
+    initial, final : EndpointValues
+        The phase's variables at each end, read as a callback reads them.
+    duration : float
+        The extent of the phase.
     hamiltonian : numpy.ndarray
         The Hamiltonian over `time`.
     """
@@ -56,12 +68,11 @@ class PhaseSolution:
     __slots__ = (
         "control",
         "costate",
+        "duration",
         "dynamics",
-        "final_state",
-        "final_time",
+        "final",
         "hamiltonian",
-        "initial_state",
-        "initial_time",
+        "initial",
         "integral",
         "mesh",
         "path",
@@ -80,10 +91,9 @@ class PhaseSolution:
             "control": _vector(phase.control, data.control, f"{label} control"),
             "path": _vector(phase.path, data.path, f"{label} path"),
             "integral": _vector(phase.integral, data.integral, f"{label} integral"),
-            "initial_state": _vector(phase.state, state[:, 0], f"{label} initial state"),
-            "final_state": _vector(phase.state, state[:, -1], f"{label} final state"),
-            "initial_time": data.time[0],
-            "final_time": data.time[-1],
+            "initial": _endpoint(phase, state[:, 0], data.time[0], f"{label} initial"),
+            "final": _endpoint(phase, state[:, -1], data.time[-1], f"{label} final"),
+            "duration": data.time[-1] - data.time[0],
             "hamiltonian": data.hamiltonian,
             "mesh": phase.mesh,
         }

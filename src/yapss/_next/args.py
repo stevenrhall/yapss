@@ -23,6 +23,7 @@ __all__ = [
     "DiscreteOutput",
     "Endpoint",
     "EndpointArg",
+    "EndpointValues",
     "Endpoints",
     "PhaseArg",
     "PhaseOutput",
@@ -132,54 +133,73 @@ class Endpoints(Protocol):
         ...
 
 
+class EndpointValues(_Frozen):
+    """One end of a phase: its state there, and its independent variable there.
+
+    The two are one namespace, because that is what they are -- the phase's variables at a
+    point, which is also what the endpoint columns of a Jacobian index. The state vector reads
+    the transcription's own array where it is, so it is built once and keeps reading the
+    current point; the independent variable is a number, read afresh on each access, since a
+    cached copy of one would go stale.
+
+    A name is looked for on the state first and then matched against the independent variable,
+    so the state's own error message is what a misspelling gets. Positions address the state's
+    rows, which the independent variable is not one of: it is a scalar in the same namespace,
+    reached by name.
+    """
+
+    __slots__ = ("_independent", "_name", "_state")
+
+    def __init__(self, state: Vector, independent: Any, name: str) -> None:
+        object.__setattr__(self, "_state", state)
+        object.__setattr__(self, "_independent", independent)
+        object.__setattr__(self, "_name", name)
+
+    def __getattr__(self, name: str) -> Any:
+        """Return a state by name, or the independent variable by its own name."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        if name == object.__getattribute__(self, "_name"):
+            return object.__getattribute__(self, "_independent")()
+        return getattr(object.__getattribute__(self, "_state"), name)
+
+    def __getitem__(self, index: Any) -> Any:
+        """Return the state's rows by position."""
+        return object.__getattribute__(self, "_state")[index]
+
+    def __len__(self) -> int:
+        """Return the number of state rows."""
+        return len(object.__getattribute__(self, "_state"))
+
+
 class Endpoint(_Frozen):
     """The endpoint values of one phase, as an endpoint callback sees them.
 
-    The state vectors read the transcription's own arrays where they are, so this object stays
-    correct from one evaluation to the next and is built once rather than per call. The times
-    are numbers rather than arrays, so they are read afresh on each access; a cached copy of
-    one would go stale, which is the whole hazard this design exists to remove.
-
     Attributes
     ----------
-    initial_time, final_time, duration : float or symbolic
-        The phase's time endpoints, and their difference.
-    initial_state, final_state, integral : Vector
-        The state at each endpoint, and the phase's integrals.
+    initial, final : EndpointValues
+        The phase's variables at each end: its state there, and its independent variable.
+    duration : float or symbolic
+        The extent of the phase, which is a time word kept whatever the phase runs over.
+    integral : Vector
+        The phase's integrals, which belong to the phase rather than to either end of it.
     """
 
-    __slots__ = ("_data", "final_state", "initial_state", "integral")
+    __slots__ = ("_data", "final", "initial", "integral")
 
-    _names = (
-        "duration",
-        "final_state",
-        "final_time",
-        "initial_state",
-        "initial_time",
-        "integral",
-    )
+    _names = ("duration", "final", "initial", "integral")
 
     def __init__(
-        self, data: Any, initial_state: Vector, final_state: Vector, integral: Vector
+        self, data: Any, initial: EndpointValues, final: EndpointValues, integral: Vector
     ) -> None:
         object.__setattr__(self, "_data", data)
-        object.__setattr__(self, "initial_state", initial_state)
-        object.__setattr__(self, "final_state", final_state)
+        object.__setattr__(self, "initial", initial)
+        object.__setattr__(self, "final", final)
         object.__setattr__(self, "integral", integral)
 
     @property
-    def initial_time(self) -> Any:
-        """Return the time at which the phase begins."""
-        return self._data.initial_time
-
-    @property
-    def final_time(self) -> Any:
-        """Return the time at which the phase ends."""
-        return self._data.final_time
-
-    @property
     def duration(self) -> Any:
-        """Return how long the phase lasts."""
+        """Return the extent of the phase."""
         return self._data.final_time - self._data.initial_time
 
 

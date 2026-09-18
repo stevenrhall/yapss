@@ -100,7 +100,7 @@ def setup() -> yapss.Problem:
     @problem.register.objective
     def minimum_time(arg):
         """Return the time taken to climb."""
-        return arg[ph].final_time
+        return arg[ph].final.time
 
     h0, v0, gamma_0, m0 = 0.0, 424.260, 0.0, 42000.0 / g0
     hf, vf, gamma_f = 65600.0, 968.148, 0.0

@@ -209,16 +209,16 @@ def setup() -> yapss.Problem:
     @problem.register.objective
     def final_mass(arg):
         """Return the mass delivered to orbit, which is to be made as large as possible."""
-        return arg[stages[LAST]].final_state.m
+        return arg[stages[LAST]].final.m
 
     @problem.register.discrete
     def constraints(arg, out):
         """Join the stages, and require the final state to be on the target orbit."""
         for index, (before, after) in enumerate(pairwise(stages)):
-            first, second = arg[before].final_state, arg[after].initial_state
+            first, second = arg[before].final, arg[after].initial
             setattr(out.discrete, f"stage_{index}_{index + 1}_position", second.r - first.r)
             setattr(out.discrete, f"stage_{index}_{index + 1}_velocity", second.v - first.v)
-        final = arg[stages[LAST]].final_state
+        final = arg[stages[LAST]].final
         a, e, i, Omega, omega = orbital_elements(final.r, final.v)
         out.discrete.semi_major_axis = a
         out.discrete.eccentricity = e

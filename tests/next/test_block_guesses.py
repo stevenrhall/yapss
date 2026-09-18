@@ -35,7 +35,7 @@ def build(row_guess):
 
     @problem.register.objective
     def objective(arg):
-        return arg[ph].final_time
+        return arg[ph].final.time
 
     ph.time.initial = 0.0
     ph.state.initial.r = [0.0, 0.0]

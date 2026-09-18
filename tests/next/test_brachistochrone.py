@@ -48,8 +48,8 @@ def test_the_solution_is_reached_by_name(problem):
     phase = solution[problem.phases.slide]
     assert phase.state.x.shape == phase.time.shape
     assert phase.control.u.shape == phase.time.shape
-    assert phase.final_state.x == pytest.approx(1.0)
-    assert phase.initial_state.v == pytest.approx(0.0, abs=1e-6)
+    assert phase.final.x == pytest.approx(1.0)
+    assert phase.initial.v == pytest.approx(0.0, abs=1e-6)
     assert len(phase.state) == 3
     assert phase.state[:].shape == (3, len(phase.time))
 

@@ -48,6 +48,8 @@ class PhaseSpec:
     control: type[Vector]
     path: type[Vector]
     integral: type[Vector]
+    independent: str
+    """The name of the phase's independent variable, which is `time` unless it was renamed."""
     continuous: Callable[..., Any]
     state_bounds: dict[str, Any]
     state_initial: dict[str, Any]
@@ -179,6 +181,7 @@ def snapshot(problem: Problem) -> ProblemSpec:
             control=phase._declaration.control,
             path=phase._declaration.path,
             integral=phase._declaration.integral,
+            independent=phase._independent,
             continuous=phase._continuous,
             state_bounds=_values(phase.state.bounds),
             state_initial=_values(phase.state.initial),

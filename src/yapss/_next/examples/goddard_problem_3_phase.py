@@ -51,10 +51,23 @@ class SingularArc(yapss.Vector):
 
 
 class Linkage(yapss.Vector):
-    """Continuity of time and state where one phase meets the next."""
+    """Continuity of time and state where one phase meets the next.
 
-    boost_singular = yapss.field(size=4, doc="boost to singular: time, then the three states")
-    singular_coast = yapss.field(size=4, doc="singular to coast: time, then the three states")
+    One field per quantity rather than one block per joint, because the quantities are of
+    different sizes -- an altitude, a speed, a mass, a time -- and a scale factor is one
+    number per field. A block of the four could not be scaled at all without giving the four
+    numbers positionally, which is the counting this API exists to remove. This problem
+    converges without scaling them, so none is set; the point is that it could be.
+    """
+
+    boost_singular_h = yapss.field(units="ft", doc="altitude, boost to singular")
+    boost_singular_v = yapss.field(units="ft/s", doc="speed, boost to singular")
+    boost_singular_m = yapss.field(units="slug", doc="mass, boost to singular")
+    boost_singular_time = yapss.field(units="s", doc="time, boost to singular")
+    singular_coast_h = yapss.field(units="ft", doc="altitude, singular to coast")
+    singular_coast_v = yapss.field(units="ft/s", doc="speed, singular to coast")
+    singular_coast_m = yapss.field(units="slug", doc="mass, singular to coast")
+    singular_coast_time = yapss.field(units="s", doc="time, singular to coast")
 
 
 class Phases(yapss.Phases):
@@ -109,20 +122,20 @@ def setup() -> yapss.Problem:
     @problem.register.objective
     def final_altitude(arg):
         """Return the altitude reached, which is to be made as large as possible."""
-        return arg[coast].final_state.h
+        return arg[coast].final.h
 
     @problem.register.discrete
     def linkage(arg, out):
         """Require time and state to be continuous where the phases meet."""
         b, s, e = arg[boost], arg[singular], arg[coast]
-        out.discrete.boost_singular = [
-            s.initial_time - b.final_time,
-            *(s.initial_state[:] - b.final_state[:]),
-        ]
-        out.discrete.singular_coast = [
-            e.initial_time - s.final_time,
-            *(e.initial_state[:] - s.final_state[:]),
-        ]
+        out.discrete.boost_singular_h = s.initial.h - b.final.h
+        out.discrete.boost_singular_v = s.initial.v - b.final.v
+        out.discrete.boost_singular_m = s.initial.m - b.final.m
+        out.discrete.boost_singular_time = s.initial.time - b.final.time
+        out.discrete.singular_coast_h = e.initial.h - s.final.h
+        out.discrete.singular_coast_v = e.initial.v - s.final.v
+        out.discrete.singular_coast_m = e.initial.m - s.final.m
+        out.discrete.singular_coast_time = e.initial.time - s.final.time
         return out
 
     problem.objective.sense = "maximize"
@@ -144,8 +157,8 @@ def setup() -> yapss.Problem:
     coast.control.bounds.thrust = 0.0
 
     singular.path.bounds.switching = 0.0
-    problem.discrete.bounds.boost_singular = 0.0
-    problem.discrete.bounds.singular_coast = 0.0
+    for name in Linkage._fields:
+        setattr(problem.discrete.bounds, name, 0.0)
 
     for ph in phases:
         k = ph.index

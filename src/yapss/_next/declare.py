@@ -298,6 +298,8 @@ class Phase(HasRegistry):
         self._index = index
         self._declaration = declaration
         self._continuous: Callable[..., Any] | None = None
+        # the name of the phase's independent variable; 3.1 lets a phase rename it
+        self._independent = "time"
         self._label = f"phase '{name}'"
         self._hold("mesh", Mesh.uniform())
 

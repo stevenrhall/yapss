@@ -50,10 +50,10 @@ def test_the_phases_are_joined(problem):
         problem.phases.singular,
         problem.phases.coast,
     )
-    assert np.abs(solution.discrete.boost_singular).max() == pytest.approx(0.0, abs=1e-8)
-    assert np.abs(solution.discrete.singular_coast).max() == pytest.approx(0.0, abs=1e-8)
-    assert solution[singular].initial_time == pytest.approx(solution[boost].final_time)
-    assert solution[coast].initial_time == pytest.approx(solution[singular].final_time)
+    for name in Linkage._fields:
+        assert getattr(solution.discrete, name) == pytest.approx(0.0, abs=1e-8)
+    assert solution[singular].initial.time == pytest.approx(solution[boost].final.time)
+    assert solution[coast].initial.time == pytest.approx(solution[singular].final.time)
 
 
 def test_the_path_constraint_holds_on_the_singular_arc(problem):
@@ -64,18 +64,16 @@ def test_the_path_constraint_holds_on_the_singular_arc(problem):
 
 def test_the_terminal_conditions_are_met(problem):
     solution = problem.solve()
-    assert solution[problem.phases.coast].final_state.m == pytest.approx(mf)
-    assert solution[problem.phases.coast].final_state.h == pytest.approx(
-        solution.objective, rel=1e-12
-    )
+    assert solution[problem.phases.coast].final.m == pytest.approx(mf)
+    assert solution[problem.phases.coast].final.h == pytest.approx(solution.objective, rel=1e-12)
 
 
-def test_a_block_field_is_read_as_its_rows(problem):
+def test_the_discrete_vector_is_read_by_name_and_by_position(problem):
     solution = problem.solve()
-    assert solution.discrete.boost_singular.shape == (4,)
-    assert solution.discrete_multiplier.singular_coast.shape == (4,)
     assert len(solution.discrete) == 8
     assert solution.discrete[:].shape == (8,)
+    assert solution.discrete[0] == solution.discrete.boost_singular_h
+    assert np.isfinite(solution.discrete_multiplier.singular_coast_time)
 
 
 def test_a_phase_without_a_path_declares_none(problem):
@@ -96,12 +94,13 @@ def test_registering_a_second_callback_is_refused(problem):
 
 def test_an_unbounded_discrete_group_is_refused():
     problem = setup()
-    problem.discrete.bounds._values.pop("singular_coast")
-    with pytest.raises(ValueError, match="'singular_coast' has no bound"):
+    problem.discrete.bounds._values.pop("singular_coast_time")
+    with pytest.raises(ValueError, match="'singular_coast_time' has no bound"):
         problem.validate()
 
 
 def test_the_declarations_name_what_they_hold():
-    assert Linkage._fields == ("boost_singular", "singular_coast")
+    assert Linkage._fields[0] == "boost_singular_h"
+    assert len(Linkage._fields) == 8
     assert Linkage._nrows == 8
     assert [phase.name for phase in Phases()] == ["boost", "singular", "coast"]
