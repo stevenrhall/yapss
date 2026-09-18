@@ -32,10 +32,10 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
-    # package imports
-    import yapss
-
+    from .spec import ProblemSpec
     from .types_ import CHS, CJS
+
+    # package imports
 
 
 def _refuse_mirrored_pairs(
@@ -100,7 +100,7 @@ def _refuse_mirrored_pairs(
 
 
 def make_user_functions(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     z0: NDArray[np.float64],
     tau_u: Sequence[NDArray[np.float64]],
 ) -> ProblemFunctions:
@@ -109,7 +109,7 @@ def make_user_functions(
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : ProblemSpec
         The problem instance containing user-defined functions and problem settings.
     z0 : np.ndarray
         Initial guess for the decision variables.
@@ -188,7 +188,7 @@ def make_user_functions(
     discrete_hessian_structure = None
     continuous_hessian_structure: CHS | None = None
 
-    if problem.derivatives.order == "second":
+    if problem.derivative_order == "second":
         # objective hessian
         if problem.functions.objective_hessian is not None:
             objective_hessian_arg = ObjectiveHessianArg(problem, dv)
@@ -278,7 +278,7 @@ def make_user_functions(
         objective_gradient=problem.functions.objective_gradient,
         objective_gradient_structure=objective_gradient_structure,
         objective_hessian=(
-            None if problem.derivatives.order != "second" else problem.functions.objective_hessian
+            None if problem.derivative_order != "second" else problem.functions.objective_hessian
         ),
         objective_hessian_structure=objective_hessian_structure,
         # discrete
@@ -286,7 +286,7 @@ def make_user_functions(
         discrete_jacobian=problem.functions.discrete_jacobian,
         discrete_jacobian_structure=discrete_jacobian_structure,
         discrete_hessian=(
-            None if problem.derivatives.order != "second" else problem.functions.discrete_hessian
+            None if problem.derivative_order != "second" else problem.functions.discrete_hessian
         ),
         discrete_hessian_structure=discrete_hessian_structure,
         # continuous
@@ -294,7 +294,7 @@ def make_user_functions(
         continuous_jacobian=problem.functions.continuous_jacobian,
         continuous_jacobian_structure=continuous_jacobian_structure,
         continuous_hessian=(
-            None if problem.derivatives.order != "second" else problem.functions.continuous_hessian
+            None if problem.derivative_order != "second" else problem.functions.continuous_hessian
         ),
         continuous_hessian_structure=continuous_hessian_structure,
     )

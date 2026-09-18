@@ -57,9 +57,7 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import ArrayLike, NDArray
 
-    # package imports
-    import yapss
-
+    from .spec import ProblemSpec
     from .types_ import (
         CHFDS,
         CHS,
@@ -86,12 +84,14 @@ if TYPE_CHECKING:
         PhaseIndex,
     )
 
+    # package imports
+
     InnerDict = defaultdict[DVKey, list[DFIndex]]
     OuterDict = defaultdict[DVKey, InnerDict]
 
 
 def get_continuous_jacobian_structure_nan(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     z0: NDArray[numpy.float64],
     tau_u: Sequence[NDArray[np.float64]],
 ) -> CJS:
@@ -194,7 +194,7 @@ def get_continuous_jacobian_structure_nan(
 
 
 def get_objective_gradient_structure_nan(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     z0: NDArray[numpy.float64],
 ) -> tuple[OGS, DJS]:
     """Deduce the objective gradient structure of the discrete constraint function.
@@ -456,7 +456,7 @@ def get_discrete_jacobian_fd_structure(djs: DJS) -> DJFDS:
 
 
 def make_fd_structure(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     z0: NDArray[numpy.float64],
     tau_u: Sequence[NDArray[np.float64]],
 ) -> ProblemFunctions:
@@ -464,7 +464,7 @@ def make_fd_structure(
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
     z0 : NDArray
 
     Returns
@@ -472,7 +472,7 @@ def make_fd_structure(
     ProblemFunctions
     """
     fd_structure: ProblemFunctions = ProblemFunctions()
-    order = problem.derivatives.order
+    order = problem.derivative_order
 
     # copy functions from problem
     # TODO: is this necessary?
@@ -492,7 +492,7 @@ def make_fd_structure(
         fd_structure.discrete = problem.functions.discrete
 
     # first derivatives
-    method = problem.derivatives.method
+    method = problem.derivative_method
     if method == "central-difference-full":
         cjs = get_continuous_jacobian_structure_full(problem)
         ogs, djs = get_objective_gradient_structure_full(problem)
@@ -587,12 +587,12 @@ def continuous_sort_key(item: tuple[str, int]) -> tuple[int, int]:
     return sort_dict[var], index
 
 
-def get_continuous_jacobian_structure_full(problem: yapss.Problem) -> CJS:
+def get_continuous_jacobian_structure_full(problem: ProblemSpec) -> CJS:
     """Deduce the Jacobian structure for full derivatives.
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
 
     Returns
     -------
@@ -635,12 +635,12 @@ def get_continuous_jacobian_structure_full(problem: yapss.Problem) -> CJS:
     return tuple(cjs)
 
 
-def get_objective_gradient_structure_full(problem: yapss.Problem) -> tuple[OGS, DJS]:
+def get_objective_gradient_structure_full(problem: ProblemSpec) -> tuple[OGS, DJS]:
     """Deduce the objective gradient structure.
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
 
     Returns
     -------

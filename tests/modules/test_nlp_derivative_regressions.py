@@ -24,14 +24,14 @@ def _make_orbit_raising_nlp(method: str) -> tuple[NLP, np.ndarray]:
     problem.spectral_method = "lgl"
     problem.validate()
 
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(problem.spectral_method)
-    x = make_initial_guess_nlp(problem, mesh)
+    x = make_initial_guess_nlp(problem._to_spec(), mesh)
     if method == "auto":
-        functions = make_auto_functions(problem)
+        functions = make_auto_functions(problem._to_spec())
     else:
-        functions = make_cd_functions(problem, x, mesh.tau_u)
-    return NLP(problem, functions, mesh), x
+        functions = make_cd_functions(problem._to_spec(), x, mesh.tau_u)
+    return NLP(problem._to_spec(), functions, mesh), x
 
 
 def _continuous_values(nlp: NLP, x: np.ndarray, order: int) -> tuple[np.ndarray, ...]:
@@ -84,9 +84,9 @@ def test_lg_lgr_do_not_allocate_zero_mode_constraints(spectral_method: str) -> N
     problem = delta_iii_ascent.setup()
     problem.spectral_method = spectral_method
 
-    structure = get_nlp_cf_structure(problem, np.float64)
+    structure = get_nlp_cf_structure(problem._to_spec(), np.float64)
     assert all(not hasattr(phase, "zero_mode") for phase in structure.phase)
 
-    constraint_upper, constraint_lower = get_nlp_constraint_function_bounds(problem)
+    constraint_upper, constraint_lower = get_nlp_constraint_function_bounds(problem._to_spec())
     free = np.isneginf(constraint_lower) & np.isposinf(constraint_upper)
     assert not np.any(free)

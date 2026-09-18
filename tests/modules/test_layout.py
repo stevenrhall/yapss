@@ -84,11 +84,11 @@ HAND_CHECKED = {
 def test_structures_match_hand_worked_indices(method):
     expected = HAND_CHECKED[method]
     problem = build(method, [(3, 4)])
-    dv = get_nlp_dv_structure(problem, int)
+    dv = get_nlp_dv_structure(problem._to_spec(), int)
     dv.z[:] = np.arange(len(dv.z))
-    cf = get_nlp_cf_structure(problem, int)
+    cf = get_nlp_cf_structure(problem._to_spec(), int)
     cf.c[:] = np.arange(len(cf.c))
-    (layout,) = problem_layout(problem)
+    (layout,) = problem_layout(problem._to_spec())
     dv_phase, cf_phase = dv.phase[0], cf.phase[0]
 
     def lists(views):
@@ -112,9 +112,9 @@ def test_structures_match_hand_worked_indices(method):
 def test_trims_match_the_mesh_times(method, mesh_name):
     """The trims count the evaluation points on tau = +1 (for t0) and tau = -1 (for tf)."""
     problem = build(method, MESHES[mesh_name])
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(method)
-    for p, layout in enumerate(problem_layout(problem)):
+    for p, layout in enumerate(problem_layout(problem._to_spec())):
         tau_u = mesh.tau_u[p]
         assert layout.trim_t0 == int(np.isclose(tau_u[-1], 1.0))
         assert layout.trim_tf == int(np.isclose(tau_u[0], -1.0))

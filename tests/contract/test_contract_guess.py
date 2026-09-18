@@ -171,9 +171,9 @@ def test_accepted_forms_reach_the_nlp_starting_point():
 
     z0 = []
     for ocp in (plain, varied):
-        mesh = Mesh(ocp.mesh.phase)
+        mesh = Mesh(ocp._to_spec().phases)
         mesh.set_matrices(ocp.spectral_method)
-        z0.append(make_initial_guess_nlp(ocp, mesh))
+        z0.append(make_initial_guess_nlp(ocp._to_spec(), mesh))
     assert z0[0].dtype == z0[1].dtype == np.float64
     np.testing.assert_array_equal(z0[0], z0[1])
 

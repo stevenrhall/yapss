@@ -58,11 +58,11 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
-    # package imports
-    import yapss
-
     from .mesh import Mesh
+    from .spec import ProblemSpec
     from .types_ import DVKey
+
+    # package imports
 
     FloatArray = NDArray[np.float64]
     Intermediate = Callable[
@@ -89,12 +89,12 @@ class NLP:
 
     def __init__(
         self,
-        problem: yapss.Problem,
+        problem: ProblemSpec,
         functions: ProblemFunctions,
         mesh: Mesh,
     ) -> None:
         # store arguments
-        self.problem: yapss.Problem = problem
+        self.problem: ProblemSpec = problem
         self.functions: ProblemFunctions = functions
         self.mesh = mesh
 
@@ -122,7 +122,7 @@ class NLP:
 
         self.intermediate: Intermediate | None = None
         self._hessian: Callable[[FloatArray, FloatArray, np.float64], FloatArray]
-        if problem.derivatives.order == "second":
+        if problem.derivative_order == "second":
             # the structure and the evaluator come from one assembly plan, so their
             # entries correspond by construction; see the hessian module
             self.nlp_hessian_structure, self._hessian = make_nlp_hessian(
@@ -371,7 +371,7 @@ def make_nlp_objective_gradient(nlp: NLP) -> Callable[[FloatArray], FloatArray]:
     gradient: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     arg = ObjectiveGradientArg(problem, dv)
-    if problem.derivatives.method == "user":
+    if problem.derivative_method == "user":
         require_keys(arg, nlp.functions.objective_gradient_structure)
 
     # begin callback function
@@ -437,13 +437,13 @@ class ContinuousEvaluator:
             dtype=np.float64,
             tau_u=nlp.mesh.tau_u,
         )
-        if problem.derivatives.method == "user":
+        if problem.derivative_method == "user":
             require_keys(
                 self.store.jacobian_arg,
                 nlp.functions.continuous_jacobian_structure,
                 per_phase=True,
             )
-            if problem.derivatives.order == "second":
+            if problem.derivative_order == "second":
                 require_keys(
                     self.store.hessian_arg,
                     nlp.functions.continuous_hessian_structure,
@@ -512,7 +512,7 @@ def make_eval_discrete_jacobian(nlp: NLP) -> Callable[[FloatArray], Sequence[np.
     problem = nlp.problem
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     arg = DiscreteJacobianArg(problem, dv)
-    if problem.derivatives.method == "user":
+    if problem.derivative_method == "user":
         require_keys(arg, nlp.functions.discrete_jacobian_structure)
 
     # begin callback function

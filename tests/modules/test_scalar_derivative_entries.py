@@ -97,14 +97,14 @@ def build_problem(method):
 def build_nlp(method, spectral_method):
     problem = build_problem(method)
     problem.spectral_method = spectral_method
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(spectral_method)
-    z0 = make_initial_guess_nlp(problem, mesh)
+    z0 = make_initial_guess_nlp(problem._to_spec(), mesh)
     if method == "auto":
-        functions = make_auto_functions(problem)
+        functions = make_auto_functions(problem._to_spec())
     else:
-        functions = make_user_functions(problem, z0, mesh.tau_u)
-    nlp = NLP(problem, functions, mesh)
+        functions = make_user_functions(problem._to_spec(), z0, mesh.tau_u)
+    nlp = NLP(problem._to_spec(), functions, mesh)
     z = z0 + 0.01 * np.sin(1.0 + np.arange(len(z0)))
     lam = 0.5 + 0.3 * np.cos(1.0 + np.arange(len(nlp.constraints(z))))
     return nlp, z, lam

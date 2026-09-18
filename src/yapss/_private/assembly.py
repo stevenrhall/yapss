@@ -34,12 +34,12 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
-    # package imports
-    import yapss
-
     from .input_args import ContinuousStore
     from .nlp import NLP
+    from .spec import ProblemSpec
     from .types_ import CFName, VectorCVName
+
+    # package imports
 
     FloatArray = NDArray[np.float64]
 
@@ -165,7 +165,7 @@ class IndexTwins:
     cf: CFStructure[np.int_]
 
 
-def index_twins(problem: yapss.Problem) -> IndexTwins:
+def index_twins(problem: ProblemSpec) -> IndexTwins:
     """Build the integer twins of the NLP vectors for `problem`."""
     dv: DVStructure[np.int_] = get_nlp_dv_structure(problem, int)
     dv.z[:] = list(range(len(dv.z)))

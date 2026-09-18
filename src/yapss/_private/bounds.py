@@ -28,13 +28,15 @@ from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_d
 from .types_ import Protected, set_private
 
 if TYPE_CHECKING:
-    # standard library imports
-
     # third party imports
     from numpy.typing import ArrayLike, NDArray
 
     # package imports
     import yapss
+
+    from .spec import ProblemSpec
+
+    # standard library imports
 
     FloatArray = NDArray[float64]
 
@@ -450,7 +452,7 @@ class Bounds(Protected):
         self.parameter.validate()
 
 
-def get_nlp_decision_variable_bounds(problem: yapss.Problem) -> tuple[FloatArray, FloatArray]:
+def get_nlp_decision_variable_bounds(problem: ProblemSpec) -> tuple[FloatArray, FloatArray]:
     """Determine the upper and lower bounds on the NLP decision variables.
 
     Function to determine the upper and lower bounds on the NLP decision variables based
@@ -458,7 +460,7 @@ def get_nlp_decision_variable_bounds(problem: yapss.Problem) -> tuple[FloatArray
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The user-defined optimal control problem
 
     Returns
@@ -475,51 +477,51 @@ def get_nlp_decision_variable_bounds(problem: yapss.Problem) -> tuple[FloatArray
 
     # do for each phase
     for p in range(problem.np):
-        self_phase = problem.bounds.phase[p]
+        self_phase = problem.phases[p]
 
         # state bounds at every time point, and zero-mode bounds (empty unless LGL)
         for i in range(problem.nx[p]):
-            lb.phase[p].x[i][:] = self_phase.state.lower[i]
-            ub.phase[p].x[i][:] = self_phase.state.upper[i]
-            lb.phase[p].xs[i][:] = self_phase._zero_mode.lower[i]
-            ub.phase[p].xs[i][:] = self_phase._zero_mode.upper[i]
+            lb.phase[p].x[i][:] = self_phase.state_lower[i]
+            ub.phase[p].x[i][:] = self_phase.state_upper[i]
+            lb.phase[p].xs[i][:] = self_phase.zero_mode_lower[i]
+            ub.phase[p].xs[i][:] = self_phase.zero_mode_upper[i]
 
         # overwrite boundary value bounds
-        lb.phase[p].x0[:] = np.maximum(self_phase.initial_state.lower, self_phase.state.lower)
-        ub.phase[p].x0[:] = np.minimum(self_phase.initial_state.upper, self_phase.state.upper)
-        lb.phase[p].xf[:] = np.maximum(self_phase.final_state.lower, self_phase.state.lower)
-        ub.phase[p].xf[:] = np.minimum(self_phase.final_state.upper, self_phase.state.upper)
+        lb.phase[p].x0[:] = np.maximum(self_phase.initial_state_lower, self_phase.state_lower)
+        ub.phase[p].x0[:] = np.minimum(self_phase.initial_state_upper, self_phase.state_upper)
+        lb.phase[p].xf[:] = np.maximum(self_phase.final_state_lower, self_phase.state_lower)
+        ub.phase[p].xf[:] = np.minimum(self_phase.final_state_upper, self_phase.state_upper)
 
         # control bounds
         for i in range(problem.nu[p]):
-            lb.phase[p].u[i][:] = self_phase.control.lower[i]
-            ub.phase[p].u[i][:] = self_phase.control.upper[i]
+            lb.phase[p].u[i][:] = self_phase.control_lower[i]
+            ub.phase[p].u[i][:] = self_phase.control_upper[i]
 
         # integral bounds
-        lb.phase[p].q[:] = self_phase.integral.lower
-        ub.phase[p].q[:] = self_phase.integral.upper
+        lb.phase[p].q[:] = self_phase.integral_lower
+        ub.phase[p].q[:] = self_phase.integral_upper
 
         # boundary time bounds
-        lb.phase[p].t0[:] = self_phase.initial_time.lower
-        ub.phase[p].t0[:] = self_phase.initial_time.upper
-        lb.phase[p].tf[:] = self_phase.final_time.lower
-        ub.phase[p].tf[:] = self_phase.final_time.upper
+        lb.phase[p].t0[:] = self_phase.initial_time_lower
+        ub.phase[p].t0[:] = self_phase.initial_time_upper
+        lb.phase[p].tf[:] = self_phase.final_time_lower
+        ub.phase[p].tf[:] = self_phase.final_time_upper
 
     # parameter bounds
-    lb.s[:] = problem.bounds.parameter.lower
-    ub.s[:] = problem.bounds.parameter.upper
+    lb.s[:] = problem.parameter_lower
+    ub.s[:] = problem.parameter_upper
 
     return ub.z, lb.z
 
 
 def get_nlp_constraint_function_bounds(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
 ) -> tuple[FloatArray, FloatArray]:
     """Determine the upper and lower bounds on the NLP decision variables.
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The user-defined optimal control problem
 
     Returns
@@ -541,15 +543,15 @@ def get_nlp_constraint_function_bounds(
 
         # path
         for i in range(problem.nh[p]):
-            lb.phase[p].path[i][:] = problem.bounds.phase[p].path.lower[i]
-            ub.phase[p].path[i][:] = problem.bounds.phase[p].path.upper[i]
+            lb.phase[p].path[i][:] = problem.phases[p].path_lower[i]
+            ub.phase[p].path[i][:] = problem.phases[p].path_upper[i]
 
         # duration
-        lb.phase[p].duration[:] = problem.bounds.phase[p].duration.lower
-        ub.phase[p].duration[:] = problem.bounds.phase[p].duration.upper
+        lb.phase[p].duration[:] = problem.phases[p].duration_lower
+        ub.phase[p].duration[:] = problem.phases[p].duration_upper
 
     # discrete constraints
-    lb.discrete[:] = problem.bounds.discrete.lower
-    ub.discrete[:] = problem.bounds.discrete.upper
+    lb.discrete[:] = problem.discrete_lower
+    ub.discrete[:] = problem.discrete_upper
 
     return ub.c, lb.c

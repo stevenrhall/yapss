@@ -6,7 +6,7 @@ Module mesh.
 from __future__ import annotations
 
 # standard imports
-from typing import TYPE_CHECKING, assert_never
+from typing import TYPE_CHECKING, Protocol, assert_never
 
 # third party imports
 import numpy as np
@@ -18,10 +18,22 @@ from .quadrature import lg, lgl, lgr
 
 if TYPE_CHECKING:
     # third party imports
+    # package imports
+    from collections.abc import Sequence
+
     from numpy.typing import NDArray
 
-    # package imports
-    from .problem import MeshPhase
+    class MeshLike(Protocol):
+        """What `Mesh` needs of one phase: how it is divided, and how finely."""
+
+        @property
+        def fraction(self) -> Sequence[float]:
+            """Return the fraction of the phase each segment spans."""
+
+        @property
+        def collocation_points(self) -> Sequence[int]:
+            """Return the collocation points in each segment."""
+
     from .types_ import SpectralMethod
 
     # typing
@@ -47,11 +59,11 @@ class Mesh:
         Mesh time of each state time point, in time order, for each phase
     tau_u : Array
         Mesh time of each evaluation point, for each phase
-    phase : tuple[MeshPhase, ...]
+    phase : Sequence[MeshLike]
         The mesh phases of the problem
     """
 
-    def __init__(self, mesh_phase: tuple[MeshPhase, ...]) -> None:
+    def __init__(self, mesh_phase: Sequence[MeshLike]) -> None:
         self.phase = mesh_phase
         self.d: list[NDArray[np.float64]] = []
         self.w: list[NDArray[np.float64]] = []

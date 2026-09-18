@@ -121,15 +121,15 @@ def nlp_values(continuous, method, seed=0):
     """Return (objective, constraints) at a fixed perturbation of the initial guess."""
     problem = build_problem(continuous, method)
     problem.validate()
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(problem.spectral_method)
-    z0 = make_initial_guess_nlp(problem, mesh)
+    z0 = make_initial_guess_nlp(problem._to_spec(), mesh)
 
     if method == "auto":
-        functions = make_auto_functions(problem)
+        functions = make_auto_functions(problem._to_spec())
     else:
-        functions = make_cd_functions(problem, z0, mesh.tau_u)
-    nlp = NLP(problem, functions, mesh)
+        functions = make_cd_functions(problem._to_spec(), z0, mesh.tau_u)
+    nlp = NLP(problem._to_spec(), functions, mesh)
 
     # perturb off the guess so the gate is active at some collocation points and not
     # others; a point where the mask is 1 everywhere would not discriminate

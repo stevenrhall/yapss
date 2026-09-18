@@ -63,11 +63,10 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    import yapss
-
     from .input_args import ContinuousFunctionFloat, DiscreteFunctionFloat, ObjectiveFunctionFloat
     from .mesh import Mesh
     from .nlp import NLP
+    from .spec import ProblemSpec
     from .structure import DVStructure
     from .types_ import CFViewName, DVViewName
 
@@ -191,12 +190,12 @@ def _list(lines: list[str]) -> str:
     return "\n".join(f"  - {line}" for line in shown)
 
 
-def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64]) -> None:
+def check_callbacks(problem: ProblemSpec, mesh: Mesh, z0: NDArray[np.float64]) -> None:
     """Raise for unassigned, non-finite, or non-pointwise callback outputs at the initial guess.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : ProblemSpec
     mesh : Mesh
         The mesh, for the mesh time of each evaluation point.
     z0 : NDArray
@@ -302,7 +301,7 @@ def check_callbacks(problem: yapss.Problem, mesh: Mesh, z0: NDArray[np.float64])
 
 
 def _pointwise_findings(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     mesh: Mesh,
     z0: NDArray[np.float64],
     base: ContinuousArg[np.float64],
@@ -330,11 +329,11 @@ def _pointwise_findings(
     findings: list[str] = []
     for p, (whole_phase, part_phase) in enumerate(zip(base.phase, reversed_arg.phase, strict=True)):
         selected = nodes[p]
-        scale = problem.scale.phase[p]
+        scale = problem.phases[p]
         magnitude = {
-            "dynamics": scale.dynamics,
-            "integrand": scale.integral / scale.time,
-            "path": scale.path,
+            "dynamics": scale.dynamics_scale,
+            "integrand": scale.integral_scale / scale.time_scale,
+            "path": scale.path_scale,
         }
         for name in OUTPUTS:
             whole = getattr(whole_phase, name)
@@ -355,12 +354,12 @@ def _pointwise_findings(
     return findings, None
 
 
-def check_derivatives(problem: yapss.Problem, nlp: NLP, z0: NDArray[np.float64]) -> None:
+def check_derivatives(problem: ProblemSpec, nlp: NLP, z0: NDArray[np.float64]) -> None:
     """Raise if the NLP objective gradient or constraint Jacobian is not finite at z0.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : ProblemSpec
         The problem being solved.
     nlp : NLP
         The transcribed nonlinear program.

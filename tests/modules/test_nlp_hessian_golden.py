@@ -348,16 +348,16 @@ def build_nlp(name: str, spectral_method: str, derivative_method: str) -> tuple[
     problem.derivatives.order = "second"
     problem.validate()
 
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(problem.spectral_method)
-    z0 = make_initial_guess_nlp(problem, mesh)
+    z0 = make_initial_guess_nlp(problem._to_spec(), mesh)
     if derivative_method == "auto":
-        functions = make_auto_functions(problem)
+        functions = make_auto_functions(problem._to_spec())
     elif derivative_method == "user":
-        functions = make_user_functions(problem, z0, mesh.tau_u)
+        functions = make_user_functions(problem._to_spec(), z0, mesh.tau_u)
     else:
-        functions = make_cd_functions(problem, z0, mesh.tau_u)
-    nlp = NLP(problem, functions, mesh)
+        functions = make_cd_functions(problem._to_spec(), z0, mesh.tau_u)
+    nlp = NLP(problem._to_spec(), functions, mesh)
 
     # deterministic, structure-free perturbation off the guess so that no term
     # evaluates at a symmetric or zero point that could mask an assembly error

@@ -49,10 +49,10 @@ if TYPE_CHECKING:
     # standard imports
     from collections.abc import Iterable
 
-    # package imports
-    import yapss
-
+    from .spec import ProblemSpec
     from .types_ import DHS, DJS, OGS, OHS, CFKey, CHSPhase, CJSPhase, CVKey, DVKey
+
+    # package imports
 
 __all__ = [
     "continuous_hessian_structure",
@@ -171,7 +171,7 @@ class _Key:
 DISCRETE = Items.counted("discrete function", "discrete functions", "the problem")
 
 
-def _dv_key(key: _Key, value: object, problem: yapss.Problem) -> DVKey:
+def _dv_key(key: _Key, value: object, problem: ProblemSpec) -> DVKey:
     p_value, name_value, i_value = key.split(value, 3, DV_FORM, "decision variable key")
     name = key.name(name_value, DV_NAMES, "decision variable")
     if name == "s":
@@ -195,7 +195,7 @@ def _dv_key(key: _Key, value: object, problem: yapss.Problem) -> DVKey:
     return p, name, key.index(i_value, count, what)
 
 
-def _cv_key(key: _Key, value: object, problem: yapss.Problem, p: int) -> CVKey:
+def _cv_key(key: _Key, value: object, problem: ProblemSpec, p: int) -> CVKey:
     name_value, i_value = key.split(value, 2, CV_FORM, "continuous variable key")
     name = key.name(name_value, CV_NAMES, "continuous variable")
     phase = f"phase {p}"
@@ -213,7 +213,7 @@ def _cv_key(key: _Key, value: object, problem: yapss.Problem, p: int) -> CVKey:
     return name, key.index(i_value, count, what)
 
 
-def _cf_key(key: _Key, value: object, problem: yapss.Problem, p: int) -> CFKey:
+def _cf_key(key: _Key, value: object, problem: ProblemSpec, p: int) -> CFKey:
     name_value, i_value = key.split(value, 2, CF_FORM, "continuous function key")
     name = key.name(name_value, CF_NAMES, "continuous function")
     match name:
@@ -228,7 +228,7 @@ def _cf_key(key: _Key, value: object, problem: yapss.Problem, p: int) -> CFKey:
     return name, key.index(i_value, count, what)
 
 
-def objective_gradient_structure(problem: yapss.Problem, keys: Iterable[object]) -> OGS:
+def objective_gradient_structure(problem: ProblemSpec, keys: Iterable[object]) -> OGS:
     """Parse the keys of ``arg.gradient`` set by ``functions.objective_gradient``."""
     structure: list[DVKey] = []
     for k in keys:
@@ -237,7 +237,7 @@ def objective_gradient_structure(problem: yapss.Problem, keys: Iterable[object])
     return tuple(structure)
 
 
-def objective_hessian_structure(problem: yapss.Problem, keys: Iterable[object]) -> OHS:
+def objective_hessian_structure(problem: ProblemSpec, keys: Iterable[object]) -> OHS:
     """Parse the keys of ``arg.hessian`` set by ``functions.objective_hessian``."""
     structure: list[tuple[DVKey, DVKey]] = []
     for k in keys:
@@ -247,7 +247,7 @@ def objective_hessian_structure(problem: yapss.Problem, keys: Iterable[object]) 
     return tuple(structure)
 
 
-def discrete_jacobian_structure(problem: yapss.Problem, keys: Iterable[object]) -> DJS:
+def discrete_jacobian_structure(problem: ProblemSpec, keys: Iterable[object]) -> DJS:
     """Parse the keys of ``arg.jacobian`` set by ``functions.discrete_jacobian``."""
     structure: list[tuple[int, DVKey]] = []
     for k in keys:
@@ -258,7 +258,7 @@ def discrete_jacobian_structure(problem: yapss.Problem, keys: Iterable[object]) 
     return tuple(structure)
 
 
-def discrete_hessian_structure(problem: yapss.Problem, keys: Iterable[object]) -> DHS:
+def discrete_hessian_structure(problem: ProblemSpec, keys: Iterable[object]) -> DHS:
     """Parse the keys of ``arg.hessian`` set by ``functions.discrete_hessian``."""
     structure: list[tuple[int, DVKey, DVKey]] = []
     for k in keys:
@@ -270,7 +270,7 @@ def discrete_hessian_structure(problem: yapss.Problem, keys: Iterable[object]) -
 
 
 def continuous_jacobian_structure(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     p: int,
     keys: Iterable[object],
 ) -> CJSPhase:
@@ -284,7 +284,7 @@ def continuous_jacobian_structure(
 
 
 def continuous_hessian_structure(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     p: int,
     keys: Iterable[object],
 ) -> CHSPhase:

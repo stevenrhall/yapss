@@ -37,10 +37,10 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
-    # package imports
-    import yapss
-
+    from .spec import ProblemSpec
     from .types_ import CVIndex, CVName, DVKey, PhaseIndex
+
+    # package imports
 
     # Generic array type
     Array = NDArray[T]
@@ -146,7 +146,7 @@ class CFStructure(Generic[T], SimpleNamespace):
     discrete: Array[T]
 
 
-def get_nlp_dv_structure(problem: yapss.Problem, dtype: type) -> DVStructure[T]:
+def get_nlp_dv_structure(problem: ProblemSpec, dtype: type) -> DVStructure[T]:
     """Create the vector of decision variables for the NLP, with views into it.
 
     Per phase, in order: every state's stored values (time points, then zero modes), every
@@ -154,7 +154,7 @@ def get_nlp_dv_structure(problem: yapss.Problem, dtype: type) -> DVStructure[T]:
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : ProblemSpec
     dtype : {float, int}
 
     Returns
@@ -219,7 +219,7 @@ def get_nlp_dv_structure(problem: yapss.Problem, dtype: type) -> DVStructure[T]:
     return dv
 
 
-def get_nlp_cf_structure(problem: yapss.Problem, dtype: type) -> CFStructure[T]:
+def get_nlp_cf_structure(problem: ProblemSpec, dtype: type) -> CFStructure[T]:
     """Create the vector of constraint functions for the NLP, with views into it.
 
     Per phase, in order: every state's defect rows, every state's boundary defect rows,
@@ -228,7 +228,7 @@ def get_nlp_cf_structure(problem: yapss.Problem, dtype: type) -> CFStructure[T]:
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : ProblemSpec
     dtype : {float, int}
 
     Returns
@@ -278,7 +278,7 @@ def get_nlp_cf_structure(problem: yapss.Problem, dtype: type) -> CFStructure[T]:
     return cf
 
 
-def nlp_variable_keys(problem: yapss.Problem) -> NDArray[np.object_]:
+def nlp_variable_keys(problem: ProblemSpec) -> NDArray[np.object_]:
     """Return the key of every NLP decision variable, in NLP order.
 
     ``keys[k] == (p, view, i, j)`` says that ``z[k]`` is ``dv.phase[p].<view>[i][j]`` in the
@@ -294,7 +294,7 @@ def nlp_variable_keys(problem: yapss.Problem) -> NDArray[np.object_]:
     return dv.z
 
 
-def nlp_constraint_keys(problem: yapss.Problem) -> NDArray[np.object_]:
+def nlp_constraint_keys(problem: ProblemSpec) -> NDArray[np.object_]:
     """Return the key of every NLP constraint, in NLP order.
 
     ``keys[k] == (p, view, i, j)`` says that ``c[k]`` is ``cf.phase[p].<view>[i][j]`` in the

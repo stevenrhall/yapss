@@ -165,8 +165,8 @@ def test_accepted_values_reach_the_nlp_scaling():
     plain.scale.objective = 3.0
     varied.scale.objective = np.int64(3)
 
-    objective_plain, z_plain, c_plain = get_nlp_scaling(plain)
-    objective_varied, z_varied, c_varied = get_nlp_scaling(varied)
+    objective_plain, z_plain, c_plain = get_nlp_scaling(plain._to_spec())
+    objective_varied, z_varied, c_varied = get_nlp_scaling(varied._to_spec())
     assert objective_plain == objective_varied
     np.testing.assert_array_equal(z_plain, z_varied)
     np.testing.assert_array_equal(c_plain, c_varied)

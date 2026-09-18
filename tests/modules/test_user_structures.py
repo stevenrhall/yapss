@@ -116,11 +116,11 @@ def build_problem(
 def build_nlp(problem):
     """Run structure collection the way the solver does, and build the NLP."""
     problem.validate()
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(problem.spectral_method)
-    z0 = make_initial_guess_nlp(problem, mesh)
-    functions = make_user_functions(problem, z0, mesh.tau_u)
-    return NLP(problem, functions, mesh), z0
+    z0 = make_initial_guess_nlp(problem._to_spec(), mesh)
+    functions = make_user_functions(problem._to_spec(), z0, mesh.tau_u)
+    return NLP(problem._to_spec(), functions, mesh), z0
 
 
 def test_well_formed_structures_do_not_warn():

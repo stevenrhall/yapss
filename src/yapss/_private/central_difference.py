@@ -54,11 +54,10 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
-    # package imports
-    import yapss
-
-    from .problem import Problem, Scale
+    from .spec import ProblemSpec
     from .types_ import CHFDS, CJFDS, DHFDS, DJFDS, OGS, DVKey
+
+    # package imports
 
     Array = NDArray[np.float64]
 
@@ -75,7 +74,7 @@ DELTA2: np.float64 = (3 * EPS) ** (1 / 4)
 
 
 def make_cd_functions(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     z0: Array,
     tau_u: Sequence[NDArray[np.float64]],
 ) -> ProblemFunctions:
@@ -87,7 +86,7 @@ def make_cd_functions(
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The user-defined problem object.
     z0 : numpy.ndarray
         Initial decision variables.
@@ -98,7 +97,7 @@ def make_cd_functions(
         The structure containing the callback functions.
     """
     cd_functions = make_fd_structure(problem, z0, tau_u)
-    order = problem.derivatives.order
+    order = problem.derivative_order
 
     # first derivatives
     ogs: OGS = cd_functions.objective_gradient_structure
@@ -128,14 +127,14 @@ def make_cd_functions(
 
 
 def make_objective_gradient(
-    problem: Problem,
+    problem: ProblemSpec,
     ogs: OGS,
 ) -> ObjectiveGradientFunction:
     """Generate objective gradient callback function using finite differences.
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The user-defined problem object
     ogs : OGS
         Finite difference structure for the objective gradient.
@@ -147,7 +146,7 @@ def make_objective_gradient(
     """
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, dtype=np.float64)
     arg1: ObjectiveArg[np.float64] = ObjectiveArg(problem, dv, dtype=np.float64)
-    scale: Scale = problem.scale
+    scale = problem.variable_scale
 
     objective_function = cast(ObjectiveFunctionFloat, problem.functions.objective)
 
@@ -176,7 +175,7 @@ def make_objective_gradient(
 
 
 def make_continuous_jacobian(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     cjfds: CJFDS,
     tau_u: Sequence[NDArray[np.float64]],
 ) -> ContinuousJacobianFunction:
@@ -184,7 +183,7 @@ def make_continuous_jacobian(
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The user-defined problem object.
     cjfds : CJFDS
         Finite difference structure for the continuous Jacobian.
@@ -196,7 +195,7 @@ def make_continuous_jacobian(
     Callable[[ContinuousJacobianArg], None]
         The continuous Jacobian callback function.
     """
-    scale: Scale = problem.scale
+    scale = problem.variable_scale
     if problem.np > 0:
         continuous = cast(ContinuousFunctionFloat, problem.functions.continuous)
     # The stencil runs on a private argument, as the Hessian's does, so the caller's
@@ -248,12 +247,12 @@ def make_continuous_jacobian(
     return continuous_jacobian
 
 
-def make_discrete_jacobian(problem: yapss.Problem, djfds: DJFDS) -> DiscreteJacobianFunction:
+def make_discrete_jacobian(problem: ProblemSpec, djfds: DJFDS) -> DiscreteJacobianFunction:
     """Generate discrete Jacobian callback function using finite differences.
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The user-defined problem object.
     djfds : DJFDS
         Finite difference structure for the discrete Jacobian.
@@ -265,7 +264,7 @@ def make_discrete_jacobian(problem: yapss.Problem, djfds: DJFDS) -> DiscreteJaco
     """
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, dtype=float)
     discrete_arg: DiscreteArg[np.float64] = DiscreteArg(problem, dv, dtype=np.float64)
-    scale: Scale = problem.scale
+    scale = problem.variable_scale
 
     if problem.nd > 0:
         discrete = cast(DiscreteFunctionFloat, problem.functions.discrete)
@@ -301,12 +300,12 @@ def make_discrete_jacobian(problem: yapss.Problem, djfds: DJFDS) -> DiscreteJaco
     return discrete_jacobian_cd
 
 
-def make_objective_hessian(problem: yapss.Problem, ogs: OGS) -> ObjectiveHessianFunction:
+def make_objective_hessian(problem: ProblemSpec, ogs: OGS) -> ObjectiveHessianFunction:
     """Generate objective hessian callback function using finite differences.
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The user-defined problem object
     ogs : OGS
         Objective hessian structure, which is the same as the objective
@@ -317,7 +316,7 @@ def make_objective_hessian(problem: yapss.Problem, ogs: OGS) -> ObjectiveHessian
     Callable[ObjectiveArg]
         The objective hessian callback function
     """
-    scale: Scale = problem.scale
+    scale = problem.variable_scale
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, dtype=float)
     objective_arg: ObjectiveArg[np.float64] = ObjectiveArg(problem, dv, dtype=np.float64)
 
@@ -375,7 +374,7 @@ def make_objective_hessian(problem: yapss.Problem, ogs: OGS) -> ObjectiveHessian
 
 
 def make_continuous_hessian(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     chfds: CHFDS,
     tau_u: Sequence[NDArray[np.float64]],
 ) -> ContinuousHessianFunction:
@@ -383,7 +382,7 @@ def make_continuous_hessian(
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The user-defined problem object.
     chfds : CHFDS
         Finite difference structure for the continuous Hessian.
@@ -403,7 +402,7 @@ def make_continuous_hessian(
         tau_u=tau_u,
     )
     arg2 = store2.value_arg
-    scale: Scale = problem.scale
+    scale = problem.variable_scale
 
     def continuous_hessian(arg: ContinuousHessianArg) -> None:
         """Calculate Hessian of the continuous constraint functions using finite differences."""
@@ -483,14 +482,14 @@ def make_continuous_hessian(
 
 
 def make_discrete_hessian(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     dhfds: DHFDS,
 ) -> Callable[[DiscreteHessianArg], None]:
     """Generate discrete Hessian callback function using finite differences.
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The user-defined problem object.
     dhfds : DHFDS
         Finite difference structure for the discrete Hessian.
@@ -504,7 +503,7 @@ def make_discrete_hessian(
 
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, dtype=np.float64)
     discrete_arg: DiscreteArg[np.float64] = DiscreteArg(problem, dv, dtype=np.float64)
-    scale: Scale = problem.scale
+    scale = problem.variable_scale
 
     if nd > 0:
         discrete = cast(DiscreteFunctionFloat, problem.functions.discrete)

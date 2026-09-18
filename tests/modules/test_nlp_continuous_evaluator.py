@@ -35,14 +35,14 @@ def _build_nlp(method: str) -> tuple[NLP, np.ndarray]:
     problem.spectral_method = "lgr"
     problem.validate()
 
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(problem.spectral_method)
-    z0 = make_initial_guess_nlp(problem, mesh)
+    z0 = make_initial_guess_nlp(problem._to_spec(), mesh)
     if method == "auto":
-        functions = make_auto_functions(problem)
+        functions = make_auto_functions(problem._to_spec())
     else:
-        functions = make_cd_functions(problem, z0, mesh.tau_u)
-    return NLP(problem, functions, mesh), z0
+        functions = make_cd_functions(problem._to_spec(), z0, mesh.tau_u)
+    return NLP(problem._to_spec(), functions, mesh), z0
 
 
 def _points(nlp: NLP, z0: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

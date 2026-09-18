@@ -31,8 +31,8 @@ if TYPE_CHECKING:
     import yapss
 
     from .mesh import Mesh
-    from .problem import Problem
     from .solution import Solution
+    from .spec import ProblemSpec
 
     # Float array
     Array = NDArray[np.float64]
@@ -166,7 +166,7 @@ class Guess(Protected):
 
         Parameters
         ----------
-        problem : Problem
+        problem : ProblemSpec
             The problem object.
         """
         # store information about the problem dimensions
@@ -361,7 +361,7 @@ class PhaseGuess(Protected):
             raise ValueError(msg)
 
 
-def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
+def make_initial_guess_nlp(problem: ProblemSpec, computational_mesh: Mesh) -> Array:
     """Make initial guess for the NLP solution from the user-provided initial guess.
 
     This method takes the initial guess provided by the user and interpolates to produce an
@@ -372,8 +372,6 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
     NDArray
         Initial guess of the NLP decision variable array
     """
-    # problem = guess._problem
-    guess = problem.guess
     mesh = computational_mesh
     nlp_dv_guess: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
 
@@ -381,8 +379,7 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
     for p, phase in enumerate(nlp_dv_guess.phase):
         tau_x = mesh.tau_x[p]
         tau_u = mesh.tau_u[p]
-        time = guess.phase[p].time
-        assert time is not None
+        time = problem.phases[p].guess_time
         t0 = time[0]
         tf = time[-1]
         # tau is defined over the interval [-1, 1], so we need to scale and shift it to the
@@ -394,7 +391,7 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
         phase.tf[0] = tf
 
         # interpolate state and control variables
-        state = guess.phase[p].state
+        state = problem.phases[p].guess_state
         # tau_x is in time order; the stored order differs under LG, which time_order maps
         time_order = problem_layout(problem)[p].time_order
         for i in range(problem.nx[p]):
@@ -402,14 +399,14 @@ def make_initial_guess_nlp(problem: Problem, computational_mesh: Mesh) -> Array:
             phase.x[i][time_order] = f(t_x)
             phase.xs[i][:] = 0.0  # zero modes (empty unless LGL)
 
-        control = guess.phase[p].control
+        control = problem.phases[p].guess_control
         for i in range(problem.nu[p]):
             f = interp1d(time, control[i], fill_value="extrapolate")
             phase.u[i][:] = f(t_u)
 
-        phase.q[:] = guess.phase[p].integral
+        phase.q[:] = problem.phases[p].guess_integral
 
     # guess for parameter
-    nlp_dv_guess.s[:] = guess.parameter
+    nlp_dv_guess.s[:] = problem.guess_parameter
 
     return nlp_dv_guess.z

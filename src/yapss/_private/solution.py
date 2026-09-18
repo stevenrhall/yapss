@@ -28,10 +28,9 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    import yapss
-
     from .mesh import Mesh
     from .nlp import NLP
+    from .spec import ProblemSpec
 
 __all__ = [
     "IpoptConvergenceWarning",
@@ -149,10 +148,11 @@ def _rows(rows: list[Any], n_points: int) -> NDArray[np.float64]:
 
 
 def make_solution_object(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     mesh: Mesh,
     nlp_temp: NLP,
     nlp_info: dict[str, NDArray[np.float64] | float | int | bytes],
+    origin: Any = None,
 ) -> Solution:
     """Extract the optimal control solution from the NLP solver output.
 
@@ -161,7 +161,7 @@ def make_solution_object(
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : ProblemSpec
     mesh : Mesh
     nlp_temp : NLP
     nlp_info : dict
@@ -355,7 +355,7 @@ def make_solution_object(
 
     return Solution(
         name=problem.name,
-        problem=deepcopy(problem),
+        problem=deepcopy(problem if origin is None else origin),
         objective=objective,
         discrete=discrete,
         discrete_multiplier=cf_multiplier.discrete,
@@ -548,7 +548,10 @@ class Solution:
     """
 
     name: str
-    problem: yapss.Problem
+    # Whatever the front end handed to solve() as its origin -- a yapss.Problem from the
+    # released API -- or, when a front end passes none, the ProblemSpec the solve ran from.
+    # The back end does not name either type here, which is why this is not narrower.
+    problem: Any
     objective: float
     parameter: NDArray[np.float64]
     parameter_multiplier: NDArray[np.float64]

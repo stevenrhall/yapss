@@ -118,8 +118,8 @@ def test_every_nlp_entry_has_a_label(spectral_method):
     problem.spectral_method = spectral_method
     problem.mesh.phase[0].collocation_points = (3, 4)
     problem.mesh.phase[0].fraction = (0.5, 0.5)
-    variables = set(_labels(nlp_variable_keys(problem), _variable_label))
-    constraints = set(_labels(nlp_constraint_keys(problem), _constraint_label))
+    variables = set(_labels(nlp_variable_keys(problem._to_spec()), _variable_label))
+    constraints = set(_labels(nlp_constraint_keys(problem._to_spec()), _constraint_label))
     assert variables == {
         *(f"phase 0 state[{i}]" for i in range(2)),
         "phase 1 state[0]",

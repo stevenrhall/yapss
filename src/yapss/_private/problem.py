@@ -16,7 +16,7 @@ import inspect
 # standard imports
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from types import FrameType, SimpleNamespace
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, assert_never, cast, get_args
 
 # third party imports
@@ -32,6 +32,7 @@ from .guess import Guess
 from .ipopt_options import IpoptOptions
 from .solution import warn_if_not_converged
 from .solver import solve
+from .spec import PhaseSpec, ProblemSpec, frozen_array
 from .types_ import (
     DerivativeMethod,
     DerivativeOrder,
@@ -233,7 +234,6 @@ class Problem(Protected):
         self.scale = Scale(self)
         self.mesh = Mesh(self)
 
-        self._abort: bool = False
         self.catch_keyboard_interrupt = True
 
         self.spectral_method = DEFAULT_SPECTRAL_METHOD
@@ -257,10 +257,96 @@ class Problem(Protected):
             If Ipopt reported a status other than 0 (optimal), 1 (acceptable level)
             or 6 (feasible point for a square problem).
         """
-        solution = solve(self)
+        self.validate()
+        solution = solve(self._to_spec(), origin=self)
         # stacklevel=3: warn -> warn_if_not_converged -> this method -> user code.
         warn_if_not_converged(solution, stacklevel=3)
         return solution
+
+    def _to_spec(self) -> ProblemSpec:
+        """Reduce the problem to the numbers the transcription reads.
+
+        Everything a solve needs is copied out, so the returned record cannot be changed by a
+        later edit of this problem. See `yapss._private.spec`.
+
+        Returns
+        -------
+        ProblemSpec
+            The problem as the transcription sees it.
+        """
+        phases = tuple(self._phase_spec(p) for p in range(self.np))
+        return ProblemSpec(
+            name=self.name,
+            phases=phases,
+            nd=self.nd,
+            ns=self.ns,
+            discrete_lower=frozen_array(self.bounds.discrete.lower, self.nd),
+            discrete_upper=frozen_array(self.bounds.discrete.upper, self.nd),
+            parameter_lower=frozen_array(self.bounds.parameter.lower, self.ns),
+            parameter_upper=frozen_array(self.bounds.parameter.upper, self.ns),
+            discrete_scale=frozen_array(self.scale.discrete, self.nd),
+            parameter_scale=frozen_array(self.scale.parameter, self.ns),
+            objective_scale=float(self.scale.objective),
+            guess_parameter=frozen_array(self.guess.parameter, self.ns),
+            functions=self.functions,
+            auxdata=self.auxdata,
+            sense=self.sense,
+            spectral_method=self.spectral_method,
+            derivative_method=self.derivatives.method,
+            derivative_order=self.derivatives.order,
+            ipopt_options=dict(self.ipopt_options.get_options()),
+            catch_keyboard_interrupt=self.catch_keyboard_interrupt,
+        )
+
+    def _phase_spec(self, p: int) -> PhaseSpec:
+        """Reduce one phase to the numbers the transcription reads."""
+        bounds = self.bounds.phase[p]
+        scale = self.scale.phase[p]
+        guess = self.guess.phase[p]
+        mesh = self.mesh.phase[p]
+        nx, nu, nq, nh = self.nx[p], self.nu[p], self.nq[p], self.nh[p]
+        return PhaseSpec(
+            index=p,
+            nx=nx,
+            nu=nu,
+            nq=nq,
+            nh=nh,
+            state_lower=frozen_array(bounds.state.lower, nx),
+            state_upper=frozen_array(bounds.state.upper, nx),
+            initial_state_lower=frozen_array(bounds.initial_state.lower, nx),
+            initial_state_upper=frozen_array(bounds.initial_state.upper, nx),
+            final_state_lower=frozen_array(bounds.final_state.lower, nx),
+            final_state_upper=frozen_array(bounds.final_state.upper, nx),
+            control_lower=frozen_array(bounds.control.lower, nu),
+            control_upper=frozen_array(bounds.control.upper, nu),
+            path_lower=frozen_array(bounds.path.lower, nh),
+            path_upper=frozen_array(bounds.path.upper, nh),
+            integral_lower=frozen_array(bounds.integral.lower, nq),
+            integral_upper=frozen_array(bounds.integral.upper, nq),
+            zero_mode_lower=frozen_array(bounds._zero_mode.lower, nx),
+            zero_mode_upper=frozen_array(bounds._zero_mode.upper, nx),
+            initial_time_lower=float(bounds.initial_time.lower),
+            initial_time_upper=float(bounds.initial_time.upper),
+            final_time_lower=float(bounds.final_time.lower),
+            final_time_upper=float(bounds.final_time.upper),
+            duration_lower=float(bounds.duration.lower),
+            duration_upper=float(bounds.duration.upper),
+            state_scale=frozen_array(scale.state, nx),
+            control_scale=frozen_array(scale.control, nu),
+            integral_scale=frozen_array(scale.integral, nq),
+            dynamics_scale=frozen_array(scale.dynamics, nx),
+            path_scale=frozen_array(scale.path, nh),
+            time_scale=float(scale.time),
+            # A problem with no time guess cannot be solved, but it can still be reduced to a
+            # spec, so that its layout and structure can be worked out. The error for a missing
+            # guess stays in `validate`, where it names the phase.
+            guess_time=frozen_array([] if guess._time is None else guess.time),
+            guess_state=frozen_array(np.zeros((nx, 0)) if guess._time is None else guess.state),
+            guess_control=frozen_array(np.zeros((nu, 0)) if guess._time is None else guess.control),
+            guess_integral=frozen_array(guess.integral, nq),
+            fraction=tuple(float(f) for f in mesh.fraction),
+            collocation_points=tuple(int(n) for n in mesh.collocation_points),
+        )
 
     def validate(self) -> None:
         """Validate the optimal control problem input.
@@ -413,15 +499,6 @@ class Problem(Protected):
                 msg = f"{arg_name} must be a nonnegative integer, got {value}."
                 raise ValueError(msg)
             set_private(self, arg_name, value)
-
-    def _signal_handler(self, signum: int, frame: FrameType | None) -> None:  # noqa: ARG002
-        set_private(self, "_abort", value=True)
-
-    def _intermediate_cb(self, *args: Any) -> bool:  # noqa: ARG002
-        if self._abort:
-            set_private(self, "_abort", value=False)
-            return False
-        return True
 
 
 class Auxdata(SimpleNamespace):

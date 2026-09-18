@@ -125,17 +125,17 @@ def set_distinct_scales(problem: Any) -> None:
 
 
 def bounds_fields(problem: Any) -> dict[str, list[float]]:
-    ub, lb = get_nlp_decision_variable_bounds(problem)
-    gu, gl = get_nlp_constraint_function_bounds(problem)
+    ub, lb = get_nlp_decision_variable_bounds(problem._to_spec())
+    gu, gl = get_nlp_constraint_function_bounds(problem._to_spec())
     return {"lb": lb.tolist(), "ub": ub.tolist(), "gl": gl.tolist(), "gu": gu.tolist()}
 
 
 def solution_fields(problem: Any) -> dict[str, Any]:
     """Build a Solution from deterministic synthetic Ipopt output and flatten its arrays."""
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(problem.spectral_method)
-    z0 = make_initial_guess_nlp(problem, mesh)
-    nlp = NLP(problem, make_auto_functions(problem), mesh)
+    z0 = make_initial_guess_nlp(problem._to_spec(), mesh)
+    nlp = NLP(problem._to_spec(), make_auto_functions(problem._to_spec()), mesh)
     nz = len(z0)
     x = z0 + 0.01 * np.sin(1.0 + np.arange(nz))
     g = np.asarray(nlp.constraints(x), dtype=float)
@@ -149,7 +149,7 @@ def solution_fields(problem: Any) -> dict[str, Any]:
         "mult_x_U": 0.3 + 0.1 * np.cos(3.0 + np.arange(nz)) ** 2,
         "status": 0,
     }
-    solution = make_solution_object(problem, mesh, nlp, nlp_info)
+    solution = make_solution_object(problem._to_spec(), mesh, nlp, nlp_info)
 
     def flat(value: Any) -> Any:
         return np.asarray(value, dtype=float).tolist()
@@ -196,9 +196,9 @@ def evaluate_case(name: str, spectral_method: str) -> dict[str, Any]:
     scaled = build_problem(name, spectral_method)
     set_distinct_scales(scaled)
 
-    mesh = Mesh(example.mesh.phase)
+    mesh = Mesh(example._to_spec().phases)
     mesh.set_matrices(example.spectral_method)
-    obj_scale, z_scaling, c_scaling = get_nlp_scaling(scaled)
+    obj_scale, z_scaling, c_scaling = get_nlp_scaling(scaled._to_spec())
     return {
         "example_bounds": bounds_fields(example),
         "distinct_bounds": bounds_fields(distinct),
@@ -207,7 +207,7 @@ def evaluate_case(name: str, spectral_method: str) -> dict[str, Any]:
             "z": np.asarray(z_scaling).tolist(),
             "c": np.asarray(c_scaling).tolist(),
         },
-        "z0": {"z0": make_initial_guess_nlp(example, mesh).tolist()},
+        "z0": {"z0": make_initial_guess_nlp(example._to_spec(), mesh).tolist()},
         "solution": solution_fields(example),
     }
 

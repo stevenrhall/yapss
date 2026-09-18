@@ -57,13 +57,13 @@ if TYPE_CHECKING:
     # third-party imports
     from numpy.typing import NDArray
 
-    # local package imports
-    import yapss
-
+    from .spec import ProblemSpec
     from .types_ import CHS, CJS, DHS, DJS, OGS, OHS, CHSPhase, CJSPhase
 
+    # local package imports
 
-def make_auto_functions(problem: yapss.Problem) -> ProblemFunctions:
+
+def make_auto_functions(problem: ProblemSpec) -> ProblemFunctions:
     """Generate derivative callback functions using auto-differentiation.
 
     Use casadi auto-differentiation to make the callback functions and structures
@@ -71,7 +71,7 @@ def make_auto_functions(problem: yapss.Problem) -> ProblemFunctions:
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
 
     Returns
     -------
@@ -125,7 +125,7 @@ def make_auto_functions(problem: yapss.Problem) -> ProblemFunctions:
 
 
 def make_args(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
 ) -> tuple[ObjectiveArg[np.object_], DiscreteArg[np.object_], ContinuousStore[np.object_]]:
     """Make callback function arguments.
 
@@ -134,7 +134,7 @@ def make_args(
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
 
     Returns
     -------
@@ -170,7 +170,7 @@ def make_args(
 
 
 def make_discrete_derivatives(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     objective_arg: ObjectiveArg[np.object_],
     discrete_arg: DiscreteArg[np.object_],
 ) -> tuple[
@@ -189,7 +189,7 @@ def make_discrete_derivatives(
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
     objective_arg : ObjectiveArg
     discrete_arg : DiscreteArg
 
@@ -259,7 +259,7 @@ def make_discrete_derivatives(
     gradient = vertcat(*[gradient[0, i] for i in col])
     gradient_function = Function("gradient", [vertcat(*[item._value for item in sxqt])], [gradient])
 
-    if problem.derivatives.order == "second":
+    if problem.derivative_order == "second":
         # objective hessian
         casadi_objective_hessian = cd_hessian(
             objective_out._value,
@@ -302,7 +302,7 @@ def make_discrete_derivatives(
     jac = vertcat(*[jac[i, j] for i, j in rc])
     jacobian_function = Function("jacobian", [vertcat(*[item._value for item in sxqt])], [jac])
 
-    if problem.derivatives.order == "second":
+    if problem.derivative_order == "second":
         hessian = []
         dhs = []
 
@@ -375,7 +375,7 @@ def make_discrete_derivatives(
             for i, key in enumerate(discrete_jacobian_structure):
                 arg_dj.jacobian[key] = jacobian_[i, 0]
 
-    if problem.derivatives.order == "second":
+    if problem.derivative_order == "second":
 
         def objective_hessian(arg: ObjectiveHessianArg) -> None:
             """Objective Hessian callback function.
@@ -420,7 +420,7 @@ def make_discrete_derivatives(
 
 
 def make_continuous_derivatives(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     store: ContinuousStore[np.object_],
 ) -> tuple[
     ContinuousFunction | None,
@@ -433,7 +433,7 @@ def make_continuous_derivatives(
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
     store : ContinuousStore
 
     Returns
@@ -513,7 +513,7 @@ def make_continuous_derivatives(
         jacobian_functions.append(Function("jacobian", [sxut], [casadi_jacobian]))
 
         # hessian
-        if problem.derivatives.order == "second":
+        if problem.derivative_order == "second":
             casadi_hessian = []
             chs_i = []
 
@@ -555,7 +555,7 @@ def make_continuous_derivatives(
             for i, key in enumerate(cjs[q]):
                 continuous_arg.phase[q].jacobian[key] = jac[i]
 
-    if problem.derivatives.order == "second":
+    if problem.derivative_order == "second":
 
         def continuous_hessian(continuous_arg: ContinuousHessianArg) -> None:
             """Continuous Hessian callback function."""
@@ -576,7 +576,7 @@ def make_continuous_derivatives(
 
 
 def make_sxqt(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     arg: (
         ObjectiveArg[np.float64]
         | ObjectiveGradientArg
@@ -592,7 +592,7 @@ def make_sxqt(
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
     arg : Union[ObjectiveArg, DiscreteArg]
 
     Returns
@@ -625,7 +625,7 @@ def make_sxqt(
 
 
 def make_sxut(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
     arg: _ContinuousArgBase[np.float64],
 ) -> dict[int, NDArray[np.float64]]:
     """Make numpy array argument for casadi continuous functions.
@@ -634,7 +634,7 @@ def make_sxut(
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
     arg : ContinuousArg
 
     Returns

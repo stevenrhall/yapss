@@ -332,14 +332,14 @@ def test_initial_guess_nlp_state_is_in_time_order(spectral_method):
     problem.guess.phase[0].state = np.array([[0.0, 1.0]])
     problem.guess.validate()
 
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(spectral_method)
-    z0 = make_initial_guess_nlp(problem, mesh)
-    dv = get_nlp_dv_structure(problem, np.float64)
+    z0 = make_initial_guess_nlp(problem._to_spec(), mesh)
+    dv = get_nlp_dv_structure(problem._to_spec(), np.float64)
     dv.z[:] = z0
 
     phase = dv.phase[0]
-    x = phase.x[0][problem_layout(problem)[0].time_order]
+    x = phase.x[0][problem_layout(problem._to_spec())[0].time_order]
     t_x = (mesh.tau_x[0] + 1) / 2
     np.testing.assert_allclose(x, t_x, atol=1e-14)
     assert phase.x0[0] == 0.0

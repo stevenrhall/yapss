@@ -118,7 +118,7 @@ def test_initial_and_final_state_are_the_endpoint_variables(spectral_method: str
         mesh_phase.fraction = (0.3, 0.3, 0.4)
     solution = problem.solve()
 
-    dv = get_nlp_dv_structure(solution.problem, float)
+    dv = get_nlp_dv_structure(solution.problem._to_spec(), float)
     dv.z[:] = solution.nlp_info.x
     for p, phase in enumerate(solution.phase):
         nx = problem.nx[p]

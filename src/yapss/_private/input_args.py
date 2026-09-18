@@ -26,13 +26,13 @@ from .outputs import Output, OutputArray
 from .types_ import Protected, set_private
 
 if TYPE_CHECKING:
+    from .spec import ProblemSpec
     from collections.abc import Sequence
 
     # third party imports
     from numpy.typing import NDArray
 
     # package imports
-    import yapss
 
     from .problem import Auxdata
     from .structure import DVPhase, DVStructure
@@ -222,7 +222,7 @@ class BaseArg(Generic[T]):
     def _reset(self) -> None:
         """Clear whatever the callback assigns."""
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
+    def __init__(self, problem: ProblemSpec, dv: DVStructure[T], dtype: type[T]) -> None:
         self.auxdata = problem.auxdata
         self._dv: DVStructure[T] = dv
         self._parameter: NDArray[T] = read_only(dv.s)
@@ -248,7 +248,7 @@ class DiscreteArgBase(BaseArg[T], Generic[T]):
         A structure for decision variables.
     """
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
+    def __init__(self, problem: ProblemSpec, dv: DVStructure[T], dtype: type[T]) -> None:
         super().__init__(problem, dv, dtype)
         # _phase is a tuple of DiscretePhase instances, assuming they are not parameterized by T
         self._phase: tuple[DiscretePhase[T], ...] = tuple(DiscretePhase(p, dtype) for p in dv.phase)
@@ -327,7 +327,7 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
     _callback = "objective"
     _results_in = "arg.objective = ..."
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
+    def __init__(self, problem: ProblemSpec, dv: DVStructure[T], dtype: type[T]) -> None:
         # Initialize the DiscreteArgBase with problem and dv
         DiscreteArgBase.__init__(self, problem, dv, dtype)
         # the objective starts at zero and unassigned
@@ -389,7 +389,7 @@ class ObjectiveGradientArg(DiscreteArgBase[np.float64], Protected):
         """Empty the gradient entries."""
         self.gradient.clear()
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
+    def __init__(self, problem: ProblemSpec, dv: DVStructure[np.float64]) -> None:
         # Initialize the base class with the provided problem and dv
         DiscreteArgBase.__init__(self, problem, dv, np.float64)
         # Initialize the gradient dictionary with the specific type T for values
@@ -423,7 +423,7 @@ class ObjectiveHessianArg(DiscreteArgBase[np.float64], Protected):
         """Empty the Hessian entries."""
         self.hessian.clear()
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
+    def __init__(self, problem: ProblemSpec, dv: DVStructure[np.float64]) -> None:
         # Initialize the base class with the provided problem and dv
         DiscreteArgBase.__init__(self, problem, dv, np.float64)
         # Initialize hessian as an empty dictionary with values of type T
@@ -435,7 +435,7 @@ class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The optimal control problem object.
     dv : DVStructure
         Decision variable structure.
@@ -455,7 +455,7 @@ class DiscreteArg(DiscreteArgBase[T], Protected, Generic[T]):
         """Return every discrete constraint value to zero and unassigned."""
         self._discrete.reset()
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[T], dtype: type[T]) -> None:
+    def __init__(self, problem: ProblemSpec, dv: DVStructure[T], dtype: type[T]) -> None:
         super().__init__(problem, dv, dtype)
         # the discrete constraint values, assigned by whole rows (one value each)
         self._discrete: OutputArray[T] = OutputArray.zeros(
@@ -484,7 +484,7 @@ class DiscreteJacobianArg(DiscreteArgBase[np.float64], Protected):
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The optimal control problem object.
     dv : DVStructure
         Decision variable structure.
@@ -507,7 +507,7 @@ class DiscreteJacobianArg(DiscreteArgBase[np.float64], Protected):
         """Empty the Jacobian entries."""
         self.jacobian.clear()
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
+    def __init__(self, problem: ProblemSpec, dv: DVStructure[np.float64]) -> None:
         # Initialize the superclass with problem and dv
         super().__init__(problem, dv, np.float64)
         # Initialize jacobian as an empty dictionary with values of type T
@@ -520,7 +520,7 @@ class DiscreteHessianArg(DiscreteArgBase[np.float64], Protected):
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The optimal control problem object.
     dv : DVStructure
         Decision variable structure.
@@ -543,7 +543,7 @@ class DiscreteHessianArg(DiscreteArgBase[np.float64], Protected):
         """Empty the Hessian entries."""
         self.hessian.clear()
 
-    def __init__(self, problem: yapss.Problem, dv: DVStructure[np.float64]) -> None:
+    def __init__(self, problem: ProblemSpec, dv: DVStructure[np.float64]) -> None:
         # Initialize the superclass with problem and dv
         super().__init__(problem, dv, np.float64)
         # Initialize hessian as an empty dictionary with values of type T
@@ -556,7 +556,7 @@ class ContinuousStore(BaseArg[T], Generic[T]):
 
     Parameters
     ----------
-    problem : Problem
+    problem : ProblemSpec
         The optimal control problem object.
     dv : DVStructure
         Decision variable structure.
@@ -573,7 +573,7 @@ class ContinuousStore(BaseArg[T], Generic[T]):
 
     def __init__(
         self,
-        problem: yapss.Problem,
+        problem: ProblemSpec,
         dv: DVStructure[T],
         dtype: type[T],
         *,
@@ -719,7 +719,7 @@ class ContinuousPhaseData(Generic[T]):
 
     def __init__(
         self,
-        problem: yapss.Problem,
+        problem: ProblemSpec,
         dv: SimpleNamespace,
         q: int,
         dtype: type[T],

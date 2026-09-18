@@ -33,7 +33,6 @@ from .nlp import NLP
 from .setup_check import check_callbacks, check_derivatives
 from .solution import Solution, make_solution_object
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
-from .types_ import set_private
 from .user import make_user_functions
 
 # In a Conda environment CasADi, and so YAPSS, uses conda-forge's Ipopt package, which
@@ -48,12 +47,11 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    import yapss
-
     from .input_args import ProblemFunctions
+    from .spec import ProblemSpec
 
 
-def solve(problem: yapss.Problem) -> Solution:
+def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     """Create the nonlinear program (NLP) from the user input and solve.
 
     This function does **not** warn when Ipopt fails to converge. The caller is
@@ -76,22 +74,21 @@ def solve(problem: yapss.Problem) -> Solution:
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : ProblemSpec
 
     Returns
     -------
     Solution
     """
-    problem.validate()
     # TODO: Move line below to nlpy.py
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem.phases)
     mesh.set_matrices(problem.spectral_method)
 
     # need initial guess to get the derivative structure when using methods "user" and
     # "central-difference"
     z0 = make_initial_guess_nlp(problem, mesh)
 
-    method = problem.derivatives.method
+    method = problem.derivative_method
     functions: ProblemFunctions
     match method:
         case "user":
@@ -103,7 +100,22 @@ def solve(problem: yapss.Problem) -> Solution:
         case _:
             assert_never(method)
     nlp_temp = NLP(problem, functions, mesh)
-    nlp_temp.intermediate = problem._intermediate_cb
+    # Ctrl-C asks Ipopt to stop at the next iteration rather than interrupting Python inside
+    # the solver. The flag is state of *this solve*, so it lives here rather than on whatever
+    # object the problem came from.
+    aborted = [False]
+
+    def signal_handler(signum: int, frame: object) -> None:  # noqa: ARG001
+        aborted[0] = True
+
+    def intermediate(*args: Any) -> bool:
+        if aborted[0]:
+            aborted[0] = False
+            return False
+        user_callback = problem.intermediate_callback
+        return True if user_callback is None else bool(user_callback(*args))
+
+    nlp_temp.intermediate = intermediate
 
     # Check the callbacks (unassigned rows, non-finite values, pointwise), then the NLP's
     # first derivatives, before Ipopt can pass a non-finite Jacobian to its linear solver.
@@ -138,7 +150,7 @@ def solve(problem: yapss.Problem) -> Solution:
     ipopt_problem.set_intermediate_callback(nlp_temp.intermediate)
 
     # apply user ipopt options
-    for name, value in problem.ipopt_options.get_options().items():
+    for name, value in problem.ipopt_options.items():
         try:
             ipopt_problem.add_option(name, value)
         except (ValueError, TypeError) as e:
@@ -153,7 +165,7 @@ def solve(problem: yapss.Problem) -> Solution:
             # as warn_if_not_converged does
             warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=3)
 
-    if "timing_statistics" not in problem.ipopt_options.get_options():
+    if "timing_statistics" not in problem.ipopt_options:
         with contextlib.suppress(ValueError, TypeError):
             ipopt_problem.add_option("timing_statistics", "yes")
 
@@ -169,7 +181,7 @@ def solve(problem: yapss.Problem) -> Solution:
     # -- not in Conda, where Ipopt is the user's own package. This must precede the
     # `mumps_pivot_order` block below, which is meaningful only once MUMPS is the
     # solver in use.
-    if not _IN_CONDA and "linear_solver" not in problem.ipopt_options.get_options():
+    if not _IN_CONDA and "linear_solver" not in problem.ipopt_options:
         with contextlib.suppress(ValueError, TypeError):
             ipopt_problem.add_option("linear_solver", "mumps")
 
@@ -189,12 +201,12 @@ def solve(problem: yapss.Problem) -> Solution:
     if (
         sys.platform == "darwin"
         and not _IN_CONDA
-        and "mumps_pivot_order" not in problem.ipopt_options.get_options()
+        and "mumps_pivot_order" not in problem.ipopt_options
     ):
         with contextlib.suppress(ValueError, TypeError):
             ipopt_problem.add_option("mumps_pivot_order", 6)
 
-    if problem.derivatives.order == "first":
+    if problem.derivative_order == "first":
         ipopt_problem.add_option("hessian_approximation", "limited-memory")
 
     # set NLP scaling
@@ -228,12 +240,12 @@ def solve(problem: yapss.Problem) -> Solution:
             and threading.current_thread() is threading.main_thread()
         )
         if catch_interrupt:
-            original_handler = signal.signal(signal.SIGINT, problem._signal_handler)
+            original_handler = signal.signal(signal.SIGINT, signal_handler)
             try:
                 z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0)
             finally:
                 signal.signal(signal.SIGINT, original_handler)
-                set_private(problem, "_abort", value=False)
+                aborted[0] = False
         else:
             z, nlp_info = _solve_ipopt_problem(ipopt_problem, z0)
     finally:
@@ -245,17 +257,17 @@ def solve(problem: yapss.Problem) -> Solution:
     # solves (mesh refinement) raises too; the convergence warning is for the public boundary.
     nlp_info["status"] = status_or_raise(nlp_info["status"])
     nlp_info["x"] = z
-    return make_solution_object(problem, mesh, nlp_temp, nlp_info)
+    return make_solution_object(problem, mesh, nlp_temp, nlp_info, origin)
 
 
 def get_nlp_scaling(
-    problem: yapss.Problem,
+    problem: ProblemSpec,
 ) -> tuple[float, NDArray[np.float64], NDArray[np.float64]]:
     """Convert optimal control problem scaling to NLP scaling.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : ProblemSpec
         User-defined optimal control problem, including scaling factors for the
         problem variables and constraints.
 
@@ -270,42 +282,42 @@ def get_nlp_scaling(
     """
     # objective
     sense_sign = -1.0 if problem.sense == "maximize" else 1.0
-    obj_scale = sense_sign / problem.scale.objective
+    obj_scale = sense_sign / problem.objective_scale
 
     # decision variables
     dv: DVStructure[np.float64] = get_nlp_dv_structure(problem, float)
     dv.z[:] = 1.0
 
     for p in range(problem.np):
-        phase = problem.scale.phase[p]
+        phase = problem.phases[p]
         for i in range(problem.nx[p]):
             # every stored value of a state, zero modes (LGL) included, has its scale
-            dv.phase[p].xa[i][:] = 1.0 / phase.state[i]
+            dv.phase[p].xa[i][:] = 1.0 / phase.state_scale[i]
         for i in range(problem.nu[p]):
-            dv.phase[p].u[i][:] = 1.0 / phase.control[i]
+            dv.phase[p].u[i][:] = 1.0 / phase.control_scale[i]
         for i in range(problem.nq[p]):
-            dv.phase[p].q[i] = 1.0 / phase.integral[i]
-        dv.phase[p].t0[:] = 1.0 / phase.time
-        dv.phase[p].tf[:] = 1.0 / phase.time
+            dv.phase[p].q[i] = 1.0 / phase.integral_scale[i]
+        dv.phase[p].t0[:] = 1.0 / phase.time_scale
+        dv.phase[p].tf[:] = 1.0 / phase.time_scale
 
-    dv.s[:] = 1.0 / problem.scale.parameter
+    dv.s[:] = 1.0 / problem.parameter_scale
 
     # constraints
     cf: CFStructure[np.float64] = get_nlp_cf_structure(problem, np.float64)
     cf.c[:] = 1.0
 
     for p in range(problem.np):
-        phase = problem.scale.phase[p]
+        phase = problem.phases[p]
         for i in range(problem.nx[p]):
-            cf.phase[p].defect[i][:] = 1.0 / phase.dynamics[i]
-            cf.phase[p].lg_defect[i][:] = 1.0 / phase.state[i]  # empty unless LG
+            cf.phase[p].defect[i][:] = 1.0 / phase.dynamics_scale[i]
+            cf.phase[p].lg_defect[i][:] = 1.0 / phase.state_scale[i]  # empty unless LG
         for i in range(problem.nq[p]):
-            cf.phase[p].integral[i] = 1.0 / phase.integral[i]
+            cf.phase[p].integral[i] = 1.0 / phase.integral_scale[i]
         for i in range(problem.nh[p]):
-            cf.phase[p].path[i][:] = 1.0 / phase.path[i]
-        cf.phase[p].duration[0] = 1.0 / phase.time
+            cf.phase[p].path[i][:] = 1.0 / phase.path_scale[i]
+        cf.phase[p].duration[0] = 1.0 / phase.time_scale
 
-    cf.discrete[:] = 1.0 / problem.scale.discrete
+    cf.discrete[:] = 1.0 / problem.discrete_scale
 
     z_scaling = dv.z
     c_scaling = cf.c

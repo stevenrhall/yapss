@@ -185,7 +185,7 @@ def test_accepted_forms_reach_the_nlp_bounds():
     vb.final_time.upper = np.int64(5)
 
     for getter in (get_nlp_decision_variable_bounds, get_nlp_constraint_function_bounds):
-        for a, b in zip(getter(plain), getter(varied), strict=True):
+        for a, b in zip(getter(plain._to_spec()), getter(varied._to_spec()), strict=True):
             assert a.dtype == b.dtype == np.float64
             np.testing.assert_array_equal(a, b)
 

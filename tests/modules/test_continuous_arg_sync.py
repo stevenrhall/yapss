@@ -15,17 +15,17 @@ def test_sync_updates_decision_variables_and_time(spectral_method: str) -> None:
     """Synchronizing z must update every numeric continuous input coherently."""
     problem = Problem(name="sync-test", nx=[1], nu=[1])
     problem.spectral_method = spectral_method
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(spectral_method)
 
-    source = get_nlp_dv_structure(problem, np.float64)
+    source = get_nlp_dv_structure(problem._to_spec(), np.float64)
     source.phase[0].t0[:] = 2.0
     source.phase[0].tf[:] = 5.0
     source.phase[0].xc[0][:] = 3.0
     source.phase[0].u[0][:] = 4.0
 
-    target = get_nlp_dv_structure(problem, np.float64)
-    store = ContinuousStore(problem, target, dtype=np.float64, tau_u=mesh.tau_u)
+    target = get_nlp_dv_structure(problem._to_spec(), np.float64)
+    store = ContinuousStore(problem._to_spec(), target, dtype=np.float64, tau_u=mesh.tau_u)
     store._sync(source.z)
 
     expected_time = mesh.tau_u[0] * 1.5 + 3.5
@@ -39,7 +39,7 @@ def test_nan_structure_discovery_uses_initial_guess_time() -> None:
     """NaN sparsity discovery must evaluate the physical initial-guess time vector."""
     problem = Problem(name="time-dependent-structure", nx=[1], nu=[0], nq=[0], nh=[0])
     problem.spectral_method = "lgr"
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(problem.spectral_method)
 
     def continuous(arg: ContinuousArg[np.float64]) -> None:
@@ -49,12 +49,12 @@ def test_nan_structure_discovery_uses_initial_guess_time() -> None:
             arg.phase[p].dynamics[:] = np.where(time > 0.0, state, 0.0)
 
     problem.functions.continuous = continuous
-    dv = get_nlp_dv_structure(problem, np.float64)
+    dv = get_nlp_dv_structure(problem._to_spec(), np.float64)
     dv.phase[0].t0[:] = 1.0
     dv.phase[0].tf[:] = 2.0
     dv.phase[0].xc[0][:] = 3.0
 
-    structure = get_continuous_jacobian_structure_nan(problem, dv.z.copy(), mesh.tau_u)
+    structure = get_continuous_jacobian_structure_nan(problem._to_spec(), dv.z.copy(), mesh.tau_u)
 
     assert structure == (((("f", 0), ("x", 0)),),)
 
@@ -70,7 +70,7 @@ def test_nan_probe_sees_dependency_through_where() -> None:
 
     problem = Problem(name="where-structure", nx=[1], nu=[1], nq=[0], nh=[0])
     problem.spectral_method = "lgr"
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(problem.spectral_method)
 
     def continuous(arg: ContinuousArg[np.float64]) -> None:
@@ -79,12 +79,12 @@ def test_nan_probe_sees_dependency_through_where() -> None:
             arg.phase[p].dynamics[:] = ym.where(u > 0, u, 0.0)
 
     problem.functions.continuous = continuous
-    dv = get_nlp_dv_structure(problem, np.float64)
+    dv = get_nlp_dv_structure(problem._to_spec(), np.float64)
     dv.phase[0].t0[:] = 0.0
     dv.phase[0].tf[:] = 1.0
     dv.phase[0].u[0][:] = -1.0  # the constant branch is selected everywhere
 
-    structure = get_continuous_jacobian_structure_nan(problem, dv.z.copy(), mesh.tau_u)
+    structure = get_continuous_jacobian_structure_nan(problem._to_spec(), dv.z.copy(), mesh.tau_u)
 
     assert (("f", 0), ("u", 0)) in structure[0]
 
@@ -99,10 +99,10 @@ def test_time_is_not_assignable() -> None:
     problem = Problem(name="time", nx=[1], nu=[1])
     problem.mesh.phase[0].collocation_points = [3]
     problem.mesh.phase[0].fraction = [1.0]
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(problem.spectral_method)
-    dv = get_nlp_dv_structure(problem, np.float64)
-    store = ContinuousStore(problem, dv, dtype=np.float64, tau_u=mesh.tau_u)
+    dv = get_nlp_dv_structure(problem._to_spec(), np.float64)
+    store = ContinuousStore(problem._to_spec(), dv, dtype=np.float64, tau_u=mesh.tau_u)
     with pytest.raises(AttributeError, match="time"):
         store.value_arg.phase[0].time = np.zeros(3)
 
@@ -115,7 +115,7 @@ def test_symbolic_time_is_built_in_place() -> None:
     problem = Problem(name="time", nx=[1], nu=[1])
     problem.mesh.phase[0].collocation_points = [3]
     problem.mesh.phase[0].fraction = [1.0]
-    _, _, continuous_arg = make_args(problem)
+    _, _, continuous_arg = make_args(problem._to_spec())
     time = continuous_arg.phase[0].time
     assert isinstance(time, SXArray)
     assert isinstance(time <= 0.5, SXArray), "comparison on symbolic time must stay symbolic"
@@ -129,9 +129,9 @@ def _goddard_point(spectral_method: str):
     problem = goddard_problem_3_phase.setup()
     problem.spectral_method = spectral_method
     problem.validate()
-    mesh = Mesh(problem.mesh.phase)
+    mesh = Mesh(problem._to_spec().phases)
     mesh.set_matrices(spectral_method)
-    z0 = make_initial_guess_nlp(problem, mesh)
+    z0 = make_initial_guess_nlp(problem._to_spec(), mesh)
     rng = np.random.default_rng(0)
     return problem, mesh, z0 * (1 + 1e-3 * rng.standard_normal(z0.size))
 
@@ -152,11 +152,14 @@ def test_a_node_subset_presents_the_selected_points_in_the_given_order(
     problem, mesh, z = _goddard_point(spectral_method)
     nodes = [np.arange(1, len(tau) - 1)[::-1] for tau in mesh.tau_u]
     full = ContinuousStore(
-        problem, get_nlp_dv_structure(problem, np.float64), np.float64, tau_u=mesh.tau_u
+        problem._to_spec(),
+        get_nlp_dv_structure(problem._to_spec(), np.float64),
+        np.float64,
+        tau_u=mesh.tau_u,
     )
     subset = ContinuousStore(
-        problem,
-        get_nlp_dv_structure(problem, np.float64),
+        problem._to_spec(),
+        get_nlp_dv_structure(problem._to_spec(), np.float64),
         np.float64,
         tau_u=mesh.tau_u,
         nodes=nodes,
@@ -183,15 +186,15 @@ def test_sync_refreshes_the_inputs_of_a_node_subset() -> None:
     problem, mesh, z = _goddard_point("lgr")
     nodes = [np.array([3, 1]) for _ in mesh.tau_u]
     store = ContinuousStore(
-        problem,
-        get_nlp_dv_structure(problem, np.float64),
+        problem._to_spec(),
+        get_nlp_dv_structure(problem._to_spec(), np.float64),
         np.float64,
         tau_u=mesh.tau_u,
         nodes=nodes,
     )
     store._sync(z)
     store._sync(2 * z)
-    doubled = get_nlp_dv_structure(problem, np.float64)
+    doubled = get_nlp_dv_structure(problem._to_spec(), np.float64)
     doubled.z[:] = 2 * z
     np.testing.assert_array_equal(store.phase[1].state[2], doubled.phase[1].xc[2][[3, 1]])
     np.testing.assert_array_equal(store.phase[1].control[0], doubled.phase[1].u[0][[3, 1]])
@@ -201,16 +204,16 @@ def test_nodes_are_for_numeric_arguments_with_one_array_per_phase() -> None:
     problem, mesh, _ = _goddard_point("lgr")
     with pytest.raises(ValueError, match="one array per phase"):
         ContinuousStore(
-            problem,
-            get_nlp_dv_structure(problem, np.float64),
+            problem._to_spec(),
+            get_nlp_dv_structure(problem._to_spec(), np.float64),
             np.float64,
             tau_u=mesh.tau_u,
             nodes=[np.array([1])],
         )
     with pytest.raises(ValueError, match="numeric ContinuousStore instances only"):
         ContinuousStore(
-            problem,
-            get_nlp_dv_structure(problem, np.object_),
+            problem._to_spec(),
+            get_nlp_dv_structure(problem._to_spec(), np.object_),
             np.object_,
             nodes=[np.array([1])] * problem.np,
         )

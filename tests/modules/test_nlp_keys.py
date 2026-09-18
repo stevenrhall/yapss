@@ -54,8 +54,8 @@ def lookup(structure, extra, p, view, i):
 @pytest.mark.parametrize("method", SPECTRAL_METHODS)
 def test_every_variable_key_names_its_own_entry(method):
     ocp = problem(method)
-    keys = nlp_variable_keys(ocp)
-    dv = get_nlp_dv_structure(ocp, np.int64)
+    keys = nlp_variable_keys(ocp._to_spec())
+    dv = get_nlp_dv_structure(ocp._to_spec(), np.int64)
     dv.z[:] = np.arange(dv.z.size)
     assert keys.shape == dv.z.shape
     for k, (p, view, i, j) in enumerate(keys):
@@ -68,8 +68,8 @@ def test_every_variable_key_names_its_own_entry(method):
 @pytest.mark.parametrize("method", SPECTRAL_METHODS)
 def test_every_constraint_key_names_its_own_entry(method):
     ocp = problem(method)
-    keys = nlp_constraint_keys(ocp)
-    cf = get_nlp_cf_structure(ocp, np.int64)
+    keys = nlp_constraint_keys(ocp._to_spec())
+    cf = get_nlp_cf_structure(ocp._to_spec(), np.int64)
     cf.c[:] = np.arange(cf.c.size)
     assert keys.shape == cf.c.shape
     for k, (p, view, i, j) in enumerate(keys):
@@ -83,9 +83,9 @@ def test_every_constraint_key_names_its_own_entry(method):
 def test_aliased_state_views_read_the_state_key_at_its_storage_position(method):
     """x0 and xf are aliases into x, and a position is a storage position, not a time index."""
     ocp = problem(method)
-    dv = get_nlp_dv_structure(ocp, object)
-    dv.z[:] = nlp_variable_keys(ocp)
-    for p, layout in enumerate(problem_layout(ocp)):
+    dv = get_nlp_dv_structure(ocp._to_spec(), object)
+    dv.z[:] = nlp_variable_keys(ocp._to_spec())
+    for p, layout in enumerate(problem_layout(ocp._to_spec())):
         for i in range(ocp.nx[p]):
             assert dv.phase[p].x0[i] == (p, "x", i, layout.x0_position)
             assert dv.phase[p].xf[i] == (p, "x", i, layout.xf_position)
@@ -93,5 +93,5 @@ def test_aliased_state_views_read_the_state_key_at_its_storage_position(method):
 
 def test_a_problem_without_phases_keys_parameters_and_discretes_with_phase_0():
     ocp = Problem(name="no phases", nx=[], nu=[], ns=2, nd=1)
-    assert nlp_variable_keys(ocp).tolist() == [(0, "s", 0, 0), (0, "s", 1, 0)]
-    assert nlp_constraint_keys(ocp).tolist() == [(0, "discrete", 0, 0)]
+    assert nlp_variable_keys(ocp._to_spec()).tolist() == [(0, "s", 0, 0), (0, "s", 1, 0)]
+    assert nlp_constraint_keys(ocp._to_spec()).tolist() == [(0, "discrete", 0, 0)]

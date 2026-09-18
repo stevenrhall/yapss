@@ -121,7 +121,7 @@ def make_nlp_hessian(
 
     objective_input = ObjectiveHessianArg(problem, dv)
     discrete_input = DiscreteHessianArg(problem, dv)
-    if problem.derivatives.method == "user":
+    if problem.derivative_method == "user":
         require_keys(objective_input, functions.objective_hessian_structure)
         require_keys(discrete_input, functions.discrete_hessian_structure)
     twins = index_twins(problem)

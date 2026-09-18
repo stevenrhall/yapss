@@ -49,8 +49,9 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
+    from .spec import ProblemSpec
+
     # package imports
-    import yapss
 
 __all__ = ["SPECTRAL_METHODS", "PhaseLayout", "phase_layout", "problem_layout"]
 
@@ -184,9 +185,8 @@ def phase_layout(method: SpectralMethod, collocation_points: Sequence[int]) -> P
     return _cached_layout(method, tuple(int(m) for m in collocation_points))
 
 
-def problem_layout(problem: yapss.Problem) -> tuple[PhaseLayout, ...]:
+def problem_layout(problem: ProblemSpec) -> tuple[PhaseLayout, ...]:
     """Return the layout of every phase of `problem`, for its current mesh and method."""
     return tuple(
-        phase_layout(problem.spectral_method, mesh_phase.collocation_points)
-        for mesh_phase in problem.mesh.phase
+        phase_layout(problem.spectral_method, phase.collocation_points) for phase in problem.phases
     )

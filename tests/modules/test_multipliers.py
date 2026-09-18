@@ -101,11 +101,11 @@ def test_zero_duration_phase_multipliers_are_nan_whatever_ipopt_returns(monkeypa
 
     make_solution_object = solver.make_solution_object
 
-    def nonzero_multipliers(problem, mesh, nlp, nlp_info):
+    def nonzero_multipliers(problem, mesh, nlp, nlp_info, origin=None):
         for key in ("mult_g", "mult_x_L", "mult_x_U"):
             nlp_info[key] = np.linspace(0.5, 1.5, len(nlp_info[key]))
         nlp_info["mult_x_U"] = -nlp_info["mult_x_U"]
-        return make_solution_object(problem, mesh, nlp, nlp_info)
+        return make_solution_object(problem, mesh, nlp, nlp_info, origin)
 
     monkeypatch.setattr(solver, "make_solution_object", nonzero_multipliers)
     problem = _setup(1.0, as_path=True)
@@ -263,7 +263,7 @@ def test_multipliers_do_not_depend_on_problem_scaling(spectral_method: str) -> N
 def _integrate(solution: yapss.Solution, density: np.ndarray) -> float:
     """Integrate a reported density over phase 0: sum_k h w_k mu_k."""
     phase = solution.phase[0]
-    mesh = Mesh(solution.problem.mesh.phase)
+    mesh = Mesh(solution.problem._to_spec().phases)
     mesh.set_matrices(solution.problem.spectral_method)
     half_duration = (phase.final_time - phase.initial_time) / 2
     return float(half_duration * (np.asarray(mesh.w[0]) * np.asarray(density)).sum())
