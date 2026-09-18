@@ -43,6 +43,8 @@ if TYPE_CHECKING:
 __all__ = [
     "ContinuousHessian",
     "ContinuousJacobian",
+    "DiscreteHessian",
+    "DiscreteJacobian",
     "EndpointColumns",
     "ObjectiveGradient",
     "ObjectiveHessian",
@@ -173,9 +175,21 @@ class EndpointColumns:
         Each parameter name, mapped to its column key.
     """
 
-    __slots__ = ("example", "parameter", "parameter_blocked", "phases")
+    __slots__ = (
+        "discrete",
+        "discrete_blocked",
+        "example",
+        "parameter",
+        "parameter_blocked",
+        "phases",
+    )
 
-    def __init__(self, phases: tuple[PhaseSpec, ...], parameter: type[Vector]) -> None:
+    def __init__(
+        self,
+        phases: tuple[PhaseSpec, ...],
+        parameter: type[Vector],
+        discrete: type[Vector] | None = None,
+    ) -> None:
         self.phases: dict[Any, PhaseEndpointNames] = {
             phase.handle: PhaseEndpointNames(phase) for phase in phases
         }
@@ -184,6 +198,8 @@ class EndpointColumns:
             name: (0, _PARAMETER, row) for name, row in parameter._single.items()
         }
         self.parameter_blocked = tuple(parameter._block)
+        self.discrete: dict[str, int] = dict(discrete._single) if discrete is not None else {}
+        self.discrete_blocked = tuple(discrete._block) if discrete is not None else ()
 
     def lookup(self, handle: Any, spelling: str) -> PhaseEndpointNames:
         """Return the endpoint namespace `handle` names, or refuse what is not a handle."""
@@ -197,7 +213,11 @@ class EndpointColumns:
             raise KeyError(msg) from None
 
 
-def endpoint_columns(phases: tuple[PhaseSpec, ...], parameter: type[Vector]) -> EndpointColumns:
+def endpoint_columns(
+    phases: tuple[PhaseSpec, ...],
+    parameter: type[Vector],
+    discrete: type[Vector] | None = None,
+) -> EndpointColumns:
     """Return the namespace the endpoint derivative callbacks write in.
 
     Parameters
@@ -206,13 +226,16 @@ def endpoint_columns(phases: tuple[PhaseSpec, ...], parameter: type[Vector]) -> 
         The problem's phases, in declaration order.
     parameter : type[Vector]
         The problem's parameter declaration.
+    discrete : type[Vector], optional
+        The discrete constraint declaration, whose fields are the rows a discrete derivative
+        is written against. The objective's derivatives need none.
 
     Returns
     -------
     EndpointColumns
         The namespace.
     """
-    return EndpointColumns(phases, parameter)
+    return EndpointColumns(phases, parameter, discrete)
 
 
 # ------------------------------------------------------------------------------ the store
@@ -549,15 +572,50 @@ class _Context:
     `mode` is ``"first"`` while a second variable is still expected and ``"only"`` once the
     next name ends the derivative, which is what tells a gradient's nodes from a Hessian's
     and a Hessian's first half from its second.
+
+    `prefix` is what the key is built on. The objective has one derivative, so nothing goes in
+    front of the variables; a discrete constraint has one per group row, so its row does. That
+    is the only difference between the two, which is why one set of nodes serves both.
     """
 
-    __slots__ = ("columns", "mode", "store", "what")
+    __slots__ = ("columns", "mode", "prefix", "store", "what")
 
-    def __init__(self, store: Structure, columns: EndpointColumns, what: str, mode: str) -> None:
+    def __init__(
+        self,
+        store: Structure,
+        columns: EndpointColumns,
+        what: str,
+        mode: str,
+        prefix: tuple[Any, ...] = (),
+    ) -> None:
         self.store = store
         self.columns = columns
         self.what = what
         self.mode = mode
+        self.prefix = prefix
+
+    def at(self, prefix: tuple[Any, ...], what: str) -> _Context:
+        """Return the same context scoped to one output row."""
+        return _Context(self.store, self.columns, what, self.mode, prefix)
+
+    def ending(self) -> _Context:
+        """Return the same context with the next name ending the derivative."""
+        return _Context(self.store, self.columns, self.what, "only", self.prefix)
+
+    def key(self, *variables: Any) -> Any:
+        """Return the transcription's key for a derivative by `variables` at this row.
+
+        The back end spells a *lone* decision-variable key bare rather than wrapped, so an
+        objective gradient is keyed `(0, "tf", 0)` where a discrete Jacobian is keyed
+        `(row, (0, "tf", 0))`. That irregularity is confined here.
+        """
+        if self.prefix:
+            return (*self.prefix, *variables)
+        return variables[0] if len(variables) == 1 else variables
+
+    def canonical(self, first: Any, second: Any) -> Any:
+        """Return the order-free key of one unordered pair, for the mirrored-pair check."""
+        return (*self.prefix, *sorted((first, second)))
 
 
 class _EndpointEnd:
@@ -607,9 +665,11 @@ class _EndpointEnd:
         key = self._key(name, spelling)
         first = object.__getattribute__(self, "_first")
         if first is None:
-            context.store.store(key, spelling, value)
+            context.store.store(context.key(key), spelling, value)
         else:
-            context.store.store_pair((first, key), tuple(sorted((first, key))), spelling, value)
+            context.store.store_pair(
+                context.key(first, key), context.canonical(first, key), spelling, value
+            )
 
     def __getattr__(self, name: str) -> Any:
         """Return the node awaiting the second variable, when one is expected."""
@@ -683,9 +743,11 @@ class _FirstNamed:
         spelling: str = object.__getattribute__(self, "_spelling")
         phase = context.columns.lookup(handle, spelling)
         # the second variable ends the derivative, whatever mode the first was reached in
-        ending = _Context(context.store, context.columns, context.what, "only")
         return _Endpoint(
-            ending, phase, f"{spelling}[{phase.name}]", object.__getattribute__(self, "_first")
+            context.ending(),
+            phase,
+            f"{spelling}[{phase.name}]",
+            object.__getattribute__(self, "_first"),
         )
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -694,7 +756,9 @@ class _FirstNamed:
         spelling = f"{object.__getattribute__(self, '_spelling')}.{name}"
         key = _parameter(name, context.columns, spelling, context.what)
         first = object.__getattribute__(self, "_first")
-        context.store.store_pair((first, key), tuple(sorted((first, key))), spelling, value)
+        context.store.store_pair(
+            context.key(first, key), context.canonical(first, key), spelling, value
+        )
 
     def __getattr__(self, name: str) -> Any:
         """Refuse a bare name: the second variable is reached through its phase."""
@@ -732,6 +796,13 @@ class _EndpointTarget:
     def __init__(self, store: Structure, columns: EndpointColumns, what: str, mode: str) -> None:
         object.__setattr__(self, "_context", _Context(store, columns, what, mode))
 
+    @classmethod
+    def _over(cls, context: _Context) -> _EndpointTarget:
+        """Return a target over a context already built, as a discrete group's row needs."""
+        target = object.__new__(_EndpointTarget)
+        object.__setattr__(target, "_context", context)
+        return target
+
     def __getitem__(self, handle: Any) -> Any:
         """Return the endpoint namespace of the phase `handle` names."""
         context: _Context = object.__getattribute__(self, "_context")
@@ -749,7 +820,7 @@ class _EndpointTarget:
                 f"'{spelling}[phase].final.<name> = ...' or '{spelling}.<parameter> = ...'."
             )
             raise AttributeError(msg)
-        context.store.store(key, spelling, value)
+        context.store.store(context.key(key), spelling, value)
 
     def __getattr__(self, name: str) -> Any:
         """Return a parameter's node for a Hessian; for a gradient, nothing is read."""
@@ -767,6 +838,109 @@ class _EndpointTarget:
         return _FirstNamed(
             context, _parameter(name, context.columns, spelling, context.what), spelling
         )
+
+
+class _DiscreteGroups:
+    """The discrete constraint groups of a derivative: one endpoint namespace per row.
+
+    ``jacobian.discrete.link`` scopes the endpoint nodes to that group's row, and everything
+    after it -- the phase selector, the end, the variable -- is what an objective derivative
+    writes. The two differ only in what the key is built on (`_Context.prefix`).
+    """
+
+    __slots__ = ("_context", "_rows")
+
+    def __init__(self, context: _Context, rows: dict[str, int]) -> None:
+        object.__setattr__(self, "_context", context)
+        object.__setattr__(self, "_rows", rows)
+
+    def __getattr__(self, name: str) -> Any:
+        """Return the endpoint namespace scoped to the group `name`."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        rows: dict[str, int] = object.__getattribute__(self, "_rows")
+        context: _Context = object.__getattribute__(self, "_context")
+        spelling = f"{context.what}.discrete.{name}"
+        row = rows.get(name)
+        if row is None:
+            if name in context.columns.discrete_blocked:
+                raise AttributeError(_BLOCKED.format(spelling=spelling, name=name))
+            msg = f"{context.what}.discrete has no group '{name}'.{suggest(name, tuple(rows))}"
+            raise AttributeError(msg)
+        return _EndpointTarget._over(context.at((row,), spelling))
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse assigning a group, which names no variable to differentiate by."""
+        del value
+        context: _Context = object.__getattribute__(self, "_context")
+        msg = (
+            f"{context.what}.discrete.{name} names a constraint but no variable. A "
+            f"derivative names both, for example "
+            f"'{context.what}.discrete.{name}[phase].final.<name> = ...'."
+        )
+        raise AttributeError(msg)
+
+
+class _DiscreteTarget:
+    """What a discrete derivative callback fills in: the groups, under ``.discrete``."""
+
+    __slots__ = ("_context", "_groups")
+
+    def __init__(self, store: Structure, columns: EndpointColumns, what: str, mode: str) -> None:
+        context = _Context(store, columns, what, mode)
+        object.__setattr__(self, "_context", context)
+        object.__setattr__(self, "_groups", _DiscreteGroups(context, columns.discrete))
+
+    def __getattr__(self, name: str) -> Any:
+        """Return the groups. There is one namespace here, and it is `discrete`."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        context: _Context = object.__getattribute__(self, "_context")
+        if name != "discrete":
+            msg = (
+                f"{context.what}.{name}: a discrete derivative names a constraint group, "
+                f"'{context.what}.discrete.<group>'.{suggest(name, ('discrete',))}"
+            )
+            raise AttributeError(msg)
+        return object.__getattribute__(self, "_groups")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse replacing the groups."""
+        del value
+        context: _Context = object.__getattribute__(self, "_context")
+        msg = (
+            f"{context.what}.{name} cannot be replaced; write one derivative at a time, for "
+            f"example '{context.what}.discrete.<group>[phase].final.<name> = ...'."
+        )
+        raise AttributeError(msg)
+
+
+class DiscreteJacobian(_DiscreteTarget):
+    """What ``problem.register.discrete_jacobian`` fills in.
+
+    ``jacobian.discrete.link[ph].final.h = -1.0`` is the derivative of the constraint group
+    ``link`` with respect to the phase's final ``h``.
+    """
+
+    __slots__ = ()
+
+    def __init__(self, store: Structure, columns: EndpointColumns) -> None:
+        super().__init__(store, columns, "jacobian", "only")
+
+
+class DiscreteHessian(_DiscreteTarget):
+    """What ``problem.register.discrete_hessian`` fills in.
+
+    ``hessian.discrete.orbit[ph].final.r[ph].final.r`` is a second derivative of one group:
+    the first variable is named through its phase, then the second is. Each unordered pair is
+    written once. A linear constraint contributes nothing, and saying nothing about it is how
+    that is said.
+    """
+
+    __slots__ = ()
+
+    def __init__(self, store: Structure, columns: EndpointColumns) -> None:
+        super().__init__(store, columns, "hessian", "first")
 
 
 class ObjectiveGradient(_EndpointTarget):

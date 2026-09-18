@@ -145,7 +145,14 @@ def _check_parameters(parameter: type[Vector], phases: Any) -> None:
 class ProblemRegistry(Registry):
     """The problem's callbacks. Reached as ``problem.register``."""
 
-    _registrations = ("objective", "discrete", "objective_gradient", "objective_hessian")
+    _registrations = (
+        "objective",
+        "discrete",
+        "objective_gradient",
+        "objective_hessian",
+        "discrete_jacobian",
+        "discrete_hessian",
+    )
     _label = "problem callbacks"
 
     def __init__(self, problem: Problem) -> None:
@@ -242,6 +249,53 @@ class ProblemRegistry(Registry):
         """
         return self._problem._register("objective_hessian", function, replace=replace)
 
+    def discrete_jacobian(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the discrete constraints' Jacobian, as a decorator or as a call.
+
+        Required under ``derivatives.method = "user"`` when the problem declares discrete
+        constraints. The callback takes the endpoint argument and a `jacobian` whose entries
+        name the constraint group and the variable:
+        ``jacobian.discrete.link[ph].final.h = -1.0``.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator.
+        replace : bool, default False
+            Replace a callback already registered.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+        return self._problem._register("discrete_jacobian", function, replace=replace)
+
+    def discrete_hessian(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the discrete constraints' Hessian, as a decorator or as a call.
+
+        Required under ``derivatives.method = "user"`` at ``derivatives.order = "second"``
+        when the problem declares discrete constraints, *including* when every entry is zero:
+        linkage constraints are linear, and an empty callback is how that is said.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator.
+        replace : bool, default False
+            Replace a callback already registered.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+        return self._problem._register("discrete_hessian", function, replace=replace)
+
 
 class Problem(HasRegistry):
     """An optimal control problem.
@@ -300,6 +354,8 @@ class Problem(HasRegistry):
         self._discrete_function: Callable[..., Any] | None = None
         self._objective_gradient_function: Callable[..., Any] | None = None
         self._objective_hessian_function: Callable[..., Any] | None = None
+        self._discrete_jacobian_function: Callable[..., Any] | None = None
+        self._discrete_hessian_function: Callable[..., Any] | None = None
         self._discrete_class = discrete
         self._parameter_class = parameter
 

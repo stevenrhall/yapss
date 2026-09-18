@@ -37,6 +37,8 @@ from .args import (
 from .derivatives import (
     ContinuousHessian,
     ContinuousJacobian,
+    DiscreteHessian,
+    DiscreteJacobian,
     ObjectiveGradient,
     ObjectiveHessian,
     Structure,
@@ -439,17 +441,39 @@ def _make_continuous_derivative(
 
 
 def _make_endpoint_derivative(
-    spec: ProblemSpec_, makers: _EndpointMakers, which: str, target: Any, slot: str
+    spec: ProblemSpec_,
+    makers: _EndpointMakers,
+    target: Any,
+    slot: str,
+    *,
+    discrete: bool = False,
 ) -> Callable[[Any], None]:
-    """Return the callback that drives the objective's gradient or Hessian callback."""
-    callback = (
-        spec.objective_gradient_function if slot == "gradient" else spec.objective_hessian_function
-    )
+    """Return the callback driving an endpoint derivative, the objective's or the discrete.
+
+    The two are the same shape: one call per evaluation, and a target whose named writes land
+    in a dictionary on the argument the transcription passed. They differ in which callback is
+    driven and, inside the target, in what the key is built on. `slot` names both that
+    dictionary and the derivative, which are always spelled alike.
+    """
+    which = slot
+    if discrete:
+        callback = (
+            spec.discrete_jacobian_function
+            if slot == "jacobian"
+            else spec.discrete_hessian_function
+        )
+        what = f"discrete {which} callback"
+    else:
+        callback = (
+            spec.objective_gradient_function
+            if slot == "gradient"
+            else spec.objective_hessian_function
+        )
+        what = f"objective {which} callback"
     if callback is None:  # pragma: no cover - validate() has already refused this
-        msg = f"the problem has no objective {which} callback"
+        msg = f"the problem has no {what}"
         raise ValueError(msg)
-    columns = endpoint_columns(spec.phases, spec.parameter)
-    what = f"objective {which} callback"
+    columns = endpoint_columns(spec.phases, spec.parameter, spec.discrete if discrete else None)
     first: list[dict[Any, str] | None] = [None]
 
     def derivative(arg: Any) -> None:
@@ -607,18 +631,26 @@ def to_transcription_spec(spec: ProblemSpec_) -> ProblemSpec:
     functions.continuous = _make_continuous(spec)
     if spec.derivative_method == "user":
         functions.objective_gradient = _make_endpoint_derivative(
-            spec, endpoint_makers, "gradient", ObjectiveGradient, "gradient"
+            spec, endpoint_makers, ObjectiveGradient, "gradient"
         )
         functions.continuous_jacobian = _make_continuous_derivative(
             spec, "jacobian", ContinuousJacobian, "jacobian"
         )
+        if spec.discrete._fields:
+            functions.discrete_jacobian = _make_endpoint_derivative(
+                spec, endpoint_makers, DiscreteJacobian, "jacobian", discrete=True
+            )
         if spec.derivative_order == "second":
             functions.objective_hessian = _make_endpoint_derivative(
-                spec, endpoint_makers, "hessian", ObjectiveHessian, "hessian"
+                spec, endpoint_makers, ObjectiveHessian, "hessian"
             )
             functions.continuous_hessian = _make_continuous_derivative(
                 spec, "hessian", ContinuousHessian, "hessian"
             )
+            if spec.discrete._fields:
+                functions.discrete_hessian = _make_endpoint_derivative(
+                    spec, endpoint_makers, DiscreteHessian, "hessian", discrete=True
+                )
     if spec.discrete_function is not None:
         functions.discrete = _make_discrete(spec, endpoint_makers, spec.discrete_function)
     discrete_lower, discrete_upper = _bound_arrays(spec.discrete, spec.discrete_bounds)

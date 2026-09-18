@@ -28,13 +28,20 @@ from yapss import _next as yapss
 from yapss._next.compile import to_transcription_spec
 from yapss._next.examples import brachistochrone_user_derivatives as user_brachistochrone
 from yapss._next.examples.brachistochrone import setup as auto_brachistochrone
+from yapss._next.examples.goddard_problem_3_phase import c, g, h0
+from yapss._next.examples.goddard_problem_3_phase import setup as auto_goddard
+from yapss._next.examples.goddard_problem_3_phase import sigma
 from yapss._next.examples.newton import setup2 as auto_newton
+from yapss._next.examples.orbit_raising import m_0, m_dot, mu
+from yapss._next.examples.orbit_raising import setup as auto_orbit_raising
+from yapss._next.examples.orbit_raising import thrust
 from yapss._next.spec import snapshot, validate_problem
 from yapss._private.auto import make_auto_functions
 from yapss._private.guess import make_initial_guess_nlp
 from yapss._private.mesh import Mesh
 from yapss._private.nlp import NLP
 from yapss._private.user import make_user_functions
+from yapss.math import exp, sqrt
 
 SPECTRAL_METHODS = ("lgl", "lgr", "lg")
 
@@ -88,9 +95,216 @@ def user_newton():
     return problem
 
 
+def user_orbit_raising():
+    """Return the orbit raising problem with its derivatives written by hand.
+
+    Two things only this problem has. Its thrust acceleration depends explicitly on the
+    independent variable, so its continuous derivatives have `time` columns and `time.time`
+    and `u_r.time` cross terms -- the arms the released golden corpus keeps `orbit_raising`
+    for. And its single discrete constraint is *nonlinear* in the final radius, so the
+    discrete Hessian has an entry rather than being empty.
+    """
+    problem = auto_orbit_raising()
+    ph = problem.phases.raise_
+
+    @ph.register.continuous_jacobian
+    def raising_jacobian(arg, jacobian):
+        r, v_r, v_theta = arg.state.r, arg.state.v_r, arg.state.v_theta
+        u_r, u_theta = arg.control.u_r, arg.control.u_theta
+        mass = m_0 - m_dot * arg.time
+        a = thrust / mass
+        da = thrust * m_dot / mass**2
+        jacobian.dynamics.r.v_r = 1.0
+        jacobian.dynamics.theta.r = -v_theta / r**2
+        jacobian.dynamics.theta.v_theta = 1 / r
+        jacobian.dynamics.v_r.r = -(v_theta**2) / r**2 + 2 * mu / r**3
+        jacobian.dynamics.v_r.v_theta = 2 * v_theta / r
+        jacobian.dynamics.v_r.u_r = a
+        jacobian.dynamics.v_r.time = da * u_r
+        jacobian.dynamics.v_theta.r = v_r * v_theta / r**2
+        jacobian.dynamics.v_theta.v_r = -v_theta / r
+        jacobian.dynamics.v_theta.v_theta = -v_r / r
+        jacobian.dynamics.v_theta.u_theta = a
+        jacobian.dynamics.v_theta.time = da * u_theta
+        jacobian.path.unit_thrust.u_r = 2 * u_r
+        jacobian.path.unit_thrust.u_theta = 2 * u_theta
+        return jacobian
+
+    @ph.register.continuous_hessian
+    def raising_hessian(arg, hessian):
+        r, v_r, v_theta = arg.state.r, arg.state.v_r, arg.state.v_theta
+        u_r, u_theta = arg.control.u_r, arg.control.u_theta
+        mass = m_0 - m_dot * arg.time
+        da = thrust * m_dot / mass**2
+        dda = 2 * thrust * m_dot**2 / mass**3
+        hessian.dynamics.theta.r.r = 2 * v_theta / r**3
+        hessian.dynamics.theta.r.v_theta = -1 / r**2
+        hessian.dynamics.v_r.r.r = 2 * v_theta**2 / r**3 - 6 * mu / r**4
+        hessian.dynamics.v_r.r.v_theta = -2 * v_theta / r**2
+        hessian.dynamics.v_r.v_theta.v_theta = 2 / r
+        hessian.dynamics.v_r.u_r.time = da
+        hessian.dynamics.v_r.time.time = dda * u_r
+        hessian.dynamics.v_theta.r.r = -2 * v_r * v_theta / r**3
+        hessian.dynamics.v_theta.r.v_r = v_theta / r**2
+        hessian.dynamics.v_theta.r.v_theta = v_r / r**2
+        hessian.dynamics.v_theta.v_r.v_theta = -1 / r
+        hessian.dynamics.v_theta.u_theta.time = da
+        hessian.dynamics.v_theta.time.time = dda * u_theta
+        hessian.path.unit_thrust.u_r.u_r = 2.0
+        hessian.path.unit_thrust.u_theta.u_theta = 2.0
+        return hessian
+
+    @problem.register.objective_gradient
+    def largest_orbit_gradient(_arg, gradient):
+        gradient[ph].final.r = 1.0
+        return gradient
+
+    @problem.register.objective_hessian
+    def largest_orbit_hessian(_arg, hessian):
+        return hessian
+
+    @problem.register.discrete_jacobian
+    def circular_jacobian(arg, jacobian):
+        r = arg[ph].final.r
+        jacobian.discrete.circular[ph].final.v_theta = 1.0
+        jacobian.discrete.circular[ph].final.r = sqrt(mu) / (2 * r**1.5)
+        return jacobian
+
+    @problem.register.discrete_hessian
+    def circular_hessian(arg, hessian):
+        r = arg[ph].final.r
+        hessian.discrete.circular[ph].final.r[ph].final.r = -3 * sqrt(mu) / (4 * r**2.5)
+        return hessian
+
+    problem.derivatives.method = "user"
+    problem.derivatives.order = "second"
+    return problem
+
+
+def _rocket_terms(arg):
+    """Return the rocket's state, its thrust, and the three drag terms the derivatives use."""
+    h, v, mass = arg.state.h, arg.state.v, arg.state.m
+    d2 = sigma * exp(-h / h0)
+    d1 = d2 * v
+    return v, mass, arg.control.thrust, d2, d1, d1 * v
+
+
+def _rocket_jacobian(arg, jacobian):
+    """Fill in the dynamics' first derivatives, which are the same in every phase."""
+    _v, mass, thrust, _d2, d1, drag = _rocket_terms(arg)
+    jacobian.dynamics.h.v = 1.0
+    jacobian.dynamics.v.h = drag / (h0 * mass)
+    jacobian.dynamics.v.v = -2 * d1 / mass
+    jacobian.dynamics.v.m = -(thrust - drag) / mass**2
+    jacobian.dynamics.v.thrust = 1 / mass
+    jacobian.dynamics.m.thrust = -1 / c
+
+
+def _rocket_hessian(arg, hessian):
+    """Fill in the dynamics' second derivatives, which are the same in every phase."""
+    _v, mass, thrust, d2, d1, drag = _rocket_terms(arg)
+    hessian.dynamics.v.h.h = -drag / (h0**2 * mass)
+    hessian.dynamics.v.h.v = 2 * d1 / (h0 * mass)
+    hessian.dynamics.v.h.m = -drag / (h0 * mass**2)
+    hessian.dynamics.v.v.v = -2 * d2 / mass
+    hessian.dynamics.v.v.m = 2 * d1 / mass**2
+    hessian.dynamics.v.m.m = 2 * (thrust - drag) / mass**3
+    hessian.dynamics.v.m.thrust = -1 / mass**2
+
+
+def user_goddard():
+    """Return the three-phase Goddard rocket with its derivatives written by hand.
+
+    The problem this stage exists for: eight discrete groups, each joining two of three
+    phases, so every entry names its phase. They are linear, so the discrete Hessian is
+    registered and writes nothing -- which is how "every entry of it is structurally zero" is
+    said. The released version reaches the same entries as `jacobian[("f", 1), ("x", 0)]` and
+    branches on `if p == 1` for the path; here the phases register separately, so the
+    singular arc's extra rows live in its own callback and there is no branch.
+    """
+    problem = auto_goddard()
+    boost, singular, coast = (
+        problem.phases.boost,
+        problem.phases.singular,
+        problem.phases.coast,
+    )
+
+    def powered_jacobian(arg, jacobian):
+        _rocket_jacobian(arg, jacobian)
+        return jacobian
+
+    def powered_hessian(arg, hessian):
+        _rocket_hessian(arg, hessian)
+        return hessian
+
+    for ph in (boost, coast):
+        ph.register.continuous_jacobian(powered_jacobian)
+        ph.register.continuous_hessian(powered_hessian)
+
+    @singular.register.continuous_jacobian
+    def singular_jacobian(arg, jacobian):
+        _rocket_jacobian(arg, jacobian)
+        v, _mass, _thrust, _d2, d1, drag = _rocket_terms(arg)
+        jacobian.path.switching.h = drag * (1 + v / c) / h0
+        jacobian.path.switching.v = drag * (-3 / c) - 2 * d1
+        jacobian.path.switching.m = g
+        return jacobian
+
+    @singular.register.continuous_hessian
+    def singular_hessian(arg, hessian):
+        _rocket_hessian(arg, hessian)
+        v, _mass, _thrust, d2, d1, drag = _rocket_terms(arg)
+        hessian.path.switching.h.h = -drag * (c + v) / (c * h0**2)
+        hessian.path.switching.h.v = d1 * (2 * c + 3 * v) / (c * h0)
+        hessian.path.switching.v.v = -2 * d2 * (c + 3 * v) / c
+        return hessian
+
+    @problem.register.objective_gradient
+    def final_altitude_gradient(_arg, gradient):
+        gradient[coast].final.h = 1.0
+        return gradient
+
+    @problem.register.objective_hessian
+    def final_altitude_hessian(_arg, hessian):
+        return hessian
+
+    @problem.register.discrete_jacobian
+    def linkage_jacobian(_arg, jacobian):
+        """Each group is `later - earlier`, so its derivatives are +1 and -1 and nothing else."""
+        d = jacobian.discrete
+        d.boost_singular_h[singular].initial.h = 1.0
+        d.boost_singular_h[boost].final.h = -1.0
+        d.boost_singular_v[singular].initial.v = 1.0
+        d.boost_singular_v[boost].final.v = -1.0
+        d.boost_singular_m[singular].initial.m = 1.0
+        d.boost_singular_m[boost].final.m = -1.0
+        d.boost_singular_time[singular].initial.time = 1.0
+        d.boost_singular_time[boost].final.time = -1.0
+        d.singular_coast_h[coast].initial.h = 1.0
+        d.singular_coast_h[singular].final.h = -1.0
+        d.singular_coast_v[coast].initial.v = 1.0
+        d.singular_coast_v[singular].final.v = -1.0
+        d.singular_coast_m[coast].initial.m = 1.0
+        d.singular_coast_m[singular].final.m = -1.0
+        d.singular_coast_time[coast].initial.time = 1.0
+        d.singular_coast_time[singular].final.time = -1.0
+        return jacobian
+
+    @problem.register.discrete_hessian
+    def linkage_hessian(_arg, hessian):
+        """The linkage constraints are linear, so writing nothing is the whole of it."""
+        return hessian
+
+    problem.derivatives.method = "user"
+    problem.derivatives.order = "second"
+    return problem
+
+
 PROBLEMS = {
     "brachistochrone": (auto_brachistochrone, user_brachistochrone.setup),
     "newton": (auto_newton, user_newton),
+    "orbit_raising": (auto_orbit_raising, user_orbit_raising),
+    "goddard": (auto_goddard, user_goddard),
 }
 
 
@@ -333,6 +547,149 @@ def test_an_objective_hessian_chains_through_its_phase(targets, ph):
 def test_an_objective_hessian_needs_its_second_phase(targets, ph):
     with pytest.raises(AttributeError, match=r"A second derivative names two"):
         targets["objective_hessian"][ph].initial.x = 3.0
+
+
+# ------------------------------------------------------- what the discrete targets refuse
+
+
+class Link(yapss.Vector):
+    gap = yapss.field()
+
+
+def linked_problem():
+    """Return a minimal problem that declares one discrete constraint."""
+    problem = yapss.Problem("linked", phases=Phases, discrete=Link)
+    ph = problem.phases.slide
+
+    @ph.register.continuous
+    def slide(arg, out):
+        out.dynamics.x = arg.state.v
+        out.dynamics.v = arg.control.u
+        return out
+
+    @problem.register.objective
+    def final_time(arg):
+        return arg[ph].final.time
+
+    @problem.register.discrete
+    def link(arg, out):
+        out.discrete.gap = arg[ph].final.x
+        return out
+
+    ph.time.initial = 0.0
+    ph.time.guess = (0.0, 1.0)
+    problem.discrete.bounds.gap = 0.0
+    problem.derivatives.method = "user"
+    return problem
+
+
+def _discrete_targets(problem):
+    """Return the two discrete targets, without running a solve."""
+    from yapss._next.derivatives import (
+        DiscreteHessian,
+        DiscreteJacobian,
+        Structure,
+        endpoint_columns,
+    )
+
+    spec = snapshot(problem)
+    ends = endpoint_columns(spec.phases, spec.parameter, spec.discrete)
+    return {
+        "jacobian": DiscreteJacobian(Structure("jacobian"), ends),
+        "hessian": DiscreteHessian(Structure("hessian"), ends),
+    }
+
+
+@pytest.fixture
+def linked():
+    return linked_problem()
+
+
+@pytest.fixture
+def discrete_targets(linked):
+    return _discrete_targets(linked)
+
+
+def test_a_discrete_derivative_names_a_group(discrete_targets, linked):
+    jacobian = discrete_targets["jacobian"]
+    jacobian.discrete.gap[linked.phases.slide].final.x = 1.0
+
+
+def test_an_unknown_group_is_refused_with_a_suggestion(discrete_targets, linked):
+    with pytest.raises(AttributeError, match=r"has no group 'gapp'.*Did you mean 'gap'"):
+        discrete_targets["jacobian"].discrete.gapp[linked.phases.slide].final.x = 1.0
+
+
+def test_a_group_needs_a_variable(discrete_targets):
+    with pytest.raises(AttributeError, match=r"names a constraint but no variable"):
+        discrete_targets["jacobian"].discrete.gap = 1.0
+
+
+def test_a_discrete_derivative_names_discrete(discrete_targets):
+    with pytest.raises(AttributeError, match=r"names a constraint group"):
+        _ = discrete_targets["jacobian"].dynamics
+
+
+def test_a_discrete_hessian_chains_through_both_phases(discrete_targets, linked):
+    ph = linked.phases.slide
+    discrete_targets["hessian"].discrete.gap[ph].final.x[ph].final.v = 2.0
+
+
+def test_a_mirrored_discrete_hessian_pair_is_refused(discrete_targets, linked):
+    ph = linked.phases.slide
+    hessian = discrete_targets["hessian"]
+    hessian.discrete.gap[ph].final.x[ph].final.v = 2.0
+    with pytest.raises(ValueError, match=r"same second derivative written both ways round"):
+        hessian.discrete.gap[ph].final.v[ph].final.x = 2.0
+
+
+class TwoLinks(yapss.Vector):
+    gap = yapss.field()
+    slack = yapss.field()
+
+
+def test_the_same_pair_in_two_groups_is_two_entries():
+    """The group's row is part of the key, so one pair written in two groups is not mirrored.
+
+    Dropping the row from the canonical key would make the second write look like the first
+    one reversed, and it would be refused as a mirrored pair. It is not: they are second
+    derivatives of two different constraints.
+    """
+    from yapss._next.derivatives import DiscreteHessian, Structure, endpoint_columns
+
+    problem = yapss.Problem("two", phases=Phases, discrete=TwoLinks)
+    ph = problem.phases.slide
+
+    @problem.register.objective
+    def nothing(arg):
+        return arg[ph].final.time
+
+    ph.time.guess = (0.0, 1.0)
+    spec = snapshot(problem)
+    store = Structure("hessian")
+    hessian = DiscreteHessian(store, endpoint_columns(spec.phases, spec.parameter, spec.discrete))
+    hessian.discrete.gap[ph].final.x[ph].final.v = 2.0
+    hessian.discrete.slack[ph].final.x[ph].final.v = 3.0
+    assert len(store.entries) == 2
+    assert sorted(store.entries.values()) == [2.0, 3.0]
+
+
+def test_the_discrete_callbacks_are_required(linked):
+    with pytest.raises(ValueError) as info:
+        linked.validate()
+    message = str(info.value)
+    assert "has no discrete_jacobian callback" in message
+    assert "has no discrete_hessian callback" in message
+    assert "of a problem with discrete constraints" in message
+
+
+def test_a_problem_without_discrete_constraints_needs_neither(problem):
+    """`bare_problem` declares none, so neither discrete callback is asked for."""
+    with pytest.raises(ValueError) as info:
+        problem.validate()
+    message = str(info.value)
+    assert "discrete_jacobian" not in message
+    assert "discrete_hessian" not in message
 
 
 # ------------------------------------------------------------------ block fields, stage 1

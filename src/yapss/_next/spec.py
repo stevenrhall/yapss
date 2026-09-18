@@ -91,6 +91,8 @@ class ProblemSpec:
     objective_function: Callable[..., Any]
     objective_gradient_function: Callable[..., Any] | None
     objective_hessian_function: Callable[..., Any] | None
+    discrete_jacobian_function: Callable[..., Any] | None
+    discrete_hessian_function: Callable[..., Any] | None
     objective_scale: float
     sense: Sense
     method: Method
@@ -167,9 +169,15 @@ def _missing_derivatives(problem: Problem) -> list[str]:
         if getattr(problem, attribute) is None
     )
     if problem._discrete_class._fields:
-        complaints.append(
-            "derivatives supplied by hand do not yet reach the discrete constraints; use "
-            "'auto' or a central-difference method for this problem"
+        needed = [("discrete_jacobian", "_discrete_jacobian_function")]
+        if second:
+            needed.append(("discrete_hessian", "_discrete_hessian_function"))
+        complaints.extend(
+            f"the problem has no {which} callback, which "
+            f"'derivatives.method = \"user\"' requires of a problem with discrete "
+            f"constraints; register it with '@problem.register.{which}'"
+            for which, attribute in needed
+            if getattr(problem, attribute) is None
         )
     return complaints
 
@@ -274,6 +282,8 @@ def snapshot(problem: Problem) -> ProblemSpec:
         objective_function=objective,
         objective_gradient_function=problem._objective_gradient_function,
         objective_hessian_function=problem._objective_hessian_function,
+        discrete_jacobian_function=problem._discrete_jacobian_function,
+        discrete_hessian_function=problem._discrete_hessian_function,
         objective_scale=problem.objective.scale,
         sense=problem.objective.sense,
         method=problem.method,

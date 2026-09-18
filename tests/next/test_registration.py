@@ -27,6 +27,8 @@ def test_the_registry_holds_exactly_the_callbacks(problem, phase):
         "discrete",
         "objective_gradient",
         "objective_hessian",
+        "discrete_jacobian",
+        "discrete_hessian",
     )
     assert phase.register._registrations == (
         "continuous",
