@@ -145,7 +145,7 @@ def _check_parameters(parameter: type[Vector], phases: Any) -> None:
 class ProblemRegistry(Registry):
     """The problem's callbacks. Reached as ``problem.register``."""
 
-    _registrations = ("objective", "discrete")
+    _registrations = ("objective", "discrete", "objective_gradient", "objective_hessian")
     _label = "problem callbacks"
 
     def __init__(self, problem: Problem) -> None:
@@ -191,6 +191,56 @@ class ProblemRegistry(Registry):
             The callback, or a decorator that registers one.
         """
         return self._problem._register("discrete", function, replace=replace)
+
+    def objective_gradient(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the objective's gradient, as a decorator or as a call.
+
+        Required under ``derivatives.method = "user"``. The callback takes the endpoint
+        argument and a `gradient` to fill: ``gradient[ph].final.time = 1.0``. What it writes
+        is the sparsity structure, so a name it does not write is a derivative that is zero
+        everywhere, and the same names must be written on every call.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator.
+        replace : bool, default False
+            Replace a callback already registered.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+        return self._problem._register("objective_gradient", function, replace=replace)
+
+    def objective_hessian(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the objective's Hessian, as a decorator or as a call.
+
+        Required under ``derivatives.method = "user"`` at ``derivatives.order = "second"``,
+        *including* when every entry of it is zero: a callback that writes nothing says so,
+        and leaving it out would be indistinguishable from forgetting it. Forgetting it is
+        not caught by the answer, because a wrong Hessian still leaves the same KKT point --
+        it costs iterations instead, which is the one failure worth refusing in a feature
+        whose purpose is speed.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator.
+        replace : bool, default False
+            Replace a callback already registered.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+        return self._problem._register("objective_hessian", function, replace=replace)
 
 
 class Problem(HasRegistry):
@@ -248,6 +298,8 @@ class Problem(HasRegistry):
         self._label = "problem"
         self._objective_function: Callable[..., Any] | None = None
         self._discrete_function: Callable[..., Any] | None = None
+        self._objective_gradient_function: Callable[..., Any] | None = None
+        self._objective_hessian_function: Callable[..., Any] | None = None
         self._discrete_class = discrete
         self._parameter_class = parameter
 

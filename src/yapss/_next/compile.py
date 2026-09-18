@@ -34,6 +34,15 @@ from .args import (
     PhaseOutput,
     phase_arg_class,
 )
+from .derivatives import (
+    ContinuousHessian,
+    ContinuousJacobian,
+    ObjectiveGradient,
+    ObjectiveHessian,
+    Structure,
+    endpoint_columns,
+    phase_columns,
+)
 from .kinds import ReadOnlyRows, Rows
 from .solution import Solution
 from .vector import Maker
@@ -319,6 +328,144 @@ def _make_discrete(
     return discrete
 
 
+# ------------------------------------------------------------ derivatives supplied by hand
+#
+# A derivative callback is given the same inputs the value callback is, and a target whose
+# named writes land in the dictionary the transcription reads. The inputs are built by a maker
+# of their own rather than by `_PhaseMakers`, which also carries the output vectors a
+# derivative has no use for; the fifteen lines that repeat are cheaper than a shared base that
+# would put an attribute hop in the value path, which is the measured hot one.
+
+
+class _DerivativeMakers:
+    """What one phase's derivative call needs that does not change between calls."""
+
+    _arg: PhaseArg | None
+
+    __slots__ = (
+        "_arg",
+        "arg_class",
+        "callback",
+        "columns",
+        "control",
+        "handle",
+        "parameter",
+        "state",
+        "target",
+        "what",
+    )
+
+    def __init__(
+        self, spec: ProblemSpec_, phase: PhaseSpec_, which: str, target: Any, callback: Any
+    ) -> None:
+        label = f"phase '{phase.name}'"
+        self.handle = phase.handle
+        self.arg_class = phase_arg_class(phase.independent)
+        self.callback = callback
+        self.target = target
+        self.what = f"{which} callback for {label}"
+        self.state = Maker(phase.state, ReadOnlyRows, f"{label} state")
+        self.control = Maker(phase.control, ReadOnlyRows, f"{label} control")
+        self.parameter = Maker(spec.parameter, ReadOnlyRows, "parameter")
+        self.columns = phase_columns(phase, spec.parameter)
+        self._arg = None
+
+    def arg(self, data: Any, parameter: Any) -> PhaseArg:
+        """Return the derivative argument for one evaluation, built once and re-pointed."""
+        cached = self._arg
+        if cached is None:
+            cached = self.arg_class(
+                self.handle,
+                data.time,
+                self.state.over(data.state),
+                self.control.over(data.control),
+                self.parameter.over(parameter),
+            )
+            self._arg = cached
+            return cached
+        setattr_ = object.__setattr__
+        setattr_(cached, "_points", data.time)
+        setattr_(cached.state, "_source", data.state)
+        setattr_(cached.control, "_source", data.control)
+        setattr_(cached.parameter, "_source", parameter)
+        return cached
+
+
+def _make_continuous_derivative(
+    spec: ProblemSpec_, which: str, target: Any, slot: str
+) -> Callable[[Any], None]:
+    """Return the callback that drives every phase's own Jacobian or Hessian callback.
+
+    Parameters
+    ----------
+    spec : yapss._next.spec.ProblemSpec
+        The snapshot being solved.
+    which : {"jacobian", "hessian"}
+        How the derivative is named, in messages and as the second parameter's role.
+    target : type
+        `ContinuousJacobian` or `ContinuousHessian`, the object the callback writes into.
+    slot : {"jacobian", "hessian"}
+        The dictionary on the transcription's own per-phase argument.
+    """
+    makers = tuple(
+        _DerivativeMakers(
+            spec,
+            phase,
+            which,
+            target,
+            phase.continuous_jacobian if slot == "jacobian" else phase.continuous_hessian,
+        )
+        for phase in spec.phases
+    )
+    first: list[dict[Any, str] | None] = [None] * len(makers)
+
+    def derivative(arg: Any) -> None:
+        for index in arg.phase_list:
+            maker = makers[index]
+            data = arg.phase[index]
+            store = Structure(which)
+            written = maker.target(store, maker.columns)
+            result = maker.callback(maker.arg(data, arg.parameter), written)
+            _check_return(result, written, maker.callback, maker.what)
+            # What is written is the sparsity structure, so the first call fixes it and every
+            # later call must write the same names.
+            if first[index] is None:
+                first[index] = dict(store.spelling)
+            else:
+                store.compare(first[index], maker.what)
+            getattr(data, slot).update(store.entries)
+
+    return derivative
+
+
+def _make_endpoint_derivative(
+    spec: ProblemSpec_, makers: _EndpointMakers, which: str, target: Any, slot: str
+) -> Callable[[Any], None]:
+    """Return the callback that drives the objective's gradient or Hessian callback."""
+    callback = (
+        spec.objective_gradient_function if slot == "gradient" else spec.objective_hessian_function
+    )
+    if callback is None:  # pragma: no cover - validate() has already refused this
+        msg = f"the problem has no objective {which} callback"
+        raise ValueError(msg)
+    columns = endpoint_columns(spec.phases, spec.parameter)
+    what = f"objective {which} callback"
+    first: list[dict[Any, str] | None] = [None]
+
+    def derivative(arg: Any) -> None:
+        store = Structure(which)
+        written = target(store, columns)
+        result = callback(makers.arg(arg), written)
+        _check_return(result, written, callback, what)
+        if first[0] is None:
+            first[0] = dict(store.spelling)
+        else:
+            store.compare(first[0], what)
+        getattr(arg, slot).update(store.entries)
+
+    return derivative
+
+
 def _flat(declaration: type[Vector], values: dict[str, Any], pick: Any) -> list[Any]:
     """Return one value per declared row, taking `pick` of each stored element."""
     return [
@@ -458,6 +605,20 @@ def to_transcription_spec(spec: ProblemSpec_) -> ProblemSpec:
     endpoint_makers = _EndpointMakers(spec)
     functions.objective = _make_objective(spec, endpoint_makers)
     functions.continuous = _make_continuous(spec)
+    if spec.derivative_method == "user":
+        functions.objective_gradient = _make_endpoint_derivative(
+            spec, endpoint_makers, "gradient", ObjectiveGradient, "gradient"
+        )
+        functions.continuous_jacobian = _make_continuous_derivative(
+            spec, "jacobian", ContinuousJacobian, "jacobian"
+        )
+        if spec.derivative_order == "second":
+            functions.objective_hessian = _make_endpoint_derivative(
+                spec, endpoint_makers, "hessian", ObjectiveHessian, "hessian"
+            )
+            functions.continuous_hessian = _make_continuous_derivative(
+                spec, "hessian", ContinuousHessian, "hessian"
+            )
     if spec.discrete_function is not None:
         functions.discrete = _make_discrete(spec, endpoint_makers, spec.discrete_function)
     discrete_lower, discrete_upper = _bound_arrays(spec.discrete, spec.discrete_bounds)

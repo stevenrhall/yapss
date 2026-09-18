@@ -333,11 +333,32 @@ class TimeAspects(Container):
 class PhaseRegistry(Registry):
     """A phase's callbacks. Reached as ``ph.register``."""
 
-    _registrations = ("continuous",)
+    _registrations = ("continuous", "continuous_jacobian", "continuous_hessian")
 
     def __init__(self, phase: Phase) -> None:
         self._phase = phase
         self._label = f"{phase._label} callbacks"
+
+    def _register(self, which: str, function: Callable[..., Any] | None, *, replace: bool) -> Any:
+        phase = self._phase
+        attribute = f"_{which}"
+
+        def register(callback: Callable[..., Any]) -> Callable[..., Any]:
+            if not is_callable(callback):
+                msg = f"{phase._label} {which} callback must be callable; got {callback!r}"
+                raise TypeError(msg)
+            current = getattr(phase, attribute)
+            if current is not None and not replace:
+                existing = getattr(current, "__qualname__", repr(current))
+                msg = (
+                    f"{phase._label} already has the {which} callback '{existing}'; pass "
+                    f"replace=True to replace it"
+                )
+                raise ValueError(msg)
+            object.__setattr__(phase, attribute, callback)
+            return callback
+
+        return register if function is None else register(function)
 
     def continuous(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
@@ -358,23 +379,58 @@ class PhaseRegistry(Registry):
         Any
             The callback, or a decorator that registers one.
         """
-        phase = self._phase
+        return self._register("continuous", function, replace=replace)
 
-        def register(callback: Callable[..., Any]) -> Callable[..., Any]:
-            if not is_callable(callback):
-                msg = f"{phase._label} continuous callback must be callable; got {callback!r}"
-                raise TypeError(msg)
-            if phase._continuous is not None and not replace:
-                existing = getattr(phase._continuous, "__qualname__", repr(phase._continuous))
-                msg = (
-                    f"{phase._label} already has the continuous callback '{existing}'; pass "
-                    f"replace=True to replace it"
-                )
-                raise ValueError(msg)
-            phase._continuous = callback
-            return callback
+    def continuous_jacobian(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the phase's continuous Jacobian, as a decorator or as a call.
 
-        return register if function is None else register(function)
+        Required under ``derivatives.method = "user"``. The callback takes the same argument
+        the continuous callback does and a `jacobian` to fill, whose entries are named for
+        the things they relate: ``jacobian.dynamics.x.v`` is the derivative of the dynamics
+        of ``x`` with respect to ``v``. What it writes is the sparsity structure, so a name
+        it does not write is a derivative that is zero everywhere, a derivative that is zero
+        only at this point is written as ``0.0``, and the same names must be written on every
+        call.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator.
+        replace : bool, default False
+            Replace a callback already registered on this phase.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+        return self._register("continuous_jacobian", function, replace=replace)
+
+    def continuous_hessian(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the phase's continuous Hessian, as a decorator or as a call.
+
+        Required under ``derivatives.method = "user"`` at ``derivatives.order = "second"``,
+        including when every entry of it is zero. ``hessian.dynamics.x.v.u`` chains one more
+        name than the Jacobian does; the two orders name one derivative, so each unordered
+        pair is written once and writing both is refused rather than summed.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator.
+        replace : bool, default False
+            Replace a callback already registered on this phase.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+        return self._register("continuous_hessian", function, replace=replace)
 
 
 class Phase(HasRegistry):
@@ -390,6 +446,8 @@ class Phase(HasRegistry):
         self._index = index
         self._declaration = declaration
         self._continuous: Callable[..., Any] | None = None
+        self._continuous_jacobian: Callable[..., Any] | None = None
+        self._continuous_hessian: Callable[..., Any] | None = None
         self._independent = declaration.independent
         self._label = f"phase '{name}'"
         self._hold("mesh", Mesh.uniform())

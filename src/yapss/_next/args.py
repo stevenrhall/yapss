@@ -215,15 +215,13 @@ class Endpoint(_Frozen):
     ----------
     initial, final : EndpointValues
         The phase's variables at each end: its state there, and its independent variable.
-    duration : float or symbolic
-        The extent of the phase, which is a time word kept whatever the phase runs over.
     integral : Vector
         The phase's integrals, which belong to the phase rather than to either end of it.
     """
 
     __slots__ = ("_data", "final", "initial", "integral")
 
-    _names = ("duration", "final", "initial", "integral")
+    _names = ("final", "initial", "integral")
 
     def __init__(
         self, data: Any, initial: EndpointValues, final: EndpointValues, integral: Vector
@@ -232,11 +230,6 @@ class Endpoint(_Frozen):
         object.__setattr__(self, "initial", initial)
         object.__setattr__(self, "final", final)
         object.__setattr__(self, "integral", integral)
-
-    @property
-    def duration(self) -> Any:
-        """Return the extent of the phase."""
-        return self._data.final_time - self._data.initial_time
 
 
 class EndpointArg(_Frozen):

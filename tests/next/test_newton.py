@@ -7,10 +7,13 @@ is `r` in setup, in the callback, and in the solution, and there is no `time` an
 import numpy as np
 import pytest
 
-from yapss._next.examples.newton import Phases, setup
+from yapss._next.examples.newton import Phases, setup, setup2
 
 RELEASED = 1.5033524160103926
 """What the same problem gives through the released API."""
+
+RELEASED2 = 1.4992639203593585
+"""What `setup2`, the alternate formulation, gives through the released API."""
 
 
 @pytest.fixture
@@ -28,6 +31,22 @@ def test_it_agrees_with_the_released_api(problem):
 def test_every_derivative_method_agrees(problem, method):
     problem.derivatives.method = method
     assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-6)
+
+
+def test_the_alternate_formulation_agrees_with_the_released_api():
+    """`setup2` optimizes the radius of the flat tip rather than fixing it at zero."""
+    problem = setup2()
+    problem.ipopt_options.print_level = 0
+    assert problem.solve().objective == pytest.approx(RELEASED2, rel=1e-12)
+
+
+def test_the_alternate_formulation_frees_the_initial_radius():
+    """Its whole point: r0 becomes a variable, and the optimum puts it well away from zero."""
+    problem = setup2()
+    problem.ipopt_options.print_level = 0
+    ps = problem.solve()[problem.phases.nose]
+    assert ps.initial.r > 0.3
+    assert ps.final.r == pytest.approx(1.0)
 
 
 def test_the_independent_variable_is_named_r(problem):

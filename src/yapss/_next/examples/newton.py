@@ -7,9 +7,25 @@ The phase runs over the radius, not over time, so the phase names its independen
 the solution. The released version of this example calls it ``time`` and apologises in a
 comment.
 
+There are two formulations, and `setup2` is the one to prefer. In Newton's model a gas
+particle strikes the surface once and leaves, so drag falls as the local slope steepens --
+which means an unconstrained shape would be driven to a sawtooth of arbitrarily steep facets
+and no drag at all. That is outside the model rather than a real answer, since such a shape
+would have the particles colliding again, so the profile is required to be convex. The true
+optimum is therefore flat out to some radius and sloping beyond it, with a corner where the
+two meet.
+
+`setup` fixes the flat part at zero radius and asks one phase to represent that corner with a
+polynomial. It does not merely tolerate the resulting oscillation, it is rewarded for it: the
+wiggles steepen the local slope, which lowers the integrand. Convexity is imposed at the
+collocation points, and between them the polynomial is free -- so the solve satisfies
+``u <= 0`` at every node while the slope it returns still rises across six of its ninety
+intervals, which no convex profile can do. `setup2` optimizes the radius of the flat tip
+instead, removing the corner; its slope is monotone throughout and it reaches a lower drag.
+
 """
 
-__all__ = ["main", "plot_solution", "setup"]
+__all__ = ["main", "plot_solution", "setup", "setup2"]
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -90,6 +106,37 @@ def setup(y_max: float = 1.0) -> yapss.Problem:
 
     problem.derivatives.order = "second"
     problem.ipopt_options.print_level = 3
+    return problem
+
+
+def setup2(y_max: float = 1.0) -> yapss.Problem:
+    """Set up the alternate formulation of Newton's minimal resistance problem.
+
+    The radius of the flat tip becomes a variable: the phase starts at a free ``r`` and the
+    disc's own drag, ``4 r0**2``, is added to the objective. With the corner gone, the curve
+    the phase has to represent is smooth, and the solution comes out with the flat tip at
+    r0 = 0.351 and a slope of exactly -1 where it meets the curve, as the classical result
+    has it. See the module docstring for why the first formulation goes wrong.
+
+    Parameters
+    ----------
+    y_max : float, default 1.0
+        The greatest height of the nosecone.
+
+    Returns
+    -------
+    yapss._next.Problem
+        The problem.
+    """
+    problem = setup(y_max)
+    ph = problem.phases.nose
+
+    @problem.register.objective(replace=True)
+    def least_drag(arg):
+        """Return the drag of the curve plus the drag of the flat tip."""
+        return arg[ph].integral.drag + 4 * arg[ph].initial.r**2
+
+    ph.r.initial = (0.0, 1.0)
     return problem
 
 
