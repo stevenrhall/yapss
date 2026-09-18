@@ -16,12 +16,13 @@ The declaration fixes what every aspect of that phase contains, so ``ph.state.bo
 from __future__ import annotations
 
 import inspect
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 from .containers import Container, HasRegistry, Registry, is_callable, is_subclass, suggest
 from .kinds import Bounds, Guess, ScalarGuess, Scale
 from .mesh import Mesh
-from .vector import Empty, Vector
+from .vector import Empty, Field, Vector
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -29,22 +30,18 @@ if TYPE_CHECKING:
 __all__ = ["Phase", "Phases", "phase"]
 
 
+@dataclass(frozen=True, slots=True)
 class PhaseDeclaration:
     """What `phase` records. Replaced by a `Phase` when the problem is built."""
 
-    __slots__ = ("control", "integral", "path", "state")
-
-    def __init__(
-        self,
-        state: type[Vector],
-        control: type[Vector],
-        path: type[Vector],
-        integral: type[Vector],
-    ) -> None:
-        self.state = state
-        self.control = control
-        self.path = path
-        self.integral = integral
+    state: type[Vector]
+    control: type[Vector]
+    path: type[Vector]
+    integral: type[Vector]
+    independent: str
+    """What the phase calls its independent variable, which is `time` unless it named it."""
+    independent_field: Field
+    """The metadata of that variable: its units, its LaTeX, its one-line description."""
 
 
 def _vector_class(value: object, argument: str) -> type[Vector]:
@@ -57,12 +54,19 @@ def _vector_class(value: object, argument: str) -> type[Vector]:
     return cast("type[Vector]", value)
 
 
+DEFAULT_INDEPENDENT = "time"
+"""What a phase's independent variable is called when the phase does not name it."""
+
+_ROLES = ("state", "control", "path", "integral")
+
+
 def phase(
     *,
     state: type[Vector],
     control: type[Vector] = Empty,
     path: type[Vector] = Empty,
     integral: type[Vector] = Empty,
+    **independent: Any,
 ) -> Any:
     """Declare one phase of a problem.
 
@@ -76,6 +80,10 @@ def phase(
         The class naming the phase's path constraints.
     integral : type[Vector], optional
         The class naming the phase's integrals.
+    **independent : Field
+        One further keyword names the phase's independent variable, which is otherwise
+        ``time``. The keyword is the name, as it is in a vector's class body, and its value is
+        a `field`: ``yapss.phase(state=Nose, r=yapss.field(latex="r"))``.
 
     Returns
     -------
@@ -83,12 +91,53 @@ def phase(
         A marker recording the declaration. YAPSS replaces it with a `Phase` when the problem
         is built, so it is never seen again.
     """
+    name, marker = _independent(independent)
     return PhaseDeclaration(
-        _vector_class(state, "state"),
-        _vector_class(control, "control"),
-        _vector_class(path, "path"),
-        _vector_class(integral, "integral"),
+        state=_vector_class(state, "state"),
+        control=_vector_class(control, "control"),
+        path=_vector_class(path, "path"),
+        integral=_vector_class(integral, "integral"),
+        independent=name,
+        independent_field=marker,
     )
+
+
+def _independent(given: dict[str, Any]) -> tuple[str, Field]:
+    """Return the name and the field of the phase's independent variable.
+
+    A keyword `phase` does not know is the independent variable's name -- which is what makes
+    the name arrive the way a field's name always does, from where it is bound. The value must
+    be a `field`, and that is what keeps a misspelled role a misspelled role: `contrl=Thrust`
+    passes a vector class, is not a field, and is refused with the suggestion.
+    """
+    if not given:
+        return DEFAULT_INDEPENDENT, Field(units="", latex="", doc="", size=None)
+    for name, value in given.items():
+        if not isinstance(value, Field):
+            msg = (
+                # a vector class under an unknown keyword is a misspelled role, not an
+                # independent variable, and that is the message it should get
+                f"phase() got an unexpected keyword '{name}'.{suggest(name, _ROLES)}"
+                if is_subclass(value, Vector)
+                else (
+                    f"phase({name}=) names the phase's independent variable, so it takes a "
+                    f"field: '{name}=yapss.field(...)'; got {value!r}."
+                    f"{suggest(name, _ROLES)}"
+                )
+            )
+            raise TypeError(msg)
+    if len(given) > 1:
+        names = ", ".join(repr(name) for name in given)
+        msg = f"a phase has one independent variable, but {names} were given as fields"
+        raise TypeError(msg)
+    name, marker = next(iter(given.items()))
+    if marker.size is not None:
+        msg = (
+            f"phase({name}=) names the independent variable, which is one value, so its field "
+            f"takes no size; got size={marker.size}"
+        )
+        raise TypeError(msg)
+    return name, marker
 
 
 class Phases:
@@ -290,7 +339,9 @@ class PhaseRegistry(Registry):
 class Phase(HasRegistry):
     """One phase of a problem: its aspects, its mesh, and its continuous callback."""
 
-    _held = ("state", "control", "path", "integral", "time", "register")
+    # `register` and the independent variable's name are added per instance, since the
+    # latter is whatever the phase called it
+    _held = ("state", "control", "path", "integral")
     _settable = ("mesh",)
 
     def __init__(self, name: str, index: int, declaration: PhaseDeclaration) -> None:
@@ -298,8 +349,7 @@ class Phase(HasRegistry):
         self._index = index
         self._declaration = declaration
         self._continuous: Callable[..., Any] | None = None
-        # the name of the phase's independent variable; 3.1 lets a phase rename it
-        self._independent = "time"
+        self._independent = declaration.independent
         self._label = f"phase '{name}'"
         self._hold("mesh", Mesh.uniform())
 
@@ -336,8 +386,10 @@ class Phase(HasRegistry):
         integral._hold("scale", declaration.integral._new(Scale, f"{integral._label} scale"))
         self._hold("integral", integral)
 
-        self._hold("time", TimeAspects(f"{self._label} time"))
+        name = declaration.independent
+        self._hold(name, TimeAspects(f"{self._label} {name}"))
         self._hold("register", PhaseRegistry(self))
+        object.__setattr__(self, "_held", (*Phase._held, name, "register"))
 
     @property
     def name(self) -> str:

@@ -108,13 +108,15 @@ def validate_problem(problem: Problem) -> None:
         label = f"phase '{phase.name}'"
         if phase._continuous is None:
             complaints.append(f"{label} has no continuous callback")
-        if phase.time.guess is None:
-            complaints.append(f"{label} has no time guess; set 'ph.time.guess = (t0, tf)'")
+        independent = getattr(phase, phase._independent)
+        if independent.guess is None:
+            name = phase._independent
+            complaints.append(f"{label} has no {name} guess; set 'ph.{name}.guess = (start, end)'")
         complaints.extend(_unbounded(phase.path.bounds, f"{label} path"))
-        if phase.time.guess is not None:
+        if independent.guess is not None:
             for what in ("state", "control"):
                 aspect = getattr(phase, what).guess
-                complaints.extend(_uncovered(aspect, phase.time.guess, f"{label} {what} guess"))
+                complaints.extend(_uncovered(aspect, independent.guess, f"{label} {what} guess"))
     if problem._objective_function is None:
         complaints.append("the problem has no objective callback")
     if problem._discrete_class._fields and problem._discrete_function is None:
@@ -197,10 +199,10 @@ def snapshot(problem: Problem) -> ProblemSpec:
             control_scale=_values(phase.control.scale),
             path_scale=_values(phase.path.scale),
             integral_scale=_values(phase.integral.scale),
-            time_initial=phase.time.initial,
-            time_final=phase.time.final,
-            time_guess=phase.time.guess,
-            time_scale=phase.time.scale,
+            time_initial=getattr(phase, phase._independent).initial,
+            time_final=getattr(phase, phase._independent).final,
+            time_guess=getattr(phase, phase._independent).guess,
+            time_scale=getattr(phase, phase._independent).scale,
             mesh=phase.mesh,
         )
         for phase in problem.phases

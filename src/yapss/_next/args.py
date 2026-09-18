@@ -12,6 +12,7 @@ returns.
 
 from __future__ import annotations
 
+from functools import cache
 from typing import TYPE_CHECKING, Any, Protocol
 
 from .containers import suggest
@@ -55,29 +56,55 @@ class _Frozen:
 class PhaseArg(_Frozen):
     """What a continuous callback is given, for one phase at one set of time points.
 
+    The independent variable is reached by the name the phase gave it, so this class is
+    generated per name by `phase_arg_class`: a subclass with the points under a property of
+    that name. Generating rather than intercepting keeps it an ordinary attribute read, which
+    is what a callback that uses it does at every point of every call.
+
     Attributes
     ----------
     phase : Phase
         The phase this call is for. A callback shared between phases branches on it.
     time : numpy.ndarray
-        The time points.
+        The points the phase is evaluated at, under whatever the phase calls its independent
+        variable -- ``time`` unless it was named otherwise.
     state, control, parameter : Vector
         The values at those points, one row per field.
     """
 
-    __slots__ = ("control", "parameter", "phase", "state", "time")
+    __slots__ = ("_points", "control", "parameter", "phase", "state")
+
+    _independent = "time"
 
     def __init__(
-        self, phase: Any, time: Any, state: Vector, control: Vector, parameter: Vector
+        self, phase: Any, points: Any, state: Vector, control: Vector, parameter: Vector
     ) -> None:
         for name, value in (
             ("phase", phase),
-            ("time", time),
+            ("_points", points),
             ("state", state),
             ("control", control),
             ("parameter", parameter),
         ):
             object.__setattr__(self, name, value)
+
+    @property
+    def _names(self) -> tuple[str, ...]:
+        return ("phase", "state", "control", "parameter", type(self)._independent)
+
+
+@cache
+def phase_arg_class(name: str) -> type[PhaseArg]:
+    """Return the `PhaseArg` subclass whose independent variable is called `name`."""
+    return type(
+        f"PhaseArg_{name}",
+        (PhaseArg,),
+        {
+            "__slots__": (),
+            "_independent": name,
+            name: property(lambda self: object.__getattribute__(self, "_points")),
+        },
+    )
 
 
 class PhaseOutput(_Frozen):
@@ -159,9 +186,18 @@ class EndpointValues(_Frozen):
         """Return a state by name, or the independent variable by its own name."""
         if name.startswith("_"):
             raise AttributeError(name)
-        if name == object.__getattribute__(self, "_name"):
+        independent = object.__getattribute__(self, "_name")
+        if name == independent:
             return object.__getattribute__(self, "_independent")()
-        return getattr(object.__getattribute__(self, "_state"), name)
+        state = object.__getattribute__(self, "_state")
+        try:
+            return getattr(state, name)
+        except AttributeError:
+            # the state's own message would offer only the state's names, and this namespace
+            # holds one more: the independent variable
+            names = (*type(state)._fields, independent)
+            msg = f"{type(state)._label} has no '{name}'.{suggest(name, names)}"
+            raise AttributeError(msg) from None
 
     def __getitem__(self, index: Any) -> Any:
         """Return the state's rows by position."""

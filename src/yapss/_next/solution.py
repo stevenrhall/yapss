@@ -10,6 +10,7 @@ values also accepts a solution's.
 
 from __future__ import annotations
 
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -24,6 +25,20 @@ if TYPE_CHECKING:
     from .vector import Vector
 
 __all__ = ["PhaseSolution", "Solution"]
+
+
+@cache
+def phase_solution_class(name: str) -> type[PhaseSolution]:
+    """Return the `PhaseSolution` subclass whose independent variable is called `name`."""
+    return type(
+        f"PhaseSolution_{name}",
+        (PhaseSolution,),
+        {
+            "__slots__": (),
+            "_independent": name,
+            name: property(lambda self: object.__getattribute__(self, "_points")),
+        },
+    )
 
 
 def _endpoint(phase: PhaseSpec, rows: Any, independent: Any, label: str) -> EndpointValues:
@@ -48,7 +63,8 @@ class PhaseSolution:
     Attributes
     ----------
     time : numpy.ndarray
-        The time points every quantity of the phase is given on.
+        The points every quantity of the phase is given on, under whatever the phase calls
+        its independent variable -- `time` unless it was named otherwise.
     state, costate, dynamics : Vector
         Arrays over `time`, named by the phase's state class.
     control : Vector
@@ -66,6 +82,7 @@ class PhaseSolution:
     """
 
     __slots__ = (
+        "_points",
         "control",
         "costate",
         "duration",
@@ -77,14 +94,15 @@ class PhaseSolution:
         "mesh",
         "path",
         "state",
-        "time",
     )
+
+    _independent = "time"
 
     def __init__(self, phase: PhaseSpec, data: Any) -> None:
         label = f"phase '{phase.name}' solution"
         state = np.asarray(data.state)
         values: dict[str, Any] = {
-            "time": data.time,
+            "_points": data.time,
             "state": _vector(phase.state, state, f"{label} state"),
             "costate": _vector(phase.state, data.costate, f"{label} costate"),
             "dynamics": _vector(phase.state, data.dynamics, f"{label} dynamics"),
@@ -104,7 +122,8 @@ class PhaseSolution:
         """Refuse an unknown name with a suggestion."""
         if name.startswith("_"):
             raise AttributeError(name)
-        msg = f"the phase solution has no '{name}'.{suggest(name, self.__slots__)}"
+        names = (*(n for n in self.__slots__ if not n.startswith("_")), type(self)._independent)
+        msg = f"the phase solution has no '{name}'.{suggest(name, names)}"
         raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -142,7 +161,8 @@ class Solution:
 
     def __init__(self, spec: ProblemSpec, legacy: Any) -> None:
         phases = {
-            phase.handle: PhaseSolution(phase, legacy.phase[phase.index]) for phase in spec.phases
+            phase.handle: phase_solution_class(phase.independent)(phase, legacy.phase[phase.index])
+            for phase in spec.phases
         }
         values: dict[str, Any] = {
             "_spec": spec,

@@ -25,7 +25,15 @@ from yapss._private.problem import UserFunctions
 from yapss._private.solver import solve
 from yapss._private.spec import PhaseSpec, ProblemSpec, frozen_array
 
-from .args import DiscreteOutput, Endpoint, EndpointArg, EndpointValues, PhaseArg, PhaseOutput
+from .args import (
+    DiscreteOutput,
+    Endpoint,
+    EndpointArg,
+    EndpointValues,
+    PhaseArg,
+    PhaseOutput,
+    phase_arg_class,
+)
 from .kinds import ReadOnlyRows, Rows
 from .solution import Solution
 from .vector import Maker
@@ -81,6 +89,7 @@ class _PhaseMakers:
 
     __slots__ = (
         "_arg",
+        "arg_class",
         "callback",
         "control",
         "dynamics",
@@ -105,7 +114,7 @@ class _PhaseMakers:
         """
         cached = self._arg
         if cached is None:
-            cached = PhaseArg(
+            cached = self.arg_class(
                 self.handle,
                 data.time,
                 self.state.over(data.state),
@@ -115,7 +124,7 @@ class _PhaseMakers:
             self._arg = cached
             return cached
         setattr_ = object.__setattr__
-        setattr_(cached, "time", data.time)
+        setattr_(cached, "_points", data.time)
         setattr_(cached.state, "_source", data.state)
         setattr_(cached.control, "_source", data.control)
         setattr_(cached.parameter, "_source", parameter)
@@ -124,6 +133,7 @@ class _PhaseMakers:
     def __init__(self, spec: ProblemSpec_, phase: PhaseSpec_) -> None:
         label = f"phase '{phase.name}'"
         self.handle = phase.handle
+        self.arg_class = phase_arg_class(phase.independent)
         self.callback = phase.continuous
         self.what = f"continuous callback for {label}"
         self.state = Maker(phase.state, ReadOnlyRows, f"{label} state")
