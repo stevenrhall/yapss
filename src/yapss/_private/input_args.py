@@ -296,18 +296,18 @@ class DiscretePhase(Protected, Generic[T]):
 
     @property
     def initial_state(self) -> NDArray[T]:
-        """Initial state of the phase, as a read-only copy."""
-        return read_only(self._initial_state.copy())
+        """Initial state of the phase, as a read-only view."""
+        return read_only(self._initial_state)
 
     @property
     def final_state(self) -> NDArray[T]:
-        """Final state of the phase, as a read-only copy."""
-        return read_only(self._final_state.copy())
+        """Final state of the phase, as a read-only view."""
+        return read_only(self._final_state)
 
     @property
     def integral(self) -> NDArray[T]:
-        """Array of integral values for the phase, as a read-only copy."""
-        return read_only(self._integral.copy())
+        """Array of integral values for the phase, as a read-only view."""
+        return read_only(self._integral)
 
 
 class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
