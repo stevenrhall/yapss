@@ -80,8 +80,7 @@ def test_inheriting_a_declaration_is_refused():
 @pytest.mark.parametrize(
     ("kwargs", "error", "match"),
     [
-        ({"size": 1}, ValueError, "omit size for a single row"),
-        ({"size": 0}, ValueError, "must be 2 or more"),
+        ({"size": -1}, ValueError, "must be 0 or more"),
         ({"size": 2.5}, TypeError, "must be an integer"),
         ({"size": True}, TypeError, "must be an integer"),
         ({"units": 3}, TypeError, "must be a string"),
@@ -305,6 +304,63 @@ def test_inputs_read_by_name_index_and_slice():
     assert state[2].tolist() == [2.0, 2.0, 2.0]
     assert state[0:2].shape == (2, 3)
     assert [row.tolist() for row in state] == [[0.0] * 3, [1.0] * 3, [2.0] * 3]
+
+
+# --- block fields of one row and of none --------------------------------------------------
+
+
+class Generated(Vector):
+    """The shape a declaration built by an algorithm takes: block fields of every size."""
+
+    none = field(size=0)
+    one = field(size=1)
+    two = field(size=2)
+    scalar = field()
+
+
+def test_a_block_field_keeps_its_leading_axis_at_every_size():
+    # This is the whole point of allowing size=1 and size=0: a declaration whose sizes are
+    # computed has one rank, so nothing about the callback changes at k == 1 or k == 0.
+    rows = np.arange(4 * 4, dtype=float).reshape(4, 4)
+    state = Generated._new(ReadOnlyRows, "state", npoints=4)
+    state._fill(rows)
+    assert state.none.shape == (0, 4)
+    assert state.one.shape == (1, 4)
+    assert state.two.shape == (2, 4)
+    assert state.scalar.shape == (4,)
+
+
+def test_a_one_row_block_is_not_the_same_declaration_as_a_scalar_field():
+    rows = np.arange(4 * 4, dtype=float).reshape(4, 4)
+    state = Generated._new(ReadOnlyRows, "state", npoints=4)
+    state._fill(rows)
+    # Both occupy one flat row; only the scalar drops the axis. Were they the same, 'one'[0]
+    # would silently mean the first point rather than the first row.
+    assert state.one[0].tolist() == state.one.tolist()[0]
+    assert state.scalar[0] == rows[3][0]
+
+
+def test_sizes_lay_out_flat_rows_in_declaration_order():
+    assert Generated._rows == (("one", 0), ("two", 0), ("two", 1), ("scalar", None))
+    assert Generated._nrows == 0 + 1 + 2 + 1
+
+
+def test_an_empty_block_reads_as_empty_and_takes_no_rows():
+    values = Generated._new(Rows, "dynamics", npoints=4)
+    values.none = []
+    values.one = np.zeros(4)
+    values.two = np.zeros((2, 4))
+    values.scalar = np.zeros(4)
+    assert values._is_complete()
+    assert values.none.shape == (0, 4)
+
+
+def test_an_empty_block_needs_no_assignment_to_be_complete():
+    values = Generated._new(Rows, "dynamics", npoints=4)
+    values.one = np.zeros(4)
+    values.two = np.zeros((2, 4))
+    values.scalar = np.zeros(4)
+    assert values._is_complete()
 
 
 # --- messages -----------------------------------------------------------------------------

@@ -152,7 +152,8 @@ def _unbounded(bounds: Vector, label: str) -> list[str]:
     return [
         f"{label} '{name}' has no bound; a declared constraint must be bounded"
         for name in bounds._fields
-        if name not in bounds._values
+        # A field declared with size=0 holds no rows, so there is nothing to bound.
+        if name not in bounds._values and bounds._meta[name].rows
     ]
 
 

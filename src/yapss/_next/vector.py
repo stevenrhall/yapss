@@ -47,7 +47,8 @@ class Field:
     doc : str
         A one-line description.
     size : int or None
-        The number of rows in a block field, or None for a single row.
+        The number of rows in a block field, or None for a scalar member. A block field keeps
+        its leading axis at every size, including one row and none.
     """
 
     __slots__ = ("doc", "latex", "size", "units")
@@ -85,7 +86,10 @@ def field(*, units: str = "", latex: str = "", doc: str = "", size: int | None =
         A one-line description of the field.
     size : int, optional
         The number of rows, for a field that holds a block of them, such as a position vector.
-        Omit it for a single row; it must be 2 or more.
+        Any count from 0 up is allowed, so that a declaration built by an algorithm needs no
+        special case at one row or none. Omitting it is not the same as ``size=1``: a field
+        with no size is a scalar member, read as ``(npoints,)``, while a block field of one row
+        is read as ``(1, npoints)``.
 
     Returns
     -------
@@ -105,11 +109,8 @@ def field(*, units: str = "", latex: str = "", doc: str = "", size: int | None =
             msg = f"field(size=) must be an integer; got {size!r}"
             raise TypeError(msg)
         size = int(size)
-        if size == 1:
-            msg = "field(size=1) is not allowed; omit size for a single row"
-            raise ValueError(msg)
-        if size < 1:
-            msg = f"field(size=) must be 2 or more; got {size}"
+        if size < 0:
+            msg = f"field(size=) must be 0 or more; got {size}"
             raise ValueError(msg)
     return Field(units=units, latex=latex, doc=doc, size=size)
 
@@ -131,13 +132,20 @@ _NO_VALUES: dict[Any, Any] = {}
 """Shared empty store for a read-only vector, which never writes into it."""
 
 
-def _field_property(name: str, row: int, rows: int, default: Any, *, by_row: bool) -> property:
+def _field_property(
+    name: str, row: int, size: int | None, default: Any, *, by_row: bool
+) -> property:
     """Return the property that reads one field of a generated subclass.
 
     A field reached through `__getattr__` costs two failed lookups before any of our code runs.
     Reading it through a property on the class costs none of that, and `arg.state.h` is written
     exactly the same way; the subclass is generated per (declaration, kind) anyway, so this is
     where the fields belong.
+
+    The choice between the two by-row readers is made on `size`, not on the row count: a block
+    field keeps its leading axis at every size, so ``field(size=1)`` reads as ``(1, npoints)``
+    while a field with no size reads as ``(npoints,)``. They are different declarations, and
+    deciding on the count alone would silently collapse the one-row block to the scalar's rank.
     """
     if not by_row:
 
@@ -150,7 +158,7 @@ def _field_property(name: str, row: int, rows: int, default: Any, *, by_row: boo
 
         return property(get_whole)
 
-    if rows == 1:
+    if size is None:
 
         def get_row(self: Any) -> Any:
             source = self._source
@@ -164,12 +172,23 @@ def _field_property(name: str, row: int, rows: int, default: Any, *, by_row: boo
 
         return property(get_row)
 
+    rows = size
+
     def get_block(self: Any) -> Any:
         source = self._source
         if source is not None:
             if type(source) is np.ndarray and (source.ndim > 1 or source.dtype != object):
                 return source[row : row + rows]
+            if rows == 0:
+                # No row of its own to measure, so the shape of a sibling gives the trailing
+                # axes: () for endpoint values, (npoints,) over the points. Slicing an array
+                # source above gets this for free; a source that is a sequence of rows does not.
+                trailing = np.shape(source[0]) if len(source) else ()
+                return np.empty((0, *trailing))
             return _stack([source[row + i] for i in range(rows)])
+        if rows == 0:
+            npoints = type(self)._npoints
+            return np.empty((0,) if npoints is None else (0, npoints))
         values = self._values
         block = []
         for i in range(rows):
@@ -354,7 +373,7 @@ class Vector:
                 namespace[field_name] = _field_property(
                     field_name,
                     cls._offsets[field_name],
-                    spec.rows,
+                    spec.size,
                     kind.default,
                     by_row=kind.by_row,
                 )
