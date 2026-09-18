@@ -92,6 +92,7 @@ def phase(
         is built, so it is never seen again.
     """
     name, marker = _independent(independent)
+    _check_namespace(_vector_class(state, "state"), _vector_class(control, "control"), name)
     return PhaseDeclaration(
         state=_vector_class(state, "state"),
         control=_vector_class(control, "control"),
@@ -100,6 +101,46 @@ def phase(
         independent=name,
         independent_field=marker,
     )
+
+
+def _check_namespace(state: type[Vector], control: type[Vector], independent: str) -> None:
+    """Refuse a phase whose states, controls and independent variable share a name.
+
+    Those three are one namespace, because that is what they are: the columns of the phase's
+    Jacobian, which a derivative names without saying which vector it came from (spec 5.7). A
+    name belonging to two of them would name two columns.
+
+    The check is here, at the call that brought the classes together, because that is where the
+    collision was made -- and the message names the two classes rather than the phase, since
+    renaming a member of one of them is the fix. The parameters are not here to be checked;
+    they arrive as an argument to `Problem`, which checks them against this namespace there.
+
+    Path and integral names are not in it. They are outputs, so they appear on the other side
+    of a derivative and may collide with a variable freely.
+    """
+    shared = sorted(set(state._fields) & set(control._fields))
+    if shared:
+        msg = (
+            f"phase(state={state.__name__}, control={control.__name__}): both declare "
+            f"{shared[0]!r}. A phase's states, controls and independent variable are one "
+            f"namespace, so their names must differ; rename it in one of the two classes."
+        )
+        raise ValueError(msg)
+    for role, declaration in (("state", state), ("control", control)):
+        if independent in declaration._fields:
+            whose = (
+                "the phase's independent variable, which you named"
+                if independent != DEFAULT_INDEPENDENT
+                else "the phase's independent variable, which is called 'time' by default"
+            )
+            msg = (
+                f"phase({role}={declaration.__name__}): {declaration.__name__} declares "
+                f"{independent!r} as a {role}, and that is also {whose}. They are one "
+                f"namespace, so their names must differ; rename the {role}, or name the "
+                f"independent variable something else with "
+                f"'phase(..., <name>=yapss.field(...))'."
+            )
+            raise ValueError(msg)
 
 
 def _independent(given: dict[str, Any]) -> tuple[str, Field]:

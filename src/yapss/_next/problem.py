@@ -110,6 +110,38 @@ class Derivatives(Container):
         return _one_of(value, ORDERS, "derivatives.order")
 
 
+def _check_parameters(parameter: type[Vector], phases: Any) -> None:
+    """Refuse a parameter whose name is also a variable of some phase.
+
+    A phase's states, controls and independent variable are one namespace, and the parameters
+    join it: a derivative names a variable from it without saying which vector it came from
+    (spec 5.7). The phase declaration cannot check this half, because the parameters are the
+    problem's and arrive here; this is where they meet.
+
+    The message names the phase, which is what distinguishes this from the half `phase()`
+    checks -- there the two classes are the actionable thing, here it is which phase the
+    parameter collided in.
+    """
+    if not parameter._fields:
+        return
+    names = set(parameter._fields)
+    for phase in phases:
+        declaration = phase._declaration
+        variables = {
+            **dict.fromkeys(declaration.state._fields, "a state"),
+            **dict.fromkeys(declaration.control._fields, "a control"),
+            declaration.independent: "its independent variable",
+        }
+        for shared in sorted(names & set(variables)):
+            msg = (
+                f"Problem(parameter={parameter.__name__}) declares {shared!r}, which phase "
+                f"'{phase.name}' also has as {variables[shared]}. Parameters are the "
+                f"problem's, so their names must differ from every phase's variables; they "
+                f"are one namespace."
+            )
+            raise ValueError(msg)
+
+
 class ProblemRegistry(Registry):
     """The problem's callbacks. Reached as ``problem.register``."""
 
@@ -220,6 +252,7 @@ class Problem(HasRegistry):
         self._parameter_class = parameter
 
         self._hold("phases", phases())
+        _check_parameters(parameter, self.phases)
         self._hold("objective", ObjectiveAspects())
         self._hold("derivatives", Derivatives())
         self._hold("ipopt_options", IpoptOptions())
