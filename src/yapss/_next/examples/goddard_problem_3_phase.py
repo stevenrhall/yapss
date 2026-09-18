@@ -90,15 +90,15 @@ def setup() -> yapss.Problem:
         xdot.v = (thrust - drag(h, v)) / m - g
         xdot.m = -thrust / c
 
-    @boost.continuous
+    @boost.register.continuous
     def powered(arg, out):
         """Compute the dynamics of a phase with no path constraint."""
         rocket(arg, out.dynamics)
         return out
 
-    coast.continuous(powered)
+    coast.register.continuous(powered)
 
-    @singular.continuous
+    @singular.register.continuous
     def singular_arc(arg, out):
         """Compute the dynamics, and the switching function that must vanish."""
         rocket(arg, out.dynamics)
@@ -106,12 +106,12 @@ def setup() -> yapss.Problem:
         out.path.switching = m * g - (1 + v / c) * drag(h, v)
         return out
 
-    @problem.objective_function
+    @problem.register.objective
     def final_altitude(arg):
         """Return the altitude reached, which is to be made as large as possible."""
         return arg[coast].final_state.h
 
-    @problem.discrete_function
+    @problem.register.discrete
     def linkage(arg, out):
         """Require time and state to be continuous where the phases meet."""
         b, s, e = arg[boost], arg[singular], arg[coast]

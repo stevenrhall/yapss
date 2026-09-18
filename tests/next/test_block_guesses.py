@@ -28,12 +28,12 @@ def build(row_guess):
     problem = yapss.Problem("block guesses", phases=Phases)
     ph = problem.phases.only
 
-    @ph.continuous
+    @ph.register.continuous
     def dynamics(arg, out):
         out.dynamics.r = [arg.control.u, arg.control.u]
         return out
 
-    @problem.objective_function
+    @problem.register.objective
     def objective(arg):
         return arg[ph].final_time
 

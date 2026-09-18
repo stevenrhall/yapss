@@ -18,7 +18,7 @@ from __future__ import annotations
 import inspect
 from typing import TYPE_CHECKING, Any, cast
 
-from .containers import Container, is_callable, is_subclass, suggest
+from .containers import Container, HasRegistry, Registry, is_callable, is_subclass, suggest
 from .kinds import Bounds, Guess, ScalarGuess, Scale
 from .mesh import Mesh
 from .vector import Empty, Vector
@@ -240,10 +240,57 @@ class TimeAspects(Container):
         return (t0, tf)
 
 
-class Phase(Container):
+class PhaseRegistry(Registry):
+    """A phase's callbacks. Reached as ``ph.register``."""
+
+    _registrations = ("continuous",)
+
+    def __init__(self, phase: Phase) -> None:
+        self._phase = phase
+        self._label = f"{phase._label} callbacks"
+
+    def continuous(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the phase's continuous callback, as a decorator or as a call.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator, as in
+            ``@ph.register.continuous(replace=True)``.
+        replace : bool, default False
+            Replace a callback already registered on this phase. Registering a second callback
+            without it is refused, since it is nearly always a mistake.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+        phase = self._phase
+
+        def register(callback: Callable[..., Any]) -> Callable[..., Any]:
+            if not is_callable(callback):
+                msg = f"{phase._label} continuous callback must be callable; got {callback!r}"
+                raise TypeError(msg)
+            if phase._continuous is not None and not replace:
+                existing = getattr(phase._continuous, "__qualname__", repr(phase._continuous))
+                msg = (
+                    f"{phase._label} already has the continuous callback '{existing}'; pass "
+                    f"replace=True to replace it"
+                )
+                raise ValueError(msg)
+            phase._continuous = callback
+            return callback
+
+        return register if function is None else register(function)
+
+
+class Phase(HasRegistry):
     """One phase of a problem: its aspects, its mesh, and its continuous callback."""
 
-    _held = ("state", "control", "path", "integral", "time")
+    _held = ("state", "control", "path", "integral", "time", "register")
     _settable = ("mesh",)
 
     def __init__(self, name: str, index: int, declaration: PhaseDeclaration) -> None:
@@ -288,6 +335,7 @@ class Phase(Container):
         self._hold("integral", integral)
 
         self._hold("time", TimeAspects(f"{self._label} time"))
+        self._hold("register", PhaseRegistry(self))
 
     @property
     def name(self) -> str:
@@ -308,42 +356,6 @@ class Phase(Container):
             )
             raise TypeError(msg)
         return value
-
-    def continuous(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
-        """Register the phase's continuous callback, as a decorator or as a call.
-
-        Parameters
-        ----------
-        function : callable, optional
-            The callback. Omit it to use the result as a decorator, as in
-            ``@ph.continuous(replace=True)``.
-        replace : bool, default False
-            Replace a callback already registered on this phase. Registering a second callback
-            without it is refused, since it is nearly always a mistake.
-
-        Returns
-        -------
-        Any
-            The callback, or a decorator that registers one.
-        """
-
-        def register(callback: Callable[..., Any]) -> Callable[..., Any]:
-            if not is_callable(callback):
-                msg = f"{self._label} continuous callback must be callable; got {callback!r}"
-                raise TypeError(msg)
-            if self._continuous is not None and not replace:
-                existing = getattr(self._continuous, "__qualname__", repr(self._continuous))
-                msg = (
-                    f"{self._label} already has the continuous callback '{existing}'; pass "
-                    f"replace=True to replace it"
-                )
-                raise ValueError(msg)
-            self._continuous = callback
-            return callback
-
-        return register if function is None else register(function)
 
     def __repr__(self) -> str:
         """Return a short representation naming the phase and its vector classes."""

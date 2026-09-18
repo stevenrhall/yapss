@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 from yapss._private.ipopt_options import IpoptOptions
 
 from .compile import solve_problem
-from .containers import Container, is_callable, is_string, is_subclass
+from .containers import Container, HasRegistry, Registry, is_callable, is_string, is_subclass
 from .declare import Phases
 from .kinds import Bounds, ScalarGuess, Scale
 from .spec import snapshot, validate_problem
@@ -57,11 +57,35 @@ class ObjectiveAspects(Container):
             return Scale.check(value, label="objective", name="scale", npoints=None)
         return _one_of(value, SENSES, "objective.sense")
 
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Refuse a registration written here, which is a likely slip. See `_not_a_decorator`."""
+        del args, kwargs
+        raise TypeError(_not_a_decorator("objective", "the objective"))
+
+
+def _not_a_decorator(which: str, phrase: str) -> str:
+    """Return the message for a callback registered on an aspect rather than on `register`.
+
+    ``problem.objective`` and ``problem.discrete`` hold the settings of those things -- the
+    sense, the scale, the bounds -- and the callbacks are registered next door. Decorating with
+    the aspect is the natural slip, so it is answered rather than left to read as "object is
+    not callable".
+    """
+    return (
+        f"problem.{which} holds the settings of {phrase}, not the callback. Register the "
+        f"callback with '@problem.register.{which}'."
+    )
+
 
 class DiscreteAspects(Container):
     """The discrete constraints: their bounds and their scales."""
 
     _held = ("bounds", "scale")
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Refuse a registration written here, which is a likely slip. See `_not_a_decorator`."""
+        del args, kwargs
+        raise TypeError(_not_a_decorator("discrete", "the discrete constraints"))
 
 
 class ParameterAspects(Container):
@@ -86,7 +110,58 @@ class Derivatives(Container):
         return _one_of(value, ORDERS, "derivatives.order")
 
 
-class Problem(Container):
+class ProblemRegistry(Registry):
+    """The problem's callbacks. Reached as ``problem.register``."""
+
+    _registrations = ("objective", "discrete")
+    _label = "problem callbacks"
+
+    def __init__(self, problem: Problem) -> None:
+        self._problem = problem
+
+    def objective(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the objective callback, as a decorator or as a call.
+
+        The callback takes the endpoint argument and *returns* the objective, which is one
+        expression, so there is no output object to fill.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator.
+        replace : bool, default False
+            Replace a callback already registered.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+        return self._problem._register("objective", function, replace=replace)
+
+    def discrete(
+        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
+    ) -> Any:
+        """Register the discrete constraint callback, as a decorator or as a call.
+
+        Parameters
+        ----------
+        function : callable, optional
+            The callback. Omit it to use the result as a decorator.
+        replace : bool, default False
+            Replace a callback already registered.
+
+        Returns
+        -------
+        Any
+            The callback, or a decorator that registers one.
+        """
+        return self._problem._register("discrete", function, replace=replace)
+
+
+class Problem(HasRegistry):
     """An optimal control problem.
 
     Parameters
@@ -101,7 +176,15 @@ class Problem(Container):
         The class naming the problem's parameters.
     """
 
-    _held = ("phases", "objective", "discrete", "parameter", "derivatives", "ipopt_options")
+    _held = (
+        "phases",
+        "objective",
+        "discrete",
+        "parameter",
+        "derivatives",
+        "ipopt_options",
+        "register",
+    )
     _settable = ("method", "catch_keyboard_interrupt")
 
     def __init__(
@@ -155,6 +238,7 @@ class Problem(Container):
         parameter_aspects._hold("guess", parameter._new(ScalarGuess, "parameter guess"))
         parameter_aspects._hold("scale", parameter._new(Scale, "parameter scale"))
         self._hold("parameter", parameter_aspects)
+        self._hold("register", ProblemRegistry(self))
 
     @property
     def name(self) -> str:
@@ -170,47 +254,6 @@ class Problem(Container):
         return value
 
     # -- registration -------------------------------------------------------------------------
-
-    def objective_function(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
-        """Register the objective callback, as a decorator or as a call.
-
-        The callback takes the endpoint argument and *returns* the objective, which is one
-        expression, so there is no output object to fill.
-
-        Parameters
-        ----------
-        function : callable, optional
-            The callback. Omit it to use the result as a decorator.
-        replace : bool, default False
-            Replace a callback already registered.
-
-        Returns
-        -------
-        Any
-            The callback, or a decorator that registers one.
-        """
-        return self._register("objective", function, replace=replace)
-
-    def discrete_function(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
-        """Register the discrete constraint callback, as a decorator or as a call.
-
-        Parameters
-        ----------
-        function : callable, optional
-            The callback. Omit it to use the result as a decorator.
-        replace : bool, default False
-            Replace a callback already registered.
-
-        Returns
-        -------
-        Any
-            The callback, or a decorator that registers one.
-        """
-        return self._register("discrete", function, replace=replace)
 
     def _register(self, which: str, function: Callable[..., Any] | None, *, replace: bool) -> Any:
         attribute = f"_{which}_function"

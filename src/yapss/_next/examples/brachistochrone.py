@@ -49,7 +49,7 @@ def setup() -> yapss.Problem:
     problem = yapss.Problem("Brachistochrone", phases=Phases)
     ph = problem.phases.slide
 
-    @ph.continuous
+    @ph.register.continuous
     def slide(arg, out):
         """Compute the bead's dynamics."""
         v, u = arg.state.v, arg.control.u
@@ -58,7 +58,7 @@ def setup() -> yapss.Problem:
         out.dynamics.v = g0 * sin(u)
         return out
 
-    @problem.objective_function
+    @problem.register.objective
     def minimum_time(arg):
         """Return the time taken, which is the objective."""
         return arg[ph].final_time

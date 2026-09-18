@@ -204,14 +204,14 @@ def setup() -> yapss.Problem:
     stages = list(problem.phases)
 
     for stage, thrust, mass_flow in zip(stages, THRUST, MASS_FLOW, strict=True):
-        stage.continuous(make_dynamics(thrust, mass_flow))
+        stage.register.continuous(make_dynamics(thrust, mass_flow))
 
-    @problem.objective_function
+    @problem.register.objective
     def final_mass(arg):
         """Return the mass delivered to orbit, which is to be made as large as possible."""
         return arg[stages[LAST]].final_state.m
 
-    @problem.discrete_function
+    @problem.register.discrete
     def constraints(arg, out):
         """Join the stages, and require the final state to be on the target orbit."""
         for index, (before, after) in enumerate(pairwise(stages)):

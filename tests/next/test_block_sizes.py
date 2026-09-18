@@ -45,7 +45,7 @@ def problem():
     ph = problem.phases.slide
     shapes = {}
 
-    @ph.continuous
+    @ph.register.continuous
     def slide(arg, out):
         shapes["x"] = np.shape(arg.state.x)
         shapes["y"] = np.shape(arg.state.y)
@@ -58,7 +58,7 @@ def problem():
         out.dynamics.spare = []
         return out
 
-    @problem.objective_function
+    @problem.register.objective
     def minimum_time(arg):
         return arg[ph].final_time
 

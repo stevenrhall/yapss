@@ -91,7 +91,7 @@ def test_one_callback_serves_two_phases(problem):
 
 def test_registering_a_second_callback_is_refused(problem):
     with pytest.raises(ValueError, match="pass replace=True"):
-        problem.phases.boost.continuous(lambda arg, out: out)
+        problem.phases.boost.register.continuous(lambda arg, out: out)
 
 
 def test_an_unbounded_discrete_group_is_refused():

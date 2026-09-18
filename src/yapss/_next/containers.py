@@ -15,7 +15,7 @@ from __future__ import annotations
 import difflib
 from typing import Any
 
-__all__ = ["Container", "is_callable", "is_string", "is_subclass"]
+__all__ = ["Container", "HasRegistry", "Registry", "is_callable", "is_string", "is_subclass"]
 
 
 def is_string(value: object) -> bool:
@@ -146,3 +146,54 @@ class Container:
             raise AttributeError(name)
         msg = f"{self._label} has no setting '{name}'.{suggest(name, self._names())}"
         raise AttributeError(msg)
+
+
+class HasRegistry(Container):
+    """A container whose callbacks live in a `Registry` held under ``register``.
+
+    The registrations are offered as suggestions from the container itself, so that a callback
+    reached for on its owner -- ``ph.continuous``, which a user who knows a phase has one may
+    well try before looking -- is answered with where it lives rather than with silence.
+    """
+
+    def _names(self) -> tuple[str, ...]:
+        names = super()._names()
+        try:
+            registry = object.__getattribute__(self, "register")
+        except AttributeError:  # during __init__, before the registry is held
+            return names
+        return (*names, *(f"register.{name}" for name in registry._registrations))
+
+
+class Registry(Container):
+    """The callbacks of a problem or a phase, gathered under one name.
+
+    Registration is a namespace of its own -- ``problem.register.objective`` rather than
+    ``problem.objective`` -- for two reasons. The names it holds would otherwise sit beside the
+    settings, where `objective` and `discrete` already name the aspects carrying `sense`,
+    `scale` and `bounds`; and one namespace is one place to look for what can be registered.
+
+    A registration is a method, so it is reached by normal lookup and this class only has to
+    say what happens when a name is *assigned* instead of decorated, and what to suggest when
+    one is misspelled.
+
+    Attributes
+    ----------
+    _registrations : tuple of str
+        The callbacks this registry accepts, in the order they are documented.
+    """
+
+    _registrations: tuple[str, ...] = ()
+
+    def _names(self) -> tuple[str, ...]:
+        return (*self._held, *self._settable, *self._registrations)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse an assignment to a registration, naming the idiom that works."""
+        if not name.startswith("_") and name in self._registrations:
+            msg = (
+                f"{self._label} '{name}' is not assigned. Decorate the callback with "
+                f"'register.{name}', or call 'register.{name}(callback)'."
+            )
+            raise AttributeError(msg)
+        super().__setattr__(name, value)

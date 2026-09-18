@@ -72,7 +72,7 @@ def setup() -> yapss.Problem:
     problem = yapss.Problem("Bryson minimum time to climb", phases=Phases)
     ph = problem.phases.climb
 
-    @ph.continuous
+    @ph.register.continuous
     def climb(arg, out):
         """Compute the aircraft's dynamics, looking the model up in tables."""
         h, v, gamma, mass = arg.state
@@ -97,7 +97,7 @@ def setup() -> yapss.Problem:
         out.dynamics.mass = -thrust / (g0 * Isp)
         return out
 
-    @problem.objective_function
+    @problem.register.objective
     def minimum_time(arg):
         """Return the time taken to climb."""
         return arg[ph].final_time
