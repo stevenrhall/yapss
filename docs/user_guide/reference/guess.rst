@@ -28,7 +28,7 @@ For example, in the Rosenbrock problem, we might have:
 
 .. doctest:: guess-rosenbrock
 
-    >>> from yapss import Problem
+    >>> from yapss._legacy import Problem
     >>>
     >>> problem = Problem(name="Rosenbrock", nx=[], ns=2)
     >>> problem.guess.parameter = [-2.0, 2.0]
@@ -59,7 +59,7 @@ isoperimetric problem, we might have:
 
 .. doctest:: guess-isoperimetric
 
-    >>> from yapss import Problem
+    >>> from yapss._legacy import Problem
     >>>
     >>> problem = Problem(name="Isoperimetric Problem", nx=[2], nu=[2], nq=[3], nh=[1], nd=4)
     >>> problem.guess.phase[0].integral = [0.0, 0.0, 0.0]
@@ -105,7 +105,7 @@ Below is an example from the Dynamic Soaring problem:
 .. doctest:: guess-dynamic-soaring
 
     >>> import numpy as np
-    >>> from yapss import Problem
+    >>> from yapss._legacy import Problem
     >>>
     >>> problem = Problem(name="Dynamic Soaring", nx=[6], nu=[2], nh=[1], ns=1, nd=3)
     >>>
@@ -164,7 +164,7 @@ to the ultimate solution and reduces computation time.
 
 .. code-block:: python
 
-    from yapss import Problem
+    from yapss._legacy import Problem
 
     problem = Problem(name="Bryson Minimum Time to Climb", nx=[4], nu=[1])
 

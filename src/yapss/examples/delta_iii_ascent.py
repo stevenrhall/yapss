@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     # package imports
-    from yapss import Solution
+    from yapss._legacy import Solution
 
 
 # Dynamic Model Parameters

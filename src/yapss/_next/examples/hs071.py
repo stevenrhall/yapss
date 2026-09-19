@@ -14,7 +14,7 @@ refused it would be refusing arithmetic it can already do.
 
 __all__ = ["main", "print_solution", "setup"]
 
-from yapss import _next as yapss
+import yapss
 
 OPTIMUM = 17.01401714
 """The known objective value, used as the installation smoke test."""

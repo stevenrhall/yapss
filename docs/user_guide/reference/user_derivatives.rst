@@ -23,7 +23,7 @@ by defining the problem:
 
 .. testcode:: group1
 
-   from yapss import Problem
+   from yapss._legacy import Problem
    from yapss import math as np
    from yapss.math import cos, pi, sin
 

@@ -24,7 +24,7 @@ gradient reads a value from `arg` and whose objective Hessian has an entry in it
 import numpy as np
 import pytest
 
-from yapss import _next as yapss
+import yapss
 from yapss._next.compile import to_transcription_spec
 from yapss._next.examples import brachistochrone_user_derivatives as user_brachistochrone
 from yapss._next.examples.brachistochrone import setup as auto_brachistochrone

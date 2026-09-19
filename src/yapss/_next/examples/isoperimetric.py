@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
 
-from yapss import _next as yapss
+import yapss
 
 PERIMETER = 1.0
 """The length of the curve, which the unit-speed constraint and the arc-length span fix."""

@@ -27,10 +27,8 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import ArrayLike, NDArray
 
-    # package imports
-    import yapss
-
     from .mesh import Mesh
+    from .problem import Problem
     from .solution import Solution
     from .spec import ProblemSpec
 
@@ -161,7 +159,7 @@ class Guess(Protected):
     # private names are the fields set in `__init__` and the `Parameter` descriptor's
     # backing store.
 
-    def __init__(self, problem: yapss.Problem) -> None:
+    def __init__(self, problem: Problem) -> None:
         """Initialize the guess object.
 
         Parameters
@@ -295,7 +293,7 @@ class PhaseGuess(Protected):
     control: PhaseArrayGuess = PhaseArrayGuess()
     time: TimeGuess = TimeGuess()
 
-    def __init__(self, problem: yapss.Problem, p: int) -> None:
+    def __init__(self, problem: Problem, p: int) -> None:
         self._p = p
         self._n_state = problem.nx[p]
         self._n_control = problem.nu[p]

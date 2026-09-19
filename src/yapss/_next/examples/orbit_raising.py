@@ -15,7 +15,7 @@ from math import pi
 import matplotlib.pyplot as plt
 import numpy as np
 
-from yapss import _next as yapss
+import yapss
 from yapss.math import sqrt
 
 m_0, r_0, mu = 1.0, 1.0, 1.0

@@ -21,7 +21,7 @@ __all__ = ["main", "plot_solution", "setup"]
 import matplotlib.pyplot as plt
 from numpy import pi
 
-from yapss import _next as yapss
+import yapss
 from yapss.examples.minimum_time_to_climb import (
     get_c,
     get_cd0,

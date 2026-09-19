@@ -2,7 +2,7 @@ Derivatives
 ===========
 
 Users have a choice of how YAPSS calculates derivatives required for the solution of the
-optimal control problem. The ``derivatives`` attribute of a :class:`~yapss.Problem` object controls
+optimal control problem. The ``derivatives`` attribute of a :class:`~yapss._private.problem.Problem` object controls
 how derivatives are calculated.
 
 The ``derivatives.method`` Attribute
@@ -77,7 +77,7 @@ is not an option. So the differentiation method chosen is "central-difference". 
 numerical differentiation is used, the derivative order is set to "second", as that turns
 out to be (a little bit) faster than using first-order derivatives.
 
-   >>> from yapss import Problem
+   >>> from yapss._legacy import Problem
    >>> ocp = Problem(name="Bryson Minimum Time to Climb", nx=[4], nu=[1])
    >>> ocp.derivatives.method = "central-difference"
    >>> ocp.derivatives.order = "second"

@@ -8,7 +8,7 @@ sample times, and the coverage check has to see every row's samples.
 import numpy as np
 import pytest
 
-from yapss import _next as yapss
+import yapss
 from yapss._next.compile import to_transcription_spec
 from yapss._next.spec import snapshot
 

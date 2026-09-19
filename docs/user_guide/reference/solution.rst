@@ -1,7 +1,7 @@
 The Solution Object
 ===================
 
-The :class:`yapss.Solution` class stores the solution to an optimal control problem. An
+The :class:`yapss._private.solution.Solution` class stores the solution to an optimal control problem. An
 instance of this class contains detailed information about the optimal decision variables,
 Lagrange multipliers, and additional data relevant to the problem.
 
@@ -23,7 +23,7 @@ arc and therefore requires a three-phase solution. You can solve this problem an
 Checking That the Solve Converged
 ---------------------------------
 
-``problem.solve()`` returns a :class:`~yapss.Solution` regardless of the status reported by
+``problem.solve()`` returns a :class:`~yapss._private.solution.Solution` regardless of the status reported by
 Ipopt. A run that reaches its iteration limit or stops because the step size collapses still
 produces a full set of trajectories --- they simply do not satisfy any convergence criterion. Nothing about
 the returned object looks different.
@@ -171,7 +171,7 @@ Representation of Solution Objects
 ----------------------------------
 
 The `repr()` output of a `Solution` object confirms that it is an instance of
-:class:`~yapss.Solution` and displays the problem name.
+:class:`~yapss._private.solution.Solution` and displays the problem name.
 
 The `str()` representation provides additional information, including the Ipopt status
 code and message (indicating the success of the optimization) and the objective value at
@@ -186,8 +186,8 @@ the optimal solution:
        Status Message: Optimal Solution Found.
        Objective Value: 18550.87...
 
-Structure of a :class:`~yapss.Solution` Instance
-------------------------------------------------
+Structure of a :class:`~yapss._private.solution.Solution` Instance
+------------------------------------------------------------------
 
 The `Solution` object contains various attributes stored in a relatively flat structure, each representing a key element of the solution:
 
@@ -309,7 +309,7 @@ Lagrange multipliers associated with variable bounds and constraints:
 ``Solution`` Class Reference
 ----------------------------
 
-.. autoclass:: yapss.Solution
+.. autoclass:: yapss._private.solution.Solution
     :members:
 
 ``IpoptStatus`` Class Reference

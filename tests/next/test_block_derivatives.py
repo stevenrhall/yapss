@@ -14,7 +14,7 @@ Jacobian and Hessian at an off-guess point.
 import numpy as np
 import pytest
 
-from yapss import _next as yapss
+import yapss
 from yapss._next.compile import _make_continuous_derivative, to_transcription_spec
 from yapss._next.derivatives import ContinuousJacobian
 from yapss._next.examples.delta_iii_ascent import (

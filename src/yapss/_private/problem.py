@@ -47,9 +47,6 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
-    # package imports
-    import yapss
-
     from .input_args import (
         ContinuousFunction,
         ContinuousHessianFunction,
@@ -621,7 +618,7 @@ class ScalePhase(Protected):
     path: ScaleArray = ScaleArray()
     """Path scaling array for a single phase."""
 
-    def __init__(self, problem: yapss.Problem, p: int) -> None:
+    def __init__(self, problem: Problem, p: int) -> None:
         """Initialize the scaling object.
 
         Initialize the scaling object for phase `p` of  the problem, based on the `problem`
@@ -989,7 +986,7 @@ class Mesh(Protected):
 
     phase: tuple[MeshPhase, ...]
 
-    def __init__(self, problem: yapss.Problem) -> None:
+    def __init__(self, problem: Problem) -> None:
         """Initialize the mesh object."""
         self.phase = tuple(MeshPhase(p) for p in range(problem.np))
         segments = DEFAULT_NUMBER_OF_SEGMENTS

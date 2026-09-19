@@ -8,7 +8,7 @@ has the classes in front of it, and `Problem` is where the parameters arrive.
 
 import pytest
 
-from yapss import _next as yapss
+import yapss
 
 
 class State(yapss.Vector):

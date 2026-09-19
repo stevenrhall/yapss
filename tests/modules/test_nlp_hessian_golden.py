@@ -82,7 +82,7 @@ def kitchen_sink_setup():
     ``test_golden_cases_reach_every_assembler_branch`` fails if an arm of the
     assembler stops being exercised.
     """
-    import yapss
+    from yapss import _legacy as yapss
 
     problem = yapss.Problem(name="kitchen_sink", nx=[2], nu=[1], nq=[2], nh=[1], ns=2, nd=2)
 

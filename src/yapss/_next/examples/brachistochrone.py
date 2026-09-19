@@ -12,7 +12,7 @@ __all__ = ["main", "plot_solution", "setup"]
 import matplotlib.pyplot as plt
 from numpy import pi
 
-from yapss import _next as yapss
+import yapss
 from yapss.math import cos, sin
 
 g0 = 32.174

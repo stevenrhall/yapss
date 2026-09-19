@@ -32,7 +32,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from yapss import _next as yapss
+import yapss
 
 
 class Profile(yapss.Vector):

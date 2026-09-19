@@ -173,7 +173,7 @@ For example, trying to set ``hessian_approximation`` directly raises an error:
 .. doctest:: group1
     :options: +IGNORE_EXCEPTION_DETAIL
 
-    >>> from yapss import Problem
+    >>> from yapss._legacy import Problem
     >>> problem = Problem(name="Test", nx=[1])
     >>> problem.ipopt_options.hessian_approximation = "exact"
     Traceback (most recent call last):

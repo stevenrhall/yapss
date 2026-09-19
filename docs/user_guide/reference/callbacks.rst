@@ -48,7 +48,7 @@ and objective callback function are:
 
 .. code-block:: python
 
-    from yapss import Problem
+    from yapss._legacy import Problem
 
     problem = Problem(
         name="Goddard Rocket Problem with Singular Arc",
@@ -320,7 +320,7 @@ The corresponding discrete callback function for this problem is:
             *(phase[1].final_state - phase[2].initial_state),
         ]
 
-The discrete variables that can be extracted from the ``arg`` object are the same as those available in the objective callback function. The value of the discrete function must be assigned to the ``arg.discrete`` attribute, and it should be a one-dimensional array-like object with length equal to the number of discrete variables, as specified by the ``nd`` argument in the :class:`~yapss.Problem` constructor.
+The discrete variables that can be extracted from the ``arg`` object are the same as those available in the objective callback function. The value of the discrete function must be assigned to the ``arg.discrete`` attribute, and it should be a one-dimensional array-like object with length equal to the number of discrete variables, as specified by the ``nd`` argument in the :class:`~yapss._private.problem.Problem` constructor.
 
 Each discrete constraint is one row of ``arg.discrete``, with a single value, and the same
 whole-row rule applies: assign every value at once, one value, or a slice with one value per

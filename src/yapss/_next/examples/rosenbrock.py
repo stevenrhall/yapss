@@ -18,7 +18,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from yapss import _next as yapss
+import yapss
 
 MINIMUM = (1.0, 1.0)
 """Where the function is smallest, which the solver should find."""

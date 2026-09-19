@@ -22,7 +22,7 @@ __all__ = ["main", "plot_solution", "setup"]
 import matplotlib.pyplot as plt
 from numpy import pi
 
-from yapss import _next as yapss
+import yapss
 from yapss.math import cos, sin
 
 from .brachistochrone import Angle, Phases, Slide, g0, plot_solution

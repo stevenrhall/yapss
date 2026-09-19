@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
-from yapss import _next as yapss
+import yapss
 from yapss.math import cos, sin
 
 w0 = 0.0

@@ -26,7 +26,7 @@ __all__ = ["main", "plot_solution", "setup"]
 
 import matplotlib.pyplot as plt
 
-from yapss import _next as yapss
+import yapss
 from yapss.math import exp
 
 Tm = 193.044

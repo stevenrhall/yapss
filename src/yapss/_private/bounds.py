@@ -31,9 +31,7 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import ArrayLike, NDArray
 
-    # package imports
-    import yapss
-
+    from .problem import Problem
     from .spec import ProblemSpec
 
     # standard library imports
@@ -407,7 +405,7 @@ class Bounds(Protected):
     parameter: ArrayBounds
     phase: tuple[PhaseBounds, ...]
 
-    def __init__(self, problem: yapss.Problem) -> None:
+    def __init__(self, problem: Problem) -> None:
         """Initialize the bounds instance."""
         phase_bounds: list[PhaseBounds] = []
 

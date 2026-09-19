@@ -1,12 +1,11 @@
 """
 
-Prototype of the redesigned YAPSS API.
+The YAPSS API.
 
-This package is private and carries no compatibility promise. It exists so that the redesigned
-API can be run and judged against real problems before any of it is published. Import it
-under the name the released API will use::
-
-    from yapss import _next as yapss
+This package holds the front end that `yapss` itself exports: `Problem`, the declarations a
+problem is written in, and the solution it returns. Nothing imports from here directly --
+``import yapss`` reaches all of it -- and the package keeps its own name only until the two
+front ends finish changing places. The 0.3.0 API it replaced is `yapss._legacy`.
 
 """
 

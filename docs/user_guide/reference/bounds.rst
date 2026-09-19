@@ -13,7 +13,7 @@ constraints.
 
 .. doctest:: group1
 
-    >>> from yapss import Problem
+    >>> from yapss._legacy import Problem
     >>>
     >>> problem = Problem(name="HS071", nx=[], ns=4, nd=2)
     >>> bounds = problem.bounds
@@ -97,7 +97,7 @@ initialize the bounds for this problem as follows:
 
 .. doctest:: group2
 
-    >>> from yapss import Problem
+    >>> from yapss._legacy import Problem
     >>> import numpy as np
     >>> problem = Problem(name="dynamic soaring", nx=[6], nu=[2], nh=[1], ns=1, nd=3)
 

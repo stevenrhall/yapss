@@ -11,7 +11,7 @@ import math
 import numpy as np
 import pytest
 
-from yapss import _next as yapss
+import yapss
 from yapss.math import cos, sin
 
 G0 = 32.174
