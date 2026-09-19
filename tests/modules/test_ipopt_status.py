@@ -1,13 +1,13 @@
-"""Tests for `yapss._private.ipopt_status`."""
+"""Tests for `yapss._backend.ipopt_status`."""
 
 import re
 
 import pytest
 
 from yapss import _legacy as yapss
+from yapss._backend.ipopt_status import status_or_raise
+from yapss._backend.solution import QUIET_IPOPT_STATUSES
 from yapss._legacy import IpoptStatus
-from yapss._private.ipopt_status import status_or_raise
-from yapss._private.solution import QUIET_IPOPT_STATUSES
 
 # `ApplicationReturnStatus` in Ipopt 3.14.11's IpReturnCodes_inc.h, copied by hand: the enum
 # must name every code Ipopt can return, with Ipopt's own spelling in upper case.

@@ -61,8 +61,8 @@ import types
 
 import pytest
 
+from yapss._backend import solver
 from yapss._legacy.examples.rosenbrock import setup
-from yapss._private import solver
 
 pytestmark = pytest.mark.skipif(
     solver._IN_CONDA,
@@ -124,7 +124,7 @@ class TestLinearSolverDefault:
         problem.solve()
         assert ("linear_solver", "mumps") in record_options
 
-    @pytest.mark.filterwarnings("ignore::yapss._private.solver.IpoptOptionSettingWarning")
+    @pytest.mark.filterwarnings("ignore::yapss._backend.solver.IpoptOptionSettingWarning")
     def test_user_choice_is_not_overridden(self, problem, record_options, monkeypatch):
         # "spral" regardless of whether this build has it. Where it is absent -- macOS,
         # and Conda outside Linux -- Ipopt rejects the value and YAPSS warns; the

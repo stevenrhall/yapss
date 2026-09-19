@@ -27,11 +27,11 @@ import pytest
 import yapss
 from yapss._api.compile import to_transcription_spec
 from yapss._api.spec import snapshot, validate_problem
-from yapss._private.auto import make_auto_functions
-from yapss._private.guess import make_initial_guess_nlp
-from yapss._private.mesh import Mesh
-from yapss._private.nlp import NLP
-from yapss._private.user import make_user_functions
+from yapss._backend.auto import make_auto_functions
+from yapss._backend.guess import make_initial_guess_nlp
+from yapss._backend.mesh import Mesh
+from yapss._backend.nlp import NLP
+from yapss._backend.user import make_user_functions
 from yapss.examples import brachistochrone_user_derivatives as user_brachistochrone
 from yapss.examples.brachistochrone import setup as auto_brachistochrone
 from yapss.examples.goddard_problem_1_phase import setup as user_goddard_1_phase

@@ -5,7 +5,7 @@ Setting bounds on a 0.3.0 problem.
 The interface that lets a user set bounds on the decision variables and the constraints of a
 `yapss._legacy.Problem`, reset them, and check that they are consistent -- that no lower bound
 is above its upper bound. Laying them out for the transcription is
-`yapss._private.bounds`, which takes a `ProblemSpec` and knows nothing about any of this.
+`yapss._backend.bounds`, which takes a `ProblemSpec` and knows nothing about any of this.
 
 """
 
@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy import float64
 
-from yapss._private.types_ import Protected, set_private
+from yapss._backend.types_ import Protected, set_private
 
 # package imports
 from .checked_array import CheckedArray, raise_if_invalid

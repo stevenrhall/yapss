@@ -1,6 +1,6 @@
 """
 
-Test the yapss._private.quadrature module.
+Test the yapss._backend.quadrature module.
 
 """
 
@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 # package imports
-from yapss._private.quadrature import lgl, lgr
+from yapss._backend.quadrature import lgl, lgr
 
 TOL = 0
 

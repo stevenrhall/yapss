@@ -21,13 +21,13 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, assert_never, get_args
 import numpy as np
 from numpy import float64
 
-from yapss._private.callbacks import Auxdata, UserFunctions
-from yapss._private.exceptions import LargeSegmentWarning
-from yapss._private.ipopt_options import IpoptOptions
-from yapss._private.solution import warn_if_not_converged
-from yapss._private.solver import solve
-from yapss._private.spec import PhaseSpec, ProblemSpec, frozen_array
-from yapss._private.types_ import (
+from yapss._backend.callbacks import Auxdata, UserFunctions
+from yapss._backend.exceptions import LargeSegmentWarning
+from yapss._backend.ipopt_options import IpoptOptions
+from yapss._backend.solution import warn_if_not_converged
+from yapss._backend.solver import solve
+from yapss._backend.spec import PhaseSpec, ProblemSpec, frozen_array
+from yapss._backend.types_ import (
     DerivativeMethod,
     DerivativeOrder,
     LimitOptions,
@@ -47,8 +47,8 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
-    from yapss._private.solution import Solution
-    from yapss._private.types_ import CVName, DVName
+    from yapss._backend.solution import Solution
+    from yapss._backend.types_ import CVName, DVName
 
     Array = NDArray[float64]
 
@@ -253,7 +253,7 @@ class Problem(Protected):
         """Reduce the problem to the numbers the transcription reads.
 
         Everything a solve needs is copied out, so the returned record cannot be changed by a
-        later edit of this problem. See `yapss._private.spec`.
+        later edit of this problem. See `yapss._backend.spec`.
 
         Returns
         -------

@@ -184,7 +184,7 @@ jobs:
       - name: Test with pytest
         run: >-
           python -m pytest tests/
-          -W error::yapss._private.mseipopt.library.IpoptVerificationWarning
+          -W error::yapss._backend.mseipopt.library.IpoptVerificationWarning
 
   # Weekly canary for conda/environment.yml, the yapss-dev contributor dev
   # environment -- not consumed by any other CI job, so nothing else catches

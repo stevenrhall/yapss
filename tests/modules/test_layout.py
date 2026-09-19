@@ -14,10 +14,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from yapss._backend.layout import SPECTRAL_METHODS, PhaseLayout, phase_layout, problem_layout
+from yapss._backend.mesh import Mesh
+from yapss._backend.structure import get_nlp_cf_structure, get_nlp_dv_structure
 from yapss._legacy import Problem
-from yapss._private.layout import SPECTRAL_METHODS, PhaseLayout, phase_layout, problem_layout
-from yapss._private.mesh import Mesh
-from yapss._private.structure import get_nlp_cf_structure, get_nlp_dv_structure
 
 MESHES = {
     "one segment": [(7,)],

@@ -71,7 +71,7 @@ and ``"once"`` actions would otherwise report only the first, and a solve that q
 a non-optimal trajectory is exactly what the warning exists to prevent. ``"ignore"`` and
 ``"error"`` behave as they do for any other warning.
 
-The vendored Ipopt interface (``yapss._private.mseipopt``) is written to stand on its own and
+The vendored Ipopt interface (``yapss._backend.mseipopt``) is written to stand on its own and
 keeps its own categories, such as ``IpoptVerificationWarning``; they are not part of this
 hierarchy.
 

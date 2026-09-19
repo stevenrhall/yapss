@@ -42,11 +42,11 @@ import copy
 import numpy as np
 import pytest
 
-from yapss._legacy.examples import brachistochrone_minimal
-from yapss._private.bounds import (
+from yapss._backend.bounds import (
     get_nlp_constraint_function_bounds,
     get_nlp_decision_variable_bounds,
 )
+from yapss._legacy.examples import brachistochrone_minimal
 
 from ._contract import (
     SCALAR_FORMS,

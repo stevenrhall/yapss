@@ -107,8 +107,8 @@ def test_initial_and_final_state_are_the_endpoint_variables(spectral_method: str
     The mesh is multi-segment and non-uniform so that LG, which stores its endpoint and
     segment-boundary states after the collocation states, is exercised.
     """
+    from yapss._backend.structure import get_nlp_dv_structure
     from yapss._legacy.examples import goddard_problem_3_phase
-    from yapss._private.structure import get_nlp_dv_structure
 
     problem = goddard_problem_3_phase.setup()
     problem.spectral_method = spectral_method

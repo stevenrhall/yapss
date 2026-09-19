@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from yapss._private import solver
+from yapss._backend import solver
 
 
 def test_derivative_callbacks_copy_returned_values():

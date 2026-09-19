@@ -25,8 +25,8 @@ import warnings
 
 import pytest
 
-import yapss._private
-from yapss._private.exceptions import YapssDeprecationWarning, YapssError, YapssWarning
+import yapss._backend
+from yapss._backend.exceptions import YapssDeprecationWarning, YapssError, YapssWarning
 
 from ._contract import callback_problem
 
@@ -47,8 +47,8 @@ CATEGORIES = [
 
 def yapss_classes(kind: type) -> list[type]:
     """Every subclass of `kind` defined in yapss, except in the vendored mseipopt package."""
-    modules = [yapss, yapss._private]
-    for package in (yapss, yapss.math, yapss._private):
+    modules = [yapss, yapss._backend]
+    for package in (yapss, yapss.math, yapss._backend):
         for info in pkgutil.walk_packages(package.__path__, f"{package.__name__}."):
             if "mseipopt" in info.name:
                 continue

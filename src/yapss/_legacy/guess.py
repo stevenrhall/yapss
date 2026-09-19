@@ -4,7 +4,7 @@ The initial guess of a 0.3.0 problem.
 
 `Guess` and the per-phase containers under it, which hold what the user wrote until the
 problem is turned into a `ProblemSpec`. Interpolating that onto the mesh and flattening it
-for the NLP is `yapss._private.guess`, which knows nothing about any of this.
+for the NLP is `yapss._backend.guess`, which knows nothing about any of this.
 
 """
 
@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.interpolate import interp1d
 
-from yapss._private.types_ import Protected, set_private
+from yapss._backend.types_ import Protected, set_private
 
 # package imports
 from .coercion import real_array
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import ArrayLike, NDArray
 
-    from yapss._private.solution import Solution
+    from yapss._backend.solution import Solution
 
     from .problem import Problem
 

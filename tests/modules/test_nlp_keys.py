@@ -13,15 +13,15 @@ from typing import get_args
 import numpy as np
 import pytest
 
-from yapss._legacy import Problem
-from yapss._private.layout import SPECTRAL_METHODS, problem_layout
-from yapss._private.structure import (
+from yapss._backend.layout import SPECTRAL_METHODS, problem_layout
+from yapss._backend.structure import (
     get_nlp_cf_structure,
     get_nlp_dv_structure,
     nlp_constraint_keys,
     nlp_variable_keys,
 )
-from yapss._private.types_ import CFViewName, DVViewName
+from yapss._backend.types_ import CFViewName, DVViewName
+from yapss._legacy import Problem
 
 SCALAR_VIEWS = {"q", "s", "integral", "discrete"}
 """Views whose components are single entries of one array, indexed by component."""

@@ -1,6 +1,6 @@
 """
 
-Test the yapss._private.ipopt_options module.
+Test the yapss._backend.ipopt_options module.
 
 """
 
@@ -9,14 +9,14 @@ import warnings
 import numpy as np
 import pytest
 
+from yapss._backend.ipopt_option_specs import IPOPT_DOC_VERSION
+from yapss._backend.ipopt_options import IpoptOptions, explain_refusal
+from yapss._backend.mseipopt import library
 from yapss._legacy import IpoptConvergenceWarning, IpoptOptionSettingWarning
 from yapss._legacy.examples.rosenbrock import setup
-from yapss._private.ipopt_option_specs import IPOPT_DOC_VERSION
-from yapss._private.ipopt_options import IpoptOptions, explain_refusal
-from yapss._private.mseipopt import library
 
 
-@pytest.mark.filterwarnings("ignore::yapss._private.solver.IpoptOptionSettingWarning")
+@pytest.mark.filterwarnings("ignore::yapss._backend.solver.IpoptOptionSettingWarning")
 def test_ipopt_options():
     """Test the ipopt_options module."""
 

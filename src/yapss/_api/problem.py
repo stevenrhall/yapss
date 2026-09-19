@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from yapss._private.ipopt_options import IpoptOptions
-from yapss._private.solution import warn_if_not_converged
+from yapss._backend.ipopt_options import IpoptOptions
+from yapss._backend.solution import warn_if_not_converged
 
 from .compile import solve_problem
 from .containers import Container, HasRegistry, Registry, is_callable, is_string, is_subclass

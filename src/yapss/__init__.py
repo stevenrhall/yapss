@@ -10,16 +10,16 @@ from ._api.problem import Problem
 from ._api.sampled import interp
 from ._api.solution import PhaseSolution, Solution
 from ._api.vector import Empty, Vector, field
-from ._private.exceptions import (
+from ._backend.exceptions import (
     REMOVED_NAMES,
     LargeSegmentWarning,
     YapssDeprecationWarning,
     YapssError,
     YapssWarning,
 )
-from ._private.ipopt_options import IpoptOptionSettingWarning
-from ._private.ipopt_status import IpoptStatus
-from ._private.solution import IpoptConvergenceWarning
+from ._backend.ipopt_options import IpoptOptionSettingWarning
+from ._backend.ipopt_status import IpoptStatus
+from ._backend.solution import IpoptConvergenceWarning
 
 # re-exported so that every warning and error category YAPSS can raise is discoverable
 # from the top-level package; yapss.math remains their defining module

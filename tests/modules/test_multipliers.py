@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 from yapss import _legacy as yapss
-from yapss._private.mesh import Mesh
+from yapss._backend.mesh import Mesh
 
 DURATIONS = [2.0, 4.0, 0.5]
 METHODS = ["lg", "lgr", "lgl"]
@@ -97,7 +97,7 @@ def test_zero_duration_phase_multipliers_are_nan_whatever_ipopt_returns(monkeypa
     nonzero path-row values, which divided by the zero duration to -inf. Forcing every NLP
     multiplier nonzero makes the case deterministic on any build.
     """
-    from yapss._private import solver
+    from yapss._backend import solver
 
     make_solution_object = solver.make_solution_object
 

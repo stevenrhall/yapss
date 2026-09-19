@@ -1,6 +1,6 @@
 """
 
-Test the yapss._private.guess module.
+Test the yapss._backend.guess module.
 
 """
 
@@ -319,10 +319,10 @@ def test_initial_guess_nlp_state_is_in_time_order(spectral_method):
     For LG the state layout is collocation points first, then segment-start and final
     values, so the write must go through the layout's ``time_order`` just as the read does.
     """
-    from yapss._private.guess import make_initial_guess_nlp
-    from yapss._private.layout import problem_layout
-    from yapss._private.mesh import Mesh
-    from yapss._private.structure import get_nlp_dv_structure
+    from yapss._backend.guess import make_initial_guess_nlp
+    from yapss._backend.layout import problem_layout
+    from yapss._backend.mesh import Mesh
+    from yapss._backend.structure import get_nlp_dv_structure
 
     problem = Problem(name="Test", nx=[1], nu=[0])
     problem.spectral_method = spectral_method

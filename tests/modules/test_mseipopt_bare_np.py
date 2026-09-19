@@ -8,7 +8,7 @@ from typing import Any, get_type_hints
 import numpy as np
 import pytest
 
-from yapss._private.mseipopt import bare, bare_np, library
+from yapss._backend.mseipopt import bare, bare_np, library
 
 
 @pytest.fixture

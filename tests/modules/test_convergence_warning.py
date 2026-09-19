@@ -13,8 +13,8 @@ import warnings
 import pytest
 
 from yapss import _legacy as yapss
+from yapss._backend.solution import QUIET_IPOPT_STATUSES, warn_if_not_converged
 from yapss._legacy.examples.rosenbrock import setup
-from yapss._private.solution import QUIET_IPOPT_STATUSES, warn_if_not_converged
 
 
 def test_warns_when_max_iter_exceeded():

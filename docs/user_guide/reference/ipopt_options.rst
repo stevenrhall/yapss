@@ -184,7 +184,7 @@ For example, trying to set ``hessian_approximation`` directly raises an error:
 ``IpoptOptions`` Class Reference
 --------------------------------
 
-.. autoclass:: yapss._private.ipopt_options.IpoptOptions
+.. autoclass:: yapss._backend.ipopt_options.IpoptOptions
    :members:
    :no-special-members:
    :no-undoc-members:

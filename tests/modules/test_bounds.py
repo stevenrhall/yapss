@@ -1,6 +1,6 @@
 """
 
-Test the yapss._private.bounds module.
+Test the yapss._backend.bounds module.
 
 """
 

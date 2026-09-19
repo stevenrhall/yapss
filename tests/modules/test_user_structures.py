@@ -22,11 +22,11 @@ import numpy as np
 import pytest
 
 import yapss
+from yapss._backend.guess import make_initial_guess_nlp
+from yapss._backend.mesh import Mesh
+from yapss._backend.nlp import NLP
+from yapss._backend.user import make_user_functions
 from yapss._legacy import Problem
-from yapss._private.guess import make_initial_guess_nlp
-from yapss._private.mesh import Mesh
-from yapss._private.nlp import NLP
-from yapss._private.user import make_user_functions
 
 
 def build_problem(

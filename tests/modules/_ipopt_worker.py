@@ -71,7 +71,7 @@ def force_casadi():
 
 def check_cold_start():
     """Resolution must work before anything has touched CasADi."""
-    from yapss._private.mseipopt import library
+    from yapss._backend.mseipopt import library
 
     if library.duplicate_ipopt_copies():
         print("    IPOPT already mapped at startup")
@@ -90,7 +90,7 @@ def check_cold_start():
 
 def check_idempotent():
     """Repeated resolve and load must stay at exactly one copy."""
-    from yapss._private.mseipopt import library
+    from yapss._backend.mseipopt import library
 
     paths = set()
     for _ in range(5):
@@ -107,7 +107,7 @@ def check_idempotent():
 
 def check_initialize():
     """A full initialization must leave exactly one IPOPT mapped."""
-    from yapss._private.mseipopt import bare, library
+    from yapss._backend.mseipopt import bare, library
 
     path = library.initialize_ipopt()
     copies = library.duplicate_ipopt_copies()
@@ -127,7 +127,7 @@ def _sabotage(strategy1_alive: bool):
     test passes even with loader introspection completely dead -- which is
     exactly how the original leading-underscore probe bug went unnoticed.
     """
-    from yapss._private.mseipopt import library
+    from yapss._backend.mseipopt import library
 
     if not force_casadi():
         print("    casadi could not load its ipopt plugin")

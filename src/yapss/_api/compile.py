@@ -4,7 +4,7 @@ Reducing a problem to what the transcription reads.
 
 The snapshot taken when a solve begins still knows about declarations, named fields, and the
 user's per-phase callbacks. The transcription knows about none of that: it is given counts,
-arrays, and callbacks, as `yapss._private.spec.ProblemSpec`. This module makes one from the
+arrays, and callbacks, as `yapss._backend.spec.ProblemSpec`. This module makes one from the
 other.
 
 The callbacks it supplies are adapters: they receive what the transcription passes, build the
@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from yapss._private.callbacks import UserFunctions
-from yapss._private.solver import solve
-from yapss._private.spec import PhaseSpec, ProblemSpec, frozen_array
+from yapss._backend.callbacks import UserFunctions
+from yapss._backend.solver import solve
+from yapss._backend.spec import PhaseSpec, ProblemSpec, frozen_array
 
 from .args import (
     DiscreteOutput,
@@ -622,7 +622,7 @@ def to_transcription_spec(spec: ProblemSpec_) -> ProblemSpec:
 
     Returns
     -------
-    yapss._private.spec.ProblemSpec
+    yapss._backend.spec.ProblemSpec
         The same problem as counts, arrays, and callbacks.
     """
     functions = UserFunctions()

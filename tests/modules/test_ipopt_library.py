@@ -1,6 +1,6 @@
 """
 
-Test yapss._private.mseipopt.library, the IPOPT resolver and ABI checks.
+Test yapss._backend.mseipopt.library, the IPOPT resolver and ABI checks.
 
 These run in the ordinary pytest process. Anything that depends on load
 *order* lives in test_ipopt_isolation.py instead, because a shared library
@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from yapss._private.mseipopt import bare, library
+from yapss._backend.mseipopt import bare, library
 
 
 def write_header(tmp_path, **macros):

@@ -39,7 +39,7 @@ dependencies = [
     "scipy",
     # Unconstrained deliberately. The NumPy 2.5 breakage (it rewrote
     # numpy.typing.NDArray using PEP 695 `type` statements, which cannot be
-    # subclassed directly) is fixed at the source: _private/input_args.py now
+    # subclassed directly) is fixed at the source: _backend/input_args.py now
     # subclasses np.ndarray directly and is version-agnostic. No ceiling is needed
     # to keep 2.5 away from Python 3.11 either -- NumPy 2.5 declares
     # requires-python >= 3.12, so pip will not select it there. Both ends of the
@@ -157,7 +157,7 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = "yapss._private.*"
+module = "yapss._backend.*"
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 

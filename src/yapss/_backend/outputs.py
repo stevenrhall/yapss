@@ -21,7 +21,7 @@ to several rows, or a length-1 array over several points.
 
 An output carries no record of which rows were written, because nothing during a solve asks.
 The one question ever asked -- did the callback assign every row at the initial guess? -- is
-answered once, in `yapss._private.setup_check`, from the values themselves: the outputs are
+answered once, in `yapss._backend.setup_check`, from the values themselves: the outputs are
 blanked to NaN before each call under the float methods, so a row that was never assigned is
 NaN, and the scan for non-finite values that runs there anyway finds it. That is why an
 in-place operator on a row that has not been assigned reads as unassigned: it is.

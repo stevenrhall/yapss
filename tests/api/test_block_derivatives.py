@@ -18,11 +18,11 @@ import yapss
 from yapss._api.compile import _make_continuous_derivative, to_transcription_spec
 from yapss._api.derivatives import ContinuousJacobian
 from yapss._api.spec import snapshot
-from yapss._private.auto import make_auto_functions
-from yapss._private.guess import make_initial_guess_nlp
-from yapss._private.input_args import ContinuousStore, call_callback
-from yapss._private.mesh import Mesh
-from yapss._private.structure import get_nlp_dv_structure
+from yapss._backend.auto import make_auto_functions
+from yapss._backend.guess import make_initial_guess_nlp
+from yapss._backend.input_args import ContinuousStore, call_callback
+from yapss._backend.mesh import Mesh
+from yapss._backend.structure import get_nlp_dv_structure
 from yapss.examples.delta_iii_ascent import (
     CD,
     MASS_FLOW,

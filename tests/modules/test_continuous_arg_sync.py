@@ -3,11 +3,11 @@
 import numpy as np
 import pytest
 
+from yapss._backend.finite_difference import get_continuous_jacobian_structure_nan
+from yapss._backend.input_args import ContinuousArg, ContinuousStore
+from yapss._backend.mesh import Mesh
+from yapss._backend.structure import get_nlp_dv_structure
 from yapss._legacy import Problem
-from yapss._private.finite_difference import get_continuous_jacobian_structure_nan
-from yapss._private.input_args import ContinuousArg, ContinuousStore
-from yapss._private.mesh import Mesh
-from yapss._private.structure import get_nlp_dv_structure
 
 
 @pytest.mark.parametrize("spectral_method", ("lg", "lgr", "lgl"))
@@ -109,7 +109,7 @@ def test_time_is_not_assignable() -> None:
 
 def test_symbolic_time_is_built_in_place() -> None:
     """The symbolic time array is an SXArray from construction, so time gates work."""
-    from yapss._private.auto import make_args
+    from yapss._backend.auto import make_args
     from yapss.math.wrapper import SXArray
 
     problem = Problem(name="time", nx=[1], nu=[1])
@@ -123,8 +123,8 @@ def test_symbolic_time_is_built_in_place() -> None:
 
 def _goddard_point(spectral_method: str):
     """Goddard's three-phase problem, its mesh, and a perturbed initial point."""
+    from yapss._backend.guess import make_initial_guess_nlp
     from yapss._legacy.examples import goddard_problem_3_phase
-    from yapss._private.guess import make_initial_guess_nlp
 
     problem = goddard_problem_3_phase.setup()
     problem.spectral_method = spectral_method

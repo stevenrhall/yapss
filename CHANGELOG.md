@@ -192,7 +192,7 @@ below give the details.
   apart. Each part still stops at its own first failure, so there is at most one entry per
   part: bounds, guess, scale, mesh, and callbacks.
 - `Problem` has a `repr` naming the problem and its counts, rather than
-  `<yapss._private.problem.Problem object at 0x...>`.
+  `<yapss._backend.problem.Problem object at 0x...>`.
 - An Ipopt option that Ipopt refuses is now diagnosed rather than merely reported. Ipopt says
   only that it refused an option, so YAPSS compares the value with what Ipopt's own
   documentation records for it (a generated table, scraped from a pinned Ipopt release and

@@ -25,12 +25,12 @@ objectives would be testing the wrong thing.
 import numpy as np
 import pytest
 
+from yapss._backend.auto import make_auto_functions
+from yapss._backend.central_difference import make_cd_functions
+from yapss._backend.guess import make_initial_guess_nlp
+from yapss._backend.mesh import Mesh
+from yapss._backend.nlp import NLP
 from yapss._legacy import Problem
-from yapss._private.auto import make_auto_functions
-from yapss._private.central_difference import make_cd_functions
-from yapss._private.guess import make_initial_guess_nlp
-from yapss._private.mesh import Mesh
-from yapss._private.nlp import NLP
 from yapss.math import abs as yabs
 from yapss.math import cos, maximum, minimum, pi, sign, sin
 

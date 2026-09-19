@@ -1,4 +1,4 @@
-"""Tests for `yapss._private.config`, which runs when yapss is imported."""
+"""Tests for `yapss._backend.config`, which runs when yapss is imported."""
 
 import os
 import subprocess

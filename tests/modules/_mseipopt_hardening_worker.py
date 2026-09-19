@@ -17,7 +17,7 @@ PASS, FAIL, SKIP = 0, 1, 2
 
 def check_memory_boundaries() -> int:
     """Reject unsafe metadata/buffers and retain callbacks through native use."""
-    from yapss._private.mseipopt import bare_np, library
+    from yapss._backend.mseipopt import bare_np, library
 
     library.initialize_ipopt()
 
@@ -140,7 +140,7 @@ def check_yapss_sigint() -> int:
 
 def check_callback_failures() -> int:
     """Measure each values callback's persistent failure through real Ipopt."""
-    from yapss._private.mseipopt import bare_np, library
+    from yapss._backend.mseipopt import bare_np, library
 
     library.initialize_ipopt()
 

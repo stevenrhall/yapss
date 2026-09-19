@@ -144,7 +144,7 @@ def call_callback(function: Any, arg: Any) -> None:
     Every call of a user-supplied function goes through here. The callback's outputs are
     blanked first, so a row the callback does not assign on this call holds the blank value
     rather than whatever the previous call left there. Under the float methods that value is
-    NaN, which is what makes an unassigned row visible to `yapss._private.setup_check` without
+    NaN, which is what makes an unassigned row visible to `yapss._backend.setup_check` without
     anything having to be recorded as the callback writes; under the symbolic trace it is
     zero, since a NaN constant has no business in a CasADi graph.
 
@@ -164,7 +164,7 @@ def call_callback(function: Any, arg: Any) -> None:
     except Exception as exc:
         # YAPSS's own derivative functions pass through here too (central difference wraps
         # the user's callbacks); the note is for the user's function, which is innermost
-        if getattr(function, "__module__", "").startswith("yapss._private"):
+        if getattr(function, "__module__", "").startswith("yapss._backend"):
             raise
         exc.add_note(f"Raised in functions.{arg._callback} = {callback_location(function)}.")
         if (

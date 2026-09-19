@@ -10,7 +10,7 @@ import typing as _typing
 
 import numpy as _np  # noqa: ICN001
 
-from yapss._private.exceptions import REMOVED_NAMES as _REMOVED_NAMES
+from yapss._backend.exceptions import REMOVED_NAMES as _REMOVED_NAMES
 from yapss.math import functions
 
 __all__ = [  # noqa: RUF022

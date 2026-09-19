@@ -12,7 +12,7 @@ import warnings
 import pytest
 
 from yapss import _legacy as yapss
-from yapss._private import solver
+from yapss._backend import solver
 
 ARG_TYPES = [
     "ContinuousArg",

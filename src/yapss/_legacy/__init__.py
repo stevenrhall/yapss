@@ -18,16 +18,16 @@ was imported::
 
 from typing import TYPE_CHECKING
 
-from yapss._private.exceptions import LargeSegmentWarning
-from yapss._private.input_args import ContinuousArg as ContinuousArg_
-from yapss._private.input_args import ContinuousHessianArg, ContinuousJacobianArg
-from yapss._private.input_args import DiscreteArg as DiscreteArg_
-from yapss._private.input_args import DiscreteHessianArg, DiscreteJacobianArg
-from yapss._private.input_args import ObjectiveArg as ObjectiveArg_
-from yapss._private.input_args import ObjectiveGradientArg, ObjectiveHessianArg
-from yapss._private.ipopt_options import IpoptOptionSettingWarning
-from yapss._private.ipopt_status import IpoptStatus
-from yapss._private.solution import IpoptConvergenceWarning, Solution
+from yapss._backend.exceptions import LargeSegmentWarning
+from yapss._backend.input_args import ContinuousArg as ContinuousArg_
+from yapss._backend.input_args import ContinuousHessianArg, ContinuousJacobianArg
+from yapss._backend.input_args import DiscreteArg as DiscreteArg_
+from yapss._backend.input_args import DiscreteHessianArg, DiscreteJacobianArg
+from yapss._backend.input_args import ObjectiveArg as ObjectiveArg_
+from yapss._backend.input_args import ObjectiveGradientArg, ObjectiveHessianArg
+from yapss._backend.ipopt_options import IpoptOptionSettingWarning
+from yapss._backend.ipopt_status import IpoptStatus
+from yapss._backend.solution import IpoptConvergenceWarning, Solution
 from yapss.math.functions import UnsupportedMathFunctionError
 
 from .problem import Problem

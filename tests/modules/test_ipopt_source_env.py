@@ -14,8 +14,8 @@ import warnings
 import pytest
 
 import yapss
+from yapss._backend import config
 from yapss._legacy.examples.rosenbrock import setup
-from yapss._private import config
 
 MESSAGE = "YAPSS_IPOPT_SOURCE environment variable has no effect"
 

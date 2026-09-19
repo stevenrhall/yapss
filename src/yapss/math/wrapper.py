@@ -38,7 +38,7 @@ import numpy as np
 from casadi import SX
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
-from yapss._private.exceptions import YapssError
+from yapss._backend.exceptions import YapssError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence

@@ -189,7 +189,7 @@ The continuous callback function is used to evaluate the dynamics, path constrai
                arg.phase[p].path[:] = (mass * g0 - (1 + v / c) * D,)
 
 The continuous callback function is called with a single argument, ``arg``, which is an
-instance of the :class:`ContinuousArg <yapss._private.input_args.ContinuousArg>` class.
+instance of the :class:`ContinuousArg <yapss._backend.input_args.ContinuousArg>` class.
 The values that can be extracted from the ``arg`` object are:
 
 - ``arg.phase_list``: the phase indices listed as a *tuple*
@@ -635,17 +635,17 @@ callback's output raises ``AttributeError`` at the line.
     dynamics row assigned from the Jacobian callback overwrote the constraint values the
     solver had already computed at that point, giving a wrong answer with no error.
 
-.. autoclass:: yapss._private.input_args.ContinuousArg
+.. autoclass:: yapss._backend.input_args.ContinuousArg
    :members:
    :no-special-members:
    :no-undoc-members:
 
-.. autoclass:: yapss._private.input_args.ContinuousJacobianArg
+.. autoclass:: yapss._backend.input_args.ContinuousJacobianArg
    :members:
    :no-special-members:
    :no-undoc-members:
 
-.. autoclass:: yapss._private.input_args.ContinuousHessianArg
+.. autoclass:: yapss._backend.input_args.ContinuousHessianArg
    :members:
    :no-special-members:
    :no-undoc-members:

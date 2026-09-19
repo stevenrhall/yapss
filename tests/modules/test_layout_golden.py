@@ -37,16 +37,16 @@ import numpy as np
 import pytest
 from test_nlp_hessian_golden import MESHES, PROBLEMS, SPECTRAL_METHODS
 
-from yapss._private.auto import make_auto_functions
-from yapss._private.bounds import (
+from yapss._backend.auto import make_auto_functions
+from yapss._backend.bounds import (
     get_nlp_constraint_function_bounds,
     get_nlp_decision_variable_bounds,
 )
-from yapss._private.guess import make_initial_guess_nlp
-from yapss._private.mesh import Mesh
-from yapss._private.nlp import NLP
-from yapss._private.solution import make_solution_object
-from yapss._private.solver import get_nlp_scaling
+from yapss._backend.guess import make_initial_guess_nlp
+from yapss._backend.mesh import Mesh
+from yapss._backend.nlp import NLP
+from yapss._backend.solution import make_solution_object
+from yapss._backend.solver import get_nlp_scaling
 
 GOLDEN_PATH = Path(__file__).parent / "data" / "layout_golden.json"
 

@@ -7,7 +7,7 @@ than the name: the kind (Integer, Number, String), the valid range of a numeric 
 the allowed settings of a string one. This script turns that into two generated artifacts:
 
 - the annotations on ``IpoptOptions`` (``name: kind``), which give an IDE its completions;
-- ``_private/ipopt_option_specs.py``, the range and allowed-value table.
+- ``_backend/ipopt_option_specs.py``, the range and allowed-value table.
 
 The table is *not* used to reject a value before Ipopt sees it. Ipopt validates every option
 itself, and the build in use may not match the documentation this table was scraped from, so
@@ -38,7 +38,7 @@ from pathlib import Path
 
 REPO = "https://api.github.com/repos/coin-or/ipopt"
 SOURCE = f"{REPO}/contents/doc/options.dox"
-SPECS = Path("src/yapss/_private/ipopt_option_specs.py")
+SPECS = Path("src/yapss/_backend/ipopt_option_specs.py")
 
 # "The valid range for this real option is 0 < tol and its default value is ..."
 RANGE = re.compile(

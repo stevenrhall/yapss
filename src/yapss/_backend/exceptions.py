@@ -20,7 +20,7 @@ Errors raised for ordinary bad input -- a bound that is not a number, a mesh wit
 collocation points -- stay plain `ValueError`, `TypeError`, and `IndexError`: they are what
 Python itself would raise, and a base class adds nothing a caller would use.
 
-The vendored `yapss._private.mseipopt` package does not use these classes. It is written to
+The vendored `yapss._backend.mseipopt` package does not use these classes. It is written to
 stand on its own, with no assumptions about YAPSS, and keeps its own `IpoptVerificationWarning`
 and error classes.
 """

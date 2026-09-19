@@ -1,6 +1,6 @@
 """
 
-Test the yapss._private.auto module.
+Test the yapss._backend.auto module.
 
 """
 

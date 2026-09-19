@@ -15,13 +15,13 @@ from itertools import permutations
 import numpy as np
 import pytest
 
+from yapss._backend.auto import make_auto_functions
+from yapss._backend.bounds import get_nlp_constraint_function_bounds
+from yapss._backend.central_difference import make_cd_functions
+from yapss._backend.guess import make_initial_guess_nlp
+from yapss._backend.mesh import Mesh
+from yapss._backend.nlp import NLP
 from yapss._legacy.examples import orbit_raising
-from yapss._private.auto import make_auto_functions
-from yapss._private.bounds import get_nlp_constraint_function_bounds
-from yapss._private.central_difference import make_cd_functions
-from yapss._private.guess import make_initial_guess_nlp
-from yapss._private.mesh import Mesh
-from yapss._private.nlp import NLP
 
 METHODS = ["auto", "central-difference"]
 

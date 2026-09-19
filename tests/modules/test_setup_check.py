@@ -25,15 +25,15 @@ import textwrap
 
 import pytest
 
-from yapss._legacy import Problem
-from yapss._legacy.examples import brachistochrone_minimal
-from yapss._private.ipopt_options import DEFAULT_IPOPT_OPTIONS
-from yapss._private.setup_check import (
+from yapss._backend.ipopt_options import DEFAULT_IPOPT_OPTIONS
+from yapss._backend.setup_check import (
     _constraint_label,
     _labels,
     _variable_label,
 )
-from yapss._private.structure import nlp_constraint_keys, nlp_variable_keys
+from yapss._backend.structure import nlp_constraint_keys, nlp_variable_keys
+from yapss._legacy import Problem
+from yapss._legacy.examples import brachistochrone_minimal
 from yapss.math import cos, sin, sqrt
 
 METHODS = ["auto", "central-difference", "central-difference-full"]
@@ -285,7 +285,7 @@ def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
     script = textwrap.dedent("""
         import warnings
         warnings.simplefilter("ignore")
-        from yapss._private import solver
+        from yapss._backend import solver
         from tests.modules.test_setup_check import _brachistochrone
         solver.check_callbacks = lambda *args: None
         solver.check_derivatives = lambda *args: None

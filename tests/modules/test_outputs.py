@@ -17,7 +17,7 @@ import pytest
 from casadi import SX
 
 import yapss.math as ym
-from yapss._private.outputs import OutputArray, OutputRow
+from yapss._backend.outputs import OutputArray, OutputRow
 from yapss.math.wrapper import SXW
 
 X = np.linspace(1.0, 2.0, 5)
