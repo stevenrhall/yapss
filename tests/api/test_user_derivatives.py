@@ -25,8 +25,8 @@ import numpy as np
 import pytest
 
 import yapss
-from yapss._next.compile import to_transcription_spec
-from yapss._next.spec import snapshot, validate_problem
+from yapss._api.compile import to_transcription_spec
+from yapss._api.spec import snapshot, validate_problem
 from yapss._private.auto import make_auto_functions
 from yapss._private.guess import make_initial_guess_nlp
 from yapss._private.mesh import Mesh
@@ -452,7 +452,7 @@ def _targets(problem):
     The targets are what the callbacks are handed, so reaching them directly is how the
     grammar is tested without a converging problem behind it.
     """
-    from yapss._next.derivatives import (
+    from yapss._api.derivatives import (
         ContinuousHessian,
         ContinuousJacobian,
         ObjectiveGradient,
@@ -598,7 +598,7 @@ def linked_problem():
 
 def _discrete_targets(problem):
     """Return the two discrete targets, without running a solve."""
-    from yapss._next.derivatives import (
+    from yapss._api.derivatives import (
         DiscreteHessian,
         DiscreteJacobian,
         Structure,
@@ -668,7 +668,7 @@ def test_the_same_pair_in_two_groups_is_two_entries():
     one reversed, and it would be refused as a mirrored pair. It is not: they are second
     derivatives of two different constraints.
     """
-    from yapss._next.derivatives import DiscreteHessian, Structure, endpoint_columns
+    from yapss._api.derivatives import DiscreteHessian, Structure, endpoint_columns
 
     problem = yapss.Problem("two", phases=Phases, discrete=TwoLinks)
     ph = problem.phases.slide
@@ -714,7 +714,7 @@ class BlockPhases(yapss.Phases):
 
 def _block_jacobian():
     """Return a continuous Jacobian target for a phase whose state has a block field."""
-    from yapss._next.derivatives import ContinuousJacobian, Structure, phase_columns
+    from yapss._api.derivatives import ContinuousJacobian, Structure, phase_columns
 
     problem = yapss.Problem("blocks", phases=BlockPhases)
 

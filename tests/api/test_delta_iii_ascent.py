@@ -89,8 +89,8 @@ def test_the_launch_state_is_fixed_component_by_component():
 
 def test_the_scales_reach_the_transcription():
     """Scale is a per-field aspect, including the separate scale of the defect rows."""
-    from yapss._next.compile import to_transcription_spec
-    from yapss._next.spec import snapshot
+    from yapss._api.compile import to_transcription_spec
+    from yapss._api.spec import snapshot
 
     spec = to_transcription_spec(snapshot(setup()))
     phase = spec.phases[0]
@@ -103,8 +103,8 @@ def test_the_scales_reach_the_transcription():
 
 def test_the_sampled_guess_reaches_the_transcription():
     """Each field carries its own sample times; they are merged onto one grid per phase."""
-    from yapss._next.compile import to_transcription_spec
-    from yapss._next.spec import snapshot
+    from yapss._api.compile import to_transcription_spec
+    from yapss._api.spec import snapshot
 
     phase = to_transcription_spec(snapshot(setup())).phases[0]
     assert len(phase.guess_time) == 9

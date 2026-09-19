@@ -42,8 +42,8 @@ def _subclasses(cls: type) -> set[type]:
 FRONT_AND_BACK = ("yapss._private", "yapss._legacy")
 """Where `Protected` containers live: the shared back end, and the 0.3.0 front end.
 
-The redesigned front end is not here. Its containers are built on `_next.containers.Container`
-rather than on `Protected`, and `tests/next` covers them.
+The redesigned front end is not here. Its containers are built on `_api.containers.Container`
+rather than on `Protected`, and `tests/api` covers them.
 """
 
 PROTECTED = sorted(

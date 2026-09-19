@@ -58,7 +58,7 @@ def test_the_solution_is_returned_rather_than_raised():
 
 
 def test_the_warning_points_at_the_caller():
-    """`stacklevel` must reach user code, not `_next` internals."""
+    """`stacklevel` must reach user code, not `_api` internals."""
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         unconverged().solve()
@@ -75,7 +75,7 @@ def test_every_unconverged_solve_warns_even_from_one_line(action):
     is right for a deprecation notice and wrong here: a solve that quietly returns a
     non-optimal trajectory is what this warning exists to prevent. `warn_if_not_converged`
     clears its own entry in the caller's registry first, and this pins that the clearing still
-    finds the right frame when the call arrives through `_next.Problem.solve`.
+    finds the right frame when the call arrives through `_api.Problem.solve`.
     """
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter(action, yapss.IpoptConvergenceWarning)

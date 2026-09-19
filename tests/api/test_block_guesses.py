@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 
 import yapss
-from yapss._next.compile import to_transcription_spec
-from yapss._next.spec import snapshot
+from yapss._api.compile import to_transcription_spec
+from yapss._api.spec import snapshot
 
 
 def build(row_guess):

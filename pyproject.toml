@@ -165,7 +165,7 @@ disallow_untyped_defs = true
 # The examples are written the way a user would write them: with no typing syntax at all.
 # That is the point -- typing is opt-in, and the runtime checks are complete without it --
 # so requiring annotations here would test the opposite of what the examples are for. The
-# package itself (yapss._next.*) is checked as strictly as the rest of src, and so is the
+# package itself (yapss._api.*) is checked as strictly as the rest of src, and so is the
 # 0.3.0 corpus under yapss._legacy.examples, which was written with annotations.
 module = "yapss.examples.*"
 disallow_untyped_defs = false
@@ -325,12 +325,8 @@ source = [
     "tests"
 ]
 omit = [
-    # The redesigned API prototype. It is private, carries no compatibility promise, and is
-    # deliberately incomplete while the design is being judged against real problems, so
-    # measuring it would drag the combined-data gate (COVERAGE_FAIL_UNDER=95 in CI) down for
-    # code that is not yet a deliverable. Remove this entry -- and the one in [tool.mypy] --
-    # when _next becomes the released API.
-    "src/yapss/_next/*",
+    # Nothing. The redesigned API was omitted here while it was a prototype; it is the
+    # released API now, so it is measured like the rest of src.
 ]
 
 [tool.coverage.paths]

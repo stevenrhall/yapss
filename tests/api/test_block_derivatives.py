@@ -15,9 +15,9 @@ import numpy as np
 import pytest
 
 import yapss
-from yapss._next.compile import _make_continuous_derivative, to_transcription_spec
-from yapss._next.derivatives import ContinuousJacobian
-from yapss._next.spec import snapshot
+from yapss._api.compile import _make_continuous_derivative, to_transcription_spec
+from yapss._api.derivatives import ContinuousJacobian
+from yapss._api.spec import snapshot
 from yapss._private.auto import make_auto_functions
 from yapss._private.guess import make_initial_guess_nlp
 from yapss._private.input_args import ContinuousStore, call_callback

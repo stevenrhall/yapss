@@ -4,12 +4,12 @@
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
-from ._next.declare import Phases, phase
-from ._next.mesh import Mesh
-from ._next.problem import Problem
-from ._next.sampled import interp
-from ._next.solution import PhaseSolution, Solution
-from ._next.vector import Empty, Vector, field
+from ._api.declare import Phases, phase
+from ._api.mesh import Mesh
+from ._api.problem import Problem
+from ._api.sampled import interp
+from ._api.solution import PhaseSolution, Solution
+from ._api.vector import Empty, Vector, field
 from ._private.exceptions import (
     REMOVED_NAMES,
     LargeSegmentWarning,

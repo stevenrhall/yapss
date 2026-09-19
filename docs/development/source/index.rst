@@ -22,6 +22,6 @@ want to contribute to the project
 
    yapss.examples
    yapss.math
-   yapss._next
+   yapss._api
    yapss._private
    yapss._legacy

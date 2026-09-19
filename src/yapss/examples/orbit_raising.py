@@ -68,7 +68,7 @@ def setup() -> yapss.Problem:
 
     Returns
     -------
-    yapss._next.Problem
+    yapss._api.Problem
         The problem.
     """
     problem = yapss.Problem("Orbit raising", phases=Phases, discrete=Target)
@@ -136,9 +136,9 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
 
     Parameters
     ----------
-    problem : yapss._next.Problem
+    problem : yapss._api.Problem
         The problem that was solved, which carries the phase handles.
-    solution : yapss._next.Solution
+    solution : yapss._api.Solution
         The solution to plot.
     """
     ps = solution[problem.phases.raise_]

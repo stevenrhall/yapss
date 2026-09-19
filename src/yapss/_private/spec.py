@@ -9,7 +9,7 @@ and no user-facing messages, because those belong to whichever front end produce
 nothing in it can be edited once it is made, so a solve can never be altered by a later change
 to the problem it came from.
 
-Two front ends produce one: `yapss.Problem._to_spec`, and the redesigned API in `yapss._next`.
+Two front ends produce one: `yapss.Problem._to_spec`, and the redesigned API in `yapss._api`.
 Neither is visible from here, which is the point -- the transcription has no idea which it is
 serving.
 

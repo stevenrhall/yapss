@@ -4,7 +4,7 @@ What the transcription is handed to call: the user's functions, and their auxili
 
 `UserFunctions` is a field of `ProblemSpec`, so it is the shape both front ends fill in --
 the 0.3.0 `Problem` assigns to it directly, and the redesigned API builds one in
-`yapss._next.compile`. `Callback` is the descriptor that guards each slot, and `Auxdata` is
+`yapss._api.compile`. `Callback` is the descriptor that guards each slot, and `Auxdata` is
 the namespace a 0.3.0 problem carries through to its callbacks.
 
 """

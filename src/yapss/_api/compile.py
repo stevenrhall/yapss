@@ -400,7 +400,7 @@ def _make_continuous_derivative(
 
     Parameters
     ----------
-    spec : yapss._next.spec.ProblemSpec
+    spec : yapss._api.spec.ProblemSpec
         The snapshot being solved.
     which : {"jacobian", "hessian"}
         How the derivative is named, in messages and as the second parameter's role.
@@ -617,7 +617,7 @@ def to_transcription_spec(spec: ProblemSpec_) -> ProblemSpec:
 
     Parameters
     ----------
-    spec : yapss._next.spec.ProblemSpec
+    spec : yapss._api.spec.ProblemSpec
         The snapshot taken when the solve began.
 
     Returns
@@ -686,7 +686,7 @@ def solve_problem(spec: ProblemSpec_) -> Solution:
 
     Parameters
     ----------
-    spec : yapss._next.spec.ProblemSpec
+    spec : yapss._api.spec.ProblemSpec
         The snapshot to solve.
 
     Returns

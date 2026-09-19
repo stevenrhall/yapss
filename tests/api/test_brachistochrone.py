@@ -77,7 +77,7 @@ def test_a_later_edit_does_not_alter_an_earlier_solution(problem):
 
 
 def test_the_mesh_is_one_value(problem):
-    from yapss._next import Mesh
+    from yapss._api import Mesh
 
     problem.phases.slide.mesh = Mesh.uniform(segments=4, points=6)
     solution = problem.solve()

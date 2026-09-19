@@ -6,8 +6,8 @@ import re
 import numpy as np
 import pytest
 
-from yapss._next import Empty, Vector, field
-from yapss._next.kinds import Bounds, Guess, ReadOnlyRows, Rows
+from yapss._api import Empty, Vector, field
+from yapss._api.kinds import Bounds, Guess, ReadOnlyRows, Rows
 
 
 class Rocket(Vector):
@@ -382,8 +382,8 @@ def test_every_declared_setting_actually_exists():
     written in different places, so they can drift apart; this walks every container a problem
     reaches and reads each one.
     """
-    from yapss._next import Phases, Problem, phase
-    from yapss._next.containers import Container
+    from yapss._api import Phases, Problem, phase
+    from yapss._api.containers import Container
 
     class S(Vector):
         x = field()
