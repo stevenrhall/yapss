@@ -28,6 +28,7 @@ from yapss import _next as yapss
 from yapss._next.compile import to_transcription_spec
 from yapss._next.examples import brachistochrone_user_derivatives as user_brachistochrone
 from yapss._next.examples.brachistochrone import setup as auto_brachistochrone
+from yapss._next.examples.goddard_problem_1_phase import setup as user_goddard_1_phase
 from yapss._next.examples.goddard_problem_3_phase import c, g, h0
 from yapss._next.examples.goddard_problem_3_phase import setup as auto_goddard
 from yapss._next.examples.goddard_problem_3_phase import sigma
@@ -300,11 +301,23 @@ def user_goddard():
     return problem
 
 
+def auto_goddard_1_phase():
+    """Return the one-phase Goddard problem with automatic differentiation instead.
+
+    Unlike the others here, this problem's derivative callbacks live in the example itself, so
+    the hand-written side is `setup` unaltered and this is the one that has to be changed.
+    """
+    problem = user_goddard_1_phase()
+    problem.derivatives.method = "auto"
+    return problem
+
+
 PROBLEMS = {
     "brachistochrone": (auto_brachistochrone, user_brachistochrone.setup),
     "newton": (auto_newton, user_newton),
     "orbit_raising": (auto_orbit_raising, user_orbit_raising),
     "goddard": (auto_goddard, user_goddard),
+    "goddard_1_phase": (auto_goddard_1_phase, user_goddard_1_phase),
 }
 
 
