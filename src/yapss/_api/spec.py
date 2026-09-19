@@ -24,7 +24,7 @@ from .sampled import coverage_complaint
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from .declare import Phase
+    from .declare import AnyPhase
     from .mesh import Mesh
     from .problem import Problem
     from .vector import Vector
@@ -41,7 +41,7 @@ Order = Literal["first", "second"]
 class PhaseSpec:
     """One phase, as a solve sees it."""
 
-    handle: Phase
+    handle: AnyPhase
     name: str
     index: int
     state: type[Vector]
@@ -107,7 +107,7 @@ def _values(vector: Vector) -> dict[str, tuple[Any, ...]]:
     return {name: vector._elements(name) for name in vector._fields}
 
 
-def validate_problem(problem: Problem) -> None:
+def validate_problem(problem: Problem[Any, Any, Any]) -> None:
     """Check that a problem is complete. See `Problem.validate`."""
     complaints: list[str] = []
     for phase in problem.phases:
@@ -135,7 +135,7 @@ def validate_problem(problem: Problem) -> None:
         raise ValueError(msg)
 
 
-def _missing_derivatives(problem: Problem) -> list[str]:
+def _missing_derivatives(problem: Problem[Any, Any, Any]) -> list[str]:
     """Return a complaint for every derivative callback the ``"user"`` method needs.
 
     Every derivative the method needs is registered, *including* the ones that are zero: an
@@ -216,7 +216,7 @@ def _unbounded(bounds: Vector, label: str) -> list[str]:
     ]
 
 
-def snapshot(problem: Problem) -> ProblemSpec:
+def snapshot(problem: Problem[Any, Any, Any]) -> ProblemSpec:
     """Return a `ProblemSpec` recording `problem` as it stands.
 
     Parameters

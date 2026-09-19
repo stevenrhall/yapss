@@ -34,6 +34,8 @@ requirements:
     - scipy
     - mpmath
     - matplotlib
+    # See pyproject.toml: PEP 696 type-parameter defaults below Python 3.13.
+    - typing_extensions
 
 outputs:
   - name: yapss
@@ -53,6 +55,8 @@ outputs:
         - scipy
         - mpmath
         - matplotlib
+        # See pyproject.toml: PEP 696 type-parameter defaults below Python 3.13.
+        - typing_extensions
     test:
       source_files:
         - tests/examples/test_hs071.py
@@ -94,6 +98,8 @@ outputs:
         - scipy
         - mpmath
         - matplotlib
+        # See pyproject.toml: PEP 696 type-parameter defaults below Python 3.13.
+        - typing_extensions
         # documentation
         - sphinx
         - sphinxcontrib-bibtex

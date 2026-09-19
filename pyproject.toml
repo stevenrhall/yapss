@@ -47,6 +47,13 @@ dependencies = [
     "numpy",
     "mpmath",
     "matplotlib",
+    # PEP 696 type-parameter defaults, which is how `yapss.Problem` and `yapss.Phase` carry
+    # the classes a problem was declared with while the bare names stay writable. Native in
+    # `typing` from 3.13; the floor is 3.11, so it comes from here on every version rather
+    # than through a version-conditional import that would be dead code on half the matrix.
+    # Spelled with an underscore to match the conda package name, which
+    # tests/conda/test_recipes.py compares literally.
+    "typing_extensions",
 ]
 
 [project.optional-dependencies]

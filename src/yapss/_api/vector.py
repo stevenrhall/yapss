@@ -26,7 +26,7 @@ from __future__ import annotations
 import difflib
 import inspect
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -301,6 +301,8 @@ class Vector:
     _label: str = "vector"
     _npoints: int | None = None
     _source: Any = None
+    _values: dict[Any, Any]
+    """The stored values, keyed by field name or by flat row, depending on the kind."""
     _single: dict[str, int] = {}  # noqa: RUF012
     _block: dict[str, tuple[int, int]] = {}  # noqa: RUF012
     _kind_cache: dict[tuple[Any, ...], type[Vector]] = {}  # noqa: RUF012
@@ -482,41 +484,6 @@ class Vector:
         msg = f"{self._label} has no field '{name}'.{_suggest(name, self._fields)}"
         return AttributeError(msg)
 
-    def __getattr__(self, name: str) -> Any:
-        """Return the value of a field. See the class docstring."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        cls = type(self)
-        source = self._source
-        if source is not None:
-            row = cls._single.get(name)
-            if row is not None:
-                return source[row]
-        if name not in cls._offsets:
-            raise self._no_field(name)
-        kind = self._kind_or_raise()
-        spec = cls._meta[name]
-        if kind.by_row:
-            start = cls._offsets[name]
-            rows = spec.rows
-            if source is not None:
-                # When the rows are laid out in one array -- endpoint values are a contiguous
-                # run of floats, and a stored block is a 2-D array -- the block is a slice of
-                # it, and no array has to be built at all. The slice is read-only, as the
-                # source is.
-                if type(source) is np.ndarray and (source.ndim > 1 or source.dtype != object):
-                    return source[start : start + rows]
-                return _stack([source[start + i] for i in range(rows)])
-            values = [self._read_row(start + i, name) for i in range(rows)]
-            return values[0] if spec.size is None else _stack(values)
-        if kind.per_row and spec.size is not None:
-            return BlockRows(self._elements(name), self, name)
-        value = self._values.get(name, kind.default)
-        if value is MISSING:
-            msg = f"{self._label} '{name}' has not been assigned"
-            raise AttributeError(msg)
-        return value
-
     def _read_row(self, row: int, name: str) -> Any:
         source = self._source
         if source is not None:
@@ -528,58 +495,100 @@ class Vector:
             raise AttributeError(msg)
         return value
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Set the value of a field, validating it against this instance's kind."""
-        if name.startswith("_"):
-            object.__setattr__(self, name, value)
-            return
-        cls = type(self)
-        kind = cls._kind
-        if kind is not None and kind.by_row and not kind.read_only:
-            row = cls._single.get(name)
-            if row is not None:
-                self._values[row] = kind.check(
-                    value, label=cls._label, name=name, npoints=cls._npoints
-                )
+    # Hidden from type checkers, as `_backend.types_.Protected` hides its own. Both accept
+    # any name at runtime and answer for it there; a type checker that can see them stops
+    # reporting misspellings on every vector. A declaration's fields are ordinary class
+    # attributes, so with these hidden a name that was never declared is flagged where it
+    # is written, which is the whole static benefit the API offers.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name):
+            """Return the value of a field. See the class docstring."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            cls = type(self)
+            source = self._source
+            if source is not None:
+                row = cls._single.get(name)
+                if row is not None:
+                    return source[row]
+            if name not in cls._offsets:
+                raise self._no_field(name)
+            kind = self._kind_or_raise()
+            spec = cls._meta[name]
+            if kind.by_row:
+                start = cls._offsets[name]
+                rows = spec.rows
+                if source is not None:
+                    # When the rows are laid out in one array -- endpoint values are a contiguous
+                    # run of floats, and a stored block is a 2-D array -- the block is a slice of
+                    # it, and no array has to be built at all. The slice is read-only, as the
+                    # source is.
+                    if type(source) is np.ndarray and (source.ndim > 1 or source.dtype != object):
+                        return source[start : start + rows]
+                    return _stack([source[start + i] for i in range(rows)])
+                values = [self._read_row(start + i, name) for i in range(rows)]
+                return values[0] if spec.size is None else _stack(values)
+            if kind.per_row and spec.size is not None:
+                return BlockRows(self._elements(name), self, name)
+            value = self._values.get(name, kind.default)
+            if value is MISSING:
+                msg = f"{self._label} '{name}' has not been assigned"
+                raise AttributeError(msg)
+            return value
+
+        def __setattr__(self, name, value):
+            """Set the value of a field, validating it against this instance's kind."""
+            if name.startswith("_"):
+                object.__setattr__(self, name, value)
                 return
-            block = cls._block.get(name)
-            if block is not None:
-                start, size = block
-                values = self._values
-                label, npoints = cls._label, cls._npoints
-                # One array of the field's own shape is what a block field is nearly always
-                # given, and every row of it is then a row of the right length by construction,
-                # so each row is stored as it stands.
-                if (
-                    type(value) is np.ndarray
-                    and value.ndim == BLOCK_DIMENSIONS
-                    and value.shape[0] == size
-                    and (npoints is None or value.shape[1] == npoints)
-                ):
-                    for offset in range(size):
-                        values[start + offset] = value[offset]
-                    return
-                check = kind.check
-                for offset, row_value in enumerate(self._split(value, size, name)):
-                    values[start + offset] = check(
-                        row_value, label=label, name=name, npoints=npoints
+            cls = type(self)
+            kind = cls._kind
+            if kind is not None and kind.by_row and not kind.read_only:
+                row = cls._single.get(name)
+                if row is not None:
+                    self._values[row] = kind.check(
+                        value, label=cls._label, name=name, npoints=cls._npoints
                     )
+                    return
+                block = cls._block.get(name)
+                if block is not None:
+                    start, size = block
+                    values = self._values
+                    label, npoints = cls._label, cls._npoints
+                    # One array of the field's own shape is what a block field is nearly always
+                    # given, and every row of it is then a row of the right length by construction,
+                    # so each row is stored as it stands.
+                    if (
+                        type(value) is np.ndarray
+                        and value.ndim == BLOCK_DIMENSIONS
+                        and value.shape[0] == size
+                        and (npoints is None or value.shape[1] == npoints)
+                    ):
+                        for offset in range(size):
+                            values[start + offset] = value[offset]
+                        return
+                    check = kind.check
+                    for offset, row_value in enumerate(self._split(value, size, name)):
+                        values[start + offset] = check(
+                            row_value, label=label, name=name, npoints=npoints
+                        )
+                    return
+            if name not in cls._offsets:
+                raise self._no_field(name)
+            kind = self._kind_or_raise()
+            if kind.read_only:
+                msg = f"{self._label} is read-only; '{name}' cannot be assigned"
+                raise AttributeError(msg)
+            spec = cls._meta[name]
+            if not kind.by_row:
+                self._values[name] = self._one_or_per_row(kind, spec, name, value)
                 return
-        if name not in cls._offsets:
-            raise self._no_field(name)
-        kind = self._kind_or_raise()
-        if kind.read_only:
-            msg = f"{self._label} is read-only; '{name}' cannot be assigned"
-            raise AttributeError(msg)
-        spec = cls._meta[name]
-        if not kind.by_row:
-            self._values[name] = self._one_or_per_row(kind, spec, name, value)
-            return
-        start = cls._offsets[name]
-        for i, row_value in enumerate(self._split(value, spec.rows, name)):
-            self._values[start + i] = kind.check(
-                row_value, label=self._label, name=name, npoints=self._npoints
-            )
+            start = cls._offsets[name]
+            for i, row_value in enumerate(self._split(value, spec.rows, name)):
+                self._values[start + i] = kind.check(
+                    row_value, label=self._label, name=name, npoints=self._npoints
+                )
 
     def _one_or_per_row(self, kind: type[Kind], spec: Field, name: str, value: Any) -> Any:
         """Return the stored value of a scalar setup field, and refuse a block one.

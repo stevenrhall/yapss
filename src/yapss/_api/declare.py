@@ -17,7 +17,12 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, cast
+
+# `TypeVar` from typing_extensions, not typing: PEP 696 defaults are native only from
+# Python 3.13, and the floor is 3.11. The defaults are what let `yapss.Phase[Slide, Angle]`
+# be written without naming the two declarations a phase usually does not have.
+from typing_extensions import TypeVar
 
 from .containers import Container, HasRegistry, Registry, is_callable, is_subclass, suggest
 from .kinds import Bounds, Guess, ScalarGuess, Scale, is_bool, is_pair, is_real
@@ -27,7 +32,31 @@ from .vector import Empty, Field, Vector
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-__all__ = ["Phase", "Phases", "phase"]
+__all__ = ["AnyPhase", "Phase", "Phases", "phase"]
+
+# Each default is `Vector` rather than `Empty`, and nothing is lost by that: `Vector` declares
+# no fields either, so both say the same thing about an omitted argument -- no field of this is
+# known. `Empty` cannot be the default because variance is about subtyping and `Empty` is a
+# sibling of every user declaration rather than an ancestor of one; a covariant parameter whose
+# default is not a supertype of what a declaration supplies makes `Problem[Mine, ...]`
+# unassignable to the bare `yapss.Problem`. Covariance is sound because all of these are
+# reached only for reading.
+S_co = TypeVar("S_co", bound=Vector, default=Vector, covariant=True)
+"""The class declaring a phase's states."""
+C_co = TypeVar("C_co", bound=Vector, default=Vector, covariant=True)
+"""The class declaring a phase's controls."""
+P_co = TypeVar("P_co", bound=Vector, default=Vector, covariant=True)
+"""The class declaring a phase's path constraints."""
+I_co = TypeVar("I_co", bound=Vector, default=Vector, covariant=True)
+"""The class declaring a phase's integrals."""
+
+AnyPhase: TypeAlias = "Phase[Any, Any, Any, Any]"
+"""A phase whose declarations are not known statically, as when phases are iterated.
+
+The parameters are `Any` rather than `Vector` on purpose: a phase reached this way says
+nothing about which fields were declared, and `Vector` would make every field of it an error
+rather than an unknown.
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,14 +89,23 @@ DEFAULT_INDEPENDENT = "time"
 _ROLES = ("state", "control", "path", "integral")
 
 
+# A type checker solves a type parameter from an argument that was passed, never from the
+# default of one that was not, so an omitted `control`, `path` or `integral` would leave its
+# parameter unsolved and the whole declaration untyped. These overloads say what each omission
+# means -- `Empty`, the declaration with no fields -- for the combinations a phase is actually
+# written with. They add nothing to the runtime signature below.
 def phase(
     *,
-    state: type[Vector],
-    control: type[Vector] = Empty,
-    path: type[Vector] = Empty,
-    integral: type[Vector] = Empty,
+    state: type[S_co],
+    # `Empty` is the declared default of each of these parameters, so an omitted argument
+    # resolves to it rather than leaving the phase untyped. A type checker still measures the
+    # default *value* against `type[C_co]` for an arbitrary `C`, which it cannot satisfy, hence
+    # the three waivers.
+    control: type[C_co] = Empty,  # type: ignore[assignment]
+    path: type[P_co] = Empty,  # type: ignore[assignment]
+    integral: type[I_co] = Empty,  # type: ignore[assignment]
     **independent: Any,
-) -> Any:
+) -> Phase[S_co, C_co, P_co, I_co]:
     """Declare one phase of a problem.
 
     Parameters
@@ -87,19 +125,24 @@ def phase(
 
     Returns
     -------
-    Any
-        A marker recording the declaration. YAPSS replaces it with a `Phase` when the problem
-        is built, so it is never seen again.
+    Phase
+        A marker recording the declaration. YAPSS replaces it with the `Phase` of that name
+        when the problem is built, so the marker itself is never seen again. It is *typed* as
+        the `Phase` it becomes, which is what lets a type checker follow a declared phase from
+        ``problem.phases.<name>`` down to the fields of its state and control.
     """
     name, marker = _independent(independent)
     _check_namespace(_vector_class(state, "state"), _vector_class(control, "control"), name)
-    return PhaseDeclaration(
-        state=_vector_class(state, "state"),
-        control=_vector_class(control, "control"),
-        path=_vector_class(path, "path"),
-        integral=_vector_class(integral, "integral"),
-        independent=name,
-        independent_field=marker,
+    return cast(
+        "Phase[S_co, C_co, P_co, I_co]",
+        PhaseDeclaration(
+            state=_vector_class(state, "state"),
+            control=_vector_class(control, "control"),
+            path=_vector_class(path, "path"),
+            integral=_vector_class(integral, "integral"),
+            independent=name,
+            independent_field=marker,
+        ),
     )
 
 
@@ -225,33 +268,51 @@ class Phases:
 
     def __init__(self) -> None:
         """Build one `Phase` per declared name. Called by `Problem`."""
-        handles = {
+        handles: dict[str, AnyPhase] = {
             name: Phase(name, index, declaration)
             for index, (name, declaration) in enumerate(type(self)._declared.items())
         }
         object.__setattr__(self, "_handles", handles)
 
-    def __getattr__(self, name: str) -> Phase:
-        """Return the phase of that name."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        handles: dict[str, Phase] = object.__getattribute__(self, "_handles")
-        if name not in handles:
-            msg = f"{type(self).__name__} has no phase '{name}'." f"{suggest(name, tuple(handles))}"
+    if TYPE_CHECKING:
+        # A declaration reached through the base class -- as it is from the bare
+        # `yapss.Problem`, whose phase parameter defaults to `Phases` -- cannot say which
+        # phases were declared, so it answers with a phase of unknown declarations rather than
+        # refusing every name. A subclass's own phases are declared attributes and resolve
+        # ahead of this, so nothing is lost where the declaration is known; a misspelled phase
+        # name is caught at runtime, with a suggestion.
+        def __getattr__(self, name: str) -> AnyPhase: ...
+
+    # Hidden from type checkers for the reason `Container`'s are. A subclass names its phases
+    # as ordinary class attributes, and `phase()` is typed as the `Phase` each one becomes, so
+    # with these hidden a type checker reads the declaration and reports a phase name that was
+    # never declared. At runtime the attributes are deleted from the class and answered here.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name):
+            """Return the phase of that name."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            handles = object.__getattribute__(self, "_handles")
+            if name not in handles:
+                msg = (
+                    f"{type(self).__name__} has no phase '{name}'."
+                    f"{suggest(name, tuple(handles))}"
+                )
+                raise AttributeError(msg)
+            return handles[name]
+
+        def __setattr__(self, name, value):
+            """Refuse every assignment: phases are declared, not assigned."""
+            del value
+            msg = f"{type(self).__name__}.{name} cannot be assigned; phases are declared"
             raise AttributeError(msg)
-        return handles[name]
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: phases are declared, not assigned."""
-        del value
-        msg = f"{type(self).__name__}.{name} cannot be assigned; phases are declared"
-        raise AttributeError(msg)
-
-    def _all(self) -> dict[str, Phase]:
-        handles: dict[str, Phase] = object.__getattribute__(self, "_handles")
+    def _all(self) -> dict[str, AnyPhase]:
+        handles: dict[str, AnyPhase] = object.__getattribute__(self, "_handles")
         return handles
 
-    def __iter__(self) -> Iterator[Phase]:
+    def __iter__(self) -> Iterator[AnyPhase]:
         """Iterate over the phases, in declaration order."""
         return iter(self._all().values())
 
@@ -259,7 +320,7 @@ class Phases:
         """Return the number of phases."""
         return len(self._all())
 
-    def __getitem__(self, index: int) -> Phase:
+    def __getitem__(self, index: int) -> AnyPhase:
         """Return the phase at `index`, in declaration order."""
         return list(self._all().values())[index]
 
@@ -267,33 +328,59 @@ class Phases:
 # -- aspects ---------------------------------------------------------------------------------
 
 
-class StateAspects(Container):
+class StateAspects(Container, Generic[S_co]):
     """The state of one phase: its bounds, its endpoint bounds, its guess, and its scales.
 
     There are two scales. ``scale`` says how large the state itself typically is; while
     ``defect_scale`` says how large the collocation defect is -- the residual of the dynamics,
     which is a constraint rather than a variable and can be of a quite different size.
+
+    Every aspect is an instance of the declaration itself, which is what makes the fields
+    reachable by the names they were declared with -- and, to a type checker, what makes a
+    name that was never declared an error.
     """
 
     _held = ("bounds", "initial", "final", "guess", "scale", "defect_scale")
 
+    if TYPE_CHECKING:
+        bounds: S_co
+        initial: S_co
+        final: S_co
+        guess: S_co
+        scale: S_co
+        defect_scale: S_co
 
-class ControlAspects(Container):
+
+class ControlAspects(Container, Generic[C_co]):
     """The control of one phase: its bounds, its guess, and its scale."""
 
     _held = ("bounds", "guess", "scale")
 
+    if TYPE_CHECKING:
+        bounds: C_co
+        guess: C_co
+        scale: C_co
 
-class PathAspects(Container):
+
+class PathAspects(Container, Generic[P_co]):
     """The path constraints of one phase: their bounds and their scales."""
 
     _held = ("bounds", "scale")
 
+    if TYPE_CHECKING:
+        bounds: P_co
+        scale: P_co
 
-class IntegralAspects(Container):
+
+class IntegralAspects(Container, Generic[I_co]):
     """The integrals of one phase: their bounds, their guesses, and their scales."""
 
     _held = ("bounds", "guess", "scale")
+
+    if TYPE_CHECKING:
+        bounds: I_co
+        guess: I_co
+        scale: I_co
 
 
 class TimeAspects(Container):
@@ -305,6 +392,12 @@ class TimeAspects(Container):
     """
 
     _settable = ("initial", "final", "guess", "scale")
+
+    if TYPE_CHECKING:
+        initial: Any
+        final: Any
+        guess: tuple[float, float] | None
+        scale: float
 
     def __init__(self, label: str) -> None:
         self._label = label
@@ -345,7 +438,7 @@ class PhaseRegistry(Registry):
 
     _registrations = ("continuous", "continuous_jacobian", "continuous_hessian")
 
-    def __init__(self, phase: Phase) -> None:
+    def __init__(self, phase: AnyPhase) -> None:
         self._phase = phase
         self._label = f"{phase._label} callbacks"
 
@@ -443,13 +536,36 @@ class PhaseRegistry(Registry):
         return self._register("continuous_hessian", function, replace=replace)
 
 
-class Phase(HasRegistry):
-    """One phase of a problem: its aspects, its mesh, and its continuous callback."""
+class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
+    """One phase of a problem: its aspects, its mesh, and its continuous callback.
+
+    The four parameters are the classes the phase was declared with, so a type checker
+    following ``problem.phases.<name>.state.bounds`` arrives at the state declaration itself
+    and can say whether a field of that name was declared.
+    """
 
     # `register` and the independent variable's name are added per instance, since the
     # latter is whatever the phase called it
     _held = ("state", "control", "path", "integral")
     _settable = ("mesh",)
+
+    if TYPE_CHECKING:
+        state: StateAspects[S_co]
+        control: ControlAspects[C_co]
+        path: PathAspects[P_co]
+        integral: IntegralAspects[I_co]
+        mesh: Mesh
+        register: PhaseRegistry
+
+        # A phase's independent variable is called whatever the phase called it, so it is the
+        # one held name that is not known until the declaration is read. This reader is
+        # deliberately left visible to type checkers: without it `ph.r` would be an error on a
+        # phase that runs over a radius, and a false positive is worse than the misspelling it
+        # would otherwise catch. `time` is declared above it so that the usual spelling still
+        # resolves to something better than `Any`.
+        time: TimeAspects
+
+        def __getattr__(self, name: str) -> Any: ...
 
     def __init__(self, name: str, index: int, declaration: PhaseDeclaration) -> None:
         self._name = name
@@ -462,7 +578,7 @@ class Phase(HasRegistry):
         self._label = f"phase '{name}'"
         self._hold("mesh", Mesh.uniform())
 
-        state = StateAspects()
+        state: StateAspects[Vector] = StateAspects()
         state._label = f"{self._label} state"
         for aspect, kind in (
             ("bounds", Bounds),
@@ -475,20 +591,20 @@ class Phase(HasRegistry):
             state._hold(aspect, declaration.state._new(kind, f"{state._label} {aspect}"))
         self._hold("state", state)
 
-        control = ControlAspects()
+        control: ControlAspects[Vector] = ControlAspects()
         control._label = f"{self._label} control"
         control._hold("bounds", declaration.control._new(Bounds, f"{control._label} bounds"))
         control._hold("guess", declaration.control._new(Guess, f"{control._label} guess"))
         control._hold("scale", declaration.control._new(Scale, f"{control._label} scale"))
         self._hold("control", control)
 
-        path = PathAspects()
+        path: PathAspects[Vector] = PathAspects()
         path._label = f"{self._label} path"
         path._hold("bounds", declaration.path._new(Bounds, f"{path._label} bounds"))
         path._hold("scale", declaration.path._new(Scale, f"{path._label} scale"))
         self._hold("path", path)
 
-        integral = IntegralAspects()
+        integral: IntegralAspects[Vector] = IntegralAspects()
         integral._label = f"{self._label} integral"
         integral._hold("bounds", declaration.integral._new(Bounds, f"{integral._label} bounds"))
         integral._hold("guess", declaration.integral._new(ScalarGuess, f"{integral._label} guess"))

@@ -11,6 +11,8 @@ dependencies:
   # IPOPT bundled inside the CasADi wheel. Conda's CasADi links conda-forge's own
   # IPOPT package instead, so that risk doesn't apply.
   - casadi>=3.6.0
+  # See pyproject.toml: PEP 696 type-parameter defaults below Python 3.13.
+  - typing_extensions
   - pytest
   - pytest-cov
   - hatchling

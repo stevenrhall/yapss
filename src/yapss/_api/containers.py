@@ -13,7 +13,7 @@ guard writable arrays as well.
 from __future__ import annotations
 
 import difflib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 __all__ = ["Container", "HasRegistry", "Registry", "is_callable", "is_string", "is_subclass"]
 
@@ -127,25 +127,32 @@ class Container:
         del name
         return value
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Set a public name, refusing anything the container does not declare."""
-        if name.startswith("_"):
-            object.__setattr__(self, name, value)
-            return
-        if name in self._settable:
-            object.__setattr__(self, name, self._check(name, value))
-            return
-        if name in self._held:
-            raise AttributeError(self._advice(name))
-        msg = f"{self._label} has no setting '{name}'.{suggest(name, self._names())}"
-        raise AttributeError(msg)
+    # Hidden from type checkers, as `_backend.types_.Protected` hides its own: both of these
+    # accept any name at runtime and answer for it there, and a type checker that can see
+    # them stops reporting misspellings altogether. Every name a container really holds is
+    # declared in its class body under `TYPE_CHECKING`, so static access is checked against
+    # that list while the runtime messages stay the ones a user reads.
+    if not TYPE_CHECKING:
 
-    def __getattr__(self, name: str) -> Any:
-        """Refuse an unknown name with a suggestion."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        msg = f"{self._label} has no setting '{name}'.{suggest(name, self._names())}"
-        raise AttributeError(msg)
+        def __setattr__(self, name, value):
+            """Set a public name, refusing anything the container does not declare."""
+            if name.startswith("_"):
+                object.__setattr__(self, name, value)
+                return
+            if name in self._settable:
+                object.__setattr__(self, name, self._check(name, value))
+                return
+            if name in self._held:
+                raise AttributeError(self._advice(name))
+            msg = f"{self._label} has no setting '{name}'.{suggest(name, self._names())}"
+            raise AttributeError(msg)
+
+        def __getattr__(self, name):
+            """Refuse an unknown name with a suggestion."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            msg = f"{self._label} has no setting '{name}'.{suggest(name, self._names())}"
+            raise AttributeError(msg)
 
 
 class HasRegistry(Container):

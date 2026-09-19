@@ -20,7 +20,7 @@ from .containers import suggest
 from .kinds import ReadOnlyRows
 
 if TYPE_CHECKING:
-    from .declare import Phase
+    from .declare import AnyPhase
     from .spec import PhaseSpec, ProblemSpec
     from .vector import Vector
 
@@ -183,9 +183,9 @@ class Solution:
         for name, value in values.items():
             object.__setattr__(self, name, value)
 
-    def __getitem__(self, phase: Phase) -> PhaseSolution:
+    def __getitem__(self, phase: AnyPhase) -> PhaseSolution:
         """Return the solution for `phase`, which is a phase handle."""
-        phases: dict[Phase, PhaseSolution] = object.__getattribute__(self, "_phases")
+        phases: dict[AnyPhase, PhaseSolution] = object.__getattribute__(self, "_phases")
         try:
             return phases[phase]
         except (KeyError, TypeError):

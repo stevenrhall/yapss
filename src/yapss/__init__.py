@@ -4,7 +4,7 @@
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
-from ._api.declare import Phases, phase
+from ._api.declare import Phase, Phases, phase
 from ._api.mesh import Mesh
 from ._api.problem import Problem
 from ._api.sampled import interp
@@ -32,6 +32,7 @@ __all__ = [
     "IpoptStatus",
     "LargeSegmentWarning",
     "Mesh",
+    "Phase",
     "PhaseSolution",
     "Phases",
     "Problem",

@@ -11,7 +11,10 @@ afterwards never alters what an earlier solution recorded.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, Literal
+
+# See `_api.declare`: PEP 696 defaults, which `typing.TypeVar` cannot carry below 3.13.
+from typing_extensions import TypeVar
 
 from yapss._backend.ipopt_options import IpoptOptions
 from yapss._backend.solution import warn_if_not_converged
@@ -27,6 +30,13 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 __all__ = ["Problem"]
+
+PH_co = TypeVar("PH_co", bound=Phases, default=Phases, covariant=True)
+"""The class declaring the problem's phases."""
+D_co = TypeVar("D_co", bound=Vector, default=Vector, covariant=True)
+"""The class declaring the problem's discrete constraint groups."""
+PR_co = TypeVar("PR_co", bound=Vector, default=Vector, covariant=True)
+"""The class declaring the problem's parameters."""
 
 METHODS = ("lgl", "lgr", "lg")
 DERIVATIVE_METHODS = ("auto", "central-difference", "central-difference-full", "user")
@@ -47,6 +57,10 @@ class ObjectiveAspects(Container):
     """The objective: whether it is minimized or maximized, and how large it typically is."""
 
     _settable = ("sense", "scale")
+
+    if TYPE_CHECKING:
+        sense: Literal["minimize", "maximize"]
+        scale: float
 
     def __init__(self) -> None:
         self._label = "objective"
@@ -78,10 +92,14 @@ def _not_a_decorator(which: str, phrase: str) -> str:
     )
 
 
-class DiscreteAspects(Container):
+class DiscreteAspects(Container, Generic[D_co]):
     """The discrete constraints: their bounds and their scales."""
 
     _held = ("bounds", "scale")
+
+    if TYPE_CHECKING:
+        bounds: D_co
+        scale: D_co
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Refuse a registration written here, which is a likely slip. See `_not_a_decorator`."""
@@ -89,16 +107,25 @@ class DiscreteAspects(Container):
         raise TypeError(_not_a_decorator("discrete", "the discrete constraints"))
 
 
-class ParameterAspects(Container):
+class ParameterAspects(Container, Generic[PR_co]):
     """The problem's parameters: their bounds, their guesses, and their scales."""
 
     _held = ("bounds", "guess", "scale")
+
+    if TYPE_CHECKING:
+        bounds: PR_co
+        guess: PR_co
+        scale: PR_co
 
 
 class Derivatives(Container):
     """How derivatives are computed."""
 
     _settable = ("method", "order")
+
+    if TYPE_CHECKING:
+        method: Literal["auto", "central-difference", "central-difference-full", "user"]
+        order: Literal["first", "second"]
 
     def __init__(self) -> None:
         self._label = "derivatives"
@@ -157,7 +184,7 @@ class ProblemRegistry(Registry):
     )
     _label = "problem callbacks"
 
-    def __init__(self, problem: Problem) -> None:
+    def __init__(self, problem: Problem[Any, Any, Any]) -> None:
         self._problem = problem
 
     def objective(
@@ -299,7 +326,7 @@ class ProblemRegistry(Registry):
         return self._problem._register("discrete_hessian", function, replace=replace)
 
 
-class Problem(HasRegistry):
+class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
     """An optimal control problem.
 
     Parameters
@@ -325,13 +352,31 @@ class Problem(HasRegistry):
     )
     _settable = ("method", "catch_keyboard_interrupt")
 
+    if TYPE_CHECKING:
+        # The three parameters are the classes the problem was declared with, so a type
+        # checker follows `problem.phases.<name>` into the phase and on to the fields of its
+        # state and control without an annotation being written anywhere. Each has a default,
+        # which is what keeps the bare `yapss.Problem` -- the spelling every example's `setup`
+        # returns -- both legal under `disallow_any_generics` and meaningful.
+        phases: PH_co
+        discrete: DiscreteAspects[D_co]
+        parameter: ParameterAspects[PR_co]
+        objective: ObjectiveAspects
+        derivatives: Derivatives
+        ipopt_options: IpoptOptions
+        register: ProblemRegistry
+        method: Literal["lgl", "lgr", "lg"]
+        catch_keyboard_interrupt: bool
+
     def __init__(
         self,
         name: str,
         *,
-        phases: type[Phases],
-        discrete: type[Vector] = Empty,
-        parameter: type[Vector] = Empty,
+        phases: type[PH_co],
+        # See `_api.declare.phase`: the defaults are declared on the type parameters, and a
+        # checker measures the default value against the parameter type regardless.
+        discrete: type[D_co] = Empty,  # type: ignore[assignment]
+        parameter: type[PR_co] = Empty,  # type: ignore[assignment]
     ) -> None:
         if not is_string(name):
             msg = f"the problem name must be a string; got {name!r}"
@@ -369,13 +414,13 @@ class Problem(HasRegistry):
         self._hold("method", "lgl")
         self._hold("catch_keyboard_interrupt", CATCH_KEYBOARD_INTERRUPT)
 
-        discrete_aspects = DiscreteAspects()
+        discrete_aspects: DiscreteAspects[Any] = DiscreteAspects()
         discrete_aspects._label = "problem discrete"
         discrete_aspects._hold("bounds", discrete._new(Bounds, "discrete bounds"))
         discrete_aspects._hold("scale", discrete._new(Scale, "discrete scale"))
         self._hold("discrete", discrete_aspects)
 
-        parameter_aspects = ParameterAspects()
+        parameter_aspects: ParameterAspects[Any] = ParameterAspects()
         parameter_aspects._label = "problem parameter"
         parameter_aspects._hold("bounds", parameter._new(Bounds, "parameter bounds"))
         parameter_aspects._hold("guess", parameter._new(ScalarGuess, "parameter guess"))
