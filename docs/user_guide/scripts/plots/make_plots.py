@@ -28,9 +28,7 @@ plt_.ion()  # Turns on interactive mode
 plt_.show = lambda *args, **kwargs: None
 
 # Run the specified module as a script
-# The user guide still renders the 0.3.0 corpus, which moved under `_legacy` when the
-# redesigned examples took over `yapss.examples`. Change this line to follow them.
-runpy.run_module(f"yapss._legacy.examples.{name}", run_name="__main__")
+runpy.run_module(f"yapss.examples.{name}", run_name="__main__")
 
 # Save any figures that were created
 for i, figure in enumerate(plt_.get_fignums()):

@@ -8,18 +8,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss._legacy.examples.orbit_raising
+   $ python -m yapss.examples.orbit_raising
 
 Functions
 ---------
 
-.. automodule:: yapss._legacy.examples.orbit_raising
+.. automodule:: yapss.examples.orbit_raising
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/_legacy/examples/orbit_raising.py
+.. literalinclude:: ../../../src/yapss/examples/orbit_raising.py
    :language: python
 
 Text Output

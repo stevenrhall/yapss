@@ -1,38 +1,32 @@
 Brachistochrone
 ===============
 
-For a description of the brachistochrone problem with wall constraints as in this script,
-see the `JupyterLab notebook Tutorial Example <../notebooks/tutorial.ipynb>`_.
+A bead slides without friction from the origin to :math:`x = 1` under gravity. The control is
+the slope angle of the path, and the objective is the time taken; the answer is a cycloid.
 
-This script provides a detailed implementation of the brachistochrone problem that includes
-user-defined derivatives. (User-defined derivatives are almost never necessary.) For a
-script that implements the brachistochrone problem without user-defined derivatives, see the
-:doc:`example of a minimal implementation of the brachistochrone <brachistochrone_minimal>`.
-
-This example script has user-defined methods for computing the first and second derivatives of the
-objective and continuous functions. User-defined derivatives can be faster to compute than
-derivatives computed by automatic differentiation, but not by a large factor. Because for most
-problems as much time is spent in the Ipopt solver as in derivative-function evaluations, even
-a substantial speedup in derivative evaluation may not result in a significant speedup in the
-overall solution time, and so it's almost never worth the effort to implement user-defined
-derivatives.
+This is the example to read first. It states a complete optimal control problem -- a state
+vector, a control, dynamics, bounds, a guess and an objective -- and nothing in it is there
+for any reason but the problem. For the shortest complete statement of the same problem, see
+the :doc:`minimal implementation <brachistochrone_minimal>`; for the same problem with its
+derivatives written out by hand rather than differentiated automatically, see
+:doc:`brachistochrone_user_derivatives`.
 
 The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss._legacy.examples.brachistochrone
+   $ python -m yapss.examples.brachistochrone
 
 Functions
 ---------
 
-.. automodule:: yapss._legacy.examples.brachistochrone
+.. automodule:: yapss.examples.brachistochrone
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/_legacy/examples/brachistochrone.py
+.. literalinclude:: ../../../src/yapss/examples/brachistochrone.py
    :language: python
 
 Text Output

@@ -88,7 +88,7 @@ def setup() -> yapss.Problem:
 
     Returns
     -------
-    yapss._api.Problem
+    yapss.Problem
         The problem.
     """
     problem = yapss.Problem("Goddard rocket with singular arc", phases=Phases, discrete=Linkage)
@@ -181,9 +181,9 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
 
     Parameters
     ----------
-    problem : yapss._api.Problem
+    problem : yapss.Problem
         The problem that was solved, which carries the phase handles.
-    solution : yapss._api.Solution
+    solution : yapss.Solution
         The solution to plot.
     """
     panels = (

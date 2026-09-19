@@ -9,18 +9,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss._legacy.examples.minimum_time_to_climb
+   $ python -m yapss.examples.minimum_time_to_climb
 
 Functions
 ---------
 
-.. automodule:: yapss._legacy.examples.minimum_time_to_climb
+.. automodule:: yapss.examples.minimum_time_to_climb
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/_legacy/examples/minimum_time_to_climb.py
+.. literalinclude:: ../../../src/yapss/examples/minimum_time_to_climb.py
    :language: python
 
 Text Output

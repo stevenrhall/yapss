@@ -75,7 +75,7 @@ def setup(y_max: float = 1.0) -> yapss.Problem:
 
     Returns
     -------
-    yapss._api.Problem
+    yapss.Problem
         The problem.
     """
     problem = yapss.Problem("Newton's minimal resistance problem", phases=Phases)
@@ -127,7 +127,7 @@ def setup2(y_max: float = 1.0) -> yapss.Problem:
 
     Returns
     -------
-    yapss._api.Problem
+    yapss.Problem
         The problem.
     """
     problem = setup(y_max)
@@ -147,9 +147,9 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution, **kwargs: An
 
     Parameters
     ----------
-    problem : yapss._api.Problem
+    problem : yapss.Problem
         The problem that was solved, which carries the phase handles.
-    solution : yapss._api.Solution
+    solution : yapss.Solution
         The solution to plot.
     **kwargs
         Passed to `matplotlib.pyplot.plot`, for a label or a style.

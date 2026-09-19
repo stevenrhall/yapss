@@ -35,7 +35,7 @@ def setup() -> yapss.Problem:
 
     Returns
     -------
-    yapss._api.Problem
+    yapss.Problem
         The problem.
     """
     problem = yapss.Problem("Brachistochrone (user derivatives)", phases=Phases)

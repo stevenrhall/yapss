@@ -8,18 +8,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss._legacy.examples.hs071
+   $ python -m yapss.examples.hs071
 
 Functions
 ---------
 
-.. automodule:: yapss._legacy.examples.hs071
+.. automodule:: yapss.examples.hs071
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/_legacy/examples/hs071.py
+.. literalinclude:: ../../../src/yapss/examples/hs071.py
    :language: python
 
 Text Output

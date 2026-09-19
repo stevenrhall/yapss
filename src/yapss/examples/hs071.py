@@ -42,7 +42,7 @@ def setup() -> yapss.Problem:
 
     Returns
     -------
-    yapss._api.Problem
+    yapss.Problem
         The problem.
     """
     problem = yapss.Problem("HS071", phases=Phases, parameter=Design, discrete=Constraints)
@@ -75,7 +75,7 @@ def print_solution(solution: yapss.Solution) -> None:
 
     Parameters
     ----------
-    solution : yapss._api.Solution
+    solution : yapss.Solution
         The solution to print.
     """
     for i, value in enumerate(solution.parameter.x):

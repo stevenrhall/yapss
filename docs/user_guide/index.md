@@ -65,7 +65,7 @@ against 0.3 would be rewritten rather than adjusted. See
 Run the HS071 example, a small constrained optimization problem:
 
 ```console
-(yapss-env) $ python -m yapss._legacy.examples.hs071
+(yapss-env) $ python -m yapss.examples.hs071
 ```
 
 YAPSS is installed correctly if the run finishes, and the output ends with
@@ -83,7 +83,7 @@ The value of the final digits of the objective may vary between platforms and so
 
 - **New to YAPSS?** Start with the [tutorial](notebooks/tutorial.ipynb).
 - **Looking for a pattern to adapt?** Browse the [notebook examples](notebooks/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/examples/notebooks --> or
-  [script examples](scripts/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/src/yapss/_legacy/examples -->.
+  [script examples](scripts/index.rst)<!-- readme: https://github.com/stevenrhall/yapss/tree/main/src/yapss/examples -->.
 - **Need API details?** See the reference documentation in the navigation sidebar.
 - **Want to contribute?** Contributions are welcome! Read
   [Contributing to YAPSS](CONTRIBUTING.md).

@@ -30,11 +30,7 @@ FIGURES = {
     "orbit_raising": 5,
     "rosenbrock": 1,
 }
-"""How many figures each example's `main` leaves open, as its documentation page shows.
-
-`brachistochrone_user_derivatives` has no page of its own and borrows `brachistochrone`'s
-plotting, so its count is that one's rather than a page's.
-"""
+"""How many figures each example's `main` leaves open, as its documentation page shows."""
 
 
 @pytest.fixture

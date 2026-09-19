@@ -13,18 +13,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss._legacy.examples.brachistochrone_minimal
+   $ python -m yapss.examples.brachistochrone_minimal
 
 Functions
 ---------
 
-.. automodule:: yapss._legacy.examples.brachistochrone_minimal
+.. automodule:: yapss.examples.brachistochrone_minimal
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/_legacy/examples/brachistochrone_minimal.py
+.. literalinclude:: ../../../src/yapss/examples/brachistochrone_minimal.py
    :language: python
 
 Text Output

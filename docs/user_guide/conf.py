@@ -113,6 +113,13 @@ nitpick_ignore = [
     ("py:class", "T"),
     ("py:class", "yapss._backend.input_args.ContinuousPhase"),
     ("py:class", "yapss._backend.input_args.T"),
+    # The example pages render the redesigned corpus, whose `setup` and `plot_solution`
+    # are annotated with `yapss.Problem` and `yapss.Solution`. Autodoc resolves those
+    # annotations to the modules that define them, and `_api` has no reference page yet
+    # for nitpicky mode to resolve them against. Remove these two when the reference
+    # documentation covers the redesigned API.
+    ("py:class", "yapss._api.problem.Problem"),
+    ("py:class", "yapss._api.solution.Solution"),
 ]
 
 # options for HTML output

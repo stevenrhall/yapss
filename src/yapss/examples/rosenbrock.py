@@ -56,7 +56,7 @@ def setup() -> yapss.Problem:
 
     Returns
     -------
-    yapss._api.Problem
+    yapss.Problem
         The problem.
     """
     problem = yapss.Problem("Rosenbrock", phases=Phases, parameter=Point)
@@ -79,7 +79,7 @@ def plot_rosenbrock(solution: yapss.Solution | None = None) -> None:
 
     Parameters
     ----------
-    solution : yapss._api.Solution, optional
+    solution : yapss.Solution, optional
         The solution to mark.
     """
     x = np.linspace(-2, 2, 400)

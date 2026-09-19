@@ -8,13 +8,14 @@ PYTHON ?= python
 help: ## Print this help message.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[35m%-10s\033[0m %s\n", $$1, $$2}'
 
-SRC_DIR := ../../../../src/yapss/_legacy/examples
+SRC_DIR := ../../../../src/yapss/examples
 YAPSS_DIRS := ../../../../src/yapss ../../../../src/yapss/_backend ../../../../src/yapss/math
 YAPSS_FILES := $(wildcard $(YAPSS_DIRS)/*.py)
 
 TEXT := \
 	brachistochrone.txt \
 	brachistochrone_minimal.txt \
+	brachistochrone_user_derivatives.txt \
 	delta_iii_ascent.txt \
 	dynamic_soaring.txt \
 	goddard_problem_1_phase.txt \
@@ -30,6 +31,9 @@ PNG := \
 	brachistochrone_plot_1.png  brachistochrone_plot_2.png  brachistochrone_plot_3.png \
 	brachistochrone_plot_4.png brachistochrone_plot_5.png \
 	brachistochrone_minimal_plot_1.png \
+	brachistochrone_user_derivatives_plot_1.png brachistochrone_user_derivatives_plot_2.png \
+	brachistochrone_user_derivatives_plot_3.png brachistochrone_user_derivatives_plot_4.png \
+	brachistochrone_user_derivatives_plot_5.png \
 	delta_iii_ascent_plot_1.png delta_iii_ascent_plot_2.png \
 	delta_iii_ascent_plot_3.png delta_iii_ascent_plot_4.png \
 	dynamic_soaring_plot_1.png dynamic_soaring_plot_2.png dynamic_soaring_plot_3.png \
@@ -61,6 +65,9 @@ brachistochrone_plot_%.png: $(SRC_DIR)/brachistochrone.py $(YAPSS_FILES)
 
 brachistochrone_minimal_plot_%.png: $(SRC_DIR)/brachistochrone_minimal.py $(YAPSS_FILES)
 	$(PYTHON) make_plots.py brachistochrone_minimal > brachistochrone_minimal.txt
+
+brachistochrone_user_derivatives_plot_%.png: $(SRC_DIR)/brachistochrone_user_derivatives.py $(YAPSS_FILES)
+	$(PYTHON) make_plots.py brachistochrone_user_derivatives > brachistochrone_user_derivatives.txt
 
 dynamic_soaring_plot_%.png: $(SRC_DIR)/dynamic_soaring.py $(YAPSS_FILES)
 	$(PYTHON) make_plots.py dynamic_soaring > dynamic_soaring.txt
