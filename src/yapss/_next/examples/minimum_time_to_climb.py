@@ -75,7 +75,8 @@ def setup() -> yapss.Problem:
     @ph.register.continuous
     def climb(arg, out):
         """Compute the aircraft's dynamics, looking the model up in tables."""
-        h, v, gamma, mass = arg.state
+        h, v = arg.state.h, arg.state.v
+        gamma, mass = arg.state.gamma, arg.state.mass
         alpha = arg.control.alpha
 
         rho = get_rho(h)
@@ -146,7 +147,7 @@ def setup() -> yapss.Problem:
 
 
 def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
-    """Plot the climb and the angle of attack that flies it.
+    r"""Plot the climb: the trajectory, the four states, the control, and the Hamiltonian.
 
     Parameters
     ----------
@@ -156,15 +157,34 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
         The solution to plot.
     """
     ps = solution[problem.phases.climb]
-    plt.figure()
-    plt.plot(ps.time, ps.state.h / 1000.0)
-    plt.xlabel("Time (s)")
-    plt.ylabel("Altitude (1000 ft)")
+    t = ps.time
 
+    # the trajectory, in the plane the climb is really flown in
     plt.figure()
-    plt.plot(ps.time, ps.control.alpha * 180 / pi)
-    plt.xlabel("Time (s)")
-    plt.ylabel(r"$\alpha$ (deg)")
+    plt.plot(ps.state.v, ps.state.h / 1000.0, linewidth=3)
+    plt.xlabel(r"Velocity, $v$ (ft/s)")
+    plt.ylabel(r"Altitude, $h$ (1000 ft)")
+    plt.xlim(0, 1800)
+    plt.ylim(-0.3, 65)
+    plt.grid()
+    plt.tight_layout()
+
+    panels = (
+        (r"Altitude, $h$ (1000 ft)", ps.state.h / 1000.0),
+        (r"Velocity, $v$ (ft/s)", ps.state.v),
+        (r"Flight path angle, $\gamma$ (deg)", ps.state.gamma * 180 / pi),
+        (r"Mass, $m$ (slug)", ps.state.mass),
+        (r"Angle of attack, $\alpha$ (deg)", ps.control.alpha * 180 / pi),
+        (r"Hamiltonian, $\mathcal{H}$", ps.hamiltonian),
+    )
+    for ylabel, quantity in panels:
+        plt.figure()
+        plt.plot(t, quantity)
+        plt.xlabel(r"Time, $t$ (s)")
+        plt.ylabel(ylabel)
+        plt.xlim(t[0], t[-1])
+        plt.grid()
+        plt.tight_layout()
 
 
 def main() -> None:

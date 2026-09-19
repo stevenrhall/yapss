@@ -132,7 +132,7 @@ def setup() -> yapss.Problem:
 
 
 def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
-    """Plot the trajectory and the steering angle.
+    """Plot the states, the controls, the steering angle, the orbit, and the Hamiltonian.
 
     Parameters
     ----------
@@ -142,14 +142,48 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
         The solution to plot.
     """
     ps = solution[problem.phases.raise_]
+    time = ps.time
+
+    plt.figure()
+    for name, label in (("r", "$r(t)$"), ("v_r", "$v_r(t)$"), ("v_theta", r"$v_\theta(t)$")):
+        plt.plot(time, getattr(ps.state, name), label=label)
+    plt.xlabel("Time")
+    plt.ylabel("States")
+    plt.xlim(time[0], time[-1])
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+
+    plt.figure()
+    plt.plot(time, ps.control.u_r, label="$u_r(t)$")
+    plt.plot(time, ps.control.u_theta, label=r"$u_\theta(t)$")
+    plt.xlabel("Time")
+    plt.ylabel("Controls")
+    plt.xlim(time[0], time[-1])
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+
+    plt.figure()
+    plt.plot(time, np.arctan2(ps.control.u_r, ps.control.u_theta) * 180 / pi)
+    plt.xlabel("Time")
+    plt.ylabel("Steering angle (deg)")
+    plt.xlim(time[0], time[-1])
+    plt.grid()
+    plt.tight_layout()
+
     plt.figure()
     plt.polar(ps.state.theta, ps.state.r)
     plt.title("Orbit raising trajectory")
+    plt.tight_layout()
 
     plt.figure()
-    plt.plot(ps.time, np.arctan2(ps.control.u_r, ps.control.u_theta) * 180 / pi)
+    plt.plot(time, ps.hamiltonian)
     plt.xlabel("Time")
-    plt.ylabel("Steering angle (deg)")
+    plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
+    plt.xlim(time[0], time[-1])
+    plt.grid()
+    plt.tight_layout()
 
 
 def main() -> None:

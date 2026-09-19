@@ -27,6 +27,8 @@ instead, removing the corner; its slope is monotone throughout and it reaches a 
 
 __all__ = ["main", "plot_solution", "setup", "setup2"]
 
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -115,8 +117,8 @@ def setup2(y_max: float = 1.0) -> yapss.Problem:
     The radius of the flat tip becomes a variable: the phase starts at a free ``r`` and the
     disc's own drag, ``4 r0**2``, is added to the objective. With the corner gone, the curve
     the phase has to represent is smooth, and the solution comes out with the flat tip at
-    r0 = 0.351 and a slope of exactly -1 where it meets the curve, as the classical result
-    has it. See the module docstring for why the first formulation goes wrong.
+    r0 = 0.351 and a slope of -0.9998 where it meets the curve, against the classical value of
+    exactly -1. See the module docstring for why the first formulation goes wrong.
 
     Parameters
     ----------
@@ -140,8 +142,8 @@ def setup2(y_max: float = 1.0) -> yapss.Problem:
     return problem
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
-    """Plot the nosecone profile, reflected about its axis.
+def plot_solution(problem: yapss.Problem, solution: yapss.Solution, **kwargs: Any) -> None:
+    """Plot one nosecone profile, reflected about its axis.
 
     Parameters
     ----------
@@ -149,23 +151,53 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
         The problem that was solved, which carries the phase handles.
     solution : yapss._next.Solution
         The solution to plot.
+    **kwargs
+        Passed to `matplotlib.pyplot.plot`, for a label or a style.
     """
     ps = solution[problem.phases.nose]
     r = np.concatenate((-ps.r[::-1], ps.r))
     y = np.concatenate((ps.state.y[::-1], ps.state.y))
-    plt.figure()
-    plt.plot(r, y, "r", linewidth=2)
+    plt.plot(r, y, linewidth=2, **kwargs)
     plt.xlabel("Radius, $r/R$")
     plt.ylabel("Height, $y/R$")
-    plt.title("Newton's minimal resistance nosecone")
     plt.axis("equal")
+    plt.grid()
 
 
 def main() -> None:
-    """Solve Newton's minimal resistance problem and plot the solution."""
+    """Solve both formulations, and the second one at three aspect ratios.
+
+    Three figures, in the order the documentation presents them: the shape the first
+    formulation returns, the shape the second one returns, and the second one at three
+    heights. The first two are the same problem, and comparing them is the point -- see the
+    module docstring for why the first goes wrong.
+    """
     problem = setup()
     solution = problem.solve()
-    plot_solution(problem, solution)
+    print(f"drag, one polynomial through the corner = {solution.objective:.6f}")
+    plt.figure()
+    plot_solution(problem, solution, color="r")
+    plt.title("First formulation")
+
+    problem2 = setup2()
+    solution2 = problem2.solve()
+    r0 = solution2[problem2.phases.nose].initial.r
+    print(f"drag, with the flat tip free           = {solution2.objective:.6f}")
+    print(f"radius of the flat tip, r0 = {r0:.6f}")
+    plt.figure()
+    plot_solution(problem2, solution2, color="r")
+    plt.title("Second formulation")
+
+    plt.figure()
+    for y_max in (0.5, 1.0, 2.0):
+        aspect = setup2(y_max)
+        aspect.ipopt_options.print_level = 0
+        aspect_solution = aspect.solve()
+        print(f"drag at y_max/R = {y_max}: {aspect_solution.objective:.6f}")
+        plot_solution(aspect, aspect_solution, label=f"$y_{{max}}/R = {y_max}$")
+    plt.legend()
+    plt.title("Optimal nosecones for three aspect ratios")
+
     plt.show()
 
 

@@ -242,6 +242,20 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
     ax.set_zlabel(r"$h$ (ft)")
     plt.tight_layout()
 
+    panels = (
+        (r"Velocity, $v$ (ft/s)", ps.state.v),
+        (r"Flight path angle, $\gamma$ (deg)", np.rad2deg(ps.state.gamma)),
+        (r"Heading angle, $\psi$ (deg)", np.rad2deg(ps.state.psi)),
+    )
+    for ylabel, quantity in panels:
+        plt.figure()
+        plt.plot(t, quantity)
+        plt.xlabel(r"Time, $t$ (s)")
+        plt.ylabel(ylabel)
+        plt.grid()
+        plt.tight_layout()
+
+    # the lift coefficient, against the load-factor limit that bounds it
     plt.figure()
     limit = load_factor_max * (mass * g0) / (0.5 * rho0 * area * ps.state.v**2)
     plt.plot(t, limit, "r--")
@@ -251,25 +265,21 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
     legend.get_frame().set_facecolor("white")
     legend.get_frame().set_alpha(1)
     legend.get_frame().set_linewidth(0)
+    plt.xlabel(r"Time, $t$ (s)")
     plt.ylabel(r"Lift coefficient, $C_L$")
+    plt.grid()
+    plt.tight_layout()
 
-    panels = (
-        (r"Velocity, $v$ (ft/s)", ps.state.v),
-        (r"Flight path angle, $\gamma$ (deg)", np.rad2deg(ps.state.gamma)),
-        (r"Heading angle, $\psi$ (deg)", np.rad2deg(ps.state.psi)),
+    for ylabel, quantity in (
         (r"Bank angle, $\phi$ (deg)", np.rad2deg(ps.control.phi)),
         (r"Hamiltonian, $\mathcal{H}$", ps.hamiltonian),
-    )
-    for ylabel, quantity in panels:
+    ):
         plt.figure()
         plt.plot(t, quantity)
-        plt.ylabel(ylabel)
-
-    for number in plt.get_fignums()[1:]:
-        plt.figure(number)
         plt.xlabel(r"Time, $t$ (s)")
-        plt.tight_layout()
+        plt.ylabel(ylabel)
         plt.grid()
+        plt.tight_layout()
 
 
 def main() -> None:

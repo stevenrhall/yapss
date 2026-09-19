@@ -97,7 +97,7 @@ def setup() -> yapss.Problem:
 
     def rocket(arg, xdot):
         """Fill in the rocket's dynamics, which are the same in every phase."""
-        h, v, m = arg.state
+        h, v, m = arg.state.h, arg.state.v, arg.state.m
         thrust = arg.control.thrust
         xdot.h = v
         xdot.v = (thrust - drag(h, v)) / m - g
@@ -115,7 +115,7 @@ def setup() -> yapss.Problem:
     def singular_arc(arg, out):
         """Compute the dynamics, and the switching function that must vanish."""
         rocket(arg, out.dynamics)
-        h, v, m = arg.state
+        h, v, m = arg.state.h, arg.state.v, arg.state.m
         out.path.switching = m * g - (1 + v / c) * drag(h, v)
         return out
 
@@ -177,7 +177,7 @@ def setup() -> yapss.Problem:
 
 
 def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
-    """Plot the altitude, thrust, and Hamiltonian of each phase.
+    """Plot the thrust, the state histories and the Hamiltonian of every phase.
 
     Parameters
     ----------
@@ -187,18 +187,22 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
         The solution to plot.
     """
     panels = (
-        ("h", "Altitude (ft)", lambda ps: ps.state.h),
-        ("T", "Thrust (lbf)", lambda ps: ps.control.thrust),
-        ("H", "Hamiltonian", lambda ps: ps.hamiltonian),
+        ("Thrust, $T$ (lbf)", lambda ps: ps.control.thrust),
+        ("Altitude, $h$ (ft)", lambda ps: ps.state.h),
+        ("Velocity, $v$ (ft/s)", lambda ps: ps.state.v),
+        ("Mass, $m$ (slug)", lambda ps: ps.state.m),
+        (r"Hamiltonian, $\mathcal{H}$", lambda ps: ps.hamiltonian),
     )
-    for figure, (_, ylabel, quantity) in enumerate(panels, start=1):
-        plt.figure(figure)
+    for ylabel, quantity in panels:
+        plt.figure()
         for ph in problem.phases:
             ps = solution[ph]
             plt.plot(ps.time, quantity(ps), label=ph.name)
-        plt.xlabel("Time (s)")
+        plt.xlabel("Time, $t$ (s)")
         plt.ylabel(ylabel)
         plt.legend()
+        plt.grid()
+        plt.tight_layout()
 
 
 def main() -> None:

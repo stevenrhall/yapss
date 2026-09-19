@@ -345,7 +345,10 @@ def _set_guess(stages):
 
 
 def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
-    """Plot the altitude and the speed over the whole ascent.
+    r"""Plot the ascent: altitude, position, velocity, mass, steering, and the Hamiltonian.
+
+    Every quantity spans four phases, so each panel is a loop over them. The mass is the one
+    that jumps, at each stage separation.
 
     Parameters
     ----------
@@ -354,22 +357,63 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
     solution : yapss._next.Solution
         The solution to plot.
     """
-    plt.figure()
-    for stage in problem.phases:
-        ps = solution[stage]
-        altitude = (np.linalg.norm(ps.state.r, axis=0) - R_e) / 1000.0
-        plt.plot(ps.time, altitude, label=stage.name)
-    plt.xlabel("Time (s)")
-    plt.ylabel("Altitude (km)")
-    plt.legend()
+    stages = list(problem.phases)
+    color = ("darkblue", "maroon", "darkorange")
+    tf = solution[stages[LAST]].final.time
 
-    plt.figure()
-    for stage in problem.phases:
-        ps = solution[stage]
-        plt.plot(ps.time, np.linalg.norm(ps.state.v, axis=0) / 1000.0, label=stage.name)
-    plt.xlabel("Time (s)")
-    plt.ylabel("Speed (km/s)")
-    plt.legend()
+    def panel(series, ylabel, ylim=None, legend=None, colors=(0,)):
+        """Plot one or more series over every stage."""
+        plt.figure()
+        for stage in stages:
+            ps = solution[stage]
+            for index, values in enumerate(series(ps)):
+                plt.plot(ps.time, values, color[colors[index % len(colors)]])
+        if legend:
+            plt.legend(legend)
+        plt.xlim(0, tf)
+        if ylim:
+            plt.ylim(ylim)
+        plt.xlabel(r"Time, $t$ (s)")
+        plt.ylabel(ylabel)
+        plt.grid()
+        plt.tight_layout()
+
+    def magnitude(vector):
+        """Return the Euclidean norm of a block field's three rows."""
+        return np.sqrt(sum(vector[i] ** 2 for i in range(3)))
+
+    panel(
+        lambda ps: [(magnitude(ps.state.r) - R_e) / 1000],
+        r"Altitude, $h$ (km)",
+        ylim=[0, 250],
+    )
+    panel(
+        lambda ps: [ps.state.r[i] / 1e6 for i in range(3)],
+        "Position vector (1000 km)",
+        ylim=(0, 6),
+        legend=[r"$r_{1}(t)$", r"$r_{2}(t)$", r"$r_{3}(t)$"],
+        colors=(0, 1, 2),
+    )
+    panel(
+        lambda ps: [magnitude(ps.state.v)],
+        r"Magnitude of inertial velocity, $v(t)$ (m/s)",
+        ylim=[0, 12000],
+    )
+    panel(
+        lambda ps: [ps.state.v[i] for i in range(3)],
+        "Inertial velocity vector (m/s)",
+        legend=[r"$v_{1}(t)$", r"$v_{2}(t)$", r"$v_{3}(t)$"],
+        colors=(0, 1, 2),
+    )
+    panel(lambda ps: [ps.state.m / 1000], r"Vehicle mass, $m$ (1000 kg)", ylim=[0, 300])
+    panel(
+        lambda ps: [ps.control.u[i] for i in range(3)],
+        r"Components of thrust direction, $u(t)$",
+        ylim=[-0.8, 1.1],
+        legend=[r"$u_{1}(t)$", r"$u_{2}(t)$", r"$u_{3}(t)$"],
+        colors=(0, 1, 2),
+    )
+    panel(lambda ps: [ps.hamiltonian], r"Hamiltonian, $\lambda^T f$ (kg/s)")
 
 
 def main() -> None:

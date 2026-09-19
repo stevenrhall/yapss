@@ -83,7 +83,7 @@ def setup() -> yapss.Problem:
 
 
 def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
-    """Plot the path the bead takes and the angle along it.
+    """Plot the trajectory, the states, the control, the costate, and the Hamiltonian.
 
     Parameters
     ----------
@@ -93,16 +93,54 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
         The solution to plot.
     """
     ps = solution[problem.phases.slide]
-    plt.figure()
-    plt.plot(ps.state.x, -ps.state.y)
-    plt.xlabel("x (ft)")
-    plt.ylabel("-y (ft)")
-    plt.title("Brachistochrone")
+    time = ps.time
 
     plt.figure()
-    plt.plot(ps.time, ps.control.u)
-    plt.xlabel("Time (s)")
-    plt.ylabel(r"$\theta$ (rad)")
+    plt.plot(ps.state.x, ps.state.y, linewidth=2)
+    plt.xlabel("Horizontal position, $x(t)$ (ft)")
+    plt.ylabel("Vertical position, $y(t)$ (ft)")
+    plt.xlim((0.0, 1.0))
+    plt.ylim((0.8, -0.1))
+    plt.axis("scaled")
+    plt.grid()
+    plt.tight_layout()
+
+    plt.figure()
+    for name, label in (("x", "$x(t)$"), ("y", "$y(t)$"), ("v", "$v(t)$")):
+        plt.plot(time, getattr(ps.state, name), linewidth=2, label=label)
+    plt.xlabel("Time, $t$ (s)")
+    plt.ylabel("States")
+    plt.xlim((time[0], time[-1]))
+    plt.legend(framealpha=1.0)
+    plt.grid()
+    plt.tight_layout()
+
+    plt.figure()
+    plt.plot(time, ps.control.u, linewidth=2)
+    plt.xlabel("Time, $t$ (s)")
+    plt.ylabel(r"Control, $\theta(t)$ (rad)")
+    plt.xlim((time[0], time[-1]))
+    plt.grid()
+    plt.tight_layout()
+
+    plt.figure()
+    for name, label in (("x", r"$p_x(t)$"), ("y", r"$p_y(t)$"), ("v", r"$p_v(t)$")):
+        plt.plot(time, getattr(ps.costate, name), linewidth=2, label=label)
+    plt.xlabel("Time, $t$ (s)")
+    plt.ylabel("Costates")
+    plt.xlim((time[0], time[-1]))
+    plt.legend(framealpha=1.0)
+    plt.grid()
+    plt.tight_layout()
+
+    plt.figure()
+    plt.plot(time, ps.hamiltonian, linewidth=2)
+    plt.xlabel("Time, $t$ (s)")
+    plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
+    plt.xlim((time[0], time[-1]))
+    plt.ylim((-1.1, -0.9))
+    plt.grid()
+    plt.tight_layout()
 
 
 def main() -> None:
