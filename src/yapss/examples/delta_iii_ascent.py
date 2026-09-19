@@ -250,54 +250,65 @@ def _set_bounds(problem, stages):
     launch_velocity = [0.0, R_e * omega_e * cos(psi_l), 0.0]
 
     for index, stage in enumerate(stages):
-        stage.state.bounds.r = (-r_max, r_max)
-        stage.state.bounds.v = (-v_max, v_max)
-        stage.state.initial.r = (-r_max, r_max)
-        stage.state.initial.v = (-v_max, v_max)
-        stage.state.final.r = (-r_max, r_max)
-        stage.state.final.v = (-v_max, v_max)
+        stage.state.bounds.r[:] = (-r_max, r_max)
+        stage.state.bounds.v[:] = (-v_max, v_max)
+        stage.state.initial.r[:] = (-r_max, r_max)
+        stage.state.initial.v[:] = (-v_max, v_max)
+        stage.state.final.r[:] = (-r_max, r_max)
+        stage.state.final.v[:] = (-v_max, v_max)
         stage.state.bounds.m = (FINAL_MASS[index] - ten, INITIAL_MASS[index] + ten)
         # The last stage may not deliver less than the payload itself, so its final mass has
         # no leeway below.
         floor = pi_p if index == LAST else FINAL_MASS[index] - ten
         stage.state.final.m = (floor, INITIAL_MASS[index] + ten)
-        stage.control.bounds.u = (-1.1, 1.1)
-        stage.path.bounds.unit_thrust = 1.0
+        stage.control.bounds.u[:] = (-1.1, 1.1)
+        stage.path.bounds.unit_thrust = (1.0, 1.0)
         stage.path.bounds.radius = (R_e, None)
-        stage.time.initial = EDGES[index]
-        stage.time.final = (t3, t4_max) if index == LAST else EDGES[index + 1]
+        stage.time.initial = (EDGES[index], EDGES[index])
+        edge = EDGES[index + 1]
+        stage.time.final = (t3, t4_max) if index == LAST else (edge, edge)
 
-    stages[0].state.initial.r = list(launch)
-    stages[0].state.initial.v = list(launch_velocity)
-    stages[0].state.initial.m = INITIAL_MASS[0]
+    # fixed component by component: one bound per row, each with its ends together
+    stages[0].state.initial.r[:] = [(x, x) for x in launch]
+    stages[0].state.initial.v[:] = [(x, x) for x in launch_velocity]
+    stages[0].state.initial.m = (INITIAL_MASS[0], INITIAL_MASS[0])
     for index, stage in enumerate(stages[1:], start=1):
-        stage.state.initial.m = INITIAL_MASS[index]
+        mass = INITIAL_MASS[index]
+        stage.state.initial.m = (mass, mass)
 
-    for index in range(3):
-        setattr(problem.discrete.bounds, f"stage_{index}_{index + 1}_position", 0.0)
-        setattr(problem.discrete.bounds, f"stage_{index}_{index + 1}_velocity", 0.0)
-    problem.discrete.bounds.semi_major_axis = a_f
-    problem.discrete.bounds.eccentricity = e_f
-    problem.discrete.bounds.inclination = i_f
-    problem.discrete.bounds.raan = Omega_f
-    problem.discrete.bounds.argument_of_perigee = omega_f
+    bounds = problem.discrete.bounds
+    bounds.stage_0_1_position[:] = (0.0, 0.0)
+    bounds.stage_0_1_velocity[:] = (0.0, 0.0)
+    bounds.stage_1_2_position[:] = (0.0, 0.0)
+    bounds.stage_1_2_velocity[:] = (0.0, 0.0)
+    bounds.stage_2_3_position[:] = (0.0, 0.0)
+    bounds.stage_2_3_velocity[:] = (0.0, 0.0)
+    problem.discrete.bounds.semi_major_axis = (a_f, a_f)
+    problem.discrete.bounds.eccentricity = (e_f, e_f)
+    problem.discrete.bounds.inclination = (i_f, i_f)
+    problem.discrete.bounds.raan = (Omega_f, Omega_f)
+    problem.discrete.bounds.argument_of_perigee = (omega_f, omega_f)
 
 
 def _set_scales(problem, stages):
     """Condition the problem: say how large each quantity typically is."""
     for stage in stages:
-        stage.state.scale.r = length_scale
-        stage.state.scale.v = velocity_scale
+        stage.state.scale.r[:] = length_scale
+        stage.state.scale.v[:] = velocity_scale
         stage.state.scale.m = m_total
-        stage.state.defect_scale.r = length_scale
-        stage.state.defect_scale.v = velocity_scale
+        stage.state.defect_scale.r[:] = length_scale
+        stage.state.defect_scale.v[:] = velocity_scale
         stage.state.defect_scale.m = m_total
         stage.path.scale.unit_thrust = 1.0
         stage.path.scale.radius = length_scale
         stage.time.scale = time_scale
-    for index in range(3):
-        setattr(problem.discrete.scale, f"stage_{index}_{index + 1}_position", length_scale)
-        setattr(problem.discrete.scale, f"stage_{index}_{index + 1}_velocity", velocity_scale)
+    scale = problem.discrete.scale
+    scale.stage_0_1_position[:] = length_scale
+    scale.stage_0_1_velocity[:] = velocity_scale
+    scale.stage_1_2_position[:] = length_scale
+    scale.stage_1_2_velocity[:] = velocity_scale
+    scale.stage_2_3_position[:] = length_scale
+    scale.stage_2_3_velocity[:] = velocity_scale
     problem.discrete.scale.semi_major_axis = length_scale
 
 
@@ -336,12 +347,12 @@ def _set_guess(stages):
             initial_velocity[:, None] + fraction * (final_velocity - initial_velocity)[:, None]
         )
         stage.time.guess = (start, end)
-        stage.state.guess.r = yapss.interp(time, position)
-        stage.state.guess.v = yapss.interp(time, velocity)
+        stage.state.guess.r[:] = yapss.interp(time, position)
+        stage.state.guess.v[:] = yapss.interp(time, velocity)
         stage.state.guess.m = yapss.interp(
             time, np.linspace(INITIAL_MASS[index], FINAL_MASS[index], len(time))
         )
-        stage.control.guess.u = yapss.interp(time, np.tile([[0.0], [1.0], [0.0]], (1, 9)))
+        stage.control.guess.u[:] = yapss.interp(time, np.tile([[0.0], [1.0], [0.0]], (1, 9)))
 
 
 def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:

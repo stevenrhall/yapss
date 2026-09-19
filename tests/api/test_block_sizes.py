@@ -62,18 +62,18 @@ def problem():
     def minimum_time(arg):
         return arg[ph].final.time
 
-    ph.time.initial = 0.0
-    ph.state.initial.x = 0.0
-    ph.state.initial.y = 0.0
-    ph.state.initial.v = 0.0
-    ph.state.final.x = 1.0
+    ph.time.initial = (0.0, 0.0)
+    ph.state.initial.x = (0.0, 0.0)
+    ph.state.initial.y[:] = (0.0, 0.0)
+    ph.state.initial.v = (0.0, 0.0)
+    ph.state.final.x = (1.0, 1.0)
     ph.state.bounds.x = (0, 10)
-    ph.state.bounds.y = (0, 10)
+    ph.state.bounds.y[:] = (0, 10)
     ph.state.bounds.v = (0, 10)
-    ph.control.bounds.u = (-math.pi / 2, math.pi / 2)
+    ph.control.bounds.u[:] = (-math.pi / 2, math.pi / 2)
     ph.time.guess = (0.0, 1.0)
     ph.state.guess.x = (0, 1)
-    ph.state.guess.y = (0, 1)
+    ph.state.guess.y[:] = (0, 1)
     ph.state.guess.v = (0, 5)
     problem.ipopt_options.print_level = 0
     return problem, shapes

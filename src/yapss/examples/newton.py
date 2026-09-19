@@ -95,8 +95,8 @@ def setup(y_max: float = 1.0) -> yapss.Problem:
         """Return the drag, which is the objective."""
         return arg[ph].integral.drag
 
-    ph.r.initial = 0.0
-    ph.r.final = 1.0
+    ph.r.initial = (0.0, 0.0)
+    ph.r.final = (1.0, 1.0)
     ph.state.bounds.y = (0.0, y_max)
     ph.state.bounds.yp = (-np.inf, 0.0)
     ph.control.bounds.u = (-np.inf, 0.0)

@@ -157,20 +157,20 @@ def setup() -> yapss.Problem:
     problem.objective.sense = "maximize"
     problem.derivatives.method = "user"
 
-    ph.time.initial = 0.0
+    ph.time.initial = (0.0, 0.0)
     ph.time.final = (tf_min, tf_max)
-    ph.state.initial.h = 0.0
-    ph.state.initial.v = 0.0
-    ph.state.initial.m = m0
+    ph.state.initial.h = (0.0, 0.0)
+    ph.state.initial.v = (0.0, 0.0)
+    ph.state.initial.m = (m0, m0)
     ph.state.bounds.h = (0, h_max)
     ph.state.bounds.v = (0, v_max)
     ph.state.bounds.m = (mf, m0)
-    ph.state.final.m = mf
+    ph.state.final.m = (mf, mf)
     ph.control.bounds.thrust = (0, Tm)
 
     ph.time.guess = (0.0, tf_max)
     ph.state.guess.h = (0.0, h_max)
-    ph.state.guess.v = 0.0
+    ph.state.guess.v = (0.0, 0.0)
     ph.state.guess.m = (m0, mf)
     ph.control.guess.thrust = (Tm, 0.0)
 

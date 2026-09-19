@@ -102,13 +102,13 @@ def setup() -> yapss.Problem:
 
     problem.objective.sense = "maximize"
 
-    ph.time.initial = t_0
-    ph.time.final = t_f
-    ph.state.initial.r = r_0
-    ph.state.initial.theta = theta_0
-    ph.state.initial.v_r = v_r_0
-    ph.state.initial.v_theta = v_theta_0
-    ph.state.final.v_r = v_r_f
+    ph.time.initial = (t_0, t_0)
+    ph.time.final = (t_f, t_f)
+    ph.state.initial.r = (r_0, r_0)
+    ph.state.initial.theta = (theta_0, theta_0)
+    ph.state.initial.v_r = (v_r_0, v_r_0)
+    ph.state.initial.v_theta = (v_theta_0, v_theta_0)
+    ph.state.final.v_r = (v_r_f, v_r_f)
     ph.state.bounds.r = (r_min, r_max)
     ph.state.bounds.theta = (-pi, pi)
     ph.state.bounds.v_r = (v_min, v_max)
@@ -116,7 +116,7 @@ def setup() -> yapss.Problem:
     ph.control.bounds.u_r = (u_min, u_max)
     ph.control.bounds.u_theta = (u_min, u_max)
     ph.path.bounds.unit_thrust = (-np.inf, 1.0)
-    problem.discrete.bounds.circular = 0.0
+    problem.discrete.bounds.circular = (0.0, 0.0)
 
     ph.time.guess = (t_0, t_f)
     ph.state.guess.r = (r_0, 1.5 * r_0)

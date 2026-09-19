@@ -117,16 +117,16 @@ def setup() -> yapss.Problem:
     problem.objective.sense = "maximize"
 
     # Arc length runs from 0 to the perimeter, and unit speed is what makes it arc length.
-    ph.s.initial = 0.0
-    ph.s.final = PERIMETER
-    ph.path.bounds.speed_squared = 1.0
+    ph.s.initial = (0.0, 0.0)
+    ph.s.final = (PERIMETER, PERIMETER)
+    ph.path.bounds.speed_squared = (1.0, 1.0)
 
     # The centroid at the origin, which fixes the circle's position rather than its shape.
-    ph.integral.bounds.x_moment = 0.0
-    ph.integral.bounds.y_moment = 0.0
+    ph.integral.bounds.x_moment = (0.0, 0.0)
+    ph.integral.bounds.y_moment = (0.0, 0.0)
 
-    problem.discrete.bounds.closure_x = 0.0
-    problem.discrete.bounds.closure_y = 0.0
+    problem.discrete.bounds.closure_x = (0.0, 0.0)
+    problem.discrete.bounds.closure_y = (0.0, 0.0)
 
     # A square of the right perimeter, so the guess satisfies the constraint it starts from.
     side = PERIMETER / 4

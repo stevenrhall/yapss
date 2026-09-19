@@ -61,10 +61,10 @@ def setup() -> yapss.Problem:
         out.discrete.sum_of_squares = x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + x[3] ** 2
         return out
 
-    problem.parameter.bounds.x = (1.0, 5.0)
-    problem.parameter.guess.x = [1.0, 5.0, 5.0, 1.0]
+    problem.parameter.bounds.x[:] = (1.0, 5.0)
+    problem.parameter.guess.x[:] = [1.0, 5.0, 5.0, 1.0]
     problem.discrete.bounds.product = (25.0, None)
-    problem.discrete.bounds.sum_of_squares = 40.0
+    problem.discrete.bounds.sum_of_squares = (40.0, 40.0)
 
     problem.ipopt_options.print_level = 3
     return problem

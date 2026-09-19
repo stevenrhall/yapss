@@ -115,8 +115,9 @@ def _check_parameters(parameter: type[Vector], phases: Any) -> None:
     """Refuse a parameter whose name is also a variable of some phase.
 
     A phase's states, controls and independent variable are one namespace, and the parameters
-    join it: a derivative names a variable from it without saying which vector it came from
-    (spec 5.7). The phase declaration cannot check this half, because the parameters are the
+    join it: a derivative names a variable from that namespace without saying which vector it
+    came from, so a name belonging to two of them would name two columns of the phase's
+    Jacobian. The phase declaration cannot check this half, because the parameters are the
     problem's and arrive here; this is where they meet.
 
     The message names the phase, which is what distinguishes this from the half `phase()`

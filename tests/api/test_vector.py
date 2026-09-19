@@ -117,10 +117,10 @@ def test_a_bound_defaults_to_free(bounds):
 @pytest.mark.parametrize(
     ("written", "stored"),
     [
-        (None, (-math.inf, math.inf)),
-        (3.0, (3.0, 3.0)),
-        (3, (3.0, 3.0)),
         ((0, 1), (0.0, 1.0)),
+        ([0, 1], (0.0, 1.0)),
+        ((3.0, 3.0), (3.0, 3.0)),
+        ((None, None), (-math.inf, math.inf)),
         ((None, 1), (-math.inf, 1.0)),
         ((0, None), (0.0, math.inf)),
         ((2, 2), (2.0, 2.0)),
@@ -134,13 +134,15 @@ def test_a_bound_is_stored_normalized(bounds, written, stored):
 @pytest.mark.parametrize(
     ("written", "error", "match"),
     [
-        ("fast", TypeError, "must be a number, None, or a"),
+        ("fast", TypeError, "a bound is a \\(lower, upper\\) pair"),
         ((2, 1), ValueError, r"lower 2\.0 > upper 1\.0"),
-        ((0, 1, 2), ValueError, "a bound tuple is"),
+        ((0, 1, 2), ValueError, "a bound is a \\(lower, upper\\) pair; got 3"),
         ((2, False), TypeError, "a boolean is not a number"),
         (True, TypeError, "a boolean is not a number"),
-        ([0, 1], TypeError, "holds one row, so it takes one value"),
-        (..., TypeError, "must be a number, None, or a"),
+        (3.0, TypeError, "a bound is a pair, and 3.0 is one number"),
+        (None, TypeError, "For no bound at either end, write"),
+        (..., TypeError, "a bound is a \\(lower, upper\\) pair"),
+        ((2, ...), TypeError, "with ... is not implemented yet"),
     ],
 )
 def test_a_bad_bound_is_refused_at_the_line(bounds, written, error, match):
@@ -159,38 +161,61 @@ def test_bounds_cannot_be_set_by_position(bounds):
 
 
 def test_one_bound_covers_every_row_of_a_block_field():
+    """`[:]` is how a block field says every row, and one element covers them all."""
     bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
-    bounds.r = (-1.0, 1.0)
-    assert bounds.r == (-1.0, 1.0)
+    bounds.r[:] = (-1.0, 1.0)
+    assert tuple(bounds.r) == ((-1.0, 1.0),) * 3
     assert bounds._elements("r") == ((-1.0, 1.0),) * 3
 
 
-def test_a_list_gives_a_block_field_one_bound_per_row():
-    """A list is per row; a tuple is one value for the whole field."""
+def test_a_block_field_refuses_the_bare_name():
+    """The one spelling in which a reader cannot see whether one value or many was meant."""
     bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
-    bounds.r = [1.0, (0, 2), None]
+    with pytest.raises(TypeError, match=r"has 3 rows, so say which"):
+        bounds.r = (-1.0, 1.0)
+
+
+def test_a_row_of_a_block_field_is_set_on_its_own():
+    bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
+    bounds.r[:] = (-1.0, 1.0)
+    bounds.r[1] = (0.0, 2.0)
+    assert bounds._elements("r") == ((-1.0, 1.0), (0.0, 2.0), (-1.0, 1.0))
+    with pytest.raises(TypeError, match=r"is one row, so it takes one element"):
+        bounds.r[1] = [(0.0, 2.0)]
+
+
+def test_a_sequence_of_bounds_gives_a_block_field_one_per_row():
+    """Depth tells one element from a sequence of them, and the bracket type carries nothing."""
+    bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
+    bounds.r[:] = [(1.0, 1.0), (0, 2), (None, None)]
     assert bounds._elements("r") == ((1.0, 1.0), (0.0, 2.0), (-math.inf, math.inf))
+    bounds.r[:] = ((1, 2), [3, 4], (5, 6))
+    assert bounds._elements("r") == ((1.0, 2.0), (3.0, 4.0), (5.0, 6.0))
 
 
-def test_a_per_row_list_must_have_one_value_per_row():
+def test_a_per_row_sequence_must_match_the_rows_it_covers():
     bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
-    with pytest.raises(ValueError, match=r"'r' has 3 rows; got 2 values"):
-        bounds.r = [1.0, 2.0]
+    with pytest.raises(ValueError, match=r"covers 3 rows; got 2 values"):
+        bounds.r[:] = [(1.0, 1.0), (2.0, 2.0)]
+    with pytest.raises(ValueError, match=r"covers 2 rows; got 3 values"):
+        bounds.r[0:2] = [(1.0, 1.0), (2.0, 2.0), (3.0, 3.0)]
 
 
-def test_a_two_row_block_refuses_a_bare_tuple_as_ambiguous():
-    """On a two-row field, `(0, 1)` reads equally as one interval or as two values."""
+def test_a_two_row_block_is_not_ambiguous_any_more():
+    """The case the rule was built for: two rows, and a pair that used to read two ways.
+
+    `(0, 1)` was either one interval or two fixed values while a bare number was a bound.
+    It is one interval now, and two fixed values are two pairs.
+    """
 
     class Pair(Vector):
         w = field(size=2)
 
     bounds = Pair._new(Bounds, "bounds")
-    with pytest.raises(TypeError, match="reads two ways"):
-        bounds.w = (0, 1)
-    bounds.w = [0, 1]
-    assert bounds._elements("w") == ((0.0, 0.0), (1.0, 1.0))
-    bounds.w = [(0, 1), (0, 1)]
+    bounds.w[:] = (0, 1)
     assert bounds._elements("w") == ((0.0, 1.0), (0.0, 1.0))
+    bounds.w[:] = [(0, 0), (1, 1)]
+    assert bounds._elements("w") == ((0.0, 0.0), (1.0, 1.0))
 
 
 # --- guess --------------------------------------------------------------------------------
@@ -201,12 +226,15 @@ def test_an_unset_guess_is_zero():
     assert guess.h == ("constant", 0.0)
 
 
-def test_a_guess_is_a_constant_or_a_pair():
+def test_a_state_guess_is_a_pair():
+    """A guess is a pair for the same reason a bound is; a constant is a pair that agrees."""
     guess = Rocket._new(Guess, "phase 'boost' state guess")
-    guess.h = 5.0
+    guess.h = (5.0, 5.0)
     guess.v = (0, 100)
-    assert guess.h == ("constant", 5.0)
+    assert guess.h == ("linear", 5.0, 5.0)
     assert guess.v == ("linear", 0.0, 100.0)
+    with pytest.raises(TypeError, match="a guess is a \\(first, last\\) pair, and 5.0 is one"):
+        guess.h = 5.0
 
 
 @pytest.mark.parametrize(

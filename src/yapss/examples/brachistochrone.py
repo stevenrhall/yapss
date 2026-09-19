@@ -63,11 +63,11 @@ def setup() -> yapss.Problem:
         """Return the time taken, which is the objective."""
         return arg[ph].final.time
 
-    ph.time.initial = 0.0
-    ph.state.initial.x = 0.0
-    ph.state.initial.y = 0.0
-    ph.state.initial.v = 0.0
-    ph.state.final.x = 1.0
+    ph.time.initial = (0.0, 0.0)
+    ph.state.initial.x = (0.0, 0.0)
+    ph.state.initial.y = (0.0, 0.0)
+    ph.state.initial.v = (0.0, 0.0)
+    ph.state.final.x = (1.0, 1.0)
     ph.state.bounds.x = (0, 10)
     ph.state.bounds.y = (0, 10)
     ph.state.bounds.v = (0, 10)

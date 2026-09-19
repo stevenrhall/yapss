@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 from .containers import Container, HasRegistry, Registry, is_callable, is_subclass, suggest
-from .kinds import Bounds, Guess, ScalarGuess, Scale
+from .kinds import Bounds, Guess, ScalarGuess, Scale, is_bool, is_pair, is_real
 from .mesh import Mesh
 from .vector import Empty, Field, Vector
 
@@ -107,8 +107,8 @@ def _check_namespace(state: type[Vector], control: type[Vector], independent: st
     """Refuse a phase whose states, controls and independent variable share a name.
 
     Those three are one namespace, because that is what they are: the columns of the phase's
-    Jacobian, which a derivative names without saying which vector it came from (spec 5.7). A
-    name belonging to two of them would name two columns.
+    Jacobian, which a derivative names without saying which vector it came from. A name
+    belonging to two of them would name two columns.
 
     The check is here, at the call that brought the classes together, because that is where the
     collision was made -- and the message names the two classes rather than the phase, since
@@ -220,7 +220,7 @@ class Phases:
         # A class that declares no phases is allowed: zero is a count, and nothing about the
         # transcription changes shape there. What it states is a problem in the parameters and
         # the discrete constraints alone -- an ordinary nonlinear program, which is how a
-        # problem like hs071 is written. See spec 1.1 and 3.
+        # problem like hs071 is written.
         cls._declared = declared
 
     def __init__(self) -> None:
@@ -321,10 +321,19 @@ class TimeAspects(Container):
         return Bounds.check(value, label=self._label, name=name, npoints=None)
 
     def _check_guess(self, value: Any) -> tuple[float, float]:
-        if not isinstance(value, tuple) or len(value) != 2:  # noqa: PLR2004
+        """Validate the phase's guessed extent, which is a pair of plain numbers.
+
+        Not a bound: `t0` and `tf` are where the phase is guessed to start and end, so each
+        side is one number rather than an interval of its own.
+        """
+        if not is_pair(value):
             msg = f"{self._label} guess is a (t0, tf) pair; got {value!r}"
             raise TypeError(msg)
-        t0, tf = (Bounds.check(v, label=self._label, name="guess", npoints=None)[0] for v in value)
+        for side in value:
+            if is_bool(side) or not is_real(side):
+                msg = f"{self._label} guess: t0 and tf are numbers; got {side!r}"
+                raise TypeError(msg)
+        t0, tf = (float(side) for side in value)
         if not t0 < tf:
             msg = f"{self._label} guess: t0 {t0} is not less than tf {tf}"
             raise ValueError(msg)

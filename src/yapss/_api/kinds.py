@@ -67,6 +67,25 @@ def is_real(value: object) -> TypeGuard[float]:
     return isinstance(value, int | float | np.integer | np.floating)
 
 
+def is_sequence(value: object) -> TypeGuard[list[Any] | tuple[Any, ...]]:
+    """Report whether `value` is a sequence of the kind an element or a row list is written as.
+
+    A list or a tuple, and nothing else: a string is not a sequence of values here, and neither
+    is an `Interp`, which is one element however many rows it carries.
+    """
+    return isinstance(value, list | tuple)
+
+
+def is_pair(value: object) -> TypeGuard[list[Any] | tuple[Any, ...]]:
+    """Report whether `value` is a two-element list or tuple.
+
+    The bracket type is deliberately not consulted. ``(0, 1)`` and ``[0, 1]`` are the same
+    bound, and nothing in the language makes one of them mean "one value" and the other "one
+    per row".
+    """
+    return is_sequence(value) and len(value) == PAIR
+
+
 def _bool_message(label: str, name: str) -> str:
     return (
         f"{label} '{name}': a boolean is not a number. If this came from a comparison, "
@@ -147,11 +166,19 @@ MISSING: Any = object()
 
 
 class Bounds(Kind):
-    """Bounds. An element is None (free), a number (fixed), or a ``(lower, upper)`` tuple.
+    """A bound: a ``(lower, upper)`` pair, whose sides may be a number, None, or `...`.
+
+    A bare number is *not* a bound. An interval is a pair, and a field has rows, so a number
+    standing for a bound would collide with a row count -- a two-row field given ``[0.0, 1.0]``
+    would be either two fixed values or one interval, with nothing in the values to say which.
+    Requiring the pair is what lets depth tell one element from a sequence of them, and it
+    costs one ``(x, x)`` at each fixed endpoint.
+
+    The brackets carry nothing: ``(0, 1)`` and ``[0, 1]`` are the same bound, and
+    ``[(0, 1), (2, 3)]`` and ``((0, 1), (2, 3))`` are the same two.
 
     A value is stored normalized as a ``(lower, upper)`` pair of floats, with infinities for
-    the free sides, which is what the solver is given. One bound covers every row of a block
-    field; per-row bounds are not yet supported.
+    the free sides, which is what the solver is given.
     """
 
     by_row = False
@@ -161,13 +188,7 @@ class Bounds(Kind):
     @classmethod
     def is_element(cls, value: object) -> bool:
         """Report whether `value` is a single bound. See `Kind.is_element`."""
-        if value is None or is_real(value):
-            return True
-        return (
-            isinstance(value, tuple)
-            and len(value) == PAIR
-            and all(side is None or is_real(side) for side in value)
-        )
+        return is_pair(value) and all(side is None or is_real(side) for side in value)
 
     @classmethod
     def check(cls, value: object, *, label: str, name: str, npoints: int | None) -> Any:
@@ -175,29 +196,35 @@ class Bounds(Kind):
         del npoints
         if is_bool(value):
             raise TypeError(_bool_message(label, name))
-        if value is None:
-            return (-math.inf, math.inf)
         if is_real(value):
-            return (float(value), float(value))
-        if isinstance(value, tuple):
-            if len(value) != PAIR:
-                msg = (
-                    f"{label} '{name}': a bound tuple is (lower, upper); got {len(value)} "
-                    f"values, {value!r}"
-                )
-                raise ValueError(msg)
-            lower, upper = (
-                cls._side(side, index=i, label=label, name=name) for i, side in enumerate(value)
+            msg = (
+                f"{label} '{name}': a bound is a pair, and {value!r} is one number. To fix the "
+                f"value, write ({value!r}, {value!r}); for an interval, write its two ends."
             )
-            if lower > upper:
-                msg = f"{label} '{name}': lower {lower} > upper {upper}"
-                raise ValueError(msg)
-            return (lower, upper)
-        msg = (
-            f"{label} '{name}': must be a number, None, or a (lower, upper) tuple; "
-            f"got {value!r}"
+            raise TypeError(msg)
+        if value is None:
+            msg = (
+                f"{label} '{name}': a bound is a pair. For no bound at either end, write "
+                f"(None, None)."
+            )
+            raise TypeError(msg)
+        if not is_sequence(value):
+            msg = f"{label} '{name}': a bound is a (lower, upper) pair; got {value!r}"
+            raise TypeError(msg)
+        pair = tuple(value)
+        if len(pair) != PAIR:
+            msg = (
+                f"{label} '{name}': a bound is a (lower, upper) pair; got {len(pair)} "
+                f"values, {value!r}"
+            )
+            raise ValueError(msg)
+        lower, upper = (
+            cls._side(side, index=i, label=label, name=name) for i, side in enumerate(pair)
         )
-        raise TypeError(msg)
+        if lower > upper:
+            msg = f"{label} '{name}': lower {lower} > upper {upper}"
+            raise ValueError(msg)
+        return (lower, upper)
 
     @classmethod
     def _side(cls, side: object, *, index: int, label: str, name: str) -> float:
@@ -208,16 +235,29 @@ class Bounds(Kind):
             return -math.inf if index == 0 else math.inf
         if is_real(side):
             return float(side)
+        if side is Ellipsis:
+            msg = (
+                f"{label} '{name}': leaving one side of a bound unchanged with ... is not "
+                f"implemented yet; give both ends."
+            )
+            raise TypeError(msg)
         msg = f"{label} '{name}': each side of a bound is a number or None; got {side!r}"
         raise TypeError(msg)
 
 
 class Guess(Kind):
-    """An initial guess. An element is a number (constant) or a ``(first, last)`` tuple.
+    """A state or control guess: a ``(first, last)`` pair, or `yapss.interp`.
 
-    A constant holds over the phase; a pair is linear in time from the start of the phase to
-    its end; `yapss.interp` gives samples on a grid of the field's own. A field that is never
-    assigned is guessed as zero.
+    The pair is linear in the phase's independent variable from one end to the other, so a
+    constant is a pair whose ends agree. A bare number is refused for the same reason a bare
+    number is not a bound: the element of this aspect is a pair, and a number standing for one
+    would collide with a row count (see `Bounds`). ``guess.v = (500.0, 500.0)`` is a speed held
+    at 500.
+
+    `yapss.interp` gives samples on a grid of the field's own, and is one element however many
+    rows of samples it carries.
+
+    A field that is never assigned is guessed as zero.
     """
 
     by_row = False
@@ -227,9 +267,9 @@ class Guess(Kind):
     @classmethod
     def is_element(cls, value: object) -> bool:
         """Report whether `value` is a single guess. See `Kind.is_element`."""
-        if is_real(value) or isinstance(value, Interp):
+        if isinstance(value, Interp):
             return True
-        return isinstance(value, tuple) and len(value) == PAIR
+        return is_pair(value) and all(is_real(side) for side in value)
 
     @classmethod
     def check(cls, value: object, *, label: str, name: str, npoints: int | None) -> Any:
@@ -240,25 +280,27 @@ class Guess(Kind):
         if isinstance(value, Interp):
             return ("sampled", value)
         if is_real(value):
-            return ("constant", float(value))
-        if isinstance(value, tuple):
-            if len(value) != PAIR:
-                msg = (
-                    f"{label} '{name}': a guess tuple is (first, last); got {len(value)} "
-                    f"values, {value!r}"
-                )
-                raise ValueError(msg)
-            first, last = value
-            for side in (first, last):
-                if not is_real(side):
-                    msg = (
-                        f"{label} '{name}': a (first, last) guess takes two numbers; "
-                        f"got {side!r}"
-                    )
-                    raise TypeError(msg)
-            return ("linear", float(first), float(last))
-        msg = f"{label} '{name}': must be a number or a (first, last) tuple; got {value!r}"
-        raise TypeError(msg)
+            msg = (
+                f"{label} '{name}': a guess is a (first, last) pair, and {value!r} is one "
+                f"number. To hold it there, write ({value!r}, {value!r})."
+            )
+            raise TypeError(msg)
+        if not is_sequence(value):
+            msg = (
+                f"{label} '{name}': a guess is a (first, last) pair or yapss.interp(...); "
+                f"got {value!r}"
+            )
+            raise TypeError(msg)
+        pair = tuple(value)
+        if len(pair) != PAIR:
+            msg = f"{label} '{name}': a guess is (first, last); got {len(pair)} values, {value!r}"
+            raise ValueError(msg)
+        first, last = pair
+        for side in (first, last):
+            if not is_real(side):
+                msg = f"{label} '{name}': a (first, last) guess takes two numbers; got {side!r}"
+                raise TypeError(msg)
+        return ("linear", float(first), float(last))
 
 
 class Rows(Kind):

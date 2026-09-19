@@ -440,7 +440,7 @@ def bare_problem():
     def final_time(arg):
         return arg[ph].final.time
 
-    ph.time.initial = 0.0
+    ph.time.initial = (0.0, 0.0)
     ph.time.guess = (0.0, 1.0)
     problem.derivatives.method = "user"
     return problem
@@ -589,9 +589,9 @@ def linked_problem():
         out.discrete.gap = arg[ph].final.x
         return out
 
-    ph.time.initial = 0.0
+    ph.time.initial = (0.0, 0.0)
     ph.time.guess = (0.0, 1.0)
-    problem.discrete.bounds.gap = 0.0
+    problem.discrete.bounds.gap = (0.0, 0.0)
     problem.derivatives.method = "user"
     return problem
 

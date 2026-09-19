@@ -150,14 +150,14 @@ def setup() -> yapss.Problem:
 
     # ------------------------------------------------------------------- setup
 
-    ph.time.initial = 0.0
+    ph.time.initial = (0.0, 0.0)
     ph.time.final = (10.0, 30.0)
 
     # the circuit starts and ends at the origin
     for end in (ph.state.initial, ph.state.final):
-        end.x = 0.0
-        end.y = 0.0
-        end.h = 0.0
+        end.x = (0.0, 0.0)
+        end.y = (0.0, 0.0)
+        end.h = (0.0, 0.0)
 
     ph.state.bounds.x = (-1500, 1500)
     ph.state.bounds.y = (-1000, 1000)
@@ -170,9 +170,9 @@ def setup() -> yapss.Problem:
     ph.control.bounds.phi = (np.radians(-75), np.radians(75))
     ph.path.bounds.load_factor = (-2, load_factor_max)
 
-    problem.discrete.bounds.v_periodic = 0.0
-    problem.discrete.bounds.gamma_periodic = 0.0
-    problem.discrete.bounds.psi_periodic = np.radians(360)
+    problem.discrete.bounds.v_periodic = (0.0, 0.0)
+    problem.discrete.bounds.gamma_periodic = (0.0, 0.0)
+    problem.discrete.bounds.psi_periodic = (np.radians(360), np.radians(360))
 
     # A circuit that is roughly the right shape and size, so the solver starts from a closed
     # loop rather than having to find one.
@@ -184,11 +184,11 @@ def setup() -> yapss.Problem:
     ph.state.guess.x = yapss.interp(t, x)
     ph.state.guess.y = yapss.interp(t, -200 * np.sin(turn))
     ph.state.guess.h = yapss.interp(t, -0.7 * x)
-    ph.state.guess.v = 150.0
-    ph.state.guess.gamma = 0.0
+    ph.state.guess.v = (150.0, 150.0)
+    ph.state.guess.gamma = (0.0, 0.0)
     ph.state.guess.psi = yapss.interp(t, np.radians(t / tf * 360))
-    ph.control.guess.cl = 0.5
-    ph.control.guess.phi = np.radians(45)
+    ph.control.guess.cl = (0.5, 0.5)
+    ph.control.guess.phi = (np.radians(45), np.radians(45))
     problem.parameter.guess.beta = 0.08
 
     # Scaling, which this problem needs: the states run over four orders of magnitude.

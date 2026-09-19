@@ -107,19 +107,19 @@ def setup() -> yapss.Problem:
     hf, vf, gamma_f = 65600.0, 968.148, 0.0
     m_min, m_max = 10.0, 45000.0 / g0
 
-    ph.time.initial = 0.0
+    ph.time.initial = (0.0, 0.0)
     ph.time.final = (100.0, 800.0)
-    ph.state.initial.h = h0
-    ph.state.initial.v = v0
-    ph.state.initial.gamma = gamma_0
-    ph.state.initial.mass = m0
+    ph.state.initial.h = (h0, h0)
+    ph.state.initial.v = (v0, v0)
+    ph.state.initial.gamma = (gamma_0, gamma_0)
+    ph.state.initial.mass = (m0, m0)
     ph.state.bounds.h = (0.0, 69000.0)
     ph.state.bounds.v = (1.0, 2000.0)
     ph.state.bounds.gamma = (-40 * pi / 180, 40 * pi / 180)
     ph.state.bounds.mass = (m_min, m_max)
-    ph.state.final.h = hf
-    ph.state.final.v = vf
-    ph.state.final.gamma = gamma_f
+    ph.state.final.h = (hf, hf)
+    ph.state.final.v = (vf, vf)
+    ph.state.final.gamma = (gamma_f, gamma_f)
     ph.state.final.mass = (m_min, m_max)
     ph.control.bounds.alpha = (-pi / 4, pi / 4)
 
@@ -127,8 +127,8 @@ def setup() -> yapss.Problem:
     ph.state.guess.h = (h0, hf)
     ph.state.guess.v = (v0, vf)
     ph.state.guess.gamma = (gamma_0, gamma_f)
-    ph.state.guess.mass = m0
-    ph.control.guess.alpha = 0.0
+    ph.state.guess.mass = (m0, m0)
+    ph.control.guess.alpha = (0.0, 0.0)
 
     ph.state.scale.h = ph.state.defect_scale.h = 30000.0
     ph.state.scale.v = ph.state.defect_scale.v = 1000.0

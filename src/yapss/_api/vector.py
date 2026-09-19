@@ -25,11 +25,12 @@ from __future__ import annotations
 
 import difflib
 import inspect
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 
-from .kinds import MISSING, PAIR, Kind
+from .kinds import MISSING, Kind, is_sequence
 
 __all__ = ["Empty", "Field", "Maker", "Vector", "field"]
 
@@ -125,6 +126,61 @@ class PerRow(tuple[Any, ...]):
     __slots__ = ()
 
 
+def _show_slice(index: slice) -> str:
+    """Return a slice as a user would have written it."""
+    parts = ["" if part is None else str(part) for part in (index.start, index.stop, index.step)]
+    return ":".join(parts[:2] if index.step is None else parts)
+
+
+class BlockRows(Sequence[Any]):
+    """The rows of a block field, addressed by index or by slice.
+
+    A block field of *k* rows is an array of *k* elements, so it is written the way an array
+    is: ``bounds.r[:] = (-1, 1)`` gives every row one bound, ``bounds.r[0] = (0, 10)`` gives
+    one row its own, and ``bounds.r[:] = [(0, 1), (2, 3), (4, 5)]`` gives each its own. The
+    bare name is refused, because it is the only spelling in which a reader cannot see whether
+    one value or many was meant.
+
+    Reading behaves as the sequence of stored elements it is, so ``bounds.r[1]`` is row 1's
+    bound and ``len(bounds.r)`` is the number of rows.
+    """
+
+    __slots__ = ("_name", "_owner", "_rows")
+
+    def __init__(self, rows: tuple[Any, ...], owner: Any, name: str) -> None:
+        self._rows = rows
+        self._owner = owner
+        self._name = name
+
+    def __getitem__(self, index: Any) -> Any:
+        """Return the element of one row, or of the rows a slice covers."""
+        return self._rows[index]
+
+    def __setitem__(self, index: int | slice, value: Any) -> None:
+        """Assign to the rows `index` covers. See the class docstring."""
+        self._owner._set_field_rows(self._name, index, value)
+
+    def __len__(self) -> int:
+        """Return the number of rows."""
+        return len(self._rows)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare equal to any sequence holding the same elements."""
+        if isinstance(other, BlockRows):
+            return self._rows == other._rows
+        if isinstance(other, list | tuple):
+            return self._rows == tuple(other)
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        """Hash as the tuple of elements it holds."""
+        return hash(self._rows)
+
+    def __repr__(self) -> str:
+        """Return the rows, as the tuple they read as."""
+        return repr(self._rows)
+
+
 BLOCK_DIMENSIONS = 2
 """The dimensions of an array holding every row of a block field."""
 
@@ -132,9 +188,7 @@ _NO_VALUES: dict[Any, Any] = {}
 """Shared empty store for a read-only vector, which never writes into it."""
 
 
-def _field_property(
-    name: str, row: int, size: int | None, default: Any, *, by_row: bool
-) -> property:
+def _field_property(name: str, row: int, size: int | None, kind: type[Kind]) -> property:
     """Return the property that reads one field of a generated subclass.
 
     A field reached through `__getattr__` costs two failed lookups before any of our code runs.
@@ -147,7 +201,16 @@ def _field_property(
     while a field with no size reads as ``(npoints,)``. They are different declarations, and
     deciding on the count alone would silently collapse the one-row block to the scalar's rank.
     """
-    if not by_row:
+    default = kind.default
+    if not kind.by_row:
+        if kind.per_row and size is not None:
+
+            def get_rows(self: Any) -> Any:
+                # A block field of a setup aspect is an array of its element, so it is handed
+                # back as its rows -- which is what makes `bounds.r[0] = ...` reach the vector.
+                return BlockRows(self._elements(name), self, name)
+
+            return property(get_rows)
 
         def get_whole(self: Any) -> Any:
             value = self._values.get(name, default)
@@ -374,8 +437,7 @@ class Vector:
                     field_name,
                     cls._offsets[field_name],
                     spec.size,
-                    kind.default,
-                    by_row=kind.by_row,
+                    kind,
                 )
             generated: type[Vector] = type(name, (cls,), namespace, _generated=True)
             cls._kind_cache[key] = generated
@@ -447,6 +509,8 @@ class Vector:
                 return _stack([source[start + i] for i in range(rows)])
             values = [self._read_row(start + i, name) for i in range(rows)]
             return values[0] if spec.size is None else _stack(values)
+        if kind.per_row and spec.size is not None:
+            return BlockRows(self._elements(name), self, name)
         value = self._values.get(name, kind.default)
         if value is MISSING:
             msg = f"{self._label} '{name}' has not been assigned"
@@ -518,39 +582,82 @@ class Vector:
             )
 
     def _one_or_per_row(self, kind: type[Kind], spec: Field, name: str, value: Any) -> Any:
-        """Return the stored value of a setup field: one element, or one per row.
+        """Return the stored value of a scalar setup field, and refuse a block one.
 
-        A *list* (or array) gives one value per row of a block field; anything else is a single
-        value covering every row. That is what keeps ``bounds.r = (-1, 1)`` one interval for
-        all three rows while ``bounds.r = [1.0, 2.0, 3.0]`` fixes them separately.
+        A scalar field is an array with no shape, so the bare name is the only spelling it has
+        and it takes one element. A block field has rows, and is written through them.
         """
-        check = kind.check
-        if not (kind.per_row and isinstance(value, list | np.ndarray)):
-            if kind.per_row and spec.size == PAIR and isinstance(value, tuple):
+        if spec.size is not None:
+            example = f"{name}[:]" if spec.size != 1 else f"{name}[0]"
+            msg = (
+                f"{self._label} '{name}' has {spec.size} rows, so say which: "
+                f"'{example} = ...' gives every row the same, and an index or a slice gives "
+                f"rows their own. The bare name is refused because it cannot show which was "
+                f"meant."
+            )
+            raise TypeError(msg)
+        return kind.check(value, label=self._label, name=name, npoints=self._npoints)
+
+    def _set_field_rows(self, name: str, index: int | slice, value: Any) -> None:
+        """Assign to the rows of block field `name` that `index` covers."""
+        cls = type(self)
+        kind = self._kind_or_raise()
+        if kind.read_only:
+            msg = f"{self._label} is read-only; '{name}' cannot be assigned"
+            raise AttributeError(msg)
+        spec = cls._meta[name]
+        count = spec.rows
+
+        if isinstance(index, slice):
+            rows = list(range(*index.indices(count)))
+            if kind.is_element(value):
+                values = [value] * len(rows)
+            else:
+                if not is_sequence(value):
+                    msg = (
+                        f"{self._label} '{name}'[{_show_slice(index)}] covers {len(rows)} "
+                        f"rows, so it takes one element for all of them or {len(rows)} of "
+                        f"them; got a {type(value).__name__}"
+                    )
+                    raise TypeError(msg)
+                values = list(value)
+                if len(values) != len(rows):
+                    msg = (
+                        f"{self._label} '{name}'[{_show_slice(index)}] covers {len(rows)} "
+                        f"rows; got {len(values)} values"
+                    )
+                    raise ValueError(msg)
+        else:
+            row = index if index >= 0 else index + count
+            if not 0 <= row < count:
+                msg = f"{self._label} '{name}' has {count} rows; there is no row {index}"
+                raise IndexError(msg)
+            if not kind.is_element(value):
                 msg = (
-                    f"{self._label} '{name}': a tuple is one value for the whole field, but "
-                    f"this field has {PAIR} rows, so {value!r} reads two ways. Write a list "
-                    f"with one value per row, for example [{value[0]!r}, {value[1]!r}] to set "
-                    f"them separately, or [{value!r}, {value!r}] to give both the same."
+                    f"{self._label} '{name}'[{index}] is one row, so it takes one element, "
+                    f"not a sequence of them; got {value!r}"
                 )
                 raise TypeError(msg)
-            return check(value, label=self._label, name=name, npoints=self._npoints)
-        if spec.size is None:
-            msg = f"{self._label} '{name}' holds one row, so it takes one value, not a list"
-            raise TypeError(msg)
-        rows = list(value)
-        if len(rows) != spec.size:
-            msg = f"{self._label} '{name}' has {spec.size} rows; got {len(rows)} values"
-            raise ValueError(msg)
-        return PerRow(
-            check(row, label=self._label, name=name, npoints=self._npoints) for row in rows
-        )
+            rows, values = [row], [value]
+
+        stored = list(self._elements(name))
+        for row, row_value in zip(rows, values, strict=True):
+            stored[row] = kind.check(row_value, label=self._label, name=name, npoints=self._npoints)
+        self._values[name] = PerRow(stored)
 
     def _elements(self, name: str) -> tuple[Any, ...]:
-        """Return one stored element per row of `name`, broadcasting a single value."""
+        """Return one stored element per row of `name`, broadcasting a single value.
+
+        Reads the store rather than the attribute: a block field's attribute is its rows, and
+        building those is what calls this.
+        """
         cls = type(self)
         rows = cls._meta[name].rows
-        value = getattr(self, name)
+        kind = self._kind_or_raise()
+        value = self._values.get(name, kind.default)
+        if value is MISSING:
+            msg = f"{self._label} '{name}' has not been assigned"
+            raise AttributeError(msg)
         if isinstance(value, PerRow):
             return tuple(value)
         return (value,) * rows
