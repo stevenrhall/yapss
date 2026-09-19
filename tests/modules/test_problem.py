@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 # package imports
-from yapss import Problem
+from yapss._legacy import Problem
 from yapss._private.problem import ScalePhase
 from yapss.examples import brachistochrone_minimal, dynamic_soaring, rosenbrock
 

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from yapss import Problem
+from yapss._legacy import Problem
 from yapss._private.finite_difference import get_continuous_jacobian_structure_nan
 from yapss._private.input_args import ContinuousArg, ContinuousStore
 from yapss._private.mesh import Mesh

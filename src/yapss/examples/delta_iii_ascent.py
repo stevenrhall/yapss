@@ -22,7 +22,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 # package imports
-from yapss import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
+from yapss._legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
 from yapss.math import arccos, cos, exp, pi, sin, sqrt
 
 if TYPE_CHECKING:

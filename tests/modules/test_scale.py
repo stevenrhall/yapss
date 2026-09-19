@@ -9,7 +9,7 @@ finite-difference steps; a NaN reached Ipopt's scaling arrays and crashed the pr
 import numpy as np
 import pytest
 
-from yapss import Problem
+from yapss._legacy import Problem
 
 
 def _problem() -> Problem:

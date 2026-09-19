@@ -13,7 +13,7 @@ of it is invisible, which is how the scaling of both multipliers went wrong thro
 import numpy as np
 import pytest
 
-import yapss
+from yapss import _legacy as yapss
 from yapss._private.mesh import Mesh
 
 DURATIONS = [2.0, 4.0, 0.5]

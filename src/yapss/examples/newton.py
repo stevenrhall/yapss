@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 # package imports
 import numpy as np
 
-from yapss import (
+from yapss._legacy import (
     ContinuousArg,
     ContinuousHessianArg,
     ContinuousJacobianArg,

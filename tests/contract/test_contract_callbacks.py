@@ -60,9 +60,9 @@ import warnings
 import numpy as np
 import pytest
 
-import yapss
 import yapss.math as ym
-from yapss import Problem
+from yapss import _legacy as yapss
+from yapss._legacy import Problem
 from yapss.examples import brachistochrone, goddard_problem_3_phase
 
 from ._contract import G0, METHODS, callback_problem, default_continuous, not_yet, raises

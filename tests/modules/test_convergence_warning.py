@@ -12,7 +12,7 @@ import warnings
 
 import pytest
 
-import yapss
+from yapss import _legacy as yapss
 from yapss._private.solution import QUIET_IPOPT_STATUSES, warn_if_not_converged
 from yapss.examples.rosenbrock import setup
 

@@ -9,7 +9,7 @@ __all__ = ["main", "plot_solution", "setup"]
 # third party imports
 import matplotlib.pyplot as plt
 
-from yapss import ContinuousArg, ObjectiveArg, Problem, Solution
+from yapss._legacy import ContinuousArg, ObjectiveArg, Problem, Solution
 
 # package imports
 from yapss.math import cos, pi, sin

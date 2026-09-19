@@ -9,7 +9,7 @@ parameter-only phase. Through 0.2.2 a warm start from such a solution raised.
 import numpy as np
 import pytest
 
-from yapss import Problem
+from yapss._legacy import Problem
 
 METHODS = ["lg", "lgr", "lgl"]
 

@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
-from yapss import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
+from yapss._legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
 from yapss.math import cos, sin
 
 if TYPE_CHECKING:

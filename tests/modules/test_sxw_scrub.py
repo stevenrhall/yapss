@@ -20,9 +20,9 @@ import casadi as ca
 import numpy as np
 import pytest
 
-import yapss
-from yapss import UnsupportedMathFunctionError
+from yapss import _legacy as yapss
 from yapss import math as ym
+from yapss._legacy import UnsupportedMathFunctionError
 from yapss._private.auto import make_auto_functions
 from yapss._private.central_difference import make_cd_functions
 from yapss._private.guess import make_initial_guess_nlp

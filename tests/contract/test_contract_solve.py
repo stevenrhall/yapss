@@ -24,7 +24,7 @@ import numpy as np
 import pytest
 
 import yapss
-from yapss import Problem
+from yapss._legacy import Problem
 from yapss.examples import brachistochrone_minimal
 
 from ._contract import callback_problem, default_objective, not_yet, raises

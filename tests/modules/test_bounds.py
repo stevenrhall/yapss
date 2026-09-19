@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 # package imports
-from yapss import Problem
+from yapss._legacy import Problem
 from yapss.examples import dynamic_soaring, goddard_problem_3_phase
 
 

@@ -13,7 +13,7 @@ from typing import get_args
 import numpy as np
 import pytest
 
-from yapss import Problem
+from yapss._legacy import Problem
 from yapss._private.layout import SPECTRAL_METHODS, problem_layout
 from yapss._private.structure import (
     get_nlp_cf_structure,

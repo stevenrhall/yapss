@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 # package imports
-from yapss import Problem
+from yapss._legacy import Problem
 
 
 def test_no_hessian():

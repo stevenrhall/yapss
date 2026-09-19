@@ -32,7 +32,7 @@ from numpy.typing import NDArray
 from scipy.interpolate import CubicSpline, RBFInterpolator
 
 # package imports
-from yapss import ContinuousArg, ObjectiveArg, Problem, Solution
+from yapss._legacy import ContinuousArg, ObjectiveArg, Problem, Solution
 
 # because we can only use central differences, it's safe to use numpy math
 cos = np.cos

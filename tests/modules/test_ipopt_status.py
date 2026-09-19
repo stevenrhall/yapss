@@ -4,8 +4,8 @@ import re
 
 import pytest
 
-import yapss
-from yapss import IpoptStatus
+from yapss import _legacy as yapss
+from yapss._legacy import IpoptStatus
 from yapss._private.ipopt_status import status_or_raise
 from yapss._private.solution import QUIET_IPOPT_STATUSES
 

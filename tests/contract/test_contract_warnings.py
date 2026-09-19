@@ -25,7 +25,6 @@ import warnings
 
 import pytest
 
-import yapss
 import yapss._private
 from yapss._private.exceptions import YapssDeprecationWarning, YapssError, YapssWarning
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-import yapss
+from yapss import _legacy as yapss
 from yapss.examples import goddard_problem_1_phase, goddard_problem_3_phase, orbit_raising
 
 

@@ -25,7 +25,7 @@ import textwrap
 
 import pytest
 
-from yapss import Problem
+from yapss._legacy import Problem
 from yapss._private.ipopt_options import DEFAULT_IPOPT_OPTIONS
 from yapss._private.setup_check import (
     _constraint_label,

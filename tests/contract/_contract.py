@@ -33,7 +33,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from yapss import Problem
+from yapss._legacy import Problem
 
 # Set YAPSS_ERROR_CATALOG to a path and every message `raises` sees is appended there, one
 # JSON object per line, for `tools/error_catalog.py` to render. Off by default, so an

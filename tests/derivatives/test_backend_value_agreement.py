@@ -25,7 +25,7 @@ objectives would be testing the wrong thing.
 import numpy as np
 import pytest
 
-from yapss import Problem
+from yapss._legacy import Problem
 from yapss._private.auto import make_auto_functions
 from yapss._private.central_difference import make_cd_functions
 from yapss._private.guess import make_initial_guess_nlp
