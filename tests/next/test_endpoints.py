@@ -8,7 +8,7 @@ variable is a scalar in the same namespace, reached by name.
 import numpy as np
 import pytest
 
-from yapss._next.examples.brachistochrone import setup
+from yapss.examples.brachistochrone import setup
 
 
 @pytest.fixture

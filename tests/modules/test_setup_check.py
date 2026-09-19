@@ -26,6 +26,7 @@ import textwrap
 import pytest
 
 from yapss._legacy import Problem
+from yapss._legacy.examples import brachistochrone_minimal
 from yapss._private.ipopt_options import DEFAULT_IPOPT_OPTIONS
 from yapss._private.setup_check import (
     _constraint_label,
@@ -33,7 +34,6 @@ from yapss._private.setup_check import (
     _variable_label,
 )
 from yapss._private.structure import nlp_constraint_keys, nlp_variable_keys
-from yapss.examples import brachistochrone_minimal
 from yapss.math import cos, sin, sqrt
 
 METHODS = ["auto", "central-difference", "central-difference-full"]

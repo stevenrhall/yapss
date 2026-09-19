@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 import yapss
-from yapss._next.examples.hs071 import Constraints, Design, Phases, main, setup
+from yapss.examples.hs071 import Constraints, Design, Phases, main, setup
 
 RELEASED = 17.014017140224134
 """What the same problem gives through the released API, to the last bit."""

@@ -22,18 +22,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss.examples.goddard_problem_1_phase
+   $ python -m yapss._legacy.examples.goddard_problem_1_phase
 
 Functions
 ---------
 
-.. automodule:: yapss.examples.goddard_problem_1_phase
+.. automodule:: yapss._legacy.examples.goddard_problem_1_phase
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/examples/goddard_problem_1_phase.py
+.. literalinclude:: ../../../src/yapss/_legacy/examples/goddard_problem_1_phase.py
    :language: python
 
 Text Output

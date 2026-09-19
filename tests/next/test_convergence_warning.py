@@ -16,7 +16,7 @@ import warnings
 import pytest
 
 import yapss
-from yapss._next.examples.brachistochrone import setup
+from yapss.examples.brachistochrone import setup
 
 
 def unconverged():

@@ -1,6 +1,6 @@
 """
 
-Test that yapss.examples.orbit_raising works properly.
+Test that yapss._legacy.examples.orbit_raising works properly.
 
 """
 
@@ -8,7 +8,7 @@ Test that yapss.examples.orbit_raising works properly.
 import pytest
 
 # package imports
-from yapss.examples import orbit_raising as optimal_control_problem
+from yapss._legacy.examples import orbit_raising as optimal_control_problem
 
 J = 1.5252777
 tol = 1e-7
@@ -23,7 +23,7 @@ parameters = [
 
 @pytest.mark.parametrize(("method", "mode", "order"), parameters)
 def test_optimal_control_problem(method: str, mode: str, order: str) -> None:
-    """Test that yapss.examples.orbit_raising gives the expected optimal cost."""
+    """Test that yapss._legacy.examples.orbit_raising gives the expected optimal cost."""
     ocp = optimal_control_problem.setup()
     # one case won't converge with default mu_strategy
     ocp.ipopt_options.mu_strategy = "adaptive"

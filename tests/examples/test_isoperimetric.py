@@ -11,7 +11,7 @@ from math import pi
 import pytest
 
 # package imports
-from yapss.examples import isoperimetric as optimal_control_problem
+from yapss._legacy.examples import isoperimetric as optimal_control_problem
 
 J = 1 / 4 / pi
 tol = 1e-6

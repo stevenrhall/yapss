@@ -1,86 +1,102 @@
 """
 
-Minimal YAPSS solution of the brachistochrone optimal control problem.
+The brachistochrone problem, written as briefly as the API allows.
+
+This is the shortest complete statement of a problem: the variables are named in two classes,
+the phase is declared, the dynamics and the objective are registered, and the bounds and the
+guess are set. `brachistochrone.py` is the same problem with units, labels and commentary.
 
 """
 
 __all__ = ["main", "plot_solution", "setup"]
 
-# third party imports
 import matplotlib.pyplot as plt
+from numpy import pi
 
-from yapss._legacy import ContinuousArg, ObjectiveArg, Problem, Solution
+import yapss
+from yapss.math import cos, sin
 
-# package imports
-from yapss.math import cos, pi, sin
+G0 = 32.174
+"""Acceleration of gravity, ft/s^2."""
 
 
-def setup() -> Problem:
-    """Set up the brachistochrone optimal control problem.
+class Slide(yapss.Vector):
+    """Where the bead is and how fast it is going."""
+
+    x = yapss.field()
+    y = yapss.field()
+    v = yapss.field()
+
+
+class Angle(yapss.Vector):
+    """The slope of the path."""
+
+    u = yapss.field()
+
+
+class Phases(yapss.Phases):
+    """One phase: the bead slides."""
+
+    slide = yapss.phase(state=Slide, control=Angle)
+
+
+def setup() -> yapss.Problem:
+    """Set up the brachistochrone problem.
 
     Returns
     -------
-    Problem
-        The brachistochrone optimal control problem.
+    yapss._next.Problem
+        The problem.
     """
-    # Initialize optimal control problem
-    problem = Problem(name="Brachistochrone", nx=[3], nu=[1])
+    problem = yapss.Problem("Brachistochrone", phases=Phases)
+    ph = problem.phases.slide
 
-    g0 = 32.174
+    @ph.register.continuous
+    def slide(arg, out):
+        """Compute the bead's dynamics."""
+        v, u = arg.state.v, arg.control.u
+        out.dynamics.x = v * cos(u)
+        out.dynamics.y = v * sin(u)
+        out.dynamics.v = G0 * sin(u)
+        return out
 
-    def objective(arg: ObjectiveArg) -> None:
-        """Objective callback function. Objective is to minimize final time."""
-        arg.objective = arg.phase[0].final_time
+    @problem.register.objective
+    def minimum_time(arg):
+        """Return the time taken, which is the objective."""
+        return arg[ph].final.time
 
-    # continuous function
-    def continuous(arg: ContinuousArg) -> None:
-        """Continuous callback function."""
-        _, _, v = arg.phase[0].state
-        (u,) = arg.phase[0].control
-        arg.phase[0].dynamics[:] = v * cos(u), v * sin(u), g0 * sin(u)
+    ph.time.initial = 0.0
+    ph.state.initial.x = 0.0
+    ph.state.initial.y = 0.0
+    ph.state.initial.v = 0.0
+    ph.state.final.x = 1.0
+    ph.state.bounds.x = (0, 10)
+    ph.state.bounds.y = (0, 10)
+    ph.state.bounds.v = (0, 10)
+    ph.control.bounds.u = (-pi / 2, pi / 2)
 
-    problem.functions.objective = objective
-    problem.functions.continuous = continuous
+    ph.time.guess = (0.0, 1.0)
+    ph.state.guess.x = (0, 1)
+    ph.state.guess.y = (0, 1)
+    ph.state.guess.v = (0, 5)
 
-    # bounds
-    bounds = problem.bounds.phase[0]
-    bounds.initial_time.lower = bounds.initial_time.upper = 0.0
-    bounds.initial_state.lower[:] = bounds.initial_state.upper[:] = 0.0
-    bounds.final_state.lower[0] = bounds.final_state.upper[0] = 1.0
-    bounds.state.lower[:] = 0.0
-    bounds.state.upper[:] = 10.0
-    bounds.control.lower[:] = -pi / 2
-    bounds.control.upper[:] = pi / 2
-
-    # guess
-    phase = problem.guess.phase[0]
-    phase.time = [0.0, 1.0]
-    phase.state = [[0.0, 1.0], [0.0, 1.0], [0.0, 5.0]]
-    phase.control = [[0.0, 0.0]]
-
-    # yapss options
-    problem.derivatives.method = "auto"
-
-    # ipopt options
     problem.ipopt_options.print_level = 3
-
     return problem
 
 
-def plot_solution(solution: Solution) -> None:
-    """Plot the solution to the brachistochrone optimal control problem.
+def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+    """Plot the path the bead takes.
 
     Parameters
     ----------
-    solution : Solution
-        The solution to the brachistochrone optimal control problem.
+    problem : yapss._next.Problem
+        The problem that was solved, which carries the phase handles.
+    solution : yapss._next.Solution
+        The solution to plot.
     """
-    # extract solution
-    x, y, _ = solution.phase[0].state
-
-    # plot
+    ps = solution[problem.phases.slide]
     plt.figure()
-    plt.plot(x, y, linewidth=2)
+    plt.plot(ps.state.x, ps.state.y, linewidth=2)
     plt.xlabel("Horizontal position, $x(t)$")
     plt.ylabel("Vertical position, $y(t)$")
     plt.grid()
@@ -91,11 +107,11 @@ def plot_solution(solution: Solution) -> None:
 
 
 def main() -> None:
-    """Demonstrate the solution to the brachistochrone optimal control problem."""
-    ocp = setup()
-    solution = ocp.solve()
+    """Solve the brachistochrone problem and plot the solution."""
+    problem = setup()
+    solution = problem.solve()
     print(f"\nObjective = {solution.objective}")
-    plot_solution(solution)
+    plot_solution(problem, solution)
     plt.show()
 
 

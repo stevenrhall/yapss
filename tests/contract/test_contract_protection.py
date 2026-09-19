@@ -16,8 +16,8 @@ from typing import Any
 import numpy as np
 import pytest
 
+from yapss._legacy.examples import goddard_problem_3_phase
 from yapss._private.types_ import Protected
-from yapss.examples import goddard_problem_3_phase
 
 CALLBACKS = (
     "objective",

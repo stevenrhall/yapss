@@ -131,7 +131,7 @@ problem is slow to solve. We can speed up the solution by reducing the number of
 
 .. testsetup:: group3
 
-   from yapss.examples.delta_iii_ascent import setup
+   from yapss._legacy.examples.delta_iii_ascent import setup
 
    problem = setup()
 
@@ -152,7 +152,7 @@ many segments:
 
 .. testsetup:: group4
 
-   from yapss.examples.dynamic_soaring import setup
+   from yapss._legacy.examples.dynamic_soaring import setup
 
    problem = setup()
 

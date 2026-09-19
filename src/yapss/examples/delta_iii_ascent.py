@@ -1,575 +1,427 @@
 """
 
-YAPSS solution of the Delta III ascent trajectory optimization problem.
+The Delta III ascent problem: put as much mass as possible into a target orbit.
+
+A four-stage launch vehicle rises from Cape Canaveral into a geosynchronous transfer orbit.
+Each stage is a phase, with its own thrust and mass flow, and the phases are joined by
+continuity of position and velocity -- but not of mass, which jumps when a stage is dropped.
+The trajectory ends on five of the six classical orbital elements.
+
+The physics -- the vector helpers, the orbital-element conversions, and the constants -- is
+imported from the released version of this example, so that any difference in the answer is
+attributable to the API and not to a slip in transcribing the mathematics.
 
 """
 
-# N803 Argument name should be lowercase
-# N806 Variable in function should be lowercase
-# ruff: noqa: N803, N806
-
-from __future__ import annotations
+# The orbital elements are conventionally capitalized.
+# ruff: noqa: N806
 
 __all__ = ["main", "plot_solution", "setup"]
 
+from itertools import pairwise
 
-# standard library imports
-from typing import TYPE_CHECKING, Any
-
+import matplotlib.pyplot as plt
 import numpy as np
 
-# third party imports
-from matplotlib import pyplot as plt
-
-# package imports
-from yapss._legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
+import yapss
+from yapss._legacy.examples.delta_iii_ascent import (
+    CD,
+    I1,
+    I2,
+    T1,
+    T2,
+    Is,
+    Omega_f,
+    R_e,
+    S,
+    Ts,
+    a_f,
+    cross,
+    dot,
+    e_f,
+    g0,
+    h0,
+    i_f,
+    mag,
+    mf_0,
+    mf_1,
+    mf_2,
+    mi_0,
+    mi_1,
+    mi_2,
+    mi_3,
+    mu,
+    oe_to_rv,
+    omega_e,
+    omega_f,
+    pi_p,
+    psi_l,
+    rho0,
+    t0,
+    t1,
+    t2,
+    t3,
+    t4_max,
+)
 from yapss.math import arccos, cos, exp, pi, sin, sqrt
 
-if TYPE_CHECKING:
-    # third party imports
-    from numpy.typing import NDArray
-
-    # package imports
-    from yapss._legacy import Solution
-
-
-# Dynamic Model Parameters
-mu = 3.986012e14  # earth gravity parameter
-R_e = 6378145.0  # earth radius
-g0 = 9.80665  # sea-level gravity
-h0 = 7200.0  # atmospheric density scale height
-rho0 = 1.225  # sea-level air density
-omega_e = 7.29211585e-5  # earth rotation rate
-CD = 0.5  # coefficient of drag
-S = 4 * pi  # aerodynamic reference area
-psi_l = 28.5 * pi / 180.0  # latitude of launch site
-
-# Vehicle parameters
-# srb, first stage, second stage, payload masses (kg)
-pi_s, pi_1, pi_2, pi_p = 19290.0, 104380.0, 19300.0, 4164.0
-
-# propellant masses (kg)
-rho_s, rho_1, rho_2 = 17010.0, 95550.0, 16820.0
-
-# dry masses
-phi_s = pi_s - rho_s
-phi_1 = pi_1 - rho_1
-phi_2 = pi_2 - rho_2
-
-# srb, first stage, second stage thrust (N)
-Ts, T1, T2 = 628500.0, 1083100.0, 110094.0
-
-# burn times
-tau_s, tau_1, tau_2 = 75.2, 261.0, 700.0
-
-# initial total mass of vehicle
-m_total = 9 * pi_s + pi_1 + pi_2 + pi_p
-
-# initial time for each phase
-t0, t1, t2, t3 = 0.0, 75.2, 150.4, 261.0
-
-# max final time
-t4_max = t3 + tau_2
-
-# srb, first stage, second stage specific impulse (sec)
-Is = Ts * tau_s / (rho_s * g0)
-I1 = T1 * tau_1 / (rho_1 * g0)
-I2 = T2 * tau_2 / (rho_2 * g0)
-
-# orbital parameters for desired orbit
-a_f, e_f, i_f, Omega_f, omega_f = 24361140, 0.7308, 28.5, 269.8, 130.5
-
-# scaling parameters for IPOPT problem scaling
+m_total = mi_0
+"""Lift-off mass (kg), which also scales the objective."""
 length_scale = R_e
-mu_scale = mu
-mass_scale = m_total
-velocity_scale = sqrt(mu_scale / length_scale)
+velocity_scale = sqrt(mu / R_e)
 time_scale = length_scale / velocity_scale
+r_max, v_max, ten = 2 * R_e, 10_000.0, 10.0
 
-# initial position
-r0_vec = R_e * cos(psi_l), 0.0, R_e * sin(psi_l)
-
-mi_0 = 9 * pi_s + pi_1 + pi_2 + pi_p
-mf_0 = mi_0 - 6 * rho_s - tau_s / tau_1 * rho_1
-
-mi_1 = mf_0 - 6 * phi_s
-mf_1 = mi_1 - 3 * rho_s - tau_s / tau_1 * rho_1
-
-mi_2 = mf_1 - 3 * phi_s
-mf_2 = mi_2 - (1 - 2 * tau_s / tau_1) * rho_1
-
-mi_3 = mf_2 - phi_1
-
-
-def cross(x1: Any, x2: Any) -> Any:
-    """Vector cross product."""
-    x3 = [0, 0, 0]
-    x3[0] = x1[1] * x2[2] - x1[2] * x2[1]
-    x3[1] = x1[2] * x2[0] - x1[0] * x2[2]
-    x3[2] = x1[0] * x2[1] - x1[1] * x2[0]
-    return x3
+EDGES = (t0, t1, t2, t3, t4_max)
+"""The time at which each stage begins, and the latest the last one may end."""
+LAST = 3
+"""The index of the final stage."""
+INITIAL_MASS = (mi_0, mi_1, mi_2, mi_3)
+FINAL_MASS = (mf_0, mf_1, mf_2, pi_p)
+THRUST = (6 * Ts + T1, 3 * Ts + T1, T1, T2)
+MASS_FLOW = (
+    -(6 * Ts / (g0 * Is) + T1 / (g0 * I1)),
+    -(3 * Ts / (g0 * Is) + T1 / (g0 * I1)),
+    -T1 / (g0 * I1),
+    -T2 / (g0 * I2),
+)
 
 
-def mag(x: Any) -> Any:
-    """Vector magnitude."""
-    return (sum(xi**2 for xi in x) + 1e-100) ** 0.5
+class Vehicle(yapss.Vector):
+    """Where the vehicle is, how fast it is going, and what it weighs."""
+
+    r = yapss.field(size=3, units="m", latex=r"\mathbf{r}", doc="position")
+    v = yapss.field(size=3, units="m/s", latex=r"\mathbf{v}", doc="velocity")
+    m = yapss.field(units="kg", latex="m", doc="mass")
 
 
-def dot(x1: Any, x2: Any) -> Any:
-    """Vector _dot product."""
-    return sum(x1[i] * x2[i] for i in range(3))
+class Steering(yapss.Vector):
+    """The direction the thrust points, as a unit vector."""
+
+    u = yapss.field(size=3, latex=r"\mathbf{u}", doc="thrust direction")
 
 
-# noinspection PyPep8Naming
-def oe_to_rv(  # noqa: PLR0913, PLR0917 -- classical orbital elements, conventionally positional
-    a: Any,
-    e: Any,
-    i: Any,
-    Omega: Any,
-    omega: Any,
-    nu: Any,
-    mu_: Any,
-) -> Any:
-    """Convert orbital elements to cartesian position and velocity.
+class Limits(yapss.Vector):
+    """What must hold at every instant of the flight."""
 
-    Parameters
-    ----------
-    a: semimajor axis
-    e: eccentricity
-    i: inclination
-    Omega: longitude of the ascending node (degrees)
-    omega: argument of the periapsis (degrees)
-    nu: true anomaly
-    mu_: Gravitational parameter
+    unit_thrust = yapss.field(doc="the steering vector must have unit magnitude")
+    radius = yapss.field(units="m", doc="the vehicle must stay above the ground")
+
+
+class Constraints(yapss.Vector):
+    """Continuity where the stages meet, and the orbit that must be reached.
+
+    Position and velocity are separate groups, rather than one block of six, because they are
+    scaled differently; the same reason separates the semi-major axis from the angles.
+    """
+
+    stage_0_1_position = yapss.field(size=3, units="m")
+    stage_0_1_velocity = yapss.field(size=3, units="m/s")
+    stage_1_2_position = yapss.field(size=3, units="m")
+    stage_1_2_velocity = yapss.field(size=3, units="m/s")
+    stage_2_3_position = yapss.field(size=3, units="m")
+    stage_2_3_velocity = yapss.field(size=3, units="m/s")
+    semi_major_axis = yapss.field(units="m", latex="a")
+    eccentricity = yapss.field(latex="e")
+    inclination = yapss.field(units="deg", latex="i")
+    raan = yapss.field(units="deg", latex=r"\Omega", doc="right ascension of ascending node")
+    argument_of_perigee = yapss.field(units="deg", latex=r"\omega")
+
+
+class Phases(yapss.Phases):
+    """One phase per stage."""
+
+    stage_0 = yapss.phase(state=Vehicle, control=Steering, path=Limits)
+    stage_1 = yapss.phase(state=Vehicle, control=Steering, path=Limits)
+    stage_2 = yapss.phase(state=Vehicle, control=Steering, path=Limits)
+    stage_3 = yapss.phase(state=Vehicle, control=Steering, path=Limits)
+
+
+def make_dynamics(thrust, mass_flow):
+    """Return the continuous callback of a stage with the given thrust and mass flow."""
+
+    def dynamics(arg, out):
+        """Compute the vehicle's dynamics and the constraints that hold along the way.
+
+        The arithmetic is grouped exactly as the released version of this example groups it, so
+        that the two solve the same problem to the last bit and can be compared.
+        """
+        r_vec, v_vec, m = arg.state.r, arg.state.v, arg.state.m
+        u_vec = arg.control.u
+
+        r = (r_vec[0] ** 2 + r_vec[1] ** 2 + r_vec[2] ** 2) ** 0.5
+        rho = rho0 * exp(-(r - R_e) / h0)
+        omega_cross_r = cross([0, 0, omega_e], r_vec)
+        relative = [v_vec[i] - omega_cross_r[i] for i in range(3)]
+        q_factor = 0.5 * rho * mag(relative) * CD * S
+        drag = [-q_factor * relative[i] for i in range(3)]
+
+        mu_over_r3 = mu / r**3
+        thrust_over_m = thrust / m
+        one_over_m = 1 / m
+
+        out.dynamics.r = v_vec
+        out.dynamics.v = [
+            -mu_over_r3 * r_vec[i] + thrust_over_m * u_vec[i] + one_over_m * drag[i]
+            for i in range(3)
+        ]
+        out.dynamics.m = mass_flow
+        out.path.unit_thrust = mag(u_vec)
+        out.path.radius = mag(r_vec)
+        return out
+
+    return dynamics
+
+
+def orbital_elements(r_vec, v_vec):
+    """Return five of the six classical orbital elements of the given state."""
+    r, v = mag(r_vec), mag(v_vec)
+    h_vec = cross(r_vec, v_vec)
+    n_vec = cross([0, 0, 1], h_vec)
+    h, n = mag(h_vec), mag(n_vec)
+    e_vec = tuple(
+        ((v**2 - mu / r) * r_vec[i] - dot(r_vec, v_vec) * v_vec[i]) / mu for i in range(3)
+    )
+    e = mag(e_vec)
+    return (
+        1 / (2 / r - v**2 / mu),
+        e,
+        arccos(h_vec[2] / h) * 180 / pi,
+        360 - arccos(n_vec[0] / n) * 180 / pi,
+        arccos(dot(n_vec, e_vec) / (n * e)) * 180 / pi,
+    )
+
+
+def setup() -> yapss.Problem:
+    """Set up the Delta III ascent problem.
 
     Returns
     -------
-    Tuple[ArrayLike]: Inertial position and velocity vectors
+    yapss._next.Problem
+        The problem.
     """
-    p = a * (1 - e**2)
-    r = p / (1 + e * cos(nu))
-    r_vec = np.array([r * cos(nu), r * sin(nu), 0])
-    v_vec = sqrt(mu_ / p) * np.array([-sin(nu), e + cos(nu), 0])
-    deg_to_rad = pi / 180
-    c_O = cos(deg_to_rad * Omega)
-    s_O = sin(deg_to_rad * Omega)
-    c_o = cos(deg_to_rad * omega)
-    s_o = sin(deg_to_rad * omega)
-    c_i = cos(deg_to_rad * i)
-    s_i = sin(deg_to_rad * i)
-    R = np.array(
-        [
-            [c_O * c_o - s_O * s_o * c_i, -c_O * s_o - s_O * c_o * c_i, +s_O * s_i],
-            [s_O * c_o + c_O * s_o * c_i, -s_O * s_o + c_O * c_o * c_i, -c_O * s_i],
-            [s_o * s_i, c_o * s_i, c_i],
-        ],
-    )
-    r_vec = R @ r_vec
-    v_vec = R @ v_vec
-    return r_vec, v_vec
+    problem = yapss.Problem("Delta III ascent", phases=Phases, discrete=Constraints)
+    stages = list(problem.phases)
+
+    for stage, thrust, mass_flow in zip(stages, THRUST, MASS_FLOW, strict=True):
+        stage.register.continuous(make_dynamics(thrust, mass_flow))
+
+    @problem.register.objective
+    def final_mass(arg):
+        """Return the mass delivered to orbit, which is to be made as large as possible."""
+        return arg[stages[LAST]].final.m
+
+    @problem.register.discrete
+    def constraints(arg, out):
+        """Join the stages, and require the final state to be on the target orbit."""
+        for index, (before, after) in enumerate(pairwise(stages)):
+            first, second = arg[before].final, arg[after].initial
+            setattr(out.discrete, f"stage_{index}_{index + 1}_position", second.r - first.r)
+            setattr(out.discrete, f"stage_{index}_{index + 1}_velocity", second.v - first.v)
+        final = arg[stages[LAST]].final
+        a, e, i, Omega, omega = orbital_elements(final.r, final.v)
+        out.discrete.semi_major_axis = a
+        out.discrete.eccentricity = e
+        out.discrete.inclination = i
+        out.discrete.raan = Omega
+        out.discrete.argument_of_perigee = omega
+        return out
+
+    problem.objective.sense = "maximize"
+    problem.objective.scale = m_total
+
+    _set_bounds(problem, stages)
+    _set_scales(problem, stages)
+    _set_guess(stages)
+
+    for stage in stages:
+        stage.mesh = yapss.Mesh.uniform(segments=5, points=5)
+    problem.method = "lgl"
+    problem.derivatives.method = "auto"
+    problem.derivatives.order = "second"
+    problem.ipopt_options.max_iter = 1000
+    problem.ipopt_options.print_level = 3
+    return problem
 
 
-def _set_initial_guess(ocp: Problem) -> None:
-    """Interpolate a continuous guess without passing through the Earth."""
-    final_time = t4_max
-    phase_times = (t0, t1, t2, t3, final_time)
-    initial_masses = (mi_0, mi_1, mi_2, mi_3)
-    final_masses = (mf_0, mf_1, mf_2, pi_p)
+def _set_bounds(problem, stages):
+    """Set the bounds on every stage, and the bounds the constraints must meet."""
+    launch = [R_e * cos(psi_l), 0.0, R_e * sin(psi_l)]
+    launch_velocity = [0.0, R_e * omega_e * cos(psi_l), 0.0]
 
-    initial_position = np.asarray(r0_vec, dtype=float)
-    initial_velocity = np.array((0.0, R_e * omega_e * np.cos(psi_l), 0.0))
+    for index, stage in enumerate(stages):
+        stage.state.bounds.r = (-r_max, r_max)
+        stage.state.bounds.v = (-v_max, v_max)
+        stage.state.initial.r = (-r_max, r_max)
+        stage.state.initial.v = (-v_max, v_max)
+        stage.state.final.r = (-r_max, r_max)
+        stage.state.final.v = (-v_max, v_max)
+        stage.state.bounds.m = (FINAL_MASS[index] - ten, INITIAL_MASS[index] + ten)
+        # The last stage may not deliver less than the payload itself, so its final mass has
+        # no leeway below.
+        floor = pi_p if index == LAST else FINAL_MASS[index] - ten
+        stage.state.final.m = (floor, INITIAL_MASS[index] + ten)
+        stage.control.bounds.u = (-1.1, 1.1)
+        stage.path.bounds.unit_thrust = 1.0
+        stage.path.bounds.radius = (R_e, None)
+        stage.time.initial = EDGES[index]
+        stage.time.final = (t3, t4_max) if index == LAST else EDGES[index + 1]
+
+    stages[0].state.initial.r = list(launch)
+    stages[0].state.initial.v = list(launch_velocity)
+    stages[0].state.initial.m = INITIAL_MASS[0]
+    for index, stage in enumerate(stages[1:], start=1):
+        stage.state.initial.m = INITIAL_MASS[index]
+
+    for index in range(3):
+        setattr(problem.discrete.bounds, f"stage_{index}_{index + 1}_position", 0.0)
+        setattr(problem.discrete.bounds, f"stage_{index}_{index + 1}_velocity", 0.0)
+    problem.discrete.bounds.semi_major_axis = a_f
+    problem.discrete.bounds.eccentricity = e_f
+    problem.discrete.bounds.inclination = i_f
+    problem.discrete.bounds.raan = Omega_f
+    problem.discrete.bounds.argument_of_perigee = omega_f
+
+
+def _set_scales(problem, stages):
+    """Condition the problem: say how large each quantity typically is."""
+    for stage in stages:
+        stage.state.scale.r = length_scale
+        stage.state.scale.v = velocity_scale
+        stage.state.scale.m = m_total
+        stage.state.defect_scale.r = length_scale
+        stage.state.defect_scale.v = velocity_scale
+        stage.state.defect_scale.m = m_total
+        stage.path.scale.unit_thrust = 1.0
+        stage.path.scale.radius = length_scale
+        stage.time.scale = time_scale
+    for index in range(3):
+        setattr(problem.discrete.scale, f"stage_{index}_{index + 1}_position", length_scale)
+        setattr(problem.discrete.scale, f"stage_{index}_{index + 1}_velocity", velocity_scale)
+    problem.discrete.scale.semi_major_axis = length_scale
+
+
+def _set_guess(stages):
+    """Guess a continuous climb from the launch site to the target orbit."""
     final_position, final_velocity = oe_to_rv(a_f, e_f, i_f, Omega_f, omega_f, 0.0, mu)
     final_position = np.asarray(final_position, dtype=float)
     final_velocity = np.asarray(final_velocity, dtype=float)
+    initial_position = np.array([R_e * cos(psi_l), 0.0, R_e * sin(psi_l)])
+    initial_velocity = np.array([0.0, R_e * omega_e * cos(psi_l), 0.0])
 
-    initial_radius = np.linalg.norm(initial_position)
-    final_radius = np.linalg.norm(final_position)
-    initial_altitude = initial_radius - R_e
-    final_altitude = final_radius - R_e
+    initial_radius, final_radius = np.linalg.norm(initial_position), np.linalg.norm(final_position)
     initial_latitude = np.arcsin(initial_position[2] / initial_radius)
     final_latitude = np.arcsin(final_position[2] / final_radius)
     initial_longitude = np.arctan2(initial_position[1], initial_position[0])
     final_longitude = np.arctan2(final_position[1], final_position[0])
-    longitude_change = np.arctan2(
-        np.sin(final_longitude - initial_longitude),
-        np.cos(final_longitude - initial_longitude),
+    turn = np.arctan2(
+        np.sin(final_longitude - initial_longitude), np.cos(final_longitude - initial_longitude)
     )
 
-    for phase in range(4):
-        time: NDArray[np.float64] = np.linspace(
-            phase_times[phase],
-            phase_times[phase + 1],
-            9,
-            dtype=np.float64,
-        )
-        fraction = time / final_time
+    for index, stage in enumerate(stages):
+        start, end = EDGES[index], EDGES[index + 1]
+        time = np.linspace(start, end, 9)
+        fraction = time / t4_max
         latitude = initial_latitude + fraction * (final_latitude - initial_latitude)
-        longitude = initial_longitude + fraction * longitude_change
-        altitude = initial_altitude + fraction * (final_altitude - initial_altitude)
-        radius = R_e + altitude
+        longitude = initial_longitude + fraction * turn
+        radius = initial_radius + fraction * (final_radius - initial_radius)
         position = np.vstack(
             (
                 radius * np.cos(latitude) * np.cos(longitude),
                 radius * np.cos(latitude) * np.sin(longitude),
                 radius * np.sin(latitude),
-            ),
+            )
         )
         velocity = (
             initial_velocity[:, None] + fraction * (final_velocity - initial_velocity)[:, None]
         )
-        mass = np.linspace(initial_masses[phase], final_masses[phase], len(time))[None, :]
-
-        guess = ocp.guess.phase[phase]
-        guess.time = time
-        guess.state = np.vstack((position, velocity, mass))
-        guess.control = np.tile(((0.0,), (1.0,), (0.0,)), (1, len(time)))
-
-
-def setup() -> Problem:
-    """Set up the Delta III ascent optimal control problem.
-
-    Returns
-    -------
-    Problem
-        The Delta III ascent optimal control problem.
-    """
-    ocp = Problem(
-        name="Delta III Ascent Trajectory Optimization",
-        nx=[7, 7, 7, 7],
-        nu=[3, 3, 3, 3],
-        nh=[2, 2, 2, 2],
-        nd=23,
-    )
-
-    def objective(arg: ObjectiveArg) -> None:
-        """Calculate Delta III ascent trajectory optimization problem objective.
-
-        The Delta III ascent trajectory optimization problem objective is to maximize the
-        total mass at the end of the trajectory.
-        """
-        arg.objective = arg.phase[3].final_state[6]
-
-    def continuous(arg: ContinuousArg) -> None:
-        """Calculate Delta III ascent trajectory optimization problem dynamics and path constraints.
-
-        The constraints are:
-            * The magnitude of the thrust control vector must be identically one.
-            * The altitude must always be greater than zero.
-        """
-        for p in arg.phase_list:
-            state = arg.phase[p].state
-            r1, r2, r3 = r_vec = state[0:3]
-            v1, v2, v3 = v_vec = state[3:6]
-            m = state[6]
-            u1, u2, u3 = u_vec = arg.phase[p].control
-
-            if p == 0:
-                thrust = 6 * Ts + T1
-                m_dot = -(6 * Ts / (g0 * Is) + T1 / (g0 * I1))
-            elif p == 1:
-                thrust = 3 * Ts + T1
-                m_dot = -(3 * Ts / (g0 * Is) + T1 / (g0 * I1))
-            elif p == 2:  # noqa: PLR2004
-                thrust = T1
-                m_dot = -T1 / (g0 * I1)
-            elif p == 3:  # noqa: PLR2004
-                thrust = T2
-                m_dot = -T2 / (g0 * I2)
-            else:
-                raise ValueError  # pragma: no cover
-
-            # kinematics
-            r1_dot, r2_dot, r3_dot = v1, v2, v3
-
-            # air density
-            r = (r1**2 + r2**2 + r3**2) ** 0.5
-            h = r - R_e
-            rho = rho0 * exp(-h / h0)
-
-            # aerodynamics
-            omega_cross_r = cross([0, 0, omega_e], r_vec)
-            vr_vec = [v_vec[i] - omega_cross_r[i] for i in range(3)]
-            vr = mag(vr_vec)
-            q_over_vr = 0.5 * rho * vr
-            q_factor = q_over_vr * CD * S
-            d1, d2, d3 = -q_factor * vr_vec[0], -q_factor * vr_vec[1], -q_factor * vr_vec[2]
-
-            # dynamics
-            mu_over_r3 = mu / r**3
-            thrust_over_m = thrust / m
-            one_over_m = 1 / m
-            v1_dot = -mu_over_r3 * r1 + thrust_over_m * u1 + one_over_m * d1
-            v2_dot = -mu_over_r3 * r2 + thrust_over_m * u2 + one_over_m * d2
-            v3_dot = -mu_over_r3 * r3 + thrust_over_m * u3 + one_over_m * d3
-
-            arg.phase[p].dynamics[:] = r1_dot, r2_dot, r3_dot, v1_dot, v2_dot, v3_dot, m_dot
-
-            # path constraints
-            arg.phase[p].path[:] = mag(u_vec), mag(r_vec)
-
-    def discrete(arg: DiscreteArg) -> None:
-        """Calculate the Delta III ascent trajectory optimization problem discrete constraints.
-
-        The discrete constraints are that:
-            * The final position and velocity of each phase are the same as the
-              initial position and velocity at the next phase, if there is one.
-            * The final position and velocity of the last phase is in the desired
-              orbit.
-        """
-        phase = arg.phase
-        arg.discrete[0:6] = phase[0].final_state[0:6] - phase[1].initial_state[0:6]
-        arg.discrete[6:12] = phase[1].final_state[0:6] - phase[2].initial_state[0:6]
-        arg.discrete[12:18] = phase[2].final_state[:6] - phase[3].initial_state[:6]
-        x = phase[3].final_state
-        r = x[:3]
-        v = x[3:6]
-        oe = rv_to_oe(r, v)
-        arg.discrete[18:23] = oe
-
-    ocp.functions.objective = objective
-    ocp.sense = "maximize"
-    ocp.functions.continuous = continuous
-    ocp.functions.discrete = discrete
-
-    def rv_to_oe(r_vec: Any, v_vec: Any) -> Any:
-        r"""Compute orbital elements from position and velocity vectors.
-
-        The function is a simplified calculation of (some of) the orbital elements, without
-        checking for special cases.
-
-        Parameters
-        ----------
-            r_vec : 3-dimensional position vector
-            v_vec : 3-dimensional velocity vector
-
-        Returns
-        -------
-        Tuple[int]
-            Five of the six orbital elements: semimajor axis, eccentricity, inclination,
-            longitude of the ascending node, argument of the periapsis
-        """
-        # http://www.aerospacengineering.net/determining-orbital-elements/
-        r = mag(r_vec)
-        v = mag(v_vec)
-        h_vec = cross(r_vec, v_vec)
-        h = mag(h_vec)
-        n_vec = cross([0, 0, 1], h_vec)
-        n = mag(n_vec)
-        e0 = ((v**2 - mu / r) * r_vec[0] - dot(r_vec, v_vec) * v_vec[0]) / mu
-        e1 = ((v**2 - mu / r) * r_vec[1] - dot(r_vec, v_vec) * v_vec[1]) / mu
-        e2 = ((v**2 - mu / r) * r_vec[2] - dot(r_vec, v_vec) * v_vec[2]) / mu
-        e_vec = (e0, e1, e2)
-        e = mag(e_vec)
-        a = 1 / (2 / r - v**2 / mu)
-        i = arccos(h_vec[2] / h) * 180 / pi
-        Omega = 360 - arccos(n_vec[0] / n) * 180 / pi
-        omega = arccos(dot(n_vec, e_vec) / (n * e)) * 180 / pi
-        return a, e, i, Omega, omega
-
-    x0 = R_e * cos(psi_l), 0.0, R_e * sin(psi_l)
-    v0 = [0.0, R_e * omega_e * cos(psi_l), 0.0]
-    state_0 = 7 * [0.0]
-    state_0[:3] = x0
-    state_0[3:6] = v0
-    state_0[6] = mi_0
-
-    r_max = 2 * R_e
-    v_max = 10000.0
-
-    # 10 kg leeway on box bounds
-    ten = 10
-
-    # box bounds on position and velocity
-    for p in range(4):
-        bounds = ocp.bounds.phase[p]
-        bounds.initial_state.lower[:6] = 3 * [-r_max] + 3 * [-v_max]
-        bounds.initial_state.upper[:6] = 3 * [r_max] + 3 * [v_max]
-        bounds.state.lower[:6] = 3 * [-r_max] + 3 * [-v_max]
-        bounds.state.upper[:6] = 3 * [r_max] + 3 * [v_max]
-        bounds.final_state.lower[:6] = 3 * [-r_max] + 3 * [-v_max]
-        bounds.final_state.upper[:6] = 3 * [r_max] + 3 * [v_max]
-
-    # phase 0 time and state bounds
-    bounds = ocp.bounds.phase[0]
-    bounds.initial_time.lower = bounds.initial_time.upper = t0
-    bounds.final_time.lower = bounds.final_time.upper = t1
-    bounds.initial_state.lower[:] = bounds.initial_state.upper[:] = state_0
-    bounds.state.lower[6] = mf_0 - ten
-    bounds.state.upper[6] = mi_0 + ten
-    bounds.final_state.lower[6] = mf_0 - ten
-    bounds.final_state.upper[6] = mi_0 + ten
-
-    # phase 1
-    bounds = ocp.bounds.phase[1]
-    bounds.initial_time.lower = bounds.initial_time.upper = t1
-    bounds.final_time.lower = bounds.final_time.upper = t2
-    bounds.initial_state.lower[6] = bounds.initial_state.upper[6] = mi_1
-    bounds.state.lower[6] = mf_1 - ten
-    bounds.state.upper[6] = mi_1 + ten
-    bounds.final_state.lower[6] = mf_1 - ten
-    bounds.final_state.upper[6] = mi_1 + ten
-
-    # phase 2
-    bounds = ocp.bounds.phase[2]
-    bounds.initial_time.lower = bounds.initial_time.upper = t2
-    bounds.final_time.lower = bounds.final_time.upper = t3
-    bounds.initial_state.lower[6] = bounds.initial_state.upper[6] = mi_2
-    bounds.state.lower[6] = mf_2 - ten
-    bounds.state.upper[6] = mi_2 + ten
-    bounds.final_state.lower[6] = mf_2 - ten
-    bounds.final_state.upper[6] = mi_2 + ten
-
-    # phase 3
-    bounds = ocp.bounds.phase[3]
-    bounds.initial_time.lower = bounds.initial_time.upper = t3
-    bounds.final_time.lower = t3
-    bounds.final_time.upper = t4_max
-    bounds.initial_state.lower[6] = bounds.initial_state.upper[6] = mi_3
-    bounds.state.lower[6] = pi_p - ten
-    bounds.state.upper[6] = mi_3 + ten
-    bounds.final_state.lower[6] = pi_p
-    bounds.final_state.upper[6] = mi_3 + ten
-
-    # path and control constraints
-    for p_ in range(4):
-        ocp.bounds.phase[p_].path.lower[:] = 1, R_e
-        ocp.bounds.phase[p_].path.upper[0] = 1
-        ocp.bounds.phase[p_].control.lower[:] = -1.1
-        ocp.bounds.phase[p_].control.upper[:] = +1.1
-
-    # discrete constraints
-    ocp.bounds.discrete.lower[:18] = ocp.bounds.discrete.upper[:18] = 0
-    ocp.bounds.discrete.lower[18:23] = ocp.bounds.discrete.upper[18:23] = (
-        a_f,
-        e_f,
-        i_f,
-        Omega_f,
-        omega_f,
-    )
-    _set_initial_guess(ocp)
-
-    ocp.derivatives.method = "auto"
-    ocp.derivatives.order = "second"
-    ocp.ipopt_options.max_iter = 1000
-    ocp.ipopt_options.print_level = 3
-
-    # scales
-    for p in range(4):
-        ocp.scale.phase[p].state[0:3] = length_scale
-        ocp.scale.phase[p].state[3:6] = velocity_scale
-        ocp.scale.phase[p].state[6] = mass_scale
-        ocp.scale.phase[p].dynamics[0:3] = length_scale
-        ocp.scale.phase[p].dynamics[3:6] = velocity_scale
-        ocp.scale.phase[p].dynamics[6] = mass_scale
-        ocp.scale.phase[p].time = time_scale
-        ocp.scale.phase[p].path[:] = 1, length_scale
-
-    for p in range(3):
-        ocp.scale.discrete[0 + 6 * p : 3 + 6 * p] = length_scale
-        ocp.scale.discrete[3 + 6 * p : 6 + 6 * p] = velocity_scale
-    ocp.scale.discrete[18] = length_scale
-
-    ocp.scale.objective = mass_scale
-
-    # default mesh configuration is a bit slow for this problem
-    m, n = 5, 5
-    for p_ in range(4):
-        ocp.mesh.phase[p_].collocation_points = m * (n,)
-        ocp.mesh.phase[p_].fraction = m * (1.0 / m,)
-
-    ocp.spectral_method = "lgl"
-
-    return ocp
+        stage.time.guess = (start, end)
+        stage.state.guess.r = yapss.interp(time, position)
+        stage.state.guess.v = yapss.interp(time, velocity)
+        stage.state.guess.m = yapss.interp(
+            time, np.linspace(INITIAL_MASS[index], FINAL_MASS[index], len(time))
+        )
+        stage.control.guess.u = yapss.interp(time, np.tile([[0.0], [1.0], [0.0]], (1, 9)))
 
 
-def plot_solution(solution: Solution) -> None:
-    """Plot the solution.
+def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+    r"""Plot the ascent: altitude, position, velocity, mass, steering, and the Hamiltonian.
+
+    Every quantity spans four phases, so each panel is a loop over them. The mass is the one
+    that jumps, at each stage separation.
 
     Parameters
     ----------
-    solution : Solution
-        The solution to the Delta III ascent trajectory optimization problem.
+    problem : yapss._next.Problem
+        The problem that was solved, which carries the phase handles.
+    solution : yapss._next.Solution
+        The solution to plot.
     """
-    # extract the state, control, costate, dynamics, and time variables
-    x = [solution.phase[p].state for p in range(4)]
-    u = [solution.phase[p].control for p in range(4)]
-    t = [solution.phase[p].time for p in range(4)]
-    tu = [solution.phase[p].time_c for p in range(4)]
-
-    # velocity for plotting
-    v = 4 * [t]
-    for phase in range(4):
-        v[phase] = np.sqrt(x[phase][3] ** 2 + x[phase][4] ** 2 + x[phase][5] ** 2)
-
-    # plot settings
+    stages = list(problem.phases)
     color = ("darkblue", "maroon", "darkorange")
+    tf = solution[stages[LAST]].final.time
 
-    # mass
-    plt.figure(1)
-    for p in range(4):
-        plt.plot(t[p], x[p][6])
-    plt.ylabel("Vehicle mass, $m$ (kg)")
-    plt.ylim((0, 300000))
-
-    # control vector
-    plt.figure(2)
-    for p in range(4):
-        for i in range(3):
-            plt.plot(tu[p], u[p][i], color[i])
-    plt.ylabel("Components of thrust direction vector, $u(t)$")
-    plt.ylim((-0.8, 1.0))
-
-    # velocity vector
-    plt.figure(3)
-    for phase in range(4):
-        for i in range(3, 6):
-            plt.plot(t[phase], x[phase][i] - x[0][i][0] * 0, color[i - 3])
-    plt.ylabel("Components of inertial velocity, $v(t)$ (m/s)")
-
-    # total velocity
-    plt.figure(4)
-    for phase in range(4):
-        plt.plot(t[phase], v[phase], color[0])
-    plt.ylabel("Magnitude of inertial velocity, $v(t)$ (m/s)")
-    plt.ylim((0, 12000))
-
-    # position vector
-    plt.figure(5)
-    for phase in range(4):
-        for i in range(3):
-            plt.plot(t[phase], x[phase][i] - x[0][i][0] * 0, color[i])
-    plt.ylabel("Components of inertial position, $r(t)$ (m)")
-    plt.legend([r"$r_{1}(t)$", r"$r_{2}(t)$", r"$r_{3}(t)$"])
-
-    # altitude
-    plt.figure(6)
-    plt.clf()
-    for phase in range(4):
-        h = np.sqrt(sum(x[phase][i] ** 2 for i in range(3))) - R_e
-        plt.plot(t[phase], h / 1000, color[0])
-    plt.ylabel(r"Altitude, $h$ (km)")
-
-    # hamiltonian
-    plt.figure(7)
-    plt.clf()
-    for p in range(4):
-        plt.plot(tu[p], solution.phase[p].hamiltonian, color[0], linewidth=2)
-    plt.ylabel(r"Hamiltonian")
-
-    # common figure elements
-    for i in range(1, 8):
-        plt.figure(i)
-        plt.xlim((0, 1000))
-        plt.xlabel("Time, $t$ (s)")
-        plt.grid(visible=True)
+    def panel(series, ylabel, ylim=None, legend=None, colors=(0,)):
+        """Plot one or more series over every stage."""
+        plt.figure()
+        for stage in stages:
+            ps = solution[stage]
+            for index, values in enumerate(series(ps)):
+                plt.plot(ps.time, values, color[colors[index % len(colors)]])
+        if legend:
+            plt.legend(legend)
+        plt.xlim(0, tf)
+        if ylim:
+            plt.ylim(ylim)
+        plt.xlabel(r"Time, $t$ (s)")
+        plt.ylabel(ylabel)
+        plt.grid()
         plt.tight_layout()
+
+    def magnitude(vector):
+        """Return the Euclidean norm of a block field's three rows."""
+        return np.sqrt(sum(vector[i] ** 2 for i in range(3)))
+
+    panel(
+        lambda ps: [(magnitude(ps.state.r) - R_e) / 1000],
+        r"Altitude, $h$ (km)",
+        ylim=[0, 250],
+    )
+    panel(
+        lambda ps: [ps.state.r[i] / 1e6 for i in range(3)],
+        "Position vector (1000 km)",
+        ylim=(0, 6),
+        legend=[r"$r_{1}(t)$", r"$r_{2}(t)$", r"$r_{3}(t)$"],
+        colors=(0, 1, 2),
+    )
+    panel(
+        lambda ps: [magnitude(ps.state.v)],
+        r"Magnitude of inertial velocity, $v(t)$ (m/s)",
+        ylim=[0, 12000],
+    )
+    panel(
+        lambda ps: [ps.state.v[i] for i in range(3)],
+        "Inertial velocity vector (m/s)",
+        legend=[r"$v_{1}(t)$", r"$v_{2}(t)$", r"$v_{3}(t)$"],
+        colors=(0, 1, 2),
+    )
+    panel(lambda ps: [ps.state.m / 1000], r"Vehicle mass, $m$ (1000 kg)", ylim=[0, 300])
+    panel(
+        lambda ps: [ps.control.u[i] for i in range(3)],
+        r"Components of thrust direction, $u(t)$",
+        ylim=[-0.8, 1.1],
+        legend=[r"$u_{1}(t)$", r"$u_{2}(t)$", r"$u_{3}(t)$"],
+        colors=(0, 1, 2),
+    )
+    panel(lambda ps: [ps.hamiltonian], r"Hamiltonian, $\lambda^T f$ (kg/s)")
 
 
 def main() -> None:
-    """Demonstrate the solution to the Delta III ascent trajectory optimization problem."""
+    """Solve the Delta III ascent problem and plot the solution."""
     problem = setup()
     solution = problem.solve()
-    plot_solution(solution)
+    print(f"final mass = {solution.objective:.2f} kg")
+    plot_solution(problem, solution)
     plt.show()
 
 

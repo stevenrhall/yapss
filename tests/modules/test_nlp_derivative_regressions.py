@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from yapss._legacy.examples import delta_iii_ascent, orbit_raising
 from yapss._private.auto import make_auto_functions
 from yapss._private.bounds import get_nlp_constraint_function_bounds
 from yapss._private.central_difference import make_cd_functions
@@ -12,7 +13,6 @@ from yapss._private.guess import make_initial_guess_nlp
 from yapss._private.mesh import Mesh
 from yapss._private.nlp import NLP
 from yapss._private.structure import get_nlp_cf_structure
-from yapss.examples import delta_iii_ascent, orbit_raising
 
 
 def _make_orbit_raising_nlp(method: str) -> tuple[NLP, np.ndarray]:

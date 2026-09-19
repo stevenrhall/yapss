@@ -1,338 +1,216 @@
 """
 
-YAPSS solution of the Goddard rocket problem with three phases (one a singular arc).
+The Goddard rocket problem, in three phases, the middle one a singular arc.
+
+A rocket rises vertically against drag and gravity, burning fuel to reach the greatest
+altitude it can. The optimal thrust programme is bang-singular-bang: full thrust, then a
+singular arc along which a switching function vanishes, then coasting with the engine off.
+Each arc is a phase, and the phases are joined by continuity constraints on time and state.
 
 """
 
-# Allow uppercase variables
-# ruff: noqa: N806
-
 __all__ = ["main", "plot_solution", "setup"]
 
-# third party imports
 import matplotlib.pyplot as plt
 
-from yapss._legacy import (
-    ContinuousArg,
-    ContinuousHessianArg,
-    ContinuousJacobianArg,
-    DiscreteArg,
-    DiscreteHessianArg,
-    DiscreteJacobianArg,
-    ObjectiveArg,
-    ObjectiveGradientArg,
-    ObjectiveHessianArg,
-    Problem,
-    Solution,
-)
-
-# package imports
+import yapss
 from yapss.math import exp
 
+Tm = 193.044
+"""Maximum thrust (lbf)."""
+g = 32.174
+"""Gravitational acceleration (ft/s^2)."""
+sigma = 5.49153484923381010e-05
+"""Drag coefficient."""
+c = 1580.9425279876559
+"""Exhaust velocity (ft/s)."""
+h0 = 23800.0
+"""Density scale height (ft)."""
+m0, mf = 3.0, 1.0
+"""Initial and final mass (slug)."""
 
-def setup() -> Problem:
-    """Set up the Goddard Rocket Problem optimal control problem.
+
+class Rocket(yapss.Vector):
+    """Where the rocket is, how fast it is going, and what it weighs."""
+
+    h = yapss.field(units="ft", latex="h", doc="altitude")
+    v = yapss.field(units="ft/s", latex="v", doc="velocity")
+    m = yapss.field(units="slug", latex="m", doc="mass")
+
+
+class Thrust(yapss.Vector):
+    """The engine setting."""
+
+    thrust = yapss.field(units="lbf", latex="T", doc="thrust")
+
+
+class SingularArc(yapss.Vector):
+    """The condition that holds along the singular arc."""
+
+    switching = yapss.field(doc="singular-arc switching function")
+
+
+class Linkage(yapss.Vector):
+    """Continuity of time and state where one phase meets the next.
+
+    One field per quantity rather than one block per joint, because the quantities are of
+    different sizes -- an altitude, a speed, a mass, a time -- and a scale factor is one
+    number per field. A block of the four could not be scaled at all without giving the four
+    numbers positionally, which is the counting this API exists to remove. This problem
+    converges without scaling them, so none is set; the point is that it could be.
+    """
+
+    boost_singular_h = yapss.field(units="ft", doc="altitude, boost to singular")
+    boost_singular_v = yapss.field(units="ft/s", doc="speed, boost to singular")
+    boost_singular_m = yapss.field(units="slug", doc="mass, boost to singular")
+    boost_singular_time = yapss.field(units="s", doc="time, boost to singular")
+    singular_coast_h = yapss.field(units="ft", doc="altitude, singular to coast")
+    singular_coast_v = yapss.field(units="ft/s", doc="speed, singular to coast")
+    singular_coast_m = yapss.field(units="slug", doc="mass, singular to coast")
+    singular_coast_time = yapss.field(units="s", doc="time, singular to coast")
+
+
+class Phases(yapss.Phases):
+    """The three arcs of the flight."""
+
+    boost = yapss.phase(state=Rocket, control=Thrust)
+    singular = yapss.phase(state=Rocket, control=Thrust, path=SingularArc)
+    coast = yapss.phase(state=Rocket, control=Thrust)
+
+
+def drag(h, v):
+    """Return the drag on the rocket at altitude `h` and speed `v`."""
+    return sigma * v**2 * exp(-h / h0)
+
+
+def setup() -> yapss.Problem:
+    """Set up the Goddard rocket problem.
 
     Returns
     -------
-    yapss.Problem:
-        Optimal control problem object
+    yapss._next.Problem
+        The problem.
     """
-    ocp = Problem(
-        name="Goddard Rocket Problem with Singular Arc",
-        nx=[3, 3, 3],
-        nu=[1, 1, 1],
-        nh=[0, 1, 0],
-        nq=[0, 0, 0],
-        nd=8,
-    )
+    problem = yapss.Problem("Goddard rocket with singular arc", phases=Phases, discrete=Linkage)
+    phases = problem.phases
+    boost, singular, coast = phases.boost, phases.singular, phases.coast
 
-    # callback functions
-    def objective(arg: ObjectiveArg) -> None:
-        """Goddard Rocket Problem objective function."""
-        arg.objective = arg.phase[2].final_state[0]
+    def rocket(arg, xdot):
+        """Fill in the rocket's dynamics, which are the same in every phase."""
+        h, v, m = arg.state.h, arg.state.v, arg.state.m
+        thrust = arg.control.thrust
+        xdot.h = v
+        xdot.v = (thrust - drag(h, v)) / m - g
+        xdot.m = -thrust / c
 
-    def objective_gradient(arg: ObjectiveGradientArg) -> None:
-        """Gradient of Goddard Rocket Problem objective function."""
-        arg.gradient[(2, "xf", 0)] = 1
+    @boost.register.continuous
+    def powered(arg, out):
+        """Compute the dynamics of a phase with no path constraint."""
+        rocket(arg, out.dynamics)
+        return out
 
-    def objective_hessian(_: ObjectiveHessianArg) -> None:
-        """Hessian of Goddard Rocket Problem objective function."""
+    coast.register.continuous(powered)
 
-    # noinspection PyPep8Naming
-    def continuous(arg: ContinuousArg) -> None:
-        """Goddard Rocket Problem dynamics and path functions."""
-        auxdata = arg.auxdata
-        sigma = auxdata.sigma
-        h0 = auxdata.h0
-        c = auxdata.c
-        g0 = auxdata.g
-        for p in arg.phase_list:
-            h, v, mass = arg.phase[p].state
-            (T,) = arg.phase[p].control
-            D = sigma * v**2.0 * exp(-h / h0)
-            h_dot = v
-            v_dot = (T - D) / mass - g0
-            m_dot = -T / c
-            arg.phase[p].dynamics[:] = (h_dot, v_dot, m_dot)
+    @singular.register.continuous
+    def singular_arc(arg, out):
+        """Compute the dynamics, and the switching function that must vanish."""
+        rocket(arg, out.dynamics)
+        h, v, m = arg.state.h, arg.state.v, arg.state.m
+        out.path.switching = m * g - (1 + v / c) * drag(h, v)
+        return out
 
-            if p == 1:
-                arg.phase[p].path[:] = (mass * g0 - (1 + v / c) * D,)
+    @problem.register.objective
+    def final_altitude(arg):
+        """Return the altitude reached, which is to be made as large as possible."""
+        return arg[coast].final.h
 
-    # noinspection PyPep8Naming,PyPep8Naming,PyPep8Naming,PyPep8Naming
-    def continuous_jacobian(arg: ContinuousJacobianArg) -> None:
-        """Jacobian of Goddard Rocket Problem dynamics and path functions."""
-        auxdata = arg.auxdata
-        sigma = auxdata.sigma
-        h0 = auxdata.h0
-        c = auxdata.c
-        g0 = auxdata.g
+    @problem.register.discrete
+    def linkage(arg, out):
+        """Require time and state to be continuous where the phases meet."""
+        b, s, e = arg[boost], arg[singular], arg[coast]
+        out.discrete.boost_singular_h = s.initial.h - b.final.h
+        out.discrete.boost_singular_v = s.initial.v - b.final.v
+        out.discrete.boost_singular_m = s.initial.m - b.final.m
+        out.discrete.boost_singular_time = s.initial.time - b.final.time
+        out.discrete.singular_coast_h = e.initial.h - s.final.h
+        out.discrete.singular_coast_v = e.initial.v - s.final.v
+        out.discrete.singular_coast_m = e.initial.m - s.final.m
+        out.discrete.singular_coast_time = e.initial.time - s.final.time
+        return out
 
-        for p in arg.phase_list:
-            h, v, mass = arg.phase[p].state
-            (T,) = arg.phase[p].control
-            D_div_v2 = sigma * exp(-h / h0)
-            D_div_v = D_div_v2 * v
-            D = D_div_v * v
+    problem.objective.sense = "maximize"
 
-            jacobian = arg.phase[p].jacobian
-            jacobian[("f", 0), ("x", 1)] = 1
-            jacobian[("f", 1), ("x", 0)] = D / (h0 * mass)
-            jacobian[("f", 1), ("x", 1)] = -2 * D_div_v / mass
-            jacobian[("f", 1), ("x", 2)] = -(T - D) / mass**2
-            jacobian[("f", 1), ("u", 0)] = 1 / mass
-            jacobian[("f", 2), ("u", 0)] = -1 / c
+    for ph in phases:
+        ph.state.bounds.h = (0, 20_000)
+        ph.state.bounds.v = (0, 10_000)
+        ph.state.bounds.m = (mf, m0)
 
-            if p == 1:
-                jacobian[("h", 0), ("x", 0)] = D * (1 + v / c) / h0
-                jacobian[("h", 0), ("x", 1)] = D * (-3 / c) - 2 * D_div_v
-                jacobian[("h", 0), ("x", 2)] = g0
+    boost.time.initial = 0.0
+    boost.state.initial.h = 0.0
+    boost.state.initial.v = 0.0
+    boost.state.initial.m = m0
+    coast.state.final.v = (0, None)
+    coast.state.final.m = mf
 
-    # noinspection PyPep8Naming
-    def continuous_hessian(arg: ContinuousHessianArg) -> None:
-        """Hessian of Goddard Rocket Problem dynamics and path functions."""
-        auxdata = arg.auxdata
-        sigma = auxdata.sigma
-        h0 = auxdata.h0
-        c = auxdata.c
+    boost.control.bounds.thrust = Tm
+    singular.control.bounds.thrust = (0.01 * Tm, 0.99 * Tm)
+    coast.control.bounds.thrust = 0.0
 
-        for p in arg.phase_list:
-            h, v, mass = arg.phase[p].state
-            (T,) = arg.phase[p].control
-            D_div_v2 = sigma * exp(-h / h0)
-            D_div_v = D_div_v2 * v
-            D = D_div_v * v
+    singular.path.bounds.switching = 0.0
+    for name in Linkage._fields:
+        setattr(problem.discrete.bounds, name, 0.0)
 
-            hessian = arg.phase[p].hessian
-            hessian[("f", 1), ("x", 0), ("x", 0)] = -D / (h0**2 * mass)
-            hessian[("f", 1), ("x", 0), ("x", 1)] = 2 * D_div_v / (h0 * mass)
-            hessian[("f", 1), ("x", 0), ("x", 2)] = -D / (h0 * mass**2)
-            hessian[("f", 1), ("x", 1), ("x", 1)] = -2 * D_div_v2 / mass
-            hessian[("f", 1), ("x", 1), ("x", 2)] = 2 * D_div_v / mass**2
-            hessian[("f", 1), ("x", 2), ("x", 2)] = 2 * (T - D) / mass**3
-            hessian[("f", 1), ("x", 2), ("u", 0)] = -1 / mass**2
+    for ph in phases:
+        k = ph.index
+        ph.time.guess = (15.0 * k, 15.0 * (k + 1))
+        ph.state.guess.h = (6000 * k, 6000 * (k + 1))
+        ph.state.guess.v = 500.0
+        ph.state.guess.m = (3 - 2 / 3 * k, 3 - 2 / 3 * (k + 1))
+        ph.control.guess.thrust = Tm * (2 - k) / 2
 
-            if p == 1:
-                hessian[("h", 0), ("x", 0), ("x", 0)] = -D * (c + v) / (c * h0**2)
-                hessian[("h", 0), ("x", 0), ("x", 1)] = D_div_v * (2 * c + 3 * v) / (c * h0)
-                hessian[("h", 0), ("x", 1), ("x", 1)] = -2 * D_div_v2 * (c + 3 * v) / c
-
-    def discrete(arg: DiscreteArg) -> None:
-        """Goddard Rocket Problem discrete constraint function."""
-        phase = arg.phase
-        arg.discrete = [
-            phase[0].final_time - phase[1].initial_time,
-            *(phase[0].final_state - phase[1].initial_state),
-            phase[1].final_time - phase[2].initial_time,
-            *(phase[1].final_state - phase[2].initial_state),
-        ]
-
-    def discrete_jacobian(arg: DiscreteJacobianArg) -> None:
-        """Jacobian of Goddard Rocket Problem discrete constraint function."""
-        jac = arg.jacobian
-        jac[0, (0, "tf", 0)] = 1
-        jac[0, (1, "t0", 0)] = -1
-        jac[1, (0, "xf", 0)] = 1
-        jac[1, (1, "x0", 0)] = -1
-        jac[2, (0, "xf", 1)] = 1
-        jac[2, (1, "x0", 1)] = -1
-        jac[3, (0, "xf", 2)] = 1
-        jac[3, (1, "x0", 2)] = -1
-        jac[4, (1, "tf", 0)] = 1
-        jac[4, (2, "t0", 0)] = -1
-        jac[5, (1, "xf", 0)] = 1
-        jac[5, (2, "x0", 0)] = -1
-        jac[6, (1, "xf", 1)] = 1
-        jac[6, (2, "x0", 1)] = -1
-        jac[7, (1, "xf", 2)] = 1
-        jac[7, (2, "x0", 2)] = -1
-
-    def discrete_hessian(_: DiscreteHessianArg) -> None:
-        """Hessian of Goddard Rocket Problem discrete constraint function."""
-
-    # Initial conditions
-    h0 = 0
-    v0 = 0
-    m0 = 3
-    mf = 1
-
-    # physical constants
-    ocp.auxdata.Tm = Tm = 193.044
-    ocp.auxdata.g = 32.174
-    ocp.auxdata.sigma = 5.49153484923381010e-05
-    ocp.auxdata.c = 1580.9425279876559
-    ocp.auxdata.h0 = 23800
-
-    # user functions
-    ocp.functions.continuous = continuous
-    ocp.functions.continuous_jacobian = continuous_jacobian
-    ocp.functions.continuous_hessian = continuous_hessian
-    ocp.functions.objective = objective
-    ocp.functions.objective_gradient = objective_gradient
-    ocp.functions.objective_hessian = objective_hessian
-    ocp.sense = "maximize"
-    ocp.functions.discrete = discrete
-    ocp.functions.discrete_jacobian = discrete_jacobian
-    ocp.functions.discrete_hessian = discrete_hessian
-
-    # begin bounds: phase 0
-    bounds = ocp.bounds.phase[0]
-    bounds.initial_time.lower = bounds.initial_time.upper = 0
-    bounds.initial_state.lower[:] = bounds.initial_state.upper[:] = h0, v0, m0
-    bounds.control.lower[:] = bounds.control.upper[:] = Tm
-
-    for p in range(3):
-        ocp.bounds.phase[p].state.lower[:] = h0, v0, mf
-        ocp.bounds.phase[p].state.upper[:] = 20000, 10000, m0
-
-    # ... phase 1
-    bounds = ocp.bounds.phase[1]
-    bounds.control.lower[:] = 0.01 * Tm
-    bounds.control.upper[:] = 0.99 * Tm
-    bounds.path.lower[:] = 0
-    bounds.path.upper[:] = 0
-    # ... phase 2
-    bounds = ocp.bounds.phase[2]
-    bounds.final_state.lower[2] = bounds.final_state.upper[2] = mf
-    bounds.final_state.lower[1] = 0
-    bounds.final_state.upper[1] = float("inf")
-    bounds.control.lower[:] = bounds.control.upper[:] = 0
-
-    ocp.bounds.discrete.lower[:] = 0
-    ocp.bounds.discrete.upper[:] = 0
-
-    # begin guess
-    for p in range(3):
-        ocp.guess.phase[p].time = [15 * p, 15 * (p + 1)]
-        ocp.guess.phase[p].state = [
-            (6000 * p, 6000 * (p + 1)),
-            (500, 500),
-            (3 - 2 / 3 * p, 3 - 2 / 3 * (p + 1)),
-        ]
-        ocp.guess.phase[p].control = [(Tm * (2 - p) / 2, Tm * (2 - p) / 2)]
-
-    # solver options
-    ocp.derivatives.order = "second"
-    ocp.derivatives.method = "auto"
-    ocp.spectral_method = "lgl"
-
-    # ipopt options
-    ocp.ipopt_options.max_iter = 500
-    ocp.ipopt_options.print_level = 3
-
-    return ocp
+    problem.method = "lgl"
+    problem.derivatives.method = "auto"
+    problem.derivatives.order = "second"
+    problem.ipopt_options.max_iter = 500
+    problem.ipopt_options.print_level = 3
+    return problem
 
 
-def plot_solution(solution: Solution) -> None:
-    """Plot solution of the Goddard Rocket Problem.
+def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+    """Plot the thrust, the state histories and the Hamiltonian of every phase.
 
     Parameters
     ----------
-    solution : Solution
-        The solution to the Goddard Rocket Problem.
+    problem : yapss._next.Problem
+        The problem that was solved, which carries the phase handles.
+    solution : yapss._next.Solution
+        The solution to plot.
     """
-    # extract information from solution
-    time = []
-    time_c = []
-    state = []
-    control = []
-    costate = []
-    dynamics = []
-    integrand = []
-
-    for p in range(3):
-        time.append(solution.phase[p].time)
-        time_c.append(solution.phase[p].time_c)
-        state.append(solution.phase[p].state)
-        control.append(solution.phase[p].control)
-        costate.append(solution.phase[p].costate)
-        dynamics.append(solution.phase[p].dynamics)
-        integrand.append(solution.phase[p].integrand)
-
-    t0 = time[0][0]
-    tf = time[2][-1]
-
-    # thrust
-    plt.figure(1)
-    ax = plt.axes()
-    line = []
-    for p in range(3):
-        line1 = ax.plot(time_c[p], control[p][0])
-        line.append(line1)
-    plt.ylabel("Thrust, $T$ (lbf)")
-
-    # altitude
-    plt.figure(2)
-    ax = plt.axes()
-    line = []
-    for p in range(3):
-        line1 = ax.plot(time[p], state[p][0])
-        line.append(line1)
-    plt.ylabel("Altitude, $h$ (ft)")
-
-    # velocity
-    plt.figure(3)
-    ax = plt.axes()
-    line = []
-    for p in range(3):
-        line1 = ax.plot(time[p], state[p][1])
-        line.append(line1)
-    plt.ylabel("Velocity, $v$ (ft/s)")
-
-    # mass
-    plt.figure(4)
-    ax = plt.axes()
-    line = []
-    for p in range(3):
-        line1 = ax.plot(time[p], state[p][2])
-        line.append(line1)
-    plt.ylabel("Mass, $m$ (slugs)")
-
-    # hamiltonian
-    plt.figure(5)
-    ax = plt.axes()
-    line = []
-    for p in range(3):
-        hamiltonian = sum(dynamics[p][i] * costate[p][i] for i in range(3))
-        line1 = ax.plot(time_c[p], hamiltonian)
-        line.append(line1)
-    plt.ylim((-0.01, 0.01))
-    plt.ylabel(r"Hamiltonian, $\mathcal{H}$ (ft/s)")
-
-    for i in range(1, 6):
-        plt.figure(i)
-        plt.legend(("Phase 1", "Phase 2", "Phase 3"), framealpha=1.0)
-        plt.xlabel("Time, $t$ (sec)")
-        plt.xlim((t0, tf))
-        plt.tight_layout()
+    panels = (
+        ("Thrust, $T$ (lbf)", lambda ps: ps.control.thrust),
+        ("Altitude, $h$ (ft)", lambda ps: ps.state.h),
+        ("Velocity, $v$ (ft/s)", lambda ps: ps.state.v),
+        ("Mass, $m$ (slug)", lambda ps: ps.state.m),
+        (r"Hamiltonian, $\mathcal{H}$", lambda ps: ps.hamiltonian),
+    )
+    for ylabel, quantity in panels:
+        plt.figure()
+        for ph in problem.phases:
+            ps = solution[ph]
+            plt.plot(ps.time, quantity(ps), label=ph.name)
+        plt.xlabel("Time, $t$ (s)")
+        plt.ylabel(ylabel)
+        plt.legend()
         plt.grid()
+        plt.tight_layout()
 
 
 def main() -> None:
-    """Demonstrate the solution to the Goddard Rocket Problem (3 phases)."""
+    """Solve the Goddard rocket problem and plot the solution."""
     problem = setup()
     solution = problem.solve()
-    plot_solution(solution)
+    print(f"final altitude = {solution.objective:.1f} ft")
+    plot_solution(problem, solution)
     plt.show()
 
 

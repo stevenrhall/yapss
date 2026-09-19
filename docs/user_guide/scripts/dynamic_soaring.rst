@@ -8,18 +8,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss.examples.dynamic_soaring
+   $ python -m yapss._legacy.examples.dynamic_soaring
 
 Functions
 ---------
 
-.. automodule:: yapss.examples.dynamic_soaring
+.. automodule:: yapss._legacy.examples.dynamic_soaring
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/examples/dynamic_soaring.py
+.. literalinclude:: ../../../src/yapss/_legacy/examples/dynamic_soaring.py
    :language: python
 
 Text Output

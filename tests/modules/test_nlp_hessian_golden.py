@@ -50,13 +50,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from yapss._private.auto import make_auto_functions
-from yapss._private.central_difference import make_cd_functions
-from yapss._private.guess import make_initial_guess_nlp
-from yapss._private.mesh import Mesh
-from yapss._private.nlp import NLP
-from yapss._private.user import make_user_functions
-from yapss.examples import (
+from yapss._legacy.examples import (
     brachistochrone,
     dynamic_soaring,
     goddard_problem_3_phase,
@@ -64,6 +58,12 @@ from yapss.examples import (
     isoperimetric,
     orbit_raising,
 )
+from yapss._private.auto import make_auto_functions
+from yapss._private.central_difference import make_cd_functions
+from yapss._private.guess import make_initial_guess_nlp
+from yapss._private.mesh import Mesh
+from yapss._private.nlp import NLP
+from yapss._private.user import make_user_functions
 
 GOLDEN_PATH = Path(__file__).parent / "data" / "nlp_golden.json"
 

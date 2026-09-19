@@ -1,179 +1,234 @@
 """
 
-YAPSS solution of the dynamic soaring optimal control problem.
+Dynamic soaring: extracting energy from a wind that grows with altitude.
+
+An albatross, or a sailplane, can fly a closed circuit indefinitely without thrust if the wind
+speed increases with height: the bird climbs into the faster air heading upwind and dives back
+through the slower air heading downwind, gaining more energy from the shear than drag takes
+away. The question this problem answers is how strong the shear has to be.
+
+So the wind gradient is not given. It is a parameter of the problem, `beta`, and it is the
+objective: the smallest gradient for which a closed circuit exists. The circuit is closed by
+three discrete constraints requiring the speed, the flight path angle and the heading to return
+to their initial values -- the heading after one full turn, which is why its constraint is 360
+degrees rather than zero.
+
+This is the one example where a parameter appears in a phase's dynamics, and it is also the
+largest mesh in the corpus, because the lift coefficient runs up against its load-factor limit
+and the derivatives are discontinuous where it does.
 
 """
 
 __all__ = ["main", "plot_solution", "setup"]
 
-from typing import TYPE_CHECKING
-
-# third party imports
 import matplotlib.pyplot as plt
-
-# package imports
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
-from yapss._legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
+import yapss
 from yapss.math import cos, sin
 
-if TYPE_CHECKING:
-    from numpy.typing import NDArray
+w0 = 0.0
+"""Wind speed at zero altitude (ft/s)."""
+g0 = 32.2
+"""Gravitational acceleration (ft/s^2)."""
+cd0 = 0.00873
+"""Zero-lift drag coefficient."""
+rho0 = 0.002378
+"""Air density (slug/ft^3)."""
+mass = 5.6
+"""Mass of the vehicle (slug)."""
+area = 45.09703
+"""Reference area (ft^2)."""
+k = 0.045
+"""Induced drag factor."""
+cl_max = 1.5
+"""Largest lift coefficient the wing will give."""
+load_factor_max = 5.0
+"""The structural limit, which the path constraint enforces."""
 
 
-def setup() -> Problem:
-    """Set up the dynamic soaring optimal control problem.
+class Flight(yapss.Vector):
+    """Where the vehicle is and how it is moving."""
+
+    x = yapss.field(units="ft", latex="x", doc="east position")
+    y = yapss.field(units="ft", latex="y", doc="north position")
+    h = yapss.field(units="ft", latex="h", doc="altitude")
+    v = yapss.field(units="ft/s", latex="v", doc="airspeed")
+    gamma = yapss.field(units="rad", latex=r"\gamma", doc="flight path angle")
+    psi = yapss.field(units="rad", latex=r"\psi", doc="heading angle")
+
+
+class Attitude(yapss.Vector):
+    """How the vehicle is being flown."""
+
+    cl = yapss.field(latex="C_L", doc="lift coefficient")
+    phi = yapss.field(units="rad", latex=r"\phi", doc="bank angle")
+
+
+class Structure(yapss.Vector):
+    """What the airframe will take."""
+
+    load_factor = yapss.field(latex="n", doc="load factor, in gravities")
+
+
+class Shear(yapss.Vector):
+    """The wind profile, which is what the problem is solving for."""
+
+    beta = yapss.field(units="1/s", latex=r"\beta", doc="wind gradient with altitude")
+
+
+class Circuit(yapss.Vector):
+    """What it means for the flight to be a repeatable circuit."""
+
+    v_periodic = yapss.field(units="ft/s", doc="change in airspeed over the circuit")
+    gamma_periodic = yapss.field(units="rad", doc="change in flight path angle")
+    psi_periodic = yapss.field(units="rad", doc="change in heading, one full turn")
+
+
+class Phases(yapss.Phases):
+    """One phase: one circuit of the loop."""
+
+    loop = yapss.phase(state=Flight, control=Attitude, path=Structure)
+
+
+def setup() -> yapss.Problem:
+    """Set up the dynamic soaring problem.
 
     Returns
     -------
-    Problem
-        The dynamic soaring optimal control problem.
+    yapss._next.Problem
+        The problem.
     """
-    # initialize the optimal control problem
-    ocp = Problem(name="Dynamic Soaring", nx=[6], nu=[2], nh=[1], ns=1, nd=3)
+    problem = yapss.Problem("Dynamic soaring", phases=Phases, parameter=Shear, discrete=Circuit)
+    ph = problem.phases.loop
 
-    # problem callback functions
-    def objective(arg: ObjectiveArg) -> None:
-        """Dynamic soaring objective function."""
-        arg.objective = arg.parameter[0]
+    @ph.register.continuous
+    def soar(arg, out):
+        """Compute the flight dynamics in a wind that grows with altitude."""
+        h, v = arg.state.h, arg.state.v
+        gamma, psi = arg.state.gamma, arg.state.psi
+        cl, phi = arg.control.cl, arg.control.phi
+        beta = arg.parameter.beta
 
-    def continuous(arg: ContinuousArg) -> None:
-        """Dynamic soaring continuous function."""
-        auxdata = arg.auxdata
-        _, _, h, v, gamma, psi = arg.phase[0].state
-        cl, phi = arg.phase[0].control
-        beta = arg.parameter[0]
+        weight = mass * g0
+        pressure = rho0 * v**2 / 2
+        lift = pressure * area * cl
+        drag = pressure * area * (cd0 + k * cl**2)
 
-        w = auxdata.m * auxdata.g0
-        q = auxdata.rho0 * v**2 / 2
-        cd = auxdata.cd0 + auxdata.k * cl**2
-        lift = q * auxdata.s * cl
-        drag = q * auxdata.s * cd
-        wx = beta * h + auxdata.w0
+        cos_gamma, sin_gamma = cos(gamma), sin(gamma)
+        cos_psi, sin_psi = cos(psi), sin(psi)
 
-        cos_gamma = cos(gamma)
-        sin_gamma = sin(gamma)
-        cos_psi = cos(psi)
-        sin_psi = sin(psi)
-        cos_phi = cos(phi)
-        sin_phi = sin(phi)
-
-        x_dot = v * cos_gamma * sin_psi + wx
-        y_dot = v * cos_gamma * cos_psi
         h_dot = v * sin_gamma
-        wx_dot = beta * h_dot
-        v_dot = -drag / auxdata.m - auxdata.g0 * sin_gamma - wx_dot * cos_gamma * sin_psi
-        gamma_dot = lift * cos_phi - w * cos_gamma + auxdata.m * wx_dot * sin_gamma * sin_psi
-        gamma_dot /= auxdata.m * v
-        psi_dot = (lift * sin_phi - auxdata.m * wx_dot * cos_psi) / (auxdata.m * v * cos_gamma)
+        # the wind the vehicle feels changes as it climbs, and that is the whole mechanism
+        wind_dot = beta * h_dot
 
-        arg.phase[0].dynamics[:] = x_dot, y_dot, h_dot, v_dot, gamma_dot, psi_dot
-        arg.phase[0].path[:] = ((0.5 * auxdata.rho0 * auxdata.s / w) * cl * v**2,)
+        out.dynamics.x = v * cos_gamma * sin_psi + beta * h + w0
+        out.dynamics.y = v * cos_gamma * cos_psi
+        out.dynamics.h = h_dot
+        out.dynamics.v = -drag / mass - g0 * sin_gamma - wind_dot * cos_gamma * sin_psi
+        out.dynamics.gamma = (
+            lift * cos(phi) - weight * cos_gamma + mass * wind_dot * sin_gamma * sin_psi
+        ) / (mass * v)
+        out.dynamics.psi = (lift * sin(phi) - mass * wind_dot * cos_psi) / (mass * v * cos_gamma)
+        out.path.load_factor = (0.5 * rho0 * area / weight) * cl * v**2
+        return out
 
-    def discrete(arg: DiscreteArg) -> None:
-        """Dynamic soaring discrete function."""
-        x0 = arg.phase[0].initial_state
-        xf = arg.phase[0].final_state
-        arg.discrete = xf[3:] - x0[3:]
+    @problem.register.objective
+    def smallest_shear(arg):
+        """Return the wind gradient, which is what is to be made as small as possible."""
+        return arg.parameter.beta
 
-    # user callback functions
-    ocp.functions.objective = objective
-    ocp.functions.continuous = continuous
-    ocp.functions.discrete = discrete
+    @problem.register.discrete
+    def periodic(arg, out):
+        """Require the flight to come back to the state it started in, one turn later."""
+        end = arg[ph]
+        out.discrete.v_periodic = end.final.v - end.initial.v
+        out.discrete.gamma_periodic = end.final.gamma - end.initial.gamma
+        out.discrete.psi_periodic = end.final.psi - end.initial.psi
+        return out
 
-    # define the auxiliary data
-    auxdata = ocp.auxdata
-    auxdata.w0 = 0
-    auxdata.g0 = 32.2
-    auxdata.cd0 = 0.00873
-    auxdata.rho0 = 0.002378
-    auxdata.m = 5.6
-    auxdata.s = 45.09703
-    auxdata.k = 0.045
-    auxdata.cl_max = 1.5
+    # ------------------------------------------------------------------- setup
 
-    # set bounds
-    bounds = ocp.bounds.phase[0]
-    bounds.initial_time.lower = 0
-    bounds.initial_time.upper = 0
-    bounds.final_time.lower = 10
-    bounds.final_time.upper = 30
-    bounds.initial_state.lower[:3] = bounds.initial_state.upper[:3] = 0, 0, 0
-    bounds.final_state.lower[:3] = bounds.final_state.upper[:3] = 0, 0, 0
-    bounds.state.lower = -1500, -1000, 0, 10, np.radians(-75), np.radians(-225)
-    bounds.state.upper = +1500, +1000, 1000, 350, np.radians(75), np.radians(225)
-    bounds.control.lower = 0, np.radians(-75)
-    bounds.control.upper = auxdata.cl_max, np.radians(75)
-    bounds.path.lower = (-2,)
-    bounds.path.upper = (5,)
-    ocp.bounds.discrete.lower = ocp.bounds.discrete.upper = 0, 0, np.radians(360)
+    ph.time.initial = 0.0
+    ph.time.final = (10.0, 30.0)
 
-    # scaling to improve convergence rate
-    scale = ocp.scale
-    scale.objective = 0.1
-    scale.parameter = [0.1]
-    scale.discrete = [200.0, 200.0, 200.0]
-    phase = scale.phase[0]
-    phase.dynamics = phase.state = 1000.0, 1000.0, 1000.0, 200.0, 1.0, 6.0
-    phase.control = 1.0, 1.0
-    phase.time = 30.0
-    phase.path = [7.0]
+    # the circuit starts and ends at the origin
+    for end in (ph.state.initial, ph.state.final):
+        end.x = 0.0
+        end.y = 0.0
+        end.h = 0.0
 
-    # generate guess
-    pi = np.pi
-    tf = 24
-    one: NDArray[np.float64] = np.ones(50, dtype=float)
-    t: NDArray[np.float64] = np.linspace(0, tf, num=50, dtype=float)
-    y = -200 * np.sin(2 * pi * t / tf)
-    x = 600 * (np.cos(2 * pi * t / tf) - 1)
-    h = -0.7 * x
-    v = 150 * one
-    gamma = 0 * one
-    psi = np.radians(t / tf * 360)
-    cl = 0.5 * one
-    phi = np.radians(45) * one
+    ph.state.bounds.x = (-1500, 1500)
+    ph.state.bounds.y = (-1000, 1000)
+    ph.state.bounds.h = (0, 1000)
+    ph.state.bounds.v = (10, 350)
+    ph.state.bounds.gamma = (np.radians(-75), np.radians(75))
+    ph.state.bounds.psi = (np.radians(-225), np.radians(225))
 
-    ocp.guess.phase[0].time = t
-    ocp.guess.phase[0].state = x, y, h, v, gamma, psi
-    ocp.guess.phase[0].control = cl, phi
-    ocp.guess.parameter = (0.08,)
+    ph.control.bounds.cl = (0, cl_max)
+    ph.control.bounds.phi = (np.radians(-75), np.radians(75))
+    ph.path.bounds.load_factor = (-2, load_factor_max)
 
-    # define a fairly dense mesh to capture discontinuity in derivatives
-    m, n = 50, 6
-    ocp.mesh.phase[0].collocation_points = m * (n,)
-    ocp.mesh.phase[0].fraction = m * (1.0 / m,)
-    ocp.spectral_method = "lgl"
+    problem.discrete.bounds.v_periodic = 0.0
+    problem.discrete.bounds.gamma_periodic = 0.0
+    problem.discrete.bounds.psi_periodic = np.radians(360)
 
-    # define derivatives
-    ocp.derivatives.method = "auto"
-    ocp.derivatives.order = "second"
+    # A circuit that is roughly the right shape and size, so the solver starts from a closed
+    # loop rather than having to find one.
+    tf = 24.0
+    t = np.linspace(0.0, tf, num=50)
+    turn = 2 * np.pi * t / tf
+    x = 600 * (np.cos(turn) - 1)
+    ph.time.guess = (0.0, tf)
+    ph.state.guess.x = yapss.interp(t, x)
+    ph.state.guess.y = yapss.interp(t, -200 * np.sin(turn))
+    ph.state.guess.h = yapss.interp(t, -0.7 * x)
+    ph.state.guess.v = 150.0
+    ph.state.guess.gamma = 0.0
+    ph.state.guess.psi = yapss.interp(t, np.radians(t / tf * 360))
+    ph.control.guess.cl = 0.5
+    ph.control.guess.phi = np.radians(45)
+    problem.parameter.guess.beta = 0.08
 
-    # ipopt options
-    ocp.ipopt_options.max_iter = 500
-    ocp.ipopt_options.print_level = 3
+    # Scaling, which this problem needs: the states run over four orders of magnitude.
+    problem.objective.scale = 0.1
+    problem.parameter.scale.beta = 0.1
+    for name in Circuit._fields:
+        setattr(problem.discrete.scale, name, 200.0)
+    for name, value in (("x", 1000.0), ("y", 1000.0), ("h", 1000.0), ("v", 200.0)):
+        setattr(ph.state.scale, name, value)
+        setattr(ph.state.defect_scale, name, value)
+    ph.state.scale.gamma = ph.state.defect_scale.gamma = 1.0
+    ph.state.scale.psi = ph.state.defect_scale.psi = 6.0
+    ph.path.scale.load_factor = 7.0
+    ph.time.scale = 30.0
 
-    return ocp
+    # A dense mesh, to capture where the lift coefficient meets its limit and the derivatives
+    # of the solution are discontinuous.
+    ph.mesh = yapss.Mesh.uniform(segments=50, points=6)
+    problem.method = "lgl"
+
+    problem.ipopt_options.max_iter = 500
+    problem.ipopt_options.print_level = 3
+    return problem
 
 
-def plot_solution(solution: Solution) -> None:
-    """Plot the solution to the dynamic soaring optimal control problem.
+def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+    """Plot the circuit in three dimensions, and the quantities along it.
 
     Parameters
     ----------
-    solution : Solution
-        The solution to the dynamic soaring optimal control problem.
+    problem : yapss._next.Problem
+        The problem that was solved, which carries the phase handles.
+    solution : yapss._next.Solution
+        The solution to plot.
     """
-    # extract information from solution
-    auxdata = solution.problem.auxdata
-    t = solution.phase[0].time
-    tc = solution.phase[0].time_c
-    x, y, h, v, gamma, psi = solution.phase[0].state
-    cl, phi = solution.phase[0].control
-    hamiltonian = solution.phase[0].hamiltonian
+    ps = solution[problem.phases.loop]
+    t = ps.time
+    x, y, h = ps.state.x, ps.state.y, ps.state.h
 
-    # figure 1: plot the path in 3D
-    plt.figure(1)
+    plt.figure()
     ax: Axes3D = plt.axes(projection=Axes3D.name)
     ax.plot3D(x, y, h)
     ax.plot3D(0 * x - 1200, y, h, "r--")
@@ -187,56 +242,52 @@ def plot_solution(solution: Solution) -> None:
     ax.set_zlabel(r"$h$ (ft)")
     plt.tight_layout()
 
-    # figure 2: Lift coefficient
-    plt.figure(2)
-    limit = 5 * (auxdata.m * auxdata.g0) / (0.5 * auxdata.rho0 * auxdata.s * v**2)
+    panels = (
+        (r"Velocity, $v$ (ft/s)", ps.state.v),
+        (r"Flight path angle, $\gamma$ (deg)", np.rad2deg(ps.state.gamma)),
+        (r"Heading angle, $\psi$ (deg)", np.rad2deg(ps.state.psi)),
+    )
+    for ylabel, quantity in panels:
+        plt.figure()
+        plt.plot(t, quantity)
+        plt.xlabel(r"Time, $t$ (s)")
+        plt.ylabel(ylabel)
+        plt.grid()
+        plt.tight_layout()
+
+    # the lift coefficient, against the load-factor limit that bounds it
+    plt.figure()
+    limit = load_factor_max * (mass * g0) / (0.5 * rho0 * area * ps.state.v**2)
     plt.plot(t, limit, "r--")
-    plt.plot(tc, cl)
+    plt.plot(t, ps.control.cl)
     plt.ylim((0, 1))
     legend = plt.legend(["Load factor limit", "Lift coefficient, $C_{L}$"])
     legend.get_frame().set_facecolor("white")
     legend.get_frame().set_alpha(1)
     legend.get_frame().set_linewidth(0)
+    plt.xlabel(r"Time, $t$ (s)")
     plt.ylabel(r"Lift coefficient, $C_L$")
+    plt.grid()
+    plt.tight_layout()
 
-    # figure 3: velocity
-    plt.figure(3)
-    plt.plot(t, v)
-    plt.ylabel(r"Velocity, $v$ (ft/s)")
-
-    # figure 4: gamma
-    plt.figure(4)
-    plt.plot(t, np.rad2deg(gamma))
-    plt.ylabel(r"Flight path angle, $\gamma$ (deg)")
-
-    # figure 5: psi
-    plt.figure(5)
-    plt.plot(t, np.rad2deg(psi))
-    plt.ylabel(r"Heading angle, $\psi$ (deg)")
-
-    # figure 6: bank angle
-    plt.figure(6)
-    plt.plot(tc, np.rad2deg(phi))
-    plt.ylabel(r"Bank angle, $\phi$ (deg)")
-
-    # figure 7: Hamiltonian
-    plt.figure(7)
-    plt.plot(tc, hamiltonian)
-    plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
-    plt.ylim((-0.01, 0.01))
-
-    for i in range(2, 8):
-        plt.figure(i)
-        plt.xlabel(r"Time, $t$ (sec)")
-        plt.tight_layout()
+    for ylabel, quantity in (
+        (r"Bank angle, $\phi$ (deg)", np.rad2deg(ps.control.phi)),
+        (r"Hamiltonian, $\mathcal{H}$", ps.hamiltonian),
+    ):
+        plt.figure()
+        plt.plot(t, quantity)
+        plt.xlabel(r"Time, $t$ (s)")
+        plt.ylabel(ylabel)
         plt.grid()
+        plt.tight_layout()
 
 
 def main() -> None:
-    """Demonstrate the solution to the dynamic soaring optimal control problem."""
+    """Solve the dynamic soaring problem and plot the circuit it finds."""
     problem = setup()
     solution = problem.solve()
-    plot_solution(solution)
+    print(f"\nsmallest wind gradient = {solution.objective:.9f} 1/s")
+    plot_solution(problem, solution)
     plt.show()
 
 

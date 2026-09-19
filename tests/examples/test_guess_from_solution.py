@@ -12,7 +12,7 @@ have the same length as `time_c` for the lgl spectral method.
 import pytest
 
 # package imports
-from yapss.examples import brachistochrone_minimal as optimal_control_problem
+from yapss._legacy.examples import brachistochrone_minimal as optimal_control_problem
 
 J = 0.312480130
 tol = 1e-8

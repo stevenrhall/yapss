@@ -9,18 +9,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss.examples.delta_iii_ascent
+   $ python -m yapss._legacy.examples.delta_iii_ascent
 
 Functions
 ---------
 
-.. automodule:: yapss.examples.delta_iii_ascent
+.. automodule:: yapss._legacy.examples.delta_iii_ascent
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/examples/delta_iii_ascent.py
+.. literalinclude:: ../../../src/yapss/_legacy/examples/delta_iii_ascent.py
    :language: python
 
 Text Output

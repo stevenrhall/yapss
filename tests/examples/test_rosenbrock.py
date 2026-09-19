@@ -10,7 +10,7 @@ import pytest
 from matplotlib import pyplot as plt
 
 # package imports
-from yapss.examples import rosenbrock as optimal_control_problem
+from yapss._legacy.examples import rosenbrock as optimal_control_problem
 
 J = 0
 tol = 1e-10

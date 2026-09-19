@@ -8,18 +8,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss.examples.isoperimetric
+   $ python -m yapss._legacy.examples.isoperimetric
 
 Functions
 ---------
 
-.. automodule:: yapss.examples.isoperimetric
+.. automodule:: yapss._legacy.examples.isoperimetric
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/examples/isoperimetric.py
+.. literalinclude:: ../../../src/yapss/_legacy/examples/isoperimetric.py
    :language: python
 
 Text Output

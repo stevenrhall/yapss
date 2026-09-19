@@ -7,7 +7,7 @@ is `r` in setup, in the callback, and in the solution, and there is no `time` an
 import numpy as np
 import pytest
 
-from yapss._next.examples.newton import Phases, setup, setup2
+from yapss.examples.newton import Phases, setup, setup2
 
 RELEASED = 1.5033524160103926
 """What the same problem gives through the released API."""

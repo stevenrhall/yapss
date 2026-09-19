@@ -8,7 +8,7 @@ Test that yapss.example.newton works properly.
 import pytest
 
 # package imports
-from yapss.examples import newton as optimal_control_problem
+from yapss._legacy.examples import newton as optimal_control_problem
 
 J = 1.499263915138482
 # solution is poor due to discontinuity in the solution, hence the large tolerance

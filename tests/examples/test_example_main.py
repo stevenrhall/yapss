@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import pytest
 
 # package imports
-from yapss.examples import (
+from yapss._legacy.examples import (
     brachistochrone,
     brachistochrone_minimal,
     delta_iii_ascent,

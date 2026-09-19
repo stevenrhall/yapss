@@ -14,7 +14,7 @@ import traceback
 
 import pytest
 
-from yapss.examples import brachistochrone_minimal, goddard_problem_3_phase
+from yapss._legacy.examples import brachistochrone_minimal, goddard_problem_3_phase
 
 
 def test_misspelled_output_on_objective_phase_raises_at_the_user_line():

@@ -10,7 +10,7 @@ its own rather than being imposed as it is in the three-phase version.
 import numpy as np
 import pytest
 
-from yapss._next.examples.goddard_problem_1_phase import Tm, m0, mf, setup
+from yapss.examples.goddard_problem_1_phase import Tm, m0, mf, setup
 
 RELEASED = 18565.096736988547
 """The altitude the same problem reaches through the released API, to the last bit."""

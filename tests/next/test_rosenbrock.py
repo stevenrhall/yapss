@@ -7,7 +7,7 @@ the whole NLP is two columns and no rows.
 
 import pytest
 
-from yapss._next.examples.rosenbrock import MINIMUM, Phases, Point, rosenbrock, setup
+from yapss.examples.rosenbrock import MINIMUM, Phases, Point, rosenbrock, setup
 
 
 @pytest.fixture

@@ -1,5 +1,1 @@
-"""
-
-Optimal control examples implemented using YAPSS.
-
-"""
+"""Examples written against the redesigned API, for judging it against real problems."""

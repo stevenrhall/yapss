@@ -158,7 +158,7 @@ and the scales for the discrete constraints were set as discussed in the Theory 
 
 .. testsetup:: group2
 
-   from yapss.examples.dynamic_soaring import setup
+   from yapss._legacy.examples.dynamic_soaring import setup
 
    problem = setup()
 

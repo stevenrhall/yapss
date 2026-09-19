@@ -1,6 +1,6 @@
 """
 
-Test that yapss.examples.brachistochrone works properly.
+Test that yapss._legacy.examples.brachistochrone works properly.
 
 """
 
@@ -8,7 +8,7 @@ Test that yapss.examples.brachistochrone works properly.
 import pytest
 
 # package imports
-from yapss.examples import brachistochrone as optimal_control_problem
+from yapss._legacy.examples import brachistochrone as optimal_control_problem
 
 J = 0.312480130708665
 Jw = 0.323331164025862

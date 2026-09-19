@@ -8,11 +8,11 @@ soaring example, run the following command in a terminal:
 
 .. code-block:: bash
 
-    python -m yapss.examples.dynamic_soaring
+    python -m yapss._legacy.examples.dynamic_soaring
 
 To run the example from a Python console, use the following commands::
 
-    >>> from yapss.examples import dynamic_soaring
+    >>> from yapss._legacy.examples import dynamic_soaring
     >>> dynamic_soaring.main()
 
 Most of the examples here are presented without much commentary. More detail for each example

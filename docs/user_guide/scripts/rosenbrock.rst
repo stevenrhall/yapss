@@ -8,18 +8,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss.examples.rosenbrock
+   $ python -m yapss._legacy.examples.rosenbrock
 
 Functions
 ---------
 
-.. automodule:: yapss.examples.rosenbrock
+.. automodule:: yapss._legacy.examples.rosenbrock
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/examples/rosenbrock.py
+.. literalinclude:: ../../../src/yapss/_legacy/examples/rosenbrock.py
    :language: python
 
 Text Output

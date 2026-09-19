@@ -11,7 +11,7 @@ arc and therefore requires a three-phase solution. You can solve this problem an
 
 .. doctest:: example
 
-   >>> from yapss.examples.goddard_problem_3_phase import setup
+   >>> from yapss._legacy.examples.goddard_problem_3_phase import setup
    >>> problem = setup()
    >>> problem.ipopt_options.print_level = 0  # Suppress output
    >>> problem.ipopt_options.sb = "yes"       # Silent mode

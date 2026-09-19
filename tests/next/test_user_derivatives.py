@@ -26,22 +26,22 @@ import pytest
 
 import yapss
 from yapss._next.compile import to_transcription_spec
-from yapss._next.examples import brachistochrone_user_derivatives as user_brachistochrone
-from yapss._next.examples.brachistochrone import setup as auto_brachistochrone
-from yapss._next.examples.goddard_problem_1_phase import setup as user_goddard_1_phase
-from yapss._next.examples.goddard_problem_3_phase import c, g, h0
-from yapss._next.examples.goddard_problem_3_phase import setup as auto_goddard
-from yapss._next.examples.goddard_problem_3_phase import sigma
-from yapss._next.examples.newton import setup2 as auto_newton
-from yapss._next.examples.orbit_raising import m_0, m_dot, mu
-from yapss._next.examples.orbit_raising import setup as auto_orbit_raising
-from yapss._next.examples.orbit_raising import thrust
 from yapss._next.spec import snapshot, validate_problem
 from yapss._private.auto import make_auto_functions
 from yapss._private.guess import make_initial_guess_nlp
 from yapss._private.mesh import Mesh
 from yapss._private.nlp import NLP
 from yapss._private.user import make_user_functions
+from yapss.examples import brachistochrone_user_derivatives as user_brachistochrone
+from yapss.examples.brachistochrone import setup as auto_brachistochrone
+from yapss.examples.goddard_problem_1_phase import setup as user_goddard_1_phase
+from yapss.examples.goddard_problem_3_phase import c, g, h0
+from yapss.examples.goddard_problem_3_phase import setup as auto_goddard
+from yapss.examples.goddard_problem_3_phase import sigma
+from yapss.examples.newton import setup2 as auto_newton
+from yapss.examples.orbit_raising import m_0, m_dot, mu
+from yapss.examples.orbit_raising import setup as auto_orbit_raising
+from yapss.examples.orbit_raising import thrust
 from yapss.math import exp, sqrt
 
 SPECTRAL_METHODS = ("lgl", "lgr", "lg")

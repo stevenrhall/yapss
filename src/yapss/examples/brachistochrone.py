@@ -1,217 +1,154 @@
 """
 
-YAPSS solution to the brachistochrone optimal control problem with user-defined derivatives.
+The brachistochrone problem: the shape of the fastest slide between two points.
+
+A bead slides without friction from the origin to x = 1 under gravity. The control is the
+slope angle of the path, and the objective is the time taken.
 
 """
 
 __all__ = ["main", "plot_solution", "setup"]
 
-# third party imports
 import matplotlib.pyplot as plt
+from numpy import pi
 
-# package imports
-from yapss._legacy import (
-    ContinuousArg,
-    ContinuousHessianArg,
-    ContinuousJacobianArg,
-    ObjectiveArg,
-    ObjectiveGradientArg,
-    ObjectiveHessianArg,
-    Problem,
-    Solution,
-)
-from yapss.math import cos, pi, sin
+import yapss
+from yapss.math import cos, sin
+
+g0 = 32.174
 
 
-def setup(*, wall: bool = False) -> Problem:
-    """Set up the brachistochrone optimal control problem.
+class Slide(yapss.Vector):
+    """Where the bead is and how fast it is going."""
 
-    Parameters
-    ----------
-    wall : bool
-        Whether to include a wall that bounds the trajectory. Default is False.
+    x = yapss.field(units="ft", latex="x", doc="horizontal position")
+    y = yapss.field(units="ft", latex="y", doc="vertical drop")
+    v = yapss.field(units="ft/s", latex="v", doc="speed")
+
+
+class Angle(yapss.Vector):
+    """The slope of the path."""
+
+    u = yapss.field(units="rad", latex=r"\theta", doc="path angle")
+
+
+class Phases(yapss.Phases):
+    """One phase: the bead slides."""
+
+    slide = yapss.phase(state=Slide, control=Angle)
+
+
+def setup() -> yapss.Problem:
+    """Set up the brachistochrone problem.
 
     Returns
     -------
-    Problem
-        The brachistochrone optimal control problem.
+    yapss._next.Problem
+        The problem.
     """
-    nh = [1] if wall else [0]
+    problem = yapss.Problem("Brachistochrone", phases=Phases)
+    ph = problem.phases.slide
 
-    ocp = Problem(name="Brachistochrone", nx=[3], nu=[1], nq=[0], nh=nh)
-    ocp.auxdata.g0 = 32.174
+    @ph.register.continuous
+    def slide(arg, out):
+        """Compute the bead's dynamics."""
+        v, u = arg.state.v, arg.control.u
+        out.dynamics.x = v * cos(u)
+        out.dynamics.y = v * sin(u)
+        out.dynamics.v = g0 * sin(u)
+        return out
 
-    def objective(arg: ObjectiveArg) -> None:
-        arg.objective = arg.phase[0].final_time
+    @problem.register.objective
+    def minimum_time(arg):
+        """Return the time taken, which is the objective."""
+        return arg[ph].final.time
 
-    def objective_gradient(arg: ObjectiveGradientArg) -> None:
-        arg.gradient[0, "tf", 0] = 1
+    ph.time.initial = 0.0
+    ph.state.initial.x = 0.0
+    ph.state.initial.y = 0.0
+    ph.state.initial.v = 0.0
+    ph.state.final.x = 1.0
+    ph.state.bounds.x = (0, 10)
+    ph.state.bounds.y = (0, 10)
+    ph.state.bounds.v = (0, 10)
+    ph.control.bounds.u = (-pi / 2, pi / 2)
 
-    def objective_hessian(_: ObjectiveHessianArg) -> None:
-        return
+    ph.time.guess = (0.0, 1.0)
+    ph.state.guess.x = (0, 1)
+    ph.state.guess.y = (0, 1)
+    ph.state.guess.v = (0, 5)
 
-    def continuous(arg: ContinuousArg) -> None:
-        x, y, v = arg.phase[0].state
-        (u,) = arg.phase[0].control
-        g0 = arg.auxdata.g0
-        arg.phase[0].dynamics[:] = v * cos(u), v * sin(u), g0 * sin(u)
-        if wall:
-            path = y - x / 2 - 0.1
-            arg.phase[0].path[:] = (path,)
-
-    def continuous_jacobian(arg: ContinuousJacobianArg) -> None:
-        _, _, v = arg.phase[0].state
-        (u,) = arg.phase[0].control
-        g0 = arg.auxdata.g0
-
-        jacobian = arg.phase[0].jacobian
-        jacobian[("f", 0), ("x", 2)] = cos(u)
-        jacobian[("f", 0), ("u", 0)] = -v * sin(u)
-        jacobian[("f", 1), ("x", 2)] = sin(u)
-        jacobian[("f", 1), ("u", 0)] = v * cos(u)
-        jacobian[("f", 2), ("u", 0)] = g0 * cos(u)
-
-        if wall:
-            jacobian[("h", 0), ("x", 0)] = -1 / 2
-            jacobian[("h", 0), ("x", 1)] = 1
-
-    def continuous_hessian(arg: ContinuousHessianArg) -> None:
-        _, _, v = arg.phase[0].state
-        (u,) = arg.phase[0].control
-        g0 = arg.auxdata.g0
-
-        hessian = arg.phase[0].hessian
-        hessian[("f", 0), ("x", 2), ("u", 0)] = -sin(u)
-        hessian[("f", 0), ("u", 0), ("u", 0)] = -v * cos(u)
-        hessian[("f", 1), ("x", 2), ("u", 0)] = cos(u)
-        hessian[("f", 1), ("u", 0), ("u", 0)] = -v * sin(u)
-        hessian[("f", 2), ("u", 0), ("u", 0)] = -g0 * sin(u)
-
-    # functions
-    ocp.functions.objective = objective
-    ocp.functions.objective_gradient = objective_gradient
-    ocp.functions.objective_hessian = objective_hessian
-
-    ocp.functions.continuous = continuous
-    ocp.functions.continuous_jacobian = continuous_jacobian
-    ocp.functions.continuous_hessian = continuous_hessian
-
-    # bounds
-    bounds = ocp.bounds.phase[0]
-    bounds.initial_time.lower = bounds.initial_time.upper = 0
-    bounds.final_time.lower = 0
-    bounds.initial_state.lower[:] = bounds.initial_state.upper[:] = 0
-    bounds.final_state.lower[0] = bounds.final_state.upper[0] = 1
-    bounds.state.lower[:] = 0
-    bounds.control.lower[:] = -pi / 2
-    bounds.control.upper[:] = pi / 2
-    if wall:
-        bounds.path.upper[0] = 0
-
-    # guess
-    phase = ocp.guess.phase[0]
-    phase.time = (0.0, 1.0)
-    phase.state = ((0.0, 1.0), (0.0, 1), (0.0, 5.0))
-    phase.control = ((0, 0.0),)
-
-    # mesh
-    m, n = 20, 10
-    ocp.mesh.phase[0].collocation_points = m * [n]
-    ocp.mesh.phase[0].fraction = m * [1 / m]
-
-    # solver options
-    ocp.spectral_method = "lgl"
-    ocp.derivatives.method = "user"
-    ocp.ipopt_options.print_level = 3
-
-    return ocp
+    problem.ipopt_options.print_level = 3
+    return problem
 
 
-def plot_solution(solution: Solution, *, wall: bool = False) -> None:
-    """Plot solution for documentation.
+def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+    """Plot the trajectory, the states, the control, the costate, and the Hamiltonian.
 
     Parameters
     ----------
-    solution : Solution
-        Solution to the brachistochrone optimal control problem as produced by YAPSS.
-    wall : bool, optional
-        Whether to include a wall that bounds the trajectory. Default is False.
+    problem : yapss._next.Problem
+        The problem that was solved, which carries the phase handles.
+    solution : yapss._next.Solution
+        The solution to plot.
     """
-    # extract information from solution
-    time = solution.phase[0].time
-    time_c = solution.phase[0].time_c
-    t0 = solution.phase[0].initial_time
-    tf = solution.phase[0].final_time
-    state = solution.phase[0].state
-    control = solution.phase[0].control
-    costate = solution.phase[0].costate
-    hamiltonian = solution.phase[0].hamiltonian
+    ps = solution[problem.phases.slide]
+    time = ps.time
 
-    lw = 2
-    x, y, v = state
-
-    # bead trajectory
-    plt.figure(1)
-    plt.clf()
-    if wall:
-        plt.plot(x, x / 2 + 0.1, "k", linewidth=lw)
-    plt.plot(x, y, linewidth=lw)
-    plt.xlabel("$x(t)$")
-    plt.ylabel("$y(t)$")
-    plt.xlim((-0.05, 1.05))
-    plt.ylim((0.7, -0.05))
+    plt.figure()
+    plt.plot(ps.state.x, ps.state.y, linewidth=2)
+    plt.xlabel("Horizontal position, $x(t)$ (ft)")
+    plt.ylabel("Vertical position, $y(t)$ (ft)")
+    plt.xlim((0.0, 1.0))
+    plt.ylim((0.8, -0.1))
     plt.axis("scaled")
-    if wall:
-        plt.legend(("Wall", "Trajectory"), framealpha=1.0)
-    plt.draw()
+    plt.grid()
+    plt.tight_layout()
 
-    # state vector
-    plt.figure(2)
-    plt.clf()
-    plt.plot(time, x, time, y, time, v, linewidth=lw)
-    plt.xlabel("Time, $t$")
+    plt.figure()
+    for name, label in (("x", "$x(t)$"), ("y", "$y(t)$"), ("v", "$v(t)$")):
+        plt.plot(time, getattr(ps.state, name), linewidth=2, label=label)
+    plt.xlabel("Time, $t$ (s)")
     plt.ylabel("States")
-    plt.legend(("$x(t)$", "$y(t)$", "$v(t)$"), framealpha=1.0)
-    plt.xlim((t0, tf))
+    plt.xlim((time[0], time[-1]))
+    plt.legend(framealpha=1.0)
+    plt.grid()
+    plt.tight_layout()
 
-    # control
-    plt.figure(3)
-    plt.clf()
-    plt.plot(time_c, control[0], linewidth=lw)
-    plt.xlabel("Time, $t$ [s]")
-    plt.ylabel("Control, $u(t)$ [rad]")
-    plt.ylim((-0.05, 1.6))
-    plt.xlim((t0, tf))
+    plt.figure()
+    plt.plot(time, ps.control.u, linewidth=2)
+    plt.xlabel("Time, $t$ (s)")
+    plt.ylabel(r"Control, $\theta(t)$ (rad)")
+    plt.xlim((time[0], time[-1]))
+    plt.grid()
+    plt.tight_layout()
 
-    # costates
-    plt.figure(4)
-    plt.clf()
-    plt.plot(time_c, costate[0], time_c, costate[1], time_c, costate[2])
-    plt.xlim((t0, tf))
-    plt.xlabel("Time, $t$")
-    plt.ylabel(r"Costates, $p_{i}$")
-    plt.legend(["costate 0", "costate 1", "costate 2"], framealpha=1.0)
+    plt.figure()
+    for name, label in (("x", r"$p_x(t)$"), ("y", r"$p_y(t)$"), ("v", r"$p_v(t)$")):
+        plt.plot(time, getattr(ps.costate, name), linewidth=2, label=label)
+    plt.xlabel("Time, $t$ (s)")
+    plt.ylabel("Costates")
+    plt.xlim((time[0], time[-1]))
+    plt.legend(framealpha=1.0)
+    plt.grid()
+    plt.tight_layout()
 
-    # hamiltonian
-    plt.figure(5)
-    plt.clf()
-    plt.plot(time_c, hamiltonian)
-    plt.xlim((t0, tf))
-    plt.ylim((-1.01, -0.99))
-    plt.xlabel("Time, $t$")
+    plt.figure()
+    plt.plot(time, ps.hamiltonian, linewidth=2)
+    plt.xlabel("Time, $t$ (s)")
     plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
-
-    for i in range(1, 6):
-        plt.figure(i)
-        plt.tight_layout()
-        plt.grid()
+    plt.xlim((time[0], time[-1]))
+    plt.ylim((-1.1, -0.9))
+    plt.grid()
+    plt.tight_layout()
 
 
 def main() -> None:
-    """Demonstrate the solution to the brachistochrone optimal control problem."""
-    problem = setup(wall=True)
+    """Solve the brachistochrone problem and plot the solution."""
+    problem = setup()
     solution = problem.solve()
-    plot_solution(solution, wall=True)
+    print(f"final time = {solution.objective:.6f} s")
+    plot_solution(problem, solution)
     plt.show()
 
 

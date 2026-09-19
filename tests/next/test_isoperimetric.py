@@ -14,7 +14,7 @@ import math
 import numpy as np
 import pytest
 
-from yapss._next.examples.isoperimetric import AREA, PERIMETER, setup
+from yapss.examples.isoperimetric import AREA, PERIMETER, setup
 
 
 @pytest.fixture

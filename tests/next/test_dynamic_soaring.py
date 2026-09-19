@@ -13,7 +13,7 @@ so the derivative-method sweep here is deliberately only `auto` against the rele
 import numpy as np
 import pytest
 
-from yapss._next.examples.dynamic_soaring import cl_max, load_factor_max, setup
+from yapss.examples.dynamic_soaring import cl_max, load_factor_max, setup
 
 RELEASED = 0.06358655820709537
 """The wind gradient the same problem finds through the released API, to the last bit."""

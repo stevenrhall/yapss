@@ -38,8 +38,8 @@ import copy
 import numpy as np
 import pytest
 
+from yapss._legacy.examples import brachistochrone_minimal
 from yapss._private.solver import get_nlp_scaling
-from yapss.examples import brachistochrone_minimal
 
 from ._contract import (
     SCALAR_FORMS,

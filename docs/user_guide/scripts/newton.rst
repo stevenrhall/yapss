@@ -16,18 +16,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss.examples.newton
+   $ python -m yapss._legacy.examples.newton
 
 Functions
 ---------
 
-.. automodule:: yapss.examples.newton
+.. automodule:: yapss._legacy.examples.newton
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/examples/newton.py
+.. literalinclude:: ../../../src/yapss/_legacy/examples/newton.py
    :language: python
 
 Text Output

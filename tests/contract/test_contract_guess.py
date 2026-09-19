@@ -37,9 +37,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from yapss._legacy.examples import brachistochrone_minimal
 from yapss._private.guess import make_initial_guess_nlp
 from yapss._private.mesh import Mesh
-from yapss.examples import brachistochrone_minimal
 
 from ._contract import (
     SCALAR_FORMS,

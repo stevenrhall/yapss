@@ -48,7 +48,7 @@ def no_windows(monkeypatch):
 
 @pytest.mark.parametrize("name", FIGURES)
 def test_main_runs_and_plots_what_the_docs_show(name, no_windows, capsys):
-    module = importlib.import_module(f"yapss._next.examples.{name}")
+    module = importlib.import_module(f"yapss.examples.{name}")
     module.main()
     assert len(plt.get_fignums()) == FIGURES[name]
     # an example that prints nothing at all has no text output for its page either
@@ -60,7 +60,7 @@ def test_every_example_is_covered():
     """A new example must be added here, which is what keeps the docs pages honest."""
     import pkgutil
 
-    from yapss._next import examples
+    from yapss import examples
 
     found = {
         info.name

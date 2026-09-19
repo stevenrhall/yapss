@@ -21,18 +21,18 @@ The Python script in this example can be executed from the command line with:
 
 .. code-block:: console
 
-   $ python -m yapss.examples.brachistochrone
+   $ python -m yapss._legacy.examples.brachistochrone
 
 Functions
 ---------
 
-.. automodule:: yapss.examples.brachistochrone
+.. automodule:: yapss._legacy.examples.brachistochrone
    :members:
 
 Code
 ----
 
-.. literalinclude:: ../../../src/yapss/examples/brachistochrone.py
+.. literalinclude:: ../../../src/yapss/_legacy/examples/brachistochrone.py
    :language: python
 
 Text Output

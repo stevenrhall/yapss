@@ -1,6 +1,6 @@
 """
 
-Test that yapss.examples.goddard_problem_1_phase works properly.
+Test that yapss._legacy.examples.goddard_problem_1_phase works properly.
 
 """
 
@@ -8,7 +8,7 @@ Test that yapss.examples.goddard_problem_1_phase works properly.
 import pytest
 
 # package imports
-from yapss.examples import goddard_problem_1_phase as optimal_control_problem
+from yapss._legacy.examples import goddard_problem_1_phase as optimal_control_problem
 
 J = 18550.8718638
 tol = 3e-3

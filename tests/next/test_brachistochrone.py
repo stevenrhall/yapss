@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from yapss._next.examples.brachistochrone import Phases, setup
+from yapss.examples.brachistochrone import Phases, setup
 
 ANALYTIC = math.sqrt(math.pi / 32.174)
 """The minimum time to reach the line x = 1, sliding from rest under gravity."""
@@ -24,7 +24,7 @@ def test_it_solves_to_the_analytic_answer(problem):
 
 
 def test_it_agrees_with_the_same_problem_in_the_released_api(problem):
-    from yapss.examples.brachistochrone_minimal import setup as legacy_setup
+    from yapss._legacy.examples.brachistochrone_minimal import setup as legacy_setup
 
     legacy = legacy_setup()
     legacy.ipopt_options.print_level = 0

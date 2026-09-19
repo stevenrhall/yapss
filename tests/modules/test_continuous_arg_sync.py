@@ -123,8 +123,8 @@ def test_symbolic_time_is_built_in_place() -> None:
 
 def _goddard_point(spectral_method: str):
     """Goddard's three-phase problem, its mesh, and a perturbed initial point."""
+    from yapss._legacy.examples import goddard_problem_3_phase
     from yapss._private.guess import make_initial_guess_nlp
-    from yapss.examples import goddard_problem_3_phase
 
     problem = goddard_problem_3_phase.setup()
     problem.spectral_method = spectral_method

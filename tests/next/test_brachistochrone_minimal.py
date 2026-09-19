@@ -8,8 +8,8 @@ not.
 
 import pytest
 
-from yapss._next.examples.brachistochrone import setup as setup_full
-from yapss._next.examples.brachistochrone_minimal import setup
+from yapss.examples.brachistochrone import setup as setup_full
+from yapss.examples.brachistochrone_minimal import setup
 
 RELEASED = 0.312480130713672
 """The time the same problem gives through the released API."""

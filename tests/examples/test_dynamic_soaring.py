@@ -1,6 +1,6 @@
 """
 
-Test that the yapss.examples.dynamic_soaring works properly.
+Test that the yapss._legacy.examples.dynamic_soaring works properly.
 
 """
 
@@ -8,7 +8,7 @@ Test that the yapss.examples.dynamic_soaring works properly.
 import pytest
 
 # package imports
-from yapss.examples import dynamic_soaring as optimal_control_problem
+from yapss._legacy.examples import dynamic_soaring as optimal_control_problem
 
 J = 0.0635869566
 tol = 1e-5

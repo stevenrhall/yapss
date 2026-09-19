@@ -1,100 +1,102 @@
 """
 
-YAPSS solution of the HS071 constrained function minimization problem.
+Hock and Schittkowski problem 71, which has no phases at all.
+
+A problem with no phases is an ordinary nonlinear program: parameters to choose, constraints
+relating them, an objective to minimize. Nothing about it is a special case -- the objective
+and discrete callbacks are the ones every problem has, and there are simply no phases for
+`arg[ph]` to reach.
+
+It is here because it is the shortest complete statement of that, and because a library that
+refused it would be refusing arithmetic it can already do.
 
 """
 
 __all__ = ["main", "print_solution", "setup"]
 
-import numpy as np
+import yapss
 
-# third party imports
-from numpy.typing import NDArray
-
-# package imports
-from yapss._legacy import DiscreteArg, ObjectiveArg, Problem, Solution
+OPTIMUM = 17.01401714
+"""The known objective value, used as the installation smoke test."""
 
 
-def setup() -> Problem:
-    """Set up the problem statement for Hock and Schittkowski Problem 71 (HS071)."""
-    # parameter optimization problem with 4 parameters and 2 constraints
-    ocp = Problem(name="HS071", nx=[], ns=4, nd=2)
+class Design(yapss.Vector):
+    """The four variables to be chosen."""
 
-    def objective(arg: ObjectiveArg) -> None:
-        """HS071 objective callback function."""
-        x = arg.parameter
-        arg.objective = x[0] * x[3] * (x[0] + x[1] + x[2]) + x[2]
-
-    def discrete(arg: DiscreteArg) -> None:
-        """HS071 discrete constraint callback function."""
-        x = arg.parameter
-        arg.discrete[:] = (
-            x[0] * x[1] * x[2] * x[3],
-            x[0] * x[0] + x[1] * x[1] + x[2] * x[2] + x[3] * x[3],
-        )
-
-    ocp.functions.objective = objective
-    ocp.functions.discrete = discrete
-
-    # bounds
-    ocp.bounds.discrete.lower = 25.0, 40.0
-    ocp.bounds.discrete.upper[1] = 40.0
-    ocp.bounds.parameter.lower = 4 * [1.0]
-    ocp.bounds.parameter.upper = 4 * [5.0]
-
-    # guess
-    ocp.guess.parameter = 1.0, 5.0, 5.0, 1.0
-
-    # yapss options
-    ocp.derivatives.order = "second"
-    ocp.derivatives.method = "auto"
-    ocp.ipopt_options.print_level = 5
-
-    return ocp
+    x = yapss.field(size=4, doc="design variables")
 
 
-def print_solution(solution: Solution) -> None:
-    """Print the solution of the HS071 constrained function minimization problem.
+class Constraints(yapss.Vector):
+    """The two constraints relating them."""
+
+    product = yapss.field(doc="the product of all four, at least 25")
+    sum_of_squares = yapss.field(doc="the sum of their squares, exactly 40")
+
+
+class Phases(yapss.Phases):
+    """None. The problem has no trajectory, so it has no phases."""
+
+
+def setup() -> yapss.Problem:
+    """Set up the HS071 problem.
+
+    Returns
+    -------
+    yapss._next.Problem
+        The problem.
+    """
+    problem = yapss.Problem("HS071", phases=Phases, parameter=Design, discrete=Constraints)
+
+    @problem.register.objective
+    def cost(arg):
+        """Return the objective."""
+        x = arg.parameter.x
+        return x[0] * x[3] * (x[0] + x[1] + x[2]) + x[2]
+
+    @problem.register.discrete
+    def constraints(arg, out):
+        """Compute the two constraints."""
+        x = arg.parameter.x
+        out.discrete.product = x[0] * x[1] * x[2] * x[3]
+        out.discrete.sum_of_squares = x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + x[3] ** 2
+        return out
+
+    problem.parameter.bounds.x = (1.0, 5.0)
+    problem.parameter.guess.x = [1.0, 5.0, 5.0, 1.0]
+    problem.discrete.bounds.product = (25.0, None)
+    problem.discrete.bounds.sum_of_squares = 40.0
+
+    problem.ipopt_options.print_level = 3
+    return problem
+
+
+def print_solution(solution: yapss.Solution) -> None:
+    """Print the design variables, the constraints and the objective.
 
     Parameters
     ----------
-    solution : Solution
-        The solution of the HS071 function minimization problem.
+    solution : yapss._next.Solution
+        The solution to print.
     """
-
-    def print_variable(name: str, values: NDArray[np.float64]) -> None:
-        for i, value in enumerate(values):
-            print(f"{name}[{i}] = {value:1.6e}")
-
-    x = solution.parameter
-    print()
-    print("Solution of the primal variables, x")
-    print_variable("x", x)
-    print("\nSolution of the bound multipliers, z_L and z_U")
-    nlp_info = solution.nlp_info
-    print_variable("z_L", nlp_info.mult_x_L)
-    print_variable("z_U", nlp_info.mult_x_U)
-    print("\nSolution of the constraint multipliers, lambda")
-    print_variable("lambda", solution.discrete_multiplier)
-    print("\nObjective value")
-    print(f"f(x*) = {solution.objective:1.6e}")
+    for i, value in enumerate(solution.parameter.x):
+        print(f"x[{i}] = {value:1.6e}")
+    print(f"\nproduct         = {solution.discrete.product:1.6e}")
+    print(f"sum of squares  = {solution.discrete.sum_of_squares:1.6e}")
+    print(f"\nf(x*) = {solution.objective:1.6e}")
 
 
 def main() -> None:
-    """Demonstrate the solution to the HS071 constrained function minimization problem."""
+    """Solve HS071 and print the solution."""
     problem = setup()
     solution = problem.solve()
     print_solution(solution)
 
-    # smoke test that raises an exception during user installation test
     if not solution.converged:
         msg = "YAPSS did not converge to an optimal solution."
         raise RuntimeError(msg)
-    if not np.isclose(solution.objective, 17.01401714, rtol=1e-6):
+    if abs(solution.objective - OPTIMUM) > 1e-6 * OPTIMUM:
         msg = "YAPSS returned an unexpected objective value."
         raise RuntimeError(msg)
-
-    # confirmation for user that YAPSS is function properly
     print("\nYAPSS solution is correct.")
 
 

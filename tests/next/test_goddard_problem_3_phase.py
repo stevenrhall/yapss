@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from yapss._next.examples.goddard_problem_3_phase import Linkage, Phases, mf, setup
+from yapss.examples.goddard_problem_3_phase import Linkage, Phases, mf, setup
 
 FINAL_ALTITUDE = 18550.871863824515
 """What the same problem gives through the released API."""
@@ -23,7 +23,7 @@ def test_it_solves_to_the_released_answer(problem):
 
 
 def test_it_agrees_with_the_same_problem_in_the_released_api(problem):
-    from yapss.examples.goddard_problem_3_phase import setup as legacy_setup
+    from yapss._legacy.examples.goddard_problem_3_phase import setup as legacy_setup
 
     legacy = legacy_setup()
     legacy.ipopt_options.print_level = 0

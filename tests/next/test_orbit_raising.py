@@ -7,7 +7,7 @@ vehicle's mass falls as it burns, so its thrust acceleration depends explicitly 
 import numpy as np
 import pytest
 
-from yapss._next.examples.orbit_raising import setup
+from yapss.examples.orbit_raising import setup
 
 RELEASED = 1.525277594542231
 """The final radius the same problem reaches through the released API."""

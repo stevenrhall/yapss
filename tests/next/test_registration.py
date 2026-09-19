@@ -8,7 +8,7 @@ it in the wrong place, which are the errors the gathering is meant to answer.
 
 import pytest
 
-from yapss._next.examples.brachistochrone import setup
+from yapss.examples.brachistochrone import setup
 
 
 @pytest.fixture

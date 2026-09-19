@@ -9,7 +9,7 @@ solve from a worker thread -- a GUI, a notebook background cell, a thread pool -
 
 import threading
 
-from yapss.examples import brachistochrone_minimal
+from yapss._legacy.examples import brachistochrone_minimal
 
 
 def test_solve_from_worker_thread_with_default_interrupt_flag():

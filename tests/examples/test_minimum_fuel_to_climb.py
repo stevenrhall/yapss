@@ -1,6 +1,6 @@
 """
 
-Test that yapss.examples.minimum_time_to_climb (minimum fuel case) works properly.
+Test that yapss._legacy.examples.minimum_time_to_climb (minimum fuel case) works properly.
 
 """
 
@@ -8,7 +8,7 @@ Test that yapss.examples.minimum_time_to_climb (minimum fuel case) works properl
 import pytest
 
 # package imports
-from yapss.examples import minimum_time_to_climb as optimal_control_problem
+from yapss._legacy.examples import minimum_time_to_climb as optimal_control_problem
 
 J = 1177.67
 tol = 1e-5

@@ -18,17 +18,17 @@ was imported::
 
 from typing import TYPE_CHECKING
 
-from ._private.input_args import ContinuousArg as ContinuousArg_
-from ._private.input_args import ContinuousHessianArg, ContinuousJacobianArg
-from ._private.input_args import DiscreteArg as DiscreteArg_
-from ._private.input_args import DiscreteHessianArg, DiscreteJacobianArg
-from ._private.input_args import ObjectiveArg as ObjectiveArg_
-from ._private.input_args import ObjectiveGradientArg, ObjectiveHessianArg
-from ._private.ipopt_options import IpoptOptionSettingWarning
-from ._private.ipopt_status import IpoptStatus
-from ._private.problem import LargeSegmentWarning, Problem
-from ._private.solution import IpoptConvergenceWarning, Solution
-from .math.functions import UnsupportedMathFunctionError
+from yapss._private.input_args import ContinuousArg as ContinuousArg_
+from yapss._private.input_args import ContinuousHessianArg, ContinuousJacobianArg
+from yapss._private.input_args import DiscreteArg as DiscreteArg_
+from yapss._private.input_args import DiscreteHessianArg, DiscreteJacobianArg
+from yapss._private.input_args import ObjectiveArg as ObjectiveArg_
+from yapss._private.input_args import ObjectiveGradientArg, ObjectiveHessianArg
+from yapss._private.ipopt_options import IpoptOptionSettingWarning
+from yapss._private.ipopt_status import IpoptStatus
+from yapss._private.problem import LargeSegmentWarning, Problem
+from yapss._private.solution import IpoptConvergenceWarning, Solution
+from yapss.math.functions import UnsupportedMathFunctionError
 
 __all__ = [
     "ContinuousArg",

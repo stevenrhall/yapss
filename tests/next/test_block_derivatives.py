@@ -17,7 +17,13 @@ import pytest
 import yapss
 from yapss._next.compile import _make_continuous_derivative, to_transcription_spec
 from yapss._next.derivatives import ContinuousJacobian
-from yapss._next.examples.delta_iii_ascent import (
+from yapss._next.spec import snapshot
+from yapss._private.auto import make_auto_functions
+from yapss._private.guess import make_initial_guess_nlp
+from yapss._private.input_args import ContinuousStore, call_callback
+from yapss._private.mesh import Mesh
+from yapss._private.structure import get_nlp_dv_structure
+from yapss.examples.delta_iii_ascent import (
     CD,
     MASS_FLOW,
     THRUST,
@@ -28,13 +34,7 @@ from yapss._next.examples.delta_iii_ascent import (
     omega_e,
     rho0,
 )
-from yapss._next.examples.delta_iii_ascent import setup as delta_iii
-from yapss._next.spec import snapshot
-from yapss._private.auto import make_auto_functions
-from yapss._private.guess import make_initial_guess_nlp
-from yapss._private.input_args import ContinuousStore, call_callback
-from yapss._private.mesh import Mesh
-from yapss._private.structure import get_nlp_dv_structure
+from yapss.examples.delta_iii_ascent import setup as delta_iii
 from yapss.math import exp
 
 from .test_user_derivatives import SPECTRAL_METHODS, _build, _dense_hessian, _dense_jacobian

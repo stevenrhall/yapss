@@ -2,7 +2,7 @@
 
 The brachistochrone problem, with its derivatives supplied by hand.
 
-The same problem as `yapss._next.examples.brachistochrone`, so the two can be read side by
+The same problem as `yapss.examples.brachistochrone`, so the two can be read side by
 side: everything but the four derivative callbacks is the same, and the answer is the same.
 
 A derivative is reached by the names of the things it relates, read in the order it is

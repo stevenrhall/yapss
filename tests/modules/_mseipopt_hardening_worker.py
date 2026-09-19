@@ -92,7 +92,7 @@ def check_memory_boundaries() -> int:
 
 def check_yapss_sigint() -> int:
     """Self-deliver SIGINT during a real YAPSS solve and verify graceful stop."""
-    from yapss.examples.rosenbrock import setup
+    from yapss._legacy.examples.rosenbrock import setup
 
     problem = setup()
     problem.ipopt_options.print_level = 0

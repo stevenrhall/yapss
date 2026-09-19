@@ -1,130 +1,178 @@
 """
 
-YAPSS solution of the isoperimetric problem.
+The isoperimetric problem: the closed curve of given perimeter that encloses the most area.
+
+The answer is a circle, and the area it encloses is 1/(4*pi) for a perimeter of 1. What makes
+the problem worth having in the corpus is the machinery it needs: the independent variable is
+arc length rather than time, the curve is held at unit speed by a path constraint, the area is
+an integral, two further integrals place the centroid at the origin, and two discrete
+constraints require the curve to close.
+
+Nothing in the API knows that the independent variable is a length. A phase runs over a
+variable it names -- here `s` -- and `time` is simply the name YAPSS uses where a problem does
+not say otherwise.
 
 """
 
 __all__ = ["main", "plot_solution", "setup"]
 
-# standard library imports
 import math
 
-# package imports
+import matplotlib.pyplot as plt
 import numpy as np
-
-# third party imports
-from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 
-from yapss._legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
+import yapss
+
+PERIMETER = 1.0
+"""The length of the curve, which the unit-speed constraint and the arc-length span fix."""
+AREA = 1 / (4 * math.pi)
+"""The largest area a closed curve of unit perimeter can enclose."""
 
 
-def setup() -> Problem:
-    """Set up the isoperimetric optimization problem.
+class Curve(yapss.Vector):
+    """A point on the curve."""
+
+    x = yapss.field(latex="x", doc="horizontal position")
+    y = yapss.field(latex="y", doc="vertical position")
+
+
+class Tangent(yapss.Vector):
+    """The direction the curve is going, which is the control."""
+
+    tx = yapss.field(latex="t_x", doc="horizontal component of the tangent")
+    ty = yapss.field(latex="t_y", doc="vertical component of the tangent")
+
+
+class UnitSpeed(yapss.Vector):
+    """The constraint that makes the independent variable arc length."""
+
+    speed_squared = yapss.field(doc="squared speed along the curve, which must be one")
+
+
+class Moments(yapss.Vector):
+    """What is accumulated along the curve."""
+
+    area = yapss.field(doc="area enclosed, by the shoelace formula")
+    x_moment = yapss.field(doc="first moment about the y axis")
+    y_moment = yapss.field(doc="first moment about the x axis")
+
+
+class Closure(yapss.Vector):
+    """What it means for the curve to close."""
+
+    closure_x = yapss.field(doc="horizontal gap between the ends")
+    closure_y = yapss.field(doc="vertical gap between the ends")
+
+
+class Phases(yapss.Phases):
+    """One phase, running over arc length rather than time."""
+
+    curve = yapss.phase(
+        state=Curve,
+        control=Tangent,
+        path=UnitSpeed,
+        integral=Moments,
+        s=yapss.field(latex="s", doc="arc length"),
+    )
+
+
+def setup() -> yapss.Problem:
+    """Set up the isoperimetric problem.
 
     Returns
     -------
-    Problem
-        The isoperimetric optimization problem.
+    yapss._next.Problem
+        The problem.
     """
-    # problem has 1 phase, with 2 states, 2 controls, 1 path constraint, and 3
-    # integrals. There are 2 discrete constraints, to constrain the curve to be closed;
-    # the centroid is placed at the origin by bounds on the second and third integrals.
+    problem = yapss.Problem("Isoperimetric problem", phases=Phases, discrete=Closure)
+    ph = problem.phases.curve
 
-    ocp = Problem(name="Isoperimetric Problem", nx=[2], nu=[2], nq=[3], nh=[1], nd=2)
+    @ph.register.continuous
+    def trace(arg, out):
+        """Move along the curve, accumulating the area and the moments."""
+        x, y = arg.state.x, arg.state.y
+        tx, ty = arg.control.tx, arg.control.ty
+        out.dynamics.x = tx
+        out.dynamics.y = ty
+        out.path.speed_squared = tx**2 + ty**2
+        out.integrand.area = (y * tx - x * ty) / 2
+        out.integrand.x_moment = x
+        out.integrand.y_moment = y
+        return out
 
-    def objective(arg: ObjectiveArg) -> None:
-        """Objective callback function."""
-        arg.objective = arg.phase[0].integral[0]
+    @problem.register.objective
+    def enclosed_area(arg):
+        """Return the area enclosed, which is to be made as large as possible."""
+        return arg[ph].integral.area
 
-    def continuous(arg: ContinuousArg) -> None:
-        """Continuous callback function."""
-        x, y = arg.phase[0].state
-        ux, uy = arg.phase[0].control
-        arg.phase[0].dynamics[:] = ux, uy
-        arg.phase[0].path[0] = ux**2 + uy**2
-        arg.phase[0].integrand[0] = (y * ux - x * uy) / 2
-        arg.phase[0].integrand[1] = x
-        arg.phase[0].integrand[2] = y
+    @problem.register.discrete
+    def closed(arg, out):
+        """Require the curve to return to where it started."""
+        end = arg[ph]
+        out.discrete.closure_x = end.final.x - end.initial.x
+        out.discrete.closure_y = end.final.y - end.initial.y
+        return out
 
-    def discrete(arg: DiscreteArg) -> None:
-        """Discrete callback function."""
-        arg.discrete[:2] = arg.phase[0].final_state - arg.phase[0].initial_state
+    problem.objective.sense = "maximize"
 
-    ocp.functions.objective = objective
-    ocp.sense = "maximize"
-    ocp.functions.continuous = continuous
-    ocp.functions.discrete = discrete
+    # Arc length runs from 0 to the perimeter, and unit speed is what makes it arc length.
+    ph.s.initial = 0.0
+    ph.s.final = PERIMETER
+    ph.path.bounds.speed_squared = 1.0
 
-    # bounds
-    bounds = ocp.bounds.phase[0]
-    bounds.path.lower[0] = bounds.path.upper[0] = 1
-    bounds.initial_time.lower = bounds.initial_time.upper = 0.0
-    bounds.final_time.lower = bounds.final_time.upper = 1.0
-    ocp.bounds.discrete.lower = ocp.bounds.discrete.upper = [0, 0]
+    # The centroid at the origin, which fixes the circle's position rather than its shape.
+    ph.integral.bounds.x_moment = 0.0
+    ph.integral.bounds.y_moment = 0.0
 
-    # centroid of the curve at the origin
-    bounds.integral.lower[1:] = 0
-    bounds.integral.upper[1:] = 0
+    problem.discrete.bounds.closure_x = 0.0
+    problem.discrete.bounds.closure_y = 0.0
 
-    # guess
-    guess = ocp.guess.phase[0]
-    # A square of perimeter 1, matching the path constraint. (The diamond used
-    # previously had perimeter 4*sqrt(2), so the guess violated the constraint it was
-    # meant to start from.)
-    guess.time = [0.0, 0.25, 0.5, 0.75, 1.0]
-    guess.state = np.array([[1.0, 1.0, -1.0, -1.0, 1.0], [1.0, -1.0, -1.0, 1.0, 1.0]]) / 8
+    # A square of the right perimeter, so the guess satisfies the constraint it starts from.
+    side = PERIMETER / 4
+    corners = np.array([0.0, 0.25, 0.5, 0.75, 1.0]) * PERIMETER
+    ph.s.guess = (0.0, PERIMETER)
+    ph.state.guess.x = yapss.interp(corners, side * np.array([0.5, 0.5, -0.5, -0.5, 0.5]))
+    ph.state.guess.y = yapss.interp(corners, side * np.array([0.5, -0.5, -0.5, 0.5, 0.5]))
 
-    # mesh
-    m, n = 3, 12
-    ocp.mesh.phase[0].collocation_points = m * (n,)
-    ocp.mesh.phase[0].fraction = m * (1.0 / m,)
+    ph.mesh = yapss.Mesh.uniform(segments=3, points=12)
 
-    # yapss and ipopt options
-    ocp.derivatives.method = "auto"
-    ocp.derivatives.order = "second"
-    # A tighter tolerance than one would normally use, to show how accurate the
-    # pseudospectral method is here with a modest number of collocation points. The
-    # relative error against the closed-form answer, printed by `main()`, is the real
-    # check -- it holds whichever way Ipopt happens to terminate.
-    ocp.ipopt_options.tol = 1e-14
-    ocp.ipopt_options.print_level = 3
-
-    return ocp
+    # A tighter tolerance than one would normally use, to show how accurate the pseudospectral
+    # method is here with a modest number of collocation points. The relative error against the
+    # closed-form answer, which `main` prints, is the real check.
+    problem.ipopt_options.tol = 1e-14
+    problem.ipopt_options.print_level = 3
+    return problem
 
 
-def plot_solution(solution: Solution) -> None:
-    """Plot the solution to the isoperimetric problem.
+def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+    """Plot the curve found and the Hamiltonian along it.
 
-    The collocation points are shown as dots, and the curve is interpolated between
-    points with a cubic spline.
+    The collocation points are shown as dots, with a cubic spline through them.
 
     Parameters
     ----------
-    solution: Solution
-        The solution to the isoperimetric problem.
+    problem : yapss._next.Problem
+        The problem that was solved, which carries the phase handles.
+    solution : yapss._next.Solution
+        The solution to plot.
     """
-    plt.figure(1)
-    plt.clf()
-    x, y = solution.phase[0].state
-    # arc length s is the independent variable for this problem, not time
-    s = solution.phase[0].time
-    sp = np.linspace(0, 1, 500)
-    xp = interp1d(s, x, kind="cubic")(sp)
-    yp = interp1d(s, y, kind="cubic")(sp)
-    plt.plot(xp, yp)
-    plt.plot(x, y, ".", markersize=10)
+    ps = solution[problem.phases.curve]
+    s = ps.s
+    fine = np.linspace(s[0], s[-1], 500)
+    x = interp1d(s, ps.state.x, kind="cubic")(fine)
+    y = interp1d(s, ps.state.y, kind="cubic")(fine)
+
+    plt.figure()
+    plt.plot(x, y)
+    plt.plot(ps.state.x, ps.state.y, ".", markersize=10)
     plt.xlabel("$x$")
     plt.ylabel("$y$")
     plt.axis("square")
     plt.tight_layout()
 
-    # plot the Hamiltonian
-    plt.figure(2)
-    plt.clf()
-    hamiltonian = solution.phase[0].hamiltonian
-    plt.plot(s, hamiltonian)
-    plt.ylim((0.158, 0.160))
+    plt.figure()
+    plt.plot(s, ps.hamiltonian)
     plt.xlabel("Arc length, $s$")
     plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
     plt.grid()
@@ -132,18 +180,13 @@ def plot_solution(solution: Solution) -> None:
 
 
 def main() -> None:
-    """Demonstrate the solution to the isoperimetric problem."""
+    """Solve the isoperimetric problem and plot the curve it finds."""
     problem = setup()
     solution = problem.solve()
-
-    # print the solution
     area = solution.objective
-    area_ideal = 1 / (4 * math.pi)
-    print(f"\n\nMaximum area = {area} (Should be 1 / (4 pi) = {area_ideal})")
-    print(f"Relative error in solution = {abs(area - area_ideal) / area_ideal}")
-
-    # plot the solution
-    plot_solution(solution)
+    print(f"\nmaximum area = {area} (should be 1 / (4 pi) = {AREA})")
+    print(f"relative error = {abs(area - AREA) / AREA:.3e}")
+    plot_solution(problem, solution)
     plt.show()
 
 

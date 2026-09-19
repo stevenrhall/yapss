@@ -1,224 +1,196 @@
 """
 
-YAPSS solution of the orbit raising problem, with 4 states.
+The orbit raising problem: reach the largest orbit a low-thrust vehicle can in a fixed time.
+
+The vehicle's mass falls as it burns, so its thrust acceleration depends explicitly on the
+time -- which makes this the one ported example whose continuous callback reads the phase's
+independent variable.
 
 """
 
 __all__ = ["main", "plot_solution", "setup"]
 
-# standard library imports
 from math import pi
 
-# third party imports
 import matplotlib.pyplot as plt
 import numpy as np
 
-# package imports
-from yapss._legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
+import yapss
 from yapss.math import sqrt
 
-# initial (nondimensional) mass, radius, and gravitational parameter
-m_0 = 1.0
-r_0 = 1.0
-mu = 1.0
-
-# thrust and mass flow rate
-thrust = 0.1405
-m_dot = 0.0749
-
-# initial and final times
-t_0, t_f = 0, 3.32
-
-# initial and final radial velocity
+m_0, r_0, mu = 1.0, 1.0, 1.0
+thrust, m_dot = 0.1405, 0.0749
+t_0, t_f = 0.0, 3.32
 v_r_0, v_r_f = 0.0, 0.0
-
-# initial a polar angle and tangential velocity
 theta_0, v_theta_0 = 0.0, 1.0
 
-# loose bounds on states and controls
-r_min, r_max = 1, 10
-theta_min, theta_max = -pi, pi
-v_r_min, v_r_max = -10, 10
-v_theta_min, v_theta_max = -10, 10
-u1_min, u1_max = u2_min, u2_max = -1.1, 1.1
+r_min, r_max = 1.0, 10.0
+v_min, v_max = -10.0, 10.0
+u_min, u_max = -1.1, 1.1
 
 
-def setup() -> Problem:
-    """Set up the four state orbit raising optimal control problem.
+class Orbit(yapss.Vector):
+    """Where the vehicle is and how fast it is going, in polar coordinates."""
+
+    r = yapss.field(latex="r", doc="radius")
+    theta = yapss.field(units="rad", latex=r"\theta", doc="polar angle")
+    v_r = yapss.field(latex="v_r", doc="radial velocity")
+    v_theta = yapss.field(latex=r"v_\theta", doc="tangential velocity")
+
+
+class Steering(yapss.Vector):
+    """The direction the thrust points, as a unit vector in polar coordinates."""
+
+    u_r = yapss.field(latex="u_r", doc="radial component of the thrust direction")
+    u_theta = yapss.field(latex=r"u_\theta", doc="tangential component")
+
+
+class Limits(yapss.Vector):
+    """The steering vector must have unit magnitude."""
+
+    unit_thrust = yapss.field(doc="squared magnitude of the thrust direction")
+
+
+class Target(yapss.Vector):
+    """The orbit that must be reached."""
+
+    circular = yapss.field(doc="the final orbit must be circular")
+
+
+class Phases(yapss.Phases):
+    """One phase: the vehicle thrusts continuously."""
+
+    raise_ = yapss.phase(state=Orbit, control=Steering, path=Limits)
+
+
+def setup() -> yapss.Problem:
+    """Set up the orbit raising problem.
 
     Returns
     -------
-    Problem
-        The four state orbit raising problem.
+    yapss._next.Problem
+        The problem.
     """
-    problem = Problem(
-        name="Orbit Raising Problem (4 states)",
-        nx=[4],
-        nu=[2],
-        nh=[1],
-        nd=1,
-        nq=[0],
-    )
+    problem = yapss.Problem("Orbit raising", phases=Phases, discrete=Target)
+    ph = problem.phases.raise_
 
-    def objective(arg: ObjectiveArg) -> None:
-        """Evaluate objective function."""
-        arg.objective = arg.phase[0].final_state[0]
+    @ph.register.continuous
+    def raising(arg, out):
+        """Compute the vehicle's dynamics and the magnitude of its steering vector."""
+        r, v_r, v_theta = arg.state.r, arg.state.v_r, arg.state.v_theta
+        u_r, u_theta = arg.control.u_r, arg.control.u_theta
+        # the mass falls as the vehicle burns, so the acceleration depends on the time itself
+        a = thrust / (m_0 - m_dot * arg.time)
+        out.dynamics.r = v_r
+        out.dynamics.theta = v_theta / r
+        out.dynamics.v_r = v_theta**2 / r - mu / r**2 + a * u_r
+        out.dynamics.v_theta = -(v_r * v_theta) / r + a * u_theta
+        out.path.unit_thrust = u_r**2 + u_theta**2
+        return out
 
-    def continuous(arg: ContinuousArg) -> None:
-        """Evaluate continuous dynamics and path constraint."""
-        r, _, v_r, v_theta = arg.phase[0].state
-        u1, u2 = arg.phase[0].control
-        t = arg.phase[0].time
-        m = m_0 - m_dot * t
-        a = thrust / m
+    @problem.register.objective
+    def largest_orbit(arg):
+        """Return the final radius, which is to be made as large as possible."""
+        return arg[ph].final.r
 
-        arg.phase[0].dynamics = (
-            v_r,
-            v_theta / r,
-            (v_theta**2) / r - mu / (r**2) + a * u1,
-            -(v_r * v_theta) / r + a * u2,
-        )
-        arg.phase[0].path = (u1**2 + u2**2,)
+    @problem.register.discrete
+    def circular(arg, out):
+        """Require the final orbit to be circular."""
+        final = arg[ph].final
+        out.discrete.circular = final.v_theta - sqrt(mu / final.r)
+        return out
 
-    def discrete(arg: DiscreteArg) -> None:
-        """Evaluate discrete constraint functions."""
-        r = arg.phase[0].final_state[0]
-        v_theta = arg.phase[0].final_state[3]
-        arg.discrete[0] = v_theta - sqrt(mu / r)
+    problem.objective.sense = "maximize"
 
-    # bounds
-    bounds = problem.bounds.phase[0]
+    ph.time.initial = t_0
+    ph.time.final = t_f
+    ph.state.initial.r = r_0
+    ph.state.initial.theta = theta_0
+    ph.state.initial.v_r = v_r_0
+    ph.state.initial.v_theta = v_theta_0
+    ph.state.final.v_r = v_r_f
+    ph.state.bounds.r = (r_min, r_max)
+    ph.state.bounds.theta = (-pi, pi)
+    ph.state.bounds.v_r = (v_min, v_max)
+    ph.state.bounds.v_theta = (v_min, v_max)
+    ph.control.bounds.u_r = (u_min, u_max)
+    ph.control.bounds.u_theta = (u_min, u_max)
+    ph.path.bounds.unit_thrust = (-np.inf, 1.0)
+    problem.discrete.bounds.circular = 0.0
 
-    bounds.initial_time.lower = bounds.initial_time.upper = t_0
-    bounds.final_time.lower = bounds.final_time.upper = t_f
+    ph.time.guess = (t_0, t_f)
+    ph.state.guess.r = (r_0, 1.5 * r_0)
+    ph.state.guess.theta = (theta_0, pi)
+    ph.state.guess.v_r = (v_r_0, v_r_f)
+    ph.state.guess.v_theta = (v_theta_0, 0.5 * v_theta_0)
+    ph.control.guess.u_r = (0.0, 1.0)
+    ph.control.guess.u_theta = (1.0, 0.0)
 
-    bounds.initial_state.lower[:] = r_0, theta_0, v_r_0, v_theta_0
-    bounds.initial_state.upper[:] = r_0, theta_0, v_r_0, v_theta_0
-    bounds.final_state.lower[:] = r_min, theta_min, v_r_f, v_theta_min
-    bounds.final_state.upper[2] = v_r_f
-    bounds.state.lower[:] = r_min, theta_min, v_r_min, v_theta_min
-    bounds.state.upper[:] = r_max, theta_max, v_r_max, v_theta_max
-
-    bounds.control.lower[:] = u1_min, u2_min
-    bounds.control.upper[:] = u1_max, u2_max
-
-    bounds.path.upper[:] = 1
-
-    problem.bounds.discrete.lower[:] = problem.bounds.discrete.upper[:] = [0]
-
-    # guess
-    problem.guess.phase[0].time = [t_0, t_f]
-    problem.guess.phase[0].state = [
-        [r_0, 1.5 * r_0],
-        [theta_0, pi],
-        [v_r_0, v_r_f],
-        [v_theta_0, 0.5 * v_theta_0],
-    ]
-    problem.guess.phase[0].control = [[0.0, 1.0], [1.0, 0.0]]
-
-    # functions
-    problem.functions.objective = objective
-    problem.sense = "maximize"
-    problem.functions.continuous = continuous
-    problem.functions.discrete = discrete
-
-    # solver options
-    problem.derivatives.order = "second"
-    problem.spectral_method = "lgl"
-
-    # ipopt options
+    problem.method = "lgl"
     problem.ipopt_options.print_level = 3
-
     return problem
 
 
-def plot_solution(solution: Solution) -> None:
-    """Plot the solution to the four state orbit raising optimal control problem.
+def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+    """Plot the states, the controls, the steering angle, the orbit, and the Hamiltonian.
 
     Parameters
     ----------
-    solution : Solution
-        The solution to the four state orbit raising optimal control problem.
+    problem : yapss._next.Problem
+        The problem that was solved, which carries the phase handles.
+    solution : yapss._next.Solution
+        The solution to plot.
     """
-    # extract information from solution
-    t = solution.phase[0].time
-    tc = solution.phase[0].time_c
-    r, theta, v_r, v_theta = solution.phase[0].state
+    ps = solution[problem.phases.raise_]
+    time = ps.time
 
-    x, y = r * np.cos(theta), r * np.sin(theta)
-    u1, u2 = control = solution.phase[0].control
-
-    # figure 1: Plot states
-    plt.figure(1)
-    plt.plot(t, r, label=r"radius, $r$")
-    plt.plot(t, theta, label=r"polar angle, $\theta$")
-    plt.plot(t, v_r, label=r"radial velocity, $v_r$")
-    plt.plot(t, v_theta, label=r"tangential velocity, $v_\theta$")
-    plt.ylim((0, 2.5))
+    plt.figure()
+    for name, label in (("r", "$r(t)$"), ("v_r", "$v_r(t)$"), ("v_theta", r"$v_\theta(t)$")):
+        plt.plot(time, getattr(ps.state, name), label=label)
+    plt.xlabel("Time")
     plt.ylabel("States")
+    plt.xlim(time[0], time[-1])
     plt.legend()
+    plt.grid()
+    plt.tight_layout()
 
-    # figure 2: Plot control
-    plt.figure(2)
-    plt.plot(tc, control[0], label=r"radial thrust, $u_1$")
-    plt.plot(tc, control[1], label=r"tangential thrust, $u_2$")
+    plt.figure()
+    plt.plot(time, ps.control.u_r, label="$u_r(t)$")
+    plt.plot(time, ps.control.u_theta, label=r"$u_\theta(t)$")
+    plt.xlabel("Time")
     plt.ylabel("Controls")
+    plt.xlim(time[0], time[-1])
     plt.legend()
-    plt.ylim((-1, 1))
+    plt.grid()
+    plt.tight_layout()
 
-    # figure 3: Thrust direction
-    plt.figure(3)
-    plt.plot(tc, 180 / pi * np.unwrap(np.arctan2(control[0], control[1])))
-    plt.ylabel(r"Thrust direction, $\arctan\left(v_r/v_\theta\right)$ [deg]")
+    plt.figure()
+    plt.plot(time, np.arctan2(ps.control.u_r, ps.control.u_theta) * 180 / pi)
+    plt.xlabel("Time")
+    plt.ylabel("Steering angle (deg)")
+    plt.xlim(time[0], time[-1])
+    plt.grid()
+    plt.tight_layout()
 
-    # figure 4: orbit
-    plt.figure(4)
-    # lgr doesn't find endpoint control, so need to fix up length of theta
-    m = len(u1)
-    v1 = np.cos(theta[:m]) * u1 - np.sin(theta[:m]) * u2
-    v2 = np.sin(theta[:m]) * u1 + np.cos(theta[:m]) * u2
-    plt.plot(x, y)
-    alpha = np.linspace(0, 2 * np.pi, num=200)
-    plt.plot(r[0] * np.cos(alpha), r[0] * np.sin(alpha), "k--")
-    plt.plot(r[-1] * np.cos(alpha), r[-1] * np.sin(alpha), "k--")
-    plt.plot(0.05 * np.cos(alpha), 0.05 * np.sin(alpha), "k")
+    plt.figure()
+    plt.polar(ps.state.theta, ps.state.r)
+    plt.title("Orbit raising trajectory")
+    plt.tight_layout()
 
-    for i in range(11):
-        j = round(i * (len(r) - 2) / 10)
-        plt.plot(x[j], y[j], ".k")
-        plt.arrow(
-            x[j],
-            y[j],
-            0.25 * v1[j],
-            0.25 * v2[j],
-            length_includes_head=True,
-            head_width=0.04,
-            head_length=0.05,
-        )
-
-    plt.axis("square")
-    plt.axis("off")
-
-    # figure 5: Hamiltonian
-    plt.figure(5)
-    hamiltonian = solution.phase[0].hamiltonian
-    plt.plot(tc, hamiltonian)
+    plt.figure()
+    plt.plot(time, ps.hamiltonian)
+    plt.xlabel("Time")
     plt.ylabel(r"Hamiltonian, $\mathcal{H}$")
-    plt.ylim((0.31, 0.36))
-
-    for i in range(5, 0, -1):
-        plt.figure(i)
-        if i != 4:  # noqa: PLR2004
-            plt.xlabel("Time, $t$")
-            plt.grid()
-        plt.tight_layout()
+    plt.xlim(time[0], time[-1])
+    plt.grid()
+    plt.tight_layout()
 
 
 def main() -> None:
-    """Demonstrate the solution to the four state orbit raising optimal control problem."""
-    ocp = setup()
-    solution = ocp.solve()
-    plot_solution(solution)
+    """Solve the orbit raising problem and plot the solution."""
+    problem = setup()
+    solution = problem.solve()
+    plot_solution(problem, solution)
     plt.show()
 
 
