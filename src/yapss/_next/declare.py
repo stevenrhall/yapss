@@ -217,9 +217,10 @@ class Phases:
             declared[name] = value
         for name in declared:
             delattr(cls, name)
-        if not declared:
-            msg = f"{cls.__name__} declares no phases"
-            raise TypeError(msg)
+        # A class that declares no phases is allowed: zero is a count, and nothing about the
+        # transcription changes shape there. What it states is a problem in the parameters and
+        # the discrete constraints alone -- an ordinary nonlinear program, which is how a
+        # problem like hs071 is written. See spec 1.1 and 3.
         cls._declared = declared
 
     def __init__(self) -> None:

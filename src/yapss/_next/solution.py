@@ -149,6 +149,7 @@ class Solution:
     """
 
     __slots__ = (
+        "_legacy",
         "_phases",
         "_spec",
         "converged",
@@ -167,6 +168,9 @@ class Solution:
         values: dict[str, Any] = {
             "_spec": spec,
             "_phases": phases,
+            # kept so that `Problem.solve` can warn about a status this object reports but
+            # does not carry the Ipopt bookkeeping for; nothing public reads it
+            "_legacy": legacy,
             "objective": legacy.objective,
             "converged": legacy.converged,
             "status": legacy.status,

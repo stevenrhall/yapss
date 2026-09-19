@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from yapss._private.ipopt_options import IpoptOptions
+from yapss._private.solution import warn_if_not_converged
 
 from .compile import solve_problem
 from .containers import Container, HasRegistry, Registry, is_callable, is_string, is_subclass
@@ -436,9 +437,23 @@ class Problem(HasRegistry):
         -------
         Solution
             The solution, holding every quantity under the names the problem declared.
+
+        Warns
+        -----
+        IpoptConvergenceWarning
+            If Ipopt reported a status other than 0 (optimal), 1 (acceptable level) or
+            6 (feasible point for a square problem). A `Solution` is returned for every
+            status; an unconverged solve is valid input that deserves attention rather than
+            a contract violation, which is the rule of CLAUDE.md's conventions.
         """
         self.validate()
-        return solve_problem(snapshot(self))
+        solution = solve_problem(snapshot(self))
+        # The warning belongs at the public boundary, not inside the solve, so that its
+        # stacklevel points at the caller's own `solve()`; a mesh-refinement loop written
+        # against this API calls it once per pass and should hear about each one.
+        # stacklevel=3: warn -> warn_if_not_converged -> this method -> user code.
+        warn_if_not_converged(solution._legacy, stacklevel=3)
+        return solution
 
     def __repr__(self) -> str:
         """Return a short representation naming the problem and its phases."""
