@@ -12,13 +12,13 @@ from ._next.solution import PhaseSolution, Solution
 from ._next.vector import Empty, Vector, field
 from ._private.exceptions import (
     REMOVED_NAMES,
+    LargeSegmentWarning,
     YapssDeprecationWarning,
     YapssError,
     YapssWarning,
 )
 from ._private.ipopt_options import IpoptOptionSettingWarning
 from ._private.ipopt_status import IpoptStatus
-from ._private.problem import LargeSegmentWarning
 from ._private.solution import IpoptConvergenceWarning
 
 # re-exported so that every warning and error category YAPSS can raise is discoverable

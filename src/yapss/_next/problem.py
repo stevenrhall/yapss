@@ -452,7 +452,7 @@ class Problem(HasRegistry):
         # stacklevel points at the caller's own `solve()`; a mesh-refinement loop written
         # against this API calls it once per pass and should hear about each one.
         # stacklevel=3: warn -> warn_if_not_converged -> this method -> user code.
-        warn_if_not_converged(solution._legacy, stacklevel=3)
+        warn_if_not_converged(solution._record, stacklevel=3)
         return solution
 
     def __repr__(self) -> str:

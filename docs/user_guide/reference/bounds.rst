@@ -260,7 +260,7 @@ Conflicting control bounds are reported when the bounds are validated:
 ``Bounds`` Class Reference
 --------------------------
 
-.. autoclass:: yapss._private.bounds.Bounds
+.. autoclass:: yapss._legacy.bounds.Bounds
    :members:
    :no-special-members:
    :no-undoc-members:

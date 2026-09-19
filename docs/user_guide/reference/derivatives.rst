@@ -2,7 +2,7 @@ Derivatives
 ===========
 
 Users have a choice of how YAPSS calculates derivatives required for the solution of the
-optimal control problem. The ``derivatives`` attribute of a :class:`~yapss._private.problem.Problem` object controls
+optimal control problem. The ``derivatives`` attribute of a :class:`~yapss._legacy.problem.Problem` object controls
 how derivatives are calculated.
 
 The ``derivatives.method`` Attribute
@@ -88,7 +88,7 @@ out to be (a little bit) faster than using first-order derivatives.
 
 Below is a complete reference of the ``Derivatives`` class attributes.
 
-.. autoclass:: yapss._private.problem.Derivatives
+.. autoclass:: yapss._legacy.problem.Derivatives
     :members:
     :no-special-members:
     :no-undoc-members:

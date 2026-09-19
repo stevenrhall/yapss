@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from yapss._private.problem import UserFunctions
+from yapss._private.callbacks import UserFunctions
 from yapss._private.solver import solve
 from yapss._private.spec import PhaseSpec, ProblemSpec, frozen_array
 

@@ -1,6 +1,6 @@
 """
 
-Test the yapss._private.problem module.
+Test the yapss._legacy.problem module.
 
 """
 
@@ -14,7 +14,7 @@ import pytest
 # package imports
 from yapss._legacy import Problem
 from yapss._legacy.examples import brachistochrone_minimal, dynamic_soaring, rosenbrock
-from yapss._private.problem import ScalePhase
+from yapss._legacy.problem import ScalePhase
 
 
 def test_derivatives_options():

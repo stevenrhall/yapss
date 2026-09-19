@@ -204,7 +204,7 @@ closer to a feasible solution.
 Class Reference
 ---------------
 
-.. autoclass:: yapss._private.guess.Guess
+.. autoclass:: yapss._legacy.guess.Guess
    :members:
    :no-special-members:
    :no-undoc-members:

@@ -71,3 +71,19 @@ class YapssError(Exception):
     Every subclass also inherits the built-in exception that describes the failure, so code
     that catches the built-in keeps working.
     """
+
+
+class LargeSegmentWarning(YapssWarning):
+    """A mesh segment has more collocation points than it probably should.
+
+    The collocation points of a segment are the roots of a polynomial of that degree, so a
+    segment with many points is a high-order fit over the whole segment. Published
+    hp-adaptive methods raise the degree only to about 10 per interval before splitting the
+    interval instead, and YAPSS computes the quadrature rule for a segment in high-precision
+    arithmetic, at a cost that grows quadratically with the count. More, shorter segments
+    are usually both more accurate and faster to set up.
+
+    This is advice, not a limit: nothing fails above the threshold, and a deliberate
+    single-segment (global) method is a legitimate thing to want. Silence it with
+    ``warnings.simplefilter("ignore", yapss.LargeSegmentWarning)``.
+    """

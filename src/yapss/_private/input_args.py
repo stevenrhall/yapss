@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
     # package imports
 
-    from .problem import Auxdata
+    from .callbacks import Auxdata
     from .structure import DVPhase, DVStructure
     from .types_ import (
         CHFDS,

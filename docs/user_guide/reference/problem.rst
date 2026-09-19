@@ -108,7 +108,7 @@ For the three phase problem, there are three states (altitude, velocity, and mas
 discrete constraints that ensure the continuity of the state variables across phases, and that
 the final time of each phase is equal to the initial time of the next phase.
 
-The problem is instantiated as an instance of the :class:`~yapss._private.problem.Problem` class. To
+The problem is instantiated as an instance of the :class:`~yapss._legacy.problem.Problem` class. To
 initialize, the user specifies the name of the problem; the relevant dimensions of the
 state, control, and path constraint for each phase; and the dimensions of the static
 parameters and discrete constraints. In this case, the problem is instantiated as follows:
@@ -162,7 +162,7 @@ problem using YAPSS:
 ``Problem`` Class Reference
 ---------------------------
 
-.. autoclass:: yapss._private.problem.Problem
+.. autoclass:: yapss._legacy.problem.Problem
    :members:
    :no-special-members:
    :no-undoc-members:

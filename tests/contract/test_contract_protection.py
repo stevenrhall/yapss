@@ -39,8 +39,15 @@ def _subclasses(cls: type) -> set[type]:
     return out
 
 
+FRONT_AND_BACK = ("yapss._private", "yapss._legacy")
+"""Where `Protected` containers live: the shared back end, and the 0.3.0 front end.
+
+The redesigned front end is not here. Its containers are built on `_next.containers.Container`
+rather than on `Protected`, and `tests/next` covers them.
+"""
+
 PROTECTED = sorted(
-    (c for c in _subclasses(Protected) if c.__module__.startswith("yapss._private")),
+    (c for c in _subclasses(Protected) if c.__module__.startswith(FRONT_AND_BACK)),
     key=lambda c: c.__name__,
 )
 
@@ -89,7 +96,7 @@ def instances() -> dict[type, tuple[str, Any]]:
             return
         # Containers only: not values (arrays and symbolic wrappers make a new object on
         # each attribute read, `.T` for one) and not `auxdata`, the user's own namespace.
-        private = type(obj).__module__.startswith("yapss._private")
+        private = type(obj).__module__.startswith(FRONT_AND_BACK)
         if not private or isinstance(obj, np.ndarray) or type(obj).__name__ == "Auxdata":
             return
         if isinstance(obj, Protected):

@@ -149,8 +149,8 @@ class Solution:
     """
 
     __slots__ = (
-        "_legacy",
         "_phases",
+        "_record",
         "_spec",
         "converged",
         "discrete",
@@ -160,9 +160,9 @@ class Solution:
         "status",
     )
 
-    def __init__(self, spec: ProblemSpec, legacy: Any) -> None:
+    def __init__(self, spec: ProblemSpec, record: Any) -> None:
         phases = {
-            phase.handle: phase_solution_class(phase.independent)(phase, legacy.phase[phase.index])
+            phase.handle: phase_solution_class(phase.independent)(phase, record.phase[phase.index])
             for phase in spec.phases
         }
         values: dict[str, Any] = {
@@ -170,14 +170,14 @@ class Solution:
             "_phases": phases,
             # kept so that `Problem.solve` can warn about a status this object reports but
             # does not carry the Ipopt bookkeeping for; nothing public reads it
-            "_legacy": legacy,
-            "objective": legacy.objective,
-            "converged": legacy.converged,
-            "status": legacy.status,
-            "parameter": _vector(spec.parameter, legacy.parameter, "parameter"),
-            "discrete": _vector(spec.discrete, legacy.discrete, "discrete"),
+            "_record": record,
+            "objective": record.objective,
+            "converged": record.converged,
+            "status": record.status,
+            "parameter": _vector(spec.parameter, record.parameter, "parameter"),
+            "discrete": _vector(spec.discrete, record.discrete, "discrete"),
             "discrete_multiplier": _vector(
-                spec.discrete, legacy.discrete_multiplier, "discrete multiplier"
+                spec.discrete, record.discrete_multiplier, "discrete multiplier"
             ),
         }
         for name, value in values.items():
