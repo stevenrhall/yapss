@@ -126,3 +126,50 @@ div.versionadded span.versionmodified {
     font-style: normal;
     font-weight: bold;
 }
+
+/* Equation numbers. Sphinx emits the number *before* the equation --
+   `<span class="eqno">(1)<a class="headerlink">` and then the `\[ ... \]` -- and leaves
+   placing it to the theme. sphinx_rtd_theme has no rule for `.eqno` at all, so the number
+   lands on its own line above the equation.
+
+   Scoped to `div.math[id]`, which is exactly the numbered equations: Sphinx gives an `id`
+   to an equation with a `:label:` and to no other, so the 118 unnumbered math blocks keep
+   the theme's plain block layout. That scope is the point -- an unscoped rule here restyles
+   every displayed equation in the project, including the ones in the notebooks.
+
+   Grid rather than float, because a float can only reach the top right and these equations
+   run to three lines. Both items are pinned to row 1: the number comes first in the source,
+   so auto-placement would otherwise give it row 1 and push the equation to row 2. The
+   `min-width: 0` is what lets a wide equation shrink and scroll inside its column instead
+   of pushing the number off the right edge. */
+.rst-content div.math[id] {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    /* 0.8em against the container's 16px is 12.8px, which is what MathJax gives display
+       math and therefore what an unnumbered equation leaves below itself. The top needs
+       nothing: the theme's paragraphs carry a 24px bottom margin and no top margin, so
+       the space above comes from the paragraph and the space below has to come from here. */
+    margin-bottom: 0.8em;
+}
+
+.rst-content div.math[id] > span.eqno {
+    grid-column: 2;
+    grid-row: 1;
+    padding-left: 1em;
+}
+
+.rst-content div.math[id] > mjx-container,
+.rst-content div.math[id] > .MathJax {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    /* MathJax's own 1em margins come off the equation and go onto the container above.
+       Two reasons. A grid container traps a child's margins instead of letting them
+       collapse out, so they would add to the theme's paragraph spacing rather than being
+       absorbed by it; and `align-items: center` centres an item's *margin box*, so an
+       asymmetric margin would push the number off the equation's optical centre. With
+       the item's margins gone, both are exact. */
+    margin-top: 0;
+    margin-bottom: 0;
+}

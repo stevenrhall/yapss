@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 
 from yapss.examples.delta_iii_ascent import (
-    Constraints,
+    Discrete,
     Omega_f,
-    Vehicle,
+    State,
     a_f,
     e_f,
     i_f,
@@ -73,8 +73,8 @@ def test_block_fields_are_read_as_arrays(solution):
     assert phase.state.r.shape == (3, len(phase.time))
     assert phase.control.u.shape == (3, len(phase.time))
     assert len(phase.state) == 7
-    assert Vehicle._nrows == 7
-    assert Constraints._nrows == 23
+    assert State._nrows == 7
+    assert Discrete._nrows == 23
 
 
 def test_the_launch_state_is_fixed_component_by_component():

@@ -8,7 +8,7 @@ them, and it is the counterweight to Delta III, whose model is cheap Python arit
 
 import pytest
 
-from yapss.examples.minimum_time_to_climb import Aircraft, setup
+from yapss.examples.minimum_time_to_climb import State, setup
 
 TIME_TO_CLIMB = 320.458760680413
 """What the same problem gives through the released API, to the last bit."""
@@ -49,4 +49,4 @@ def test_the_solution_is_reached_by_name(solution):
     ps = result[problem.phases.climb]
     assert ps.state.h.shape == ps.time.shape
     assert ps.control.alpha.shape == ps.time.shape
-    assert Aircraft._fields == ("h", "v", "gamma", "mass")
+    assert State._fields == ("h", "v", "gamma", "mass")

@@ -48,48 +48,61 @@ load_factor_max = 5.0
 """The structural limit, which the path constraint enforces."""
 
 
-class Flight(yapss.Vector):
+class State(yapss.Vector):
     """Where the vehicle is and how it is moving."""
 
-    x = yapss.field(units="ft", latex="x", doc="east position")
-    y = yapss.field(units="ft", latex="y", doc="north position")
-    h = yapss.field(units="ft", latex="h", doc="altitude")
-    v = yapss.field(units="ft/s", latex="v", doc="airspeed")
-    gamma = yapss.field(units="rad", latex=r"\gamma", doc="flight path angle")
-    psi = yapss.field(units="rad", latex=r"\psi", doc="heading angle")
+    x = yapss.field()
+    """East position."""
+    y = yapss.field()
+    """North position."""
+    h = yapss.field()
+    """Altitude."""
+    v = yapss.field()
+    """Airspeed."""
+    gamma = yapss.field()
+    """Flight path angle."""
+    psi = yapss.field()
+    """Heading angle."""
 
 
-class Attitude(yapss.Vector):
+class Control(yapss.Vector):
     """How the vehicle is being flown."""
 
-    cl = yapss.field(latex="C_L", doc="lift coefficient")
-    phi = yapss.field(units="rad", latex=r"\phi", doc="bank angle")
+    cl = yapss.field()
+    """Lift coefficient."""
+    phi = yapss.field()
+    """Bank angle."""
 
 
-class Structure(yapss.Vector):
+class Path(yapss.Vector):
     """What the airframe will take."""
 
-    load_factor = yapss.field(latex="n", doc="load factor, in gravities")
+    load_factor = yapss.field()
+    """Load factor, in gravities."""
 
 
-class Shear(yapss.Vector):
+class Parameter(yapss.Vector):
     """The wind profile, which is what the problem is solving for."""
 
-    beta = yapss.field(units="1/s", latex=r"\beta", doc="wind gradient with altitude")
+    beta = yapss.field()
+    """Wind gradient with altitude."""
 
 
-class Circuit(yapss.Vector):
+class Discrete(yapss.Vector):
     """What it means for the flight to be a repeatable circuit."""
 
-    v_periodic = yapss.field(units="ft/s", doc="change in airspeed over the circuit")
-    gamma_periodic = yapss.field(units="rad", doc="change in flight path angle")
-    psi_periodic = yapss.field(units="rad", doc="change in heading, one full turn")
+    v_periodic = yapss.field()
+    """Change in airspeed over the circuit."""
+    gamma_periodic = yapss.field()
+    """Change in flight path angle."""
+    psi_periodic = yapss.field()
+    """Change in heading, one full turn."""
 
 
 class Phases(yapss.Phases):
     """One phase: one circuit of the loop."""
 
-    loop = yapss.phase(state=Flight, control=Attitude, path=Structure)
+    loop = yapss.phase(state=State, control=Control, path=Path)
 
 
 def setup() -> yapss.Problem:
@@ -100,11 +113,13 @@ def setup() -> yapss.Problem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("Dynamic soaring", phases=Phases, parameter=Shear, discrete=Circuit)
+    problem = yapss.Problem(
+        "Dynamic soaring", phases=Phases, parameter=Parameter, discrete=Discrete
+    )
     ph = problem.phases.loop
 
     @ph.register.continuous
-    def soar(arg, out):
+    def continuous(arg, out):
         """Compute the flight dynamics in a wind that grows with altitude."""
         h, v = arg.state.h, arg.state.v
         gamma, psi = arg.state.gamma, arg.state.psi
@@ -135,12 +150,12 @@ def setup() -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def smallest_shear(arg):
+    def objective(arg):
         """Return the wind gradient, which is what is to be made as small as possible."""
         return arg.parameter.beta
 
     @problem.register.discrete
-    def periodic(arg, out):
+    def discrete(arg, out):
         """Require the flight to come back to the state it started in, one turn later."""
         end = arg[ph]
         out.discrete.v_periodic = end.final.v - end.initial.v
@@ -194,7 +209,7 @@ def setup() -> yapss.Problem:
     # Scaling, which this problem needs: the states run over four orders of magnitude.
     problem.objective.scale = 0.1
     problem.parameter.scale.beta = 0.1
-    for name in Circuit._fields:
+    for name in Discrete._fields:
         setattr(problem.discrete.scale, name, 200.0)
     for name, value in (("x", 1000.0), ("y", 1000.0), ("h", 1000.0), ("v", 200.0)):
         setattr(ph.state.scale, name, value)

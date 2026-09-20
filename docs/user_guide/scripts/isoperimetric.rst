@@ -10,6 +10,29 @@ The Python script in this example can be executed from the command line with:
 
    $ python -m yapss.examples.isoperimetric
 
+Vectors
+-------
+
+The classes that name the rows of each vector. A field is listed here when it carries a
+docstring of its own, written on the line below it; the ``doc=`` argument of ``field()`` is
+metadata for YAPSS and is not read by Sphinx. The empty parentheses in each directive
+suppress the inherited ``__init__`` signature, which exists only to refuse construction.
+
+.. autoclass:: yapss.examples.isoperimetric.State()
+   :members:
+
+.. autoclass:: yapss.examples.isoperimetric.Control()
+   :members:
+
+.. autoclass:: yapss.examples.isoperimetric.Path()
+   :members:
+
+.. autoclass:: yapss.examples.isoperimetric.Integral()
+   :members:
+
+.. autoclass:: yapss.examples.isoperimetric.Discrete()
+   :members:
+
 Functions
 ---------
 

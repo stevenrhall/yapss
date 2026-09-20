@@ -20,15 +20,17 @@ G0 = 32.174
 """Acceleration of gravity, ft/s^2."""
 
 
-class Slide(yapss.Vector):
+class State(yapss.Vector):
     """Where the bead is and how fast it is going."""
 
     x = yapss.field()
+
     y = yapss.field()
+
     v = yapss.field()
 
 
-class Angle(yapss.Vector):
+class Control(yapss.Vector):
     """The slope of the path."""
 
     u = yapss.field()
@@ -37,7 +39,7 @@ class Angle(yapss.Vector):
 class Phases(yapss.Phases):
     """One phase: the bead slides."""
 
-    slide = yapss.phase(state=Slide, control=Angle)
+    slide = yapss.phase(state=State, control=Control)
 
 
 def setup() -> yapss.Problem:
@@ -52,7 +54,7 @@ def setup() -> yapss.Problem:
     ph = problem.phases.slide
 
     @ph.register.continuous
-    def slide(arg, out):
+    def continuous(arg, out):
         """Compute the bead's dynamics."""
         v, u = arg.state.v, arg.control.u
         out.dynamics.x = v * cos(u)
@@ -61,7 +63,7 @@ def setup() -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def minimum_time(arg):
+    def objective(arg):
         """Return the time taken, which is the objective."""
         return arg[ph].final.time
 

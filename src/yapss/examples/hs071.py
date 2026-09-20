@@ -20,17 +20,20 @@ OPTIMUM = 17.01401714
 """The known objective value, used as the installation smoke test."""
 
 
-class Design(yapss.Vector):
+class Parameter(yapss.Vector):
     """The four variables to be chosen."""
 
-    x = yapss.field(size=4, doc="design variables")
+    x = yapss.field(size=4)
+    """Design variables."""
 
 
-class Constraints(yapss.Vector):
+class Discrete(yapss.Vector):
     """The two constraints relating them."""
 
-    product = yapss.field(doc="the product of all four, at least 25")
-    sum_of_squares = yapss.field(doc="the sum of their squares, exactly 40")
+    product = yapss.field()
+    """The product of all four, at least 25."""
+    sum_of_squares = yapss.field()
+    """The sum of their squares, exactly 40."""
 
 
 class Phases(yapss.Phases):
@@ -45,16 +48,16 @@ def setup() -> yapss.Problem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("HS071", phases=Phases, parameter=Design, discrete=Constraints)
+    problem = yapss.Problem("HS071", phases=Phases, parameter=Parameter, discrete=Discrete)
 
     @problem.register.objective
-    def cost(arg):
+    def objective(arg):
         """Return the objective."""
         x = arg.parameter.x
         return x[0] * x[3] * (x[0] + x[1] + x[2]) + x[2]
 
     @problem.register.discrete
-    def constraints(arg, out):
+    def discrete(arg, out):
         """Compute the two constraints."""
         x = arg.parameter.x
         out.discrete.product = x[0] * x[1] * x[2] * x[3]

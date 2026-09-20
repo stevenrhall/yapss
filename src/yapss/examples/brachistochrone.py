@@ -9,33 +9,39 @@ slope angle of the path, and the objective is the time taken.
 
 __all__ = ["main", "plot_solution", "setup"]
 
+# third party imports
 import matplotlib.pyplot as plt
 from numpy import pi
 
+# package imports
 import yapss
 from yapss.math import cos, sin
 
 g0 = 32.174
 
 
-class Slide(yapss.Vector):
-    """Where the bead is and how fast it is going."""
+class State(yapss.Vector):
+    """Define the state vector of the brachistochrone problem."""
 
-    x = yapss.field(units="ft", latex="x", doc="horizontal position")
-    y = yapss.field(units="ft", latex="y", doc="vertical drop")
-    v = yapss.field(units="ft/s", latex="v", doc="speed")
+    x = yapss.field()
+    """Horizontal position."""
+    y = yapss.field()
+    """Vertical drop."""
+    v = yapss.field()
+    """Speed."""
 
 
-class Angle(yapss.Vector):
-    """The slope of the path."""
+class Control(yapss.Vector):
+    """Define the control vector of the brachistochrone problem."""
 
-    u = yapss.field(units="rad", latex=r"\theta", doc="path angle")
+    u = yapss.field()
+    """Path angle."""
 
 
 class Phases(yapss.Phases):
-    """One phase: the bead slides."""
+    """Define the only phase of the problem."""
 
-    slide = yapss.phase(state=Slide, control=Angle)
+    slide = yapss.phase(state=State, control=Control)
 
 
 def setup() -> yapss.Problem:
@@ -44,13 +50,14 @@ def setup() -> yapss.Problem:
     Returns
     -------
     yapss.Problem
-        The problem.
+        The optimal control problem to find the shape of a wire along which a bead
+        slides without friction from the origin to x = 1 in minimum time
     """
     problem = yapss.Problem("Brachistochrone", phases=Phases)
-    ph = problem.phases.slide
+    phase = problem.phases.slide
 
-    @ph.register.continuous
-    def slide(arg, out):
+    @phase.register.continuous
+    def continuous(arg, out):
         """Compute the bead's dynamics."""
         v, u = arg.state.v, arg.control.u
         out.dynamics.x = v * cos(u)
@@ -59,26 +66,30 @@ def setup() -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def minimum_time(arg):
+    def objective(arg):
         """Return the time taken, which is the objective."""
-        return arg[ph].final.time
+        return arg[phase].final.time
 
-    ph.time.initial = (0.0, 0.0)
-    ph.state.initial.x = (0.0, 0.0)
-    ph.state.initial.y = (0.0, 0.0)
-    ph.state.initial.v = (0.0, 0.0)
-    ph.state.final.x = (1.0, 1.0)
-    ph.state.bounds.x = (0, 10)
-    ph.state.bounds.y = (0, 10)
-    ph.state.bounds.v = (0, 10)
-    ph.control.bounds.u = (-pi / 2, pi / 2)
+    # set boundary conditions
+    phase.time.initial = (0.0, 0.0)
+    phase.state.initial.x = (0.0, 0.0)
+    phase.state.initial.y = (0.0, 0.0)
+    phase.state.initial.v = (0.0, 0.0)
+    phase.state.final.x = (1.0, 1.0)
+    phase.state.bounds.x = (0, 10)
+    phase.state.bounds.y = (0, 10)
+    phase.state.bounds.v = (0, 10)
+    phase.control.bounds.u = (-pi / 2, pi / 2)
 
-    ph.time.guess = (0.0, 1.0)
-    ph.state.guess.x = (0, 1)
-    ph.state.guess.y = (0, 1)
-    ph.state.guess.v = (0, 5)
+    # set guess for solution
+    phase.time.guess = (0.0, 1.0)
+    phase.state.guess.x = (0, 1)
+    phase.state.guess.y = (0, 1)
+    phase.state.guess.v = (0, 5)
 
+    # set ipopt options
     problem.ipopt_options.print_level = 3
+
     return problem
 
 

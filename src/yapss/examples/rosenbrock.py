@@ -24,11 +24,13 @@ MINIMUM = (1.0, 1.0)
 """Where the function is smallest, which the solver should find."""
 
 
-class Point(yapss.Vector):
+class Parameter(yapss.Vector):
     """The point to be chosen."""
 
-    x = yapss.field(latex="x", doc="horizontal coordinate")
-    y = yapss.field(latex="y", doc="vertical coordinate")
+    x = yapss.field()
+    """Horizontal coordinate."""
+    y = yapss.field()
+    """Vertical coordinate."""
 
 
 class Phases(yapss.Phases):
@@ -59,10 +61,10 @@ def setup() -> yapss.Problem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("Rosenbrock", phases=Phases, parameter=Point)
+    problem = yapss.Problem("Rosenbrock", phases=Phases, parameter=Parameter)
 
     @problem.register.objective
-    def cost(arg):
+    def objective(arg):
         """Return the Rosenbrock function at the chosen point."""
         return rosenbrock(arg.parameter.x, arg.parameter.y)
 

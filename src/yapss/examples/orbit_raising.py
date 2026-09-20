@@ -29,38 +29,46 @@ v_min, v_max = -10.0, 10.0
 u_min, u_max = -1.1, 1.1
 
 
-class Orbit(yapss.Vector):
+class State(yapss.Vector):
     """Where the vehicle is and how fast it is going, in polar coordinates."""
 
-    r = yapss.field(latex="r", doc="radius")
-    theta = yapss.field(units="rad", latex=r"\theta", doc="polar angle")
-    v_r = yapss.field(latex="v_r", doc="radial velocity")
-    v_theta = yapss.field(latex=r"v_\theta", doc="tangential velocity")
+    r = yapss.field()
+    """Radius."""
+    theta = yapss.field()
+    """Polar angle."""
+    v_r = yapss.field()
+    """Radial velocity."""
+    v_theta = yapss.field()
+    """Tangential velocity."""
 
 
-class Steering(yapss.Vector):
+class Control(yapss.Vector):
     """The direction the thrust points, as a unit vector in polar coordinates."""
 
-    u_r = yapss.field(latex="u_r", doc="radial component of the thrust direction")
-    u_theta = yapss.field(latex=r"u_\theta", doc="tangential component")
+    u_r = yapss.field()
+    """Radial component of the thrust direction."""
+    u_theta = yapss.field()
+    """Tangential component."""
 
 
-class Limits(yapss.Vector):
+class Path(yapss.Vector):
     """The steering vector must have unit magnitude."""
 
-    unit_thrust = yapss.field(doc="squared magnitude of the thrust direction")
+    unit_thrust = yapss.field()
+    """Squared magnitude of the thrust direction."""
 
 
-class Target(yapss.Vector):
+class Discrete(yapss.Vector):
     """The orbit that must be reached."""
 
-    circular = yapss.field(doc="the final orbit must be circular")
+    circular = yapss.field()
+    """The final orbit must be circular."""
 
 
 class Phases(yapss.Phases):
     """One phase: the vehicle thrusts continuously."""
 
-    raise_ = yapss.phase(state=Orbit, control=Steering, path=Limits)
+    raise_ = yapss.phase(state=State, control=Control, path=Path)
 
 
 def setup() -> yapss.Problem:
@@ -71,11 +79,11 @@ def setup() -> yapss.Problem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("Orbit raising", phases=Phases, discrete=Target)
+    problem = yapss.Problem("Orbit raising", phases=Phases, discrete=Discrete)
     ph = problem.phases.raise_
 
     @ph.register.continuous
-    def raising(arg, out):
+    def continuous(arg, out):
         """Compute the vehicle's dynamics and the magnitude of its steering vector."""
         r, v_r, v_theta = arg.state.r, arg.state.v_r, arg.state.v_theta
         u_r, u_theta = arg.control.u_r, arg.control.u_theta
@@ -89,12 +97,12 @@ def setup() -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def largest_orbit(arg):
+    def objective(arg):
         """Return the final radius, which is to be made as large as possible."""
         return arg[ph].final.r
 
     @problem.register.discrete
-    def circular(arg, out):
+    def discrete(arg, out):
         """Require the final orbit to be circular."""
         final = arg[ph].final
         out.discrete.circular = final.v_theta - sqrt(mu / final.r)

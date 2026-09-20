@@ -47,24 +47,28 @@ tf_min, tf_max = 20.0, 100.0
 """How long the flight may last."""
 
 
-class Rocket(yapss.Vector):
+class State(yapss.Vector):
     """Where the rocket is, how fast it is going, and what it weighs."""
 
-    h = yapss.field(units="ft", latex="h", doc="altitude")
-    v = yapss.field(units="ft/s", latex="v", doc="velocity")
-    m = yapss.field(units="slug", latex="m", doc="mass")
+    h = yapss.field()
+    """Altitude."""
+    v = yapss.field()
+    """Velocity."""
+    m = yapss.field()
+    """Mass."""
 
 
-class Thrust(yapss.Vector):
+class Control(yapss.Vector):
     """The engine setting."""
 
-    thrust = yapss.field(units="lbf", latex="T", doc="thrust")
+    thrust = yapss.field()
+    """Thrust."""
 
 
 class Phases(yapss.Phases):
     """One phase: the whole flight, whatever shape the thrust programme turns out to have."""
 
-    flight = yapss.phase(state=Rocket, control=Thrust)
+    flight = yapss.phase(state=State, control=Control)
 
 
 def setup() -> yapss.Problem:
@@ -79,7 +83,7 @@ def setup() -> yapss.Problem:
     ph = problem.phases.flight
 
     @ph.register.continuous
-    def rocket(arg, out):
+    def continuous(arg, out):
         """Compute the rocket's dynamics."""
         h, v, m = arg.state.h, arg.state.v, arg.state.m
         thrust = arg.control.thrust
@@ -89,7 +93,7 @@ def setup() -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def final_altitude(arg):
+    def objective(arg):
         """Return the altitude reached, which is to be made as large as possible."""
         return arg[ph].final.h
 

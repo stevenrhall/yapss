@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 import yapss
-from yapss.examples.hs071 import Constraints, Design, Phases, main, setup
+from yapss.examples.hs071 import Discrete, Parameter, Phases, main, setup
 
 RELEASED = 17.014017140224134
 """What the same problem gives through the released API, to the last bit."""
@@ -109,9 +109,9 @@ def test_user_derivatives_need_no_continuous_callbacks():
 
 
 def test_the_declarations_are_what_they_look_like():
-    assert Design._fields == ("x",)
-    assert Design._nrows == 4
-    assert Constraints._fields == ("product", "sum_of_squares")
+    assert Parameter._fields == ("x",)
+    assert Parameter._nrows == 4
+    assert Discrete._fields == ("product", "sum_of_squares")
 
 
 def test_main_runs(capsys):

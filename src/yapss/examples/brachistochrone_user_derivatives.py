@@ -25,9 +25,9 @@ from numpy import pi
 import yapss
 from yapss.math import cos, sin
 
-from .brachistochrone import Angle, Phases, Slide, g0, plot_solution
+from .brachistochrone import Control, Phases, State, g0, plot_solution
 
-__all__ += ["Angle", "Phases", "Slide"]
+__all__ += ["Control", "Phases", "State"]
 
 
 def setup() -> yapss.Problem:
@@ -44,7 +44,7 @@ def setup() -> yapss.Problem:
     # ------------------------------------------------------------------ values
 
     @ph.register.continuous
-    def slide(arg, out):
+    def continuous(arg, out):
         """Compute the bead's dynamics."""
         v, u = arg.state.v, arg.control.u
         out.dynamics.x = v * cos(u)
@@ -53,11 +53,11 @@ def setup() -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def minimum_time(arg):
+    def objective(arg):
         """Return the time taken, which is the objective."""
         return arg[ph].final.time
 
-    # ------------------------------------------------------------- derivatives
+        # ------------------------------------------------------------- derivatives
 
     @ph.register.continuous_jacobian
     def slide_jacobian(arg, jacobian):
@@ -103,7 +103,7 @@ def setup() -> yapss.Problem:
         """
         return hessian
 
-    # ------------------------------------------------------------------- setup
+        # ------------------------------------------------------------------- setup
 
     ph.time.initial = (0.0, 0.0)
     ph.state.initial.x = (0.0, 0.0)
@@ -130,7 +130,7 @@ def main() -> None:
     """Solve the brachistochrone problem and plot the solution."""
     problem = setup()
     solution = problem.solve()
-    print(f"final time = {solution.objective:.6f} s")
+    print(f"final time = {solution .objective :.6f} s")
     plot_solution(problem, solution)
     plt.show()
 

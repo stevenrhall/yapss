@@ -30,27 +30,32 @@ m0, mf = 3.0, 1.0
 """Initial and final mass (slug)."""
 
 
-class Rocket(yapss.Vector):
+class State(yapss.Vector):
     """Where the rocket is, how fast it is going, and what it weighs."""
 
-    h = yapss.field(units="ft", latex="h", doc="altitude")
-    v = yapss.field(units="ft/s", latex="v", doc="velocity")
-    m = yapss.field(units="slug", latex="m", doc="mass")
+    h = yapss.field()
+    """Altitude."""
+    v = yapss.field()
+    """Velocity."""
+    m = yapss.field()
+    """Mass."""
 
 
-class Thrust(yapss.Vector):
+class Control(yapss.Vector):
     """The engine setting."""
 
-    thrust = yapss.field(units="lbf", latex="T", doc="thrust")
+    thrust = yapss.field()
+    """Thrust."""
 
 
 class SingularArc(yapss.Vector):
     """The condition that holds along the singular arc."""
 
-    switching = yapss.field(doc="singular-arc switching function")
+    switching = yapss.field()
+    """Singular-arc switching function."""
 
 
-class Linkage(yapss.Vector):
+class Discrete(yapss.Vector):
     """Continuity of time and state where one phase meets the next.
 
     One field per quantity rather than one block per joint, because the quantities are of
@@ -60,22 +65,30 @@ class Linkage(yapss.Vector):
     converges without scaling them, so none is set; the point is that it could be.
     """
 
-    boost_singular_h = yapss.field(units="ft", doc="altitude, boost to singular")
-    boost_singular_v = yapss.field(units="ft/s", doc="speed, boost to singular")
-    boost_singular_m = yapss.field(units="slug", doc="mass, boost to singular")
-    boost_singular_time = yapss.field(units="s", doc="time, boost to singular")
-    singular_coast_h = yapss.field(units="ft", doc="altitude, singular to coast")
-    singular_coast_v = yapss.field(units="ft/s", doc="speed, singular to coast")
-    singular_coast_m = yapss.field(units="slug", doc="mass, singular to coast")
-    singular_coast_time = yapss.field(units="s", doc="time, singular to coast")
+    boost_singular_h = yapss.field()
+    """Altitude, boost to singular."""
+    boost_singular_v = yapss.field()
+    """Speed, boost to singular."""
+    boost_singular_m = yapss.field()
+    """Mass, boost to singular."""
+    boost_singular_time = yapss.field()
+    """Time, boost to singular."""
+    singular_coast_h = yapss.field()
+    """Altitude, singular to coast."""
+    singular_coast_v = yapss.field()
+    """Speed, singular to coast."""
+    singular_coast_m = yapss.field()
+    """Mass, singular to coast."""
+    singular_coast_time = yapss.field()
+    """Time, singular to coast."""
 
 
 class Phases(yapss.Phases):
     """The three arcs of the flight."""
 
-    boost = yapss.phase(state=Rocket, control=Thrust)
-    singular = yapss.phase(state=Rocket, control=Thrust, path=SingularArc)
-    coast = yapss.phase(state=Rocket, control=Thrust)
+    boost = yapss.phase(state=State, control=Control)
+    singular = yapss.phase(state=State, control=Control, path=SingularArc)
+    coast = yapss.phase(state=State, control=Control)
 
 
 def drag(h, v):
@@ -91,7 +104,7 @@ def setup() -> yapss.Problem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("Goddard rocket with singular arc", phases=Phases, discrete=Linkage)
+    problem = yapss.Problem("Goddard rocket with singular arc", phases=Phases, discrete=Discrete)
     phases = problem.phases
     boost, singular, coast = phases.boost, phases.singular, phases.coast
 
@@ -120,12 +133,12 @@ def setup() -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def final_altitude(arg):
+    def objective(arg):
         """Return the altitude reached, which is to be made as large as possible."""
         return arg[coast].final.h
 
     @problem.register.discrete
-    def linkage(arg, out):
+    def discrete(arg, out):
         """Require time and state to be continuous where the phases meet."""
         b, s, e = arg[boost], arg[singular], arg[coast]
         out.discrete.boost_singular_h = s.initial.h - b.final.h
@@ -157,7 +170,7 @@ def setup() -> yapss.Problem:
     coast.control.bounds.thrust = (0.0, 0.0)
 
     singular.path.bounds.switching = (0.0, 0.0)
-    for name in Linkage._fields:
+    for name in Discrete._fields:
         setattr(problem.discrete.bounds, name, (0.0, 0.0))
 
     for ph in phases:

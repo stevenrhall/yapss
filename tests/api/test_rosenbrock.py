@@ -7,7 +7,7 @@ the whole NLP is two columns and no rows.
 
 import pytest
 
-from yapss.examples.rosenbrock import MINIMUM, Phases, Point, rosenbrock, setup
+from yapss.examples.rosenbrock import MINIMUM, Parameter, Phases, rosenbrock, setup
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def test_every_derivative_method_agrees(problem, method):
 def test_there_are_no_phases_and_no_constraints(problem):
     assert list(problem.phases) == []
     assert Phases._declared == {}
-    assert Point._fields == ("x", "y")
+    assert Parameter._fields == ("x", "y")
     assert problem.solve().discrete._fields == ()
 
 

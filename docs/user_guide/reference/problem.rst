@@ -28,6 +28,7 @@ dimension :math:`n_{s}` that applies to all phases. The dynamics of the problem 
 phase are then given by
 
 .. math::
+   :label: dynamics
 
    \dot{x}^{(p)}
       = f^{(p)}(x^{(p)}, u^{(p)}, t, s), \quad p=0, \ldots, n_{p}-1
@@ -36,6 +37,7 @@ over the interval :math:`t \in [t_{0}^{(p)}, t_{f}^{(p)}]`. The trajectory of th
 each phase is subject to the path constraints
 
 .. math::
+   :label: path
 
    h_{\text{min}}^{(p)} \leq h^{(p)} ( x^{(p)}, u^{(p)}, t, s ) \leq h_{\text{max}}^{(p)},
       \quad p=0, \ldots, n_{p}-1
@@ -44,6 +46,7 @@ where :math:`h^{(p)}` is a vector-valued function with dimension :math:`n_{h}^{(
 In addition, each phase may have integrals associated with it of the form
 
 .. math::
+   :label: integral
 
    q^{(p)} = \int_{t_{0}^{(p)}}^{t_{f}^{(p)}} g^{(p)}( x^{(p)}, u^{(p)}, t, s ) \,dt,
       \quad p=0, \ldots, n_{p}-1
@@ -52,9 +55,11 @@ where :math:`g^{(p)}` is a vector-valued function with dimension :math:`n_{q}^{(
 integrals may appear as a term in the cost function (a `Lagrangian` term) or as an
 isoperimetric constraint.
 
-The cost to be minimized is given by a function of all the discrete variables in problem:
+The cost to be minimized is given by a function of all the discrete variables in the
+problem:
 
 .. math::
+   :label: cost
 
    \begin{aligned}
       J=\phi\Big[
@@ -67,6 +72,7 @@ The cost to be minimized is given by a function of all the discrete variables in
 subject to additional constraints on the discrete variables,
 
 .. math::
+   :label: discrete
 
    \begin{aligned}
       d_\text{min} \le d
@@ -92,62 +98,122 @@ In addition, upper and lower bounds may be specified on all the decision variabl
 (In this formulation, the integrals are treated as decision variables, subject to the
 constraint that they are the integrals of the integrand over the phase.)
 
+The *shape* of the optimal problem is defined by the dimensions of all the equations above
+
 Problem Instantiation
 ---------------------
 
-Given a formulation of the problem as described above, the problem can be implemented in
-YAPSS and solved. In this section, we describe the instantiation of a YAPSS problem object.
+Given a formulation of the problem as described above, the problem can be implemented in YAPSS
+and solved. To do so, we need to define the shape of the problem, meaning a  description of the
+decision variables* and the *constraint functions*. Decision variables are the discrete
+parameters and functions of time that are optimized over, and constraint functions are
+functions of the decision variables that must satisfy equality or inequality constraints. The
+description includes the names which refer to the decision variables and functions. Because
+YAPSS can solve multiphase problems, the description also includes names for each phase, and
+which decision variables and constraint functions are associated with each phase.
+
+Decision variables include:
+
+- The state vectors for each phase of the problem
+- The control vectors for each phase
+- A parameter vector that defines parameters that can be applied to every phase
+- The initial and final times of each phase
+- The vector of values of the integrals evaluated over each phase
+
+The last item is surprising, since the integrand for each integral is expressed in terms of the state, control, and parameter vectors. However, it turns out that the nonlinear program (NLP) that results from the psudospectral transcription is much sparser if the integral values are treated as decision variables.
+
+Constraint functions include:
+
+- The vector equations of motion describing the dynamics for each phase
+- A vector path constraint function for each phase
+- A vector of inequality constraints for each phase that requires that the vector of integral values
+  is the same as the value calculated by integranding the vector integrand
+- A vector of discrete constraints that relate all the discrete quantites in the problem, including the
+  parameter vector, vector of integral values, and initial and final times for each phase
+
+Defining the shape of the optimal control problem requires naming each phase, each decison variable vector, each constraint function vector, and the elements of each of those vectors. In addition, the independent variable for each phase (usually time, but not always) must be named. Once the shape of the problem is defined and instantiated, the only way to reference decision variables and constraint functions is by name. The is a big departure from the YAPSS API prior to version 0.4.0, in which the only way to refer to them was by bare numerical index.
 
 Consider, for example, the Goddard problem, a classic optimal control problem to maximize the
 altitude of a sounding rocket launched vertically from the surface of the Earth, taking into
 account the forces of gravity, drag, and thrust. (See the JupyterLab notebooks for the
 `one phase Goddard problem <../notebooks/goddard_problem_1_phase.ipynb>`_ and the
 `three phase Goddard problem <../notebooks/goddard_problem_3_phase.ipynb>`_ with a singular arc.)
-For the three phase problem, there are three states (altitude, velocity, and mass), one control
-(thrust), and one path constraint (the singular arc constraint). In addition, there are eight
-discrete constraints that ensure the continuity of the state variables across phases, and that
-the final time of each phase is equal to the initial time of the next phase.
+For the one phase problem, there are three states (altitude, velocity, and mass) and one control
+(thrust).
 
-The problem is instantiated as an instance of the :class:`~yapss._legacy.problem.Problem` class. To
-initialize, the user specifies the name of the problem; the relevant dimensions of the
-state, control, and path constraint for each phase; and the dimensions of the static
-parameters and discrete constraints. In this case, the problem is instantiated as follows:
+Problem instantiation yields an initialized `yapss.Problem` object that describes the shape of
+the optimal of an optimal control, at more or less the level of detail that can be gleaned from
+a description like the description given in the paragraph above. The names for the elements of
+the state and control vectors, as well as a name for the phase. For more general problems, the
+instantiation includes descriptions and names of path constraints, integral cost functions,
+integral constraints, linkage constraints, etc.
+
+We begin by defining the important vectors in the problem, in this case the state vector and
+the control vector:
 
 .. doctest:: example
 
-    >>> from yapss._legacy import Problem
+    >>> import yapss
     >>>
-    >>> problem = Problem(
-    ...     name="Goddard Rocket Problem with Singular Arc",
-    ...     nx=[3, 3, 3],  # Number of states in each phase
-    ...     nu=[1, 1, 1],  # Number of controls in each phase
-    ...     nh=[0, 1, 0],  # Number of path constraints in each phase
-    ...     nd=8,          # Number of discrete constraints
-    ... )
+    >>> class RocketState(yapss.Vector):
+    ...     """Define the rows of the state vector."""
+    ...     h = yapss.field(units="ft", latex="h", doc="altitude")
+    ...     v = yapss.field(units="ft/s", latex="v", doc="velocity")
+    ...     m = yapss.field(units="slug", latex="m", doc="mass")
+    ...
+    >>> class Thrust(yapss.Vector):
+    ...     """Define the rows of the control vector."""
+    ...     thrust = yapss.field(units="lbf", latex="T", doc="thrust")
 
-Note that all arguments are keyword arguments, and the ``name`` and ``nx`` arguments are
-required. The number of phases is determined by the length of the ``nx`` argument.
-If an optional argument is not provided, the assumed value is either zero or a
-tuple of zeros, as appropriate.
+The vector classes can be named anything you like, and in a one-phase problem it would be
+natural to default to "State" and "Control". But for multi-phase problems, the states in
+different phases don't have to have the same shape, so naming vectors more descriptively can be
+helpful.
 
-The string representation of the problem object provides a summary of the problem:
+Once the vector definitions are complete, the phases of the problem can be defined. This problem has
+only one phase, and no path constraints or integrals, so the definition is straightforward:
+
+.. doctest:: example
+
+    >>> class Phases(yapss.Phases):
+    ...     """Define the single phase of this problem."""
+    ...
+    ...     flight = yapss.phase(state=RocketState, control=Thrust)
+
+Then instantiate the problem, by providing the name of the problem and the phase information:
+
+.. doctest:: example
+
+    >>> problem = yapss.Problem("Goddard rocket, one phase", phases=Phases)
+
+With that, the shape and name definition of the problem is complete. The string representation
+of the problem object provides a summary of the problem:
 
 .. doctest:: example
 
     >>> print(problem)
-    Problem(
-        name='Goddard Rocket Problem with Singular Arc',
-        nx=(3, 3, 3),
-        nu=(1, 1, 1),
-        nq=(0, 0, 0),
-        nh=(0, 1, 0),
-        nd=8,
-        ns=0
-    )
+    <Problem 'Goddard rocket, one phase' phases=(flight)>
+
+The `yapss.Problem` constructor takes the problem name as its only positional argument,
+followed by three keyword arguments:
+
+- `name` (positional): The name of the optimal control problem, which may be used in messages
+  and printed output.
+- `phases`: The phases of the problem, defined as a subclass of `yapss.Phases`. This keyword is required,
+  but the subclass can have zero phases, just as a list can have no elements. An optimal control
+  problem with zero phases reduces to a parameter optimization problem.
+- `discrete`: The discrete constraints of the problem, defined as a subclass of
+  `yapss.Vector`. (Path constraints belong to a phase, and are declared there.) This keyword is
+  optional, and defaults to a vector with no fields.
+- `parameter`: The static parameters of the problem, defined as a subclass of `yapss.Vector`.
+  This keyword is optional, and defaults to a vector with no fields.
+
+See the :ref:`Problem Class Reference <problem-class-reference>` section below for the full API.
 
 Other sections of this reference describe the remaining steps required to solve an optimal control
 problem using YAPSS:
 
+- Defining vectors
 - Defining the :doc:`callback functions <callbacks>` that define the objective, dynamics,
   path constraints, integrals, and discrete constraints.
 - Setting :doc:`bounds <bounds>` on decision variables and constraints.
@@ -159,10 +225,12 @@ problem using YAPSS:
 - Setting :doc:`Ipopt options <ipopt_options>`.
 - :doc:`How YAPSS connects to Ipopt <ipopt_backend>`. (background; nothing to configure)
 
+.. _problem-class-reference:
+
 ``Problem`` Class Reference
 ---------------------------
 
-.. autoclass:: yapss._legacy.problem.Problem
+.. autoclass:: yapss.Problem(name, *, phases, discrete=Empty, parameter=Empty)
    :members:
    :no-special-members:
    :no-undoc-members:

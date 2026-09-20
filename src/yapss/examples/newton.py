@@ -35,33 +35,37 @@ import numpy as np
 import yapss
 
 
-class Profile(yapss.Vector):
+class State(yapss.Vector):
     """The shape of the nosecone."""
 
-    y = yapss.field(latex="y", doc="height of the profile")
-    yp = yapss.field(latex="y'", doc="slope of the profile")
+    y = yapss.field()
+    """Height of the profile."""
+    yp = yapss.field()
+    """Slope of the profile."""
 
 
-class Curvature(yapss.Vector):
+class Control(yapss.Vector):
     """How the slope is allowed to change."""
 
-    u = yapss.field(latex="u", doc="second derivative of the profile")
+    u = yapss.field()
+    """Second derivative of the profile."""
 
 
-class Resistance(yapss.Vector):
+class Integral(yapss.Vector):
     """What is being minimized."""
 
-    drag = yapss.field(latex="D", doc="pressure drag on the nosecone")
+    drag = yapss.field()
+    """Pressure drag on the nosecone."""
 
 
 class Phases(yapss.Phases):
     """One phase, run over the radius rather than over time."""
 
     nose = yapss.phase(
-        state=Profile,
-        control=Curvature,
-        integral=Resistance,
-        r=yapss.field(latex="r", doc="radius"),
+        state=State,
+        control=Control,
+        integral=Integral,
+        r=yapss.field(),
     )
 
 
@@ -82,7 +86,7 @@ def setup(y_max: float = 1.0) -> yapss.Problem:
     ph = problem.phases.nose
 
     @ph.register.continuous
-    def nose(arg, out):
+    def continuous(arg, out):
         """Compute the profile's dynamics and the drag integrand."""
         yp, u, r = arg.state.yp, arg.control.u, arg.r
         out.dynamics.y = yp
@@ -91,7 +95,7 @@ def setup(y_max: float = 1.0) -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def least_drag(arg):
+    def objective(arg):
         """Return the drag, which is the objective."""
         return arg[ph].integral.drag
 
@@ -134,7 +138,7 @@ def setup2(y_max: float = 1.0) -> yapss.Problem:
     ph = problem.phases.nose
 
     @problem.register.objective(replace=True)
-    def least_drag(arg):
+    def objective(arg):
         """Return the drag of the curve plus the drag of the flat tip."""
         return arg[ph].integral.drag + 4 * arg[ph].initial.r**2
 

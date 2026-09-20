@@ -40,25 +40,30 @@ Isp = 1600.0
 """Specific impulse (s)."""
 
 
-class Aircraft(yapss.Vector):
+class State(yapss.Vector):
     """Where the aircraft is, how fast it is going, and what it weighs."""
 
-    h = yapss.field(units="ft", latex="h", doc="altitude")
-    v = yapss.field(units="ft/s", latex="v", doc="speed")
-    gamma = yapss.field(units="rad", latex=r"\gamma", doc="flight path angle")
-    mass = yapss.field(units="slug", latex="m", doc="mass")
+    h = yapss.field()
+    """Altitude."""
+    v = yapss.field()
+    """Speed."""
+    gamma = yapss.field()
+    """Flight path angle."""
+    mass = yapss.field()
+    """Mass."""
 
 
-class AngleOfAttack(yapss.Vector):
+class Control(yapss.Vector):
     """How the aircraft is flown."""
 
-    alpha = yapss.field(units="rad", latex=r"\alpha", doc="angle of attack")
+    alpha = yapss.field()
+    """Angle of attack."""
 
 
 class Phases(yapss.Phases):
     """One phase: the climb."""
 
-    climb = yapss.phase(state=Aircraft, control=AngleOfAttack)
+    climb = yapss.phase(state=State, control=Control)
 
 
 def setup() -> yapss.Problem:
@@ -73,7 +78,7 @@ def setup() -> yapss.Problem:
     ph = problem.phases.climb
 
     @ph.register.continuous
-    def climb(arg, out):
+    def continuous(arg, out):
         """Compute the aircraft's dynamics, looking the model up in tables."""
         h, v = arg.state.h, arg.state.v
         gamma, mass = arg.state.gamma, arg.state.mass
@@ -99,7 +104,7 @@ def setup() -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def minimum_time(arg):
+    def objective(arg):
         """Return the time taken to climb."""
         return arg[ph].final.time
 

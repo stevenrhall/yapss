@@ -30,50 +30,60 @@ AREA = 1 / (4 * math.pi)
 """The largest area a closed curve of unit perimeter can enclose."""
 
 
-class Curve(yapss.Vector):
+class State(yapss.Vector):
     """A point on the curve."""
 
-    x = yapss.field(latex="x", doc="horizontal position")
-    y = yapss.field(latex="y", doc="vertical position")
+    x = yapss.field()
+    """Horizontal position."""
+    y = yapss.field()
+    """Vertical position."""
 
 
-class Tangent(yapss.Vector):
+class Control(yapss.Vector):
     """The direction the curve is going, which is the control."""
 
-    tx = yapss.field(latex="t_x", doc="horizontal component of the tangent")
-    ty = yapss.field(latex="t_y", doc="vertical component of the tangent")
+    tx = yapss.field()
+    """Horizontal component of the tangent."""
+    ty = yapss.field()
+    """Vertical component of the tangent."""
 
 
-class UnitSpeed(yapss.Vector):
+class Path(yapss.Vector):
     """The constraint that makes the independent variable arc length."""
 
-    speed_squared = yapss.field(doc="squared speed along the curve, which must be one")
+    speed_squared = yapss.field()
+    """Squared speed along the curve, which must be one."""
 
 
-class Moments(yapss.Vector):
+class Integral(yapss.Vector):
     """What is accumulated along the curve."""
 
-    area = yapss.field(doc="area enclosed, by the shoelace formula")
-    x_moment = yapss.field(doc="first moment about the y axis")
-    y_moment = yapss.field(doc="first moment about the x axis")
+    area = yapss.field()
+    """Area enclosed, by the shoelace formula."""
+    x_moment = yapss.field()
+    """First moment about the y axis."""
+    y_moment = yapss.field()
+    """First moment about the x axis."""
 
 
-class Closure(yapss.Vector):
+class Discrete(yapss.Vector):
     """What it means for the curve to close."""
 
-    closure_x = yapss.field(doc="horizontal gap between the ends")
-    closure_y = yapss.field(doc="vertical gap between the ends")
+    closure_x = yapss.field()
+    """Horizontal gap between the ends."""
+    closure_y = yapss.field()
+    """Vertical gap between the ends."""
 
 
 class Phases(yapss.Phases):
     """One phase, running over arc length rather than time."""
 
     curve = yapss.phase(
-        state=Curve,
-        control=Tangent,
-        path=UnitSpeed,
-        integral=Moments,
-        s=yapss.field(latex="s", doc="arc length"),
+        state=State,
+        control=Control,
+        path=Path,
+        integral=Integral,
+        s=yapss.field(),
     )
 
 
@@ -85,11 +95,11 @@ def setup() -> yapss.Problem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("Isoperimetric problem", phases=Phases, discrete=Closure)
+    problem = yapss.Problem("Isoperimetric problem", phases=Phases, discrete=Discrete)
     ph = problem.phases.curve
 
     @ph.register.continuous
-    def trace(arg, out):
+    def continuous(arg, out):
         """Move along the curve, accumulating the area and the moments."""
         x, y = arg.state.x, arg.state.y
         tx, ty = arg.control.tx, arg.control.ty
@@ -102,12 +112,12 @@ def setup() -> yapss.Problem:
         return out
 
     @problem.register.objective
-    def enclosed_area(arg):
+    def objective(arg):
         """Return the area enclosed, which is to be made as large as possible."""
         return arg[ph].integral.area
 
     @problem.register.discrete
-    def closed(arg, out):
+    def discrete(arg, out):
         """Require the curve to return to where it started."""
         end = arg[ph]
         out.discrete.closure_x = end.final.x - end.initial.x

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from yapss.examples.goddard_problem_3_phase import Linkage, Phases, mf, setup
+from yapss.examples.goddard_problem_3_phase import Discrete, Phases, mf, setup
 
 FINAL_ALTITUDE = 18550.871863824515
 """What the same problem gives through the released API."""
@@ -50,7 +50,7 @@ def test_the_phases_are_joined(problem):
         problem.phases.singular,
         problem.phases.coast,
     )
-    for name in Linkage._fields:
+    for name in Discrete._fields:
         assert getattr(solution.discrete, name) == pytest.approx(0.0, abs=1e-8)
     assert solution[singular].initial.time == pytest.approx(solution[boost].final.time)
     assert solution[coast].initial.time == pytest.approx(solution[singular].final.time)
@@ -100,7 +100,7 @@ def test_an_unbounded_discrete_group_is_refused():
 
 
 def test_the_declarations_name_what_they_hold():
-    assert Linkage._fields[0] == "boost_singular_h"
-    assert len(Linkage._fields) == 8
-    assert Linkage._nrows == 8
+    assert Discrete._fields[0] == "boost_singular_h"
+    assert len(Discrete._fields) == 8
+    assert Discrete._nrows == 8
     assert [phase.name for phase in Phases()] == ["boost", "singular", "coast"]

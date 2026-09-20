@@ -87,60 +87,76 @@ MASS_FLOW = (
 )
 
 
-class Vehicle(yapss.Vector):
+class State(yapss.Vector):
     """Where the vehicle is, how fast it is going, and what it weighs."""
 
-    r = yapss.field(size=3, units="m", latex=r"\mathbf{r}", doc="position")
-    v = yapss.field(size=3, units="m/s", latex=r"\mathbf{v}", doc="velocity")
-    m = yapss.field(units="kg", latex="m", doc="mass")
+    r = yapss.field(size=3)
+    """Position."""
+    v = yapss.field(size=3)
+    """Velocity."""
+    m = yapss.field()
+    """Mass."""
 
 
-class Steering(yapss.Vector):
+class Control(yapss.Vector):
     """The direction the thrust points, as a unit vector."""
 
-    u = yapss.field(size=3, latex=r"\mathbf{u}", doc="thrust direction")
+    u = yapss.field(size=3)
+    """Thrust direction."""
 
 
-class Limits(yapss.Vector):
+class Path(yapss.Vector):
     """What must hold at every instant of the flight."""
 
-    unit_thrust = yapss.field(doc="the steering vector must have unit magnitude")
-    radius = yapss.field(units="m", doc="the vehicle must stay above the ground")
+    unit_thrust = yapss.field()
+    """The steering vector must have unit magnitude."""
+    radius = yapss.field()
+    """The vehicle must stay above the ground."""
 
 
-class Constraints(yapss.Vector):
+class Discrete(yapss.Vector):
     """Continuity where the stages meet, and the orbit that must be reached.
 
     Position and velocity are separate groups, rather than one block of six, because they are
     scaled differently; the same reason separates the semi-major axis from the angles.
     """
 
-    stage_0_1_position = yapss.field(size=3, units="m")
-    stage_0_1_velocity = yapss.field(size=3, units="m/s")
-    stage_1_2_position = yapss.field(size=3, units="m")
-    stage_1_2_velocity = yapss.field(size=3, units="m/s")
-    stage_2_3_position = yapss.field(size=3, units="m")
-    stage_2_3_velocity = yapss.field(size=3, units="m/s")
-    semi_major_axis = yapss.field(units="m", latex="a")
-    eccentricity = yapss.field(latex="e")
-    inclination = yapss.field(units="deg", latex="i")
-    raan = yapss.field(units="deg", latex=r"\Omega", doc="right ascension of ascending node")
-    argument_of_perigee = yapss.field(units="deg", latex=r"\omega")
+    stage_0_1_position = yapss.field(size=3)
+
+    stage_0_1_velocity = yapss.field(size=3)
+
+    stage_1_2_position = yapss.field(size=3)
+
+    stage_1_2_velocity = yapss.field(size=3)
+
+    stage_2_3_position = yapss.field(size=3)
+
+    stage_2_3_velocity = yapss.field(size=3)
+
+    semi_major_axis = yapss.field()
+
+    eccentricity = yapss.field()
+
+    inclination = yapss.field()
+
+    raan = yapss.field()
+    """Right ascension of ascending node."""
+    argument_of_perigee = yapss.field()
 
 
 class Phases(yapss.Phases):
     """One phase per stage."""
 
-    stage_0 = yapss.phase(state=Vehicle, control=Steering, path=Limits)
-    stage_1 = yapss.phase(state=Vehicle, control=Steering, path=Limits)
-    stage_2 = yapss.phase(state=Vehicle, control=Steering, path=Limits)
-    stage_3 = yapss.phase(state=Vehicle, control=Steering, path=Limits)
+    stage_0 = yapss.phase(state=State, control=Control, path=Path)
+    stage_1 = yapss.phase(state=State, control=Control, path=Path)
+    stage_2 = yapss.phase(state=State, control=Control, path=Path)
+    stage_3 = yapss.phase(state=State, control=Control, path=Path)
 
 
 def make_dynamics(thrust, mass_flow):
     """Return the continuous callback of a stage with the given thrust and mass flow."""
 
-    def dynamics(arg, out):
+    def continuous(arg, out):
         """Compute the vehicle's dynamics and the constraints that hold along the way.
 
         The arithmetic is grouped exactly as the released version of this example groups it, so
@@ -170,7 +186,7 @@ def make_dynamics(thrust, mass_flow):
         out.path.radius = mag(r_vec)
         return out
 
-    return dynamics
+    return continuous
 
 
 def orbital_elements(r_vec, v_vec):
@@ -200,19 +216,19 @@ def setup() -> yapss.Problem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("Delta III ascent", phases=Phases, discrete=Constraints)
+    problem = yapss.Problem("Delta III ascent", phases=Phases, discrete=Discrete)
     stages = list(problem.phases)
 
     for stage, thrust, mass_flow in zip(stages, THRUST, MASS_FLOW, strict=True):
         stage.register.continuous(make_dynamics(thrust, mass_flow))
 
     @problem.register.objective
-    def final_mass(arg):
+    def objective(arg):
         """Return the mass delivered to orbit, which is to be made as large as possible."""
         return arg[stages[LAST]].final.m
 
     @problem.register.discrete
-    def constraints(arg, out):
+    def discrete(arg, out):
         """Join the stages, and require the final state to be on the target orbit."""
         for index, (before, after) in enumerate(pairwise(stages)):
             first, second = arg[before].final, arg[after].initial
