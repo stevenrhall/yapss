@@ -2,17 +2,28 @@
 
 What a derivative callback fills in, under ``derivatives.method = "user"``.
 
-A derivative is reached by the names of the things it relates, read in the order it is
-spoken::
+A continuous derivative is reached by the names of the things it relates, read in the order
+it is spoken::
 
     jacobian.dynamics.x.v      the derivative of the dynamics of `x` with respect to `v`
     hessian.dynamics.x.v.u     the second derivative, chaining twice
-    gradient[ph].final.time    the derivative of the objective by a phase's final time
 
 The variable is named on its own, because a phase has one differentiation namespace and that
 is what the Jacobian's columns are: the phase's state, its control, its independent variable,
 and the problem's parameters. The output stays qualified, because a dynamics row is named for
 its state and so can never be distinct from that namespace.
+
+An *endpoint* variable is not one coordinate but four -- phase, end, field, row -- so it is
+not a name, and a path of attributes is the wrong spelling for it. It is a value instead::
+
+    f = hessian.phases[ph].final
+    hessian.discrete.gap[f.x, f.v] = 2.0
+    gradient[gradient.phases[ph].final.time] = 1.0
+
+Binding the end is what gets a column back down to one dot, and the binding carries the three
+coordinates that are not the field name under a name the reader chose. The namespaces hang
+off the target -- `phases`, `parameter`, and `discrete` for the rows -- which are the only
+names at that level, so no declared field can collide with them.
 
 **What is written is the sparsity structure.** A name not written is a derivative that is zero
 everywhere; a derivative that is zero only at this point is written as ``0.0``. The set of
@@ -26,15 +37,14 @@ naming the form that works: a Jacobian row assigns and cannot be navigated furth
 row navigates and cannot be assigned.
 
 A block field is addressed a row at a time, with an index on whichever side it appears:
-``jacobian.dynamics.r[0].v[1]``. The index lands on a `_Block` node, which knows only where
-the block starts and how long it is; what follows the row -- more of the derivative, or the
-end of it -- belongs to the site that built the node, not to the index.
+``jacobian.dynamics.r[0]`` on the output, ``f.r[0]`` on a column. The index lands on a
+`_Block` or a `ColumnBlock`, which knows only where the block starts and how long it is.
 
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 
@@ -45,6 +55,8 @@ if TYPE_CHECKING:
     from .vector import Vector
 
 __all__ = [
+    "Column",
+    "ColumnBlock",
     "ContinuousHessian",
     "ContinuousJacobian",
     "DiscreteHessian",
@@ -751,480 +763,709 @@ class ContinuousHessian(_ContinuousTarget):
 
 # ---------------------------------------------------------------- the endpoint derivatives
 #
-# An endpoint derivative names a phase and then a variable of it. A second one names two,
-# each through its own phase, so the chain is twice as long::
+# An endpoint variable is four coordinates -- phase, end, field, row -- where a continuous one
+# is a single name. A name is the best spelling there is for one coordinate and a bad one for
+# four: spelled as a path, a column cannot be held in a variable, so it has to be written out
+# in full wherever it appears, twice in every second derivative, with nothing between the two
+# halves to show where one ends.
 #
-#     gradient[ph].final.time = 1.0
-#     hessian[ph].initial.r[ph].initial.r = 8.0
+# So here a column is a *value*. `hessian.phases[ph].final` is a namespace, `.x` of it is a
+# `Column`, and the derivative is written by subscripting the row with the columns it relates::
 #
-# One set of nodes serves both, carrying a mode: `first` means one more variable is expected
-# and assigning is refused, `only` means this variable ends the derivative. The second half
-# of a Hessian runs in `only` mode with the first variable's key held alongside it.
+#     f = hessian.phases[ph].final
+#     hessian.discrete.gap[f.x, f.v] = 2.0
+#     hessian.discrete.gap[f.x, hessian.parameter.beta[1]] = 1.0
+#
+# Binding the *end* rather than each variable is what gets the cost of a column back down to
+# one dot, and the binding carries the three coordinates that are not the field name under a
+# name the user chose -- which is the right person to choose it, since `x` across two phases
+# genuinely denotes two different things.
+#
+# The namespace hangs off the target, so nothing has to be hoisted out of the callback and no
+# further argument is passed to it. Its three roots -- `phases`, `parameter`, `discrete` --
+# are the only names at the top of a target, so no field a user declares can collide there.
 
 
-class _Context:
-    """What every node of one endpoint derivative shares.
+class Column:
+    """One endpoint variable, as a derivative names it.
 
-    `mode` is ``"first"`` while a second variable is still expected and ``"only"`` once the
-    next name ends the derivative, which is what tells a gradient's nodes from a Hessian's
-    and a Hessian's first half from its second.
+    A column is a value: it can be bound to a name, kept in a list, built in a loop and passed
+    to a helper. That is the whole point of it, and what a path spelled out of attribute
+    access cannot do.
 
-    `prefix` is what the key is built on. The objective has one derivative, so nothing goes in
-    front of the variables; a discrete constraint has one per group row, so its row does. That
-    is the only difference between the two, which is why one set of nodes serves both.
+    It carries the namespace it came from, so that a column belonging to another problem is
+    refused rather than landing in a structurally valid but wrong place -- which would cost
+    iterations instead of raising, the one failure this surface exists to prevent.
     """
 
-    __slots__ = ("columns", "mode", "prefix", "store", "what")
+    __slots__ = ("_key", "_origin", "_spelling")
+
+    def __init__(self, key: Any, spelling: str, origin: EndpointColumns) -> None:
+        object.__setattr__(self, "_key", key)
+        object.__setattr__(self, "_spelling", spelling)
+        object.__setattr__(self, "_origin", origin)
+
+    def __repr__(self) -> str:
+        """Return the spelling the column was reached by, which is what a message wants."""
+        spelling: str = object.__getattribute__(self, "_spelling")
+        return spelling
+
+    def __getitem__(self, index: Any) -> Any:
+        """Refuse a row index on a variable that has one row."""
+        del index
+        raise TypeError(_NOT_A_BLOCK.format(spelling=object.__getattribute__(self, "_spelling")))
+
+
+class ColumnBlock:
+    """The columns of one block field: a family of variables, one per row.
+
+    A row of it is a column; the block itself is not, because it names as many variables as it
+    has rows. It is indexable and iterable, so a derivative over a block is a loop over the
+    rows rather than a loop over integers that has to agree with the declaration.
+    """
+
+    __slots__ = ("_offset", "_origin", "_prefix", "_size", "_spelling")
 
     def __init__(
-        self,
-        store: Structure,
-        columns: EndpointColumns,
-        what: str,
-        mode: str,
-        prefix: tuple[Any, ...] = (),
+        self, prefix: tuple[Any, ...], offset: int, size: int, spelling: str, origin: Any
     ) -> None:
-        self.store = store
-        self.columns = columns
-        self.what = what
-        self.mode = mode
-        self.prefix = prefix
+        object.__setattr__(self, "_prefix", prefix)
+        object.__setattr__(self, "_offset", offset)
+        object.__setattr__(self, "_size", size)
+        object.__setattr__(self, "_spelling", spelling)
+        object.__setattr__(self, "_origin", origin)
 
-    def at(self, prefix: tuple[Any, ...], what: str) -> _Context:
-        """Return the same context scoped to one output row."""
-        return _Context(self.store, self.columns, what, self.mode, prefix)
+    def __repr__(self) -> str:
+        """Return the spelling of the block, without a row."""
+        spelling: str = object.__getattribute__(self, "_spelling")
+        return spelling
 
-    def ending(self) -> _Context:
-        """Return the same context with the next name ending the derivative."""
-        return _Context(self.store, self.columns, self.what, "only", self.prefix)
+    def __len__(self) -> int:
+        """Return how many rows the block has."""
+        return int(object.__getattribute__(self, "_size"))
 
-    def key(self, *variables: Any) -> Any:
-        """Return the transcription's key for a derivative by `variables` at this row.
+    def __getitem__(self, index: Any) -> Column:
+        """Return the column of one row."""
+        spelling: str = object.__getattribute__(self, "_spelling")
+        row = _row(
+            object.__getattribute__(self, "_offset"),
+            object.__getattribute__(self, "_size"),
+            index,
+            spelling,
+        )
+        prefix: tuple[Any, ...] = object.__getattribute__(self, "_prefix")
+        return Column(
+            (*prefix, row),
+            f"{spelling}[{index}]",
+            object.__getattribute__(self, "_origin"),
+        )
 
-        The back end spells a *lone* decision-variable key bare rather than wrapped, so an
-        objective gradient is keyed `(0, "tf", 0)` where a discrete Jacobian is keyed
-        `(row, (0, "tf", 0))`. That irregularity is confined here.
-        """
-        if self.prefix:
-            return (*self.prefix, *variables)
-        return variables[0] if len(variables) == 1 else variables
-
-    def canonical(self, first: Any, second: Any) -> Any:
-        """Return the order-free key of one unordered pair, for the mirrored-pair check."""
-        return (*self.prefix, *sorted((first, second)))
+    def __iter__(self) -> Any:
+        """Return each row's column in order."""
+        return (self[index] for index in range(len(self)))
 
 
-class _EndpointEnd:
-    """One end of one phase -- its state there, its independent variable, or its integrals."""
+class _Space(NamedTuple):
+    """One namespace of endpoint variables: what it holds, and how it names itself."""
 
-    __slots__ = ("_context", "_end", "_first", "_names", "_phase", "_spelling")
+    names: dict[str, Any]
+    blocks: dict[str, tuple[Any, int, int]]
+    label: str
+    tail: str = ""
+
+
+def _column_or_block(space: _Space, name: str, short: str, full: str, origin: Any) -> Any:
+    """Return the column or block of columns `name` addresses in `space`, or refuse it.
+
+    `short` is how the result is spelled inside an entry, where the target already names
+    itself; `full` is how it is spelled in a message, which has to stand on its own.
+    """
+    key = space.names.get(name)
+    if key is not None:
+        return Column(key, short, origin)
+    block = space.blocks.get(name)
+    if block is not None:
+        prefix, offset, size = block
+        return ColumnBlock(prefix, offset, size, short, origin)
+    near = suggest(name, (*space.names, *space.blocks))
+    msg = f"{full}: {space.label} has no '{name}'.{near}{space.tail}"
+    raise AttributeError(msg)
+
+
+class _ColumnEnd:
+    """The columns of one end of one phase, or of its integrals."""
+
+    __slots__ = ("_columns", "_end", "_full", "_phase", "_short")
 
     def __init__(
-        self,
-        context: _Context,
-        phase: PhaseEndpointNames,
-        end: str,
-        spelling: str,
-        first: Any,
+        self, columns: EndpointColumns, phase: PhaseEndpointNames, end: str, short: str, full: str
     ) -> None:
         for attribute, value in (
-            ("_context", context),
+            ("_columns", columns),
             ("_phase", phase),
             ("_end", end),
-            ("_names", getattr(phase, end)),
-            ("_spelling", spelling),
-            ("_first", first),
+            ("_short", short),
+            ("_full", full),
         ):
             object.__setattr__(self, attribute, value)
 
-    def _blocks(self) -> dict[str, tuple[Any, int, int]]:
-        phase: PhaseEndpointNames = object.__getattribute__(self, "_phase")
-        return phase.blocks[object.__getattribute__(self, "_end")]
-
-    def _key(self, name: str, spelling: str) -> Any:
-        """Return the column `name` addresses, for a scalar field only."""
-        names: dict[str, Any] = object.__getattribute__(self, "_names")
-        key = names.get(name)
-        if key is not None:
-            return key
-        blocks = self._blocks()
-        if name in blocks:
-            raise AttributeError(_NEEDS_ROW.format(spelling=spelling, size=blocks[name][2]))
-        phase: PhaseEndpointNames = object.__getattribute__(self, "_phase")
-        msg = f"{spelling}: {phase.label} has no '{name}'." f"{suggest(name, (*names, *blocks))}"
-        raise AttributeError(msg)
-
-    def _store(self, key: Any, spelling: str, value: Any) -> None:
-        """Record a derivative by this endpoint variable, first or only."""
-        context: _Context = object.__getattribute__(self, "_context")
-        first = object.__getattribute__(self, "_first")
-        if first is None:
-            context.store.store(context.key(key), spelling, value)
-        else:
-            context.store.store_pair(
-                context.key(first, key), context.canonical(first, key), spelling, value
-            )
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Record the derivative, unless a second variable is still expected."""
-        spelling = f"{object.__getattribute__(self, '_spelling')}.{name}"
-        context: _Context = object.__getattribute__(self, "_context")
-        if context.mode == "first":
-            msg = (
-                f"{spelling} names one variable. A second derivative names two, and the "
-                f"second is reached through its phase, for example "
-                f"'{spelling}[phase].final.<name> = ...'."
-            )
-            raise AttributeError(msg)
-        self._store(self._key(name, spelling), spelling, value)
-
     def __getattr__(self, name: str) -> Any:
-        """Return a block awaiting its row, or the node awaiting the second variable."""
+        """Return the column, or the block of columns, one variable of this end is."""
         if name.startswith("_"):
             raise AttributeError(name)
-        spelling = f"{object.__getattribute__(self, '_spelling')}.{name}"
-        context: _Context = object.__getattribute__(self, "_context")
-        block = self._blocks().get(name)
-        if block is not None:
-            prefix, offset, size = block
-            if context.mode == "first":
-                return _BlockStep(
-                    offset,
-                    size,
-                    spelling,
-                    lambda row, at: _FirstNamed(context, (*prefix, row), at),
-                )
-            return _BlockWrite(
-                offset,
-                size,
-                spelling,
-                lambda row, at, value: self._store((*prefix, row), at, value),
-            )
-        if context.mode != "first":
-            msg = f"{spelling} is the whole of the derivative; write '{spelling} = ...'."
-            raise AttributeError(msg)
-        return _FirstNamed(context, self._key(name, spelling), spelling)
+        phase: PhaseEndpointNames = object.__getattribute__(self, "_phase")
+        end: str = object.__getattribute__(self, "_end")
+        return _column_or_block(
+            _Space(getattr(phase, end), phase.blocks[end], phase.label),
+            name,
+            f"{object.__getattribute__(self, '_short')}.{name}",
+            f"{object.__getattribute__(self, '_full')}.{name}",
+            object.__getattribute__(self, "_columns"),
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse an assignment to a variable, which names a column and not a derivative."""
+        del value
+        full: str = object.__getattribute__(self, "_full")
+        short: str = object.__getattribute__(self, "_short")
+        msg = (
+            f"{full}.{name} is a variable, not a derivative. A derivative is written on the "
+            f"target, with the variables it relates in the subscript, such as "
+            f"'<target>[{short}.{name}] = ...'."
+        )
+        raise AttributeError(msg)
 
 
-class _Endpoint:
-    """One phase's endpoint namespace, as a derivative names it."""
+class _ColumnPhase:
+    """One phase's endpoint namespace: its two ends and its integrals."""
 
-    __slots__ = ("_context", "_first", "_phase", "_spelling")
+    __slots__ = ("_columns", "_full", "_phase", "_short")
 
     def __init__(
-        self, context: _Context, phase: PhaseEndpointNames, spelling: str, first: Any
+        self, columns: EndpointColumns, phase: PhaseEndpointNames, short: str, full: str
     ) -> None:
-        object.__setattr__(self, "_context", context)
+        object.__setattr__(self, "_columns", columns)
         object.__setattr__(self, "_phase", phase)
-        object.__setattr__(self, "_spelling", spelling)
-        object.__setattr__(self, "_first", first)
+        object.__setattr__(self, "_short", short)
+        object.__setattr__(self, "_full", full)
 
     def __getattr__(self, name: str) -> Any:
         """Return one of `initial`, `final` and `integral`."""
         if name.startswith("_"):
             raise AttributeError(name)
-        phase: PhaseEndpointNames = object.__getattribute__(self, "_phase")
-        spelling: str = object.__getattribute__(self, "_spelling")
+        full: str = object.__getattribute__(self, "_full")
         if name not in _ENDS:
             msg = (
-                f"{spelling}.{name}: an endpoint derivative names 'initial', 'final' or "
+                f"{full}.{name}: an endpoint variable is at 'initial', 'final' or "
                 f"'integral'.{suggest(name, _ENDS)}"
             )
             raise AttributeError(msg)
-        return _EndpointEnd(
-            object.__getattribute__(self, "_context"),
-            phase,
+        return _ColumnEnd(
+            object.__getattribute__(self, "_columns"),
+            object.__getattribute__(self, "_phase"),
             name,
-            f"{spelling}.{name}",
-            object.__getattribute__(self, "_first"),
+            f"{object.__getattribute__(self, '_short')}.{name}",
+            f"{full}.{name}",
         )
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse assigning to an endpoint group, which names no variable."""
+        """Refuse an assignment where an end is expected."""
+        del value
+        full: str = object.__getattribute__(self, "_full")
+        msg = (
+            f"{full}.{name} names no variable. An endpoint variable is named at an end, such "
+            f"as '{full}.final.<name>'."
+        )
+        raise AttributeError(msg)
+
+
+class _ColumnPhases:
+    """Every phase's endpoint namespace, reached by handle as the values are."""
+
+    __slots__ = ("_columns", "_full", "_short")
+
+    def __init__(self, columns: EndpointColumns, short: str, full: str) -> None:
+        object.__setattr__(self, "_columns", columns)
+        object.__setattr__(self, "_short", short)
+        object.__setattr__(self, "_full", full)
+
+    def __getitem__(self, handle: Any) -> _ColumnPhase:
+        """Return the endpoint namespace of the phase `handle` names."""
+        columns: EndpointColumns = object.__getattribute__(self, "_columns")
+        phase = columns.lookup(handle, object.__getattribute__(self, "_full"))
+        return _ColumnPhase(
+            columns,
+            phase,
+            f"{object.__getattribute__(self, '_short')}[{phase.name}]",
+            f"{object.__getattribute__(self, '_full')}[{phase.name}]",
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        """Refuse a phase named rather than handed over, since the values take a handle too."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        columns: EndpointColumns = object.__getattribute__(self, "_columns")
+        full: str = object.__getattribute__(self, "_full")
+        msg = (
+            f"{full}.{name}: a phase is reached by its handle, as its values are, such as "
+            f"'{full}[problem.phases.{columns.example}]'."
+        )
+        raise AttributeError(msg)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse an assignment where a phase handle belongs."""
+        del value
+        columns: EndpointColumns = object.__getattribute__(self, "_columns")
+        full: str = object.__getattribute__(self, "_full")
+        msg = (
+            f"{full}.{name} names no variable. A phase is reached by its handle, such as "
+            f"'{full}[problem.phases.{columns.example}].final.<name>'."
+        )
+        raise AttributeError(msg)
+
+
+class _ColumnParameters:
+    """The problem's parameters, which belong to no phase and so are named without one."""
+
+    __slots__ = ("_columns", "_full", "_short")
+
+    def __init__(self, columns: EndpointColumns, short: str, full: str) -> None:
+        object.__setattr__(self, "_columns", columns)
+        object.__setattr__(self, "_short", short)
+        object.__setattr__(self, "_full", full)
+
+    def __getattr__(self, name: str) -> Any:
+        """Return the column, or block of columns, one parameter is."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        columns: EndpointColumns = object.__getattribute__(self, "_columns")
+        tail = (
+            " An endpoint variable is reached through its phase, "
+            f"'<target>.phases[phase].final.{name}'."
+        )
+        return _column_or_block(
+            _Space(columns.parameter, columns.parameter_blocks, "the problem", tail),
+            name,
+            f"{object.__getattribute__(self, '_short')}.{name}",
+            f"{object.__getattribute__(self, '_full')}.{name}",
+            columns,
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse an assignment to a parameter, which names a column and not a derivative."""
+        del value
+        full: str = object.__getattribute__(self, "_full")
+        short: str = object.__getattribute__(self, "_short")
+        msg = (
+            f"{full}.{name} is a variable, not a derivative. A derivative is written on the "
+            f"target, with the variables it relates in the subscript, such as "
+            f"'<target>[{short}.{name}] = ...'."
+        )
+        raise AttributeError(msg)
+
+
+# ------------------------------------------------------------------------- what is written
+
+
+def _entry_key(prefix: tuple[Any, ...], keys: tuple[Any, ...]) -> Any:
+    """Return the transcription's key for a derivative by `keys` at the row `prefix`.
+
+    The back end spells a *lone* decision-variable key bare rather than wrapped, so an
+    objective gradient is keyed `(0, "tf", 0)` where a discrete Jacobian is keyed
+    `(row, (0, "tf", 0))`. That irregularity is confined here.
+    """
+    if prefix:
+        return (*prefix, *keys)
+    return keys[0] if len(keys) == 1 else keys
+
+
+class _Row:
+    """One row of one derivative: subscript it with the variables the derivative relates.
+
+    `wants` is 1 for a first derivative and 2 for a second, which is the only difference
+    between the four endpoint targets once the row is fixed.
+    """
+
+    __slots__ = ("_columns", "_prefix", "_spelling", "_store", "_wants")
+
+    def __init__(
+        self,
+        store: Structure,
+        columns: EndpointColumns,
+        spelling: str,
+        prefix: tuple[Any, ...],
+        wants: int,
+    ) -> None:
+        for attribute, value in (
+            ("_store", store),
+            ("_columns", columns),
+            ("_spelling", spelling),
+            ("_prefix", prefix),
+            ("_wants", wants),
+        ):
+            object.__setattr__(self, attribute, value)
+
+    def _resolve(self, index: Any) -> tuple[tuple[Any, ...], str]:
+        """Return the keys the subscript names and how the whole entry is spelled."""
+        spelling: str = object.__getattribute__(self, "_spelling")
+        columns: EndpointColumns = object.__getattribute__(self, "_columns")
+        wants: int = object.__getattribute__(self, "_wants")
+        given = index if isinstance(index, tuple) else (index,)
+        if len(given) != wants:
+            raise TypeError(_wrong_count(spelling, given, wants))
+        keys = []
+        for column in given:
+            if not isinstance(column, Column):
+                raise TypeError(_not_a_column(spelling, column, wants))
+            if object.__getattribute__(column, "_origin") is not columns:
+                msg = (
+                    f"{spelling}[{column!r}]: that variable belongs to another problem. Take "
+                    f"it from this derivative's own namespace."
+                )
+                raise ValueError(msg)
+            keys.append(object.__getattribute__(column, "_key"))
+        written = ", ".join(repr(column) for column in given)
+        return tuple(keys), f"{spelling}[{written}]"
+
+    def __setitem__(self, index: Any, value: Any) -> None:
+        """Record the derivative by the variables the subscript names."""
+        keys, spelling = self._resolve(index)
+        store: Structure = object.__getattribute__(self, "_store")
+        prefix: tuple[Any, ...] = object.__getattribute__(self, "_prefix")
+        key = _entry_key(prefix, keys)
+        if len(keys) == 1:
+            store.store(key, spelling, value)
+        else:
+            store.store_pair(key, (*prefix, *sorted(keys)), spelling, value)
+
+    def __getitem__(self, index: Any) -> Any:
+        """Refuse a read: a derivative is written here, not navigated."""
+        _keys, spelling = self._resolve(index)
+        del _keys
+        msg = f"{spelling} is the whole of the derivative; write '{spelling} = ...'."
+        raise TypeError(msg)
+
+    def __getattr__(self, name: str) -> Any:
+        """Refuse a name written where the variables belong."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        raise AttributeError(_needs_variables(self, name))
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse an assignment written where the variables belong."""
+        del value
+        raise AttributeError(_needs_variables(self, name))
+
+
+def _needs_variables(row: _Row, name: str) -> str:
+    """Return what to say when a derivative names no variable to differentiate by."""
+    spelling: str = object.__getattribute__(row, "_spelling")
+    wants: int = object.__getattribute__(row, "_wants")
+    form = "[<variable>]" if wants == 1 else "[<variable>, <variable>]"
+    return (
+        f"{spelling}.{name}: a derivative names the variables it relates in the subscript, "
+        f"'{spelling}{form} = ...'."
+    )
+
+
+def _wrong_count(spelling: str, given: tuple[Any, ...], wants: int) -> str:
+    """Return what to say when a derivative is written with the wrong number of variables."""
+    written = ", ".join(repr(column) for column in given)
+    if wants == 1:
+        return (
+            f"{spelling}[{written}] names {len(given)} variables. A first derivative names "
+            f"one, '{spelling}[<variable>] = ...'."
+        )
+    return (
+        f"{spelling}[{written}] names {len(given)} variable"
+        f"{'' if len(given) == 1 else 's'}. A second derivative names two, "
+        f"'{spelling}[<variable>, <variable>] = ...'."
+    )
+
+
+def _not_a_column(spelling: str, given: Any, wants: int) -> str:
+    """Return what to say when something that is not an endpoint variable is subscripted."""
+    form = "[<variable>]" if wants == 1 else "[<variable>, <variable>]"
+    if isinstance(given, ColumnBlock):
+        return _NEEDS_ROW.format(spelling=repr(given), size=len(given))
+    return (
+        f"{spelling}{form} takes an endpoint variable, such as "
+        f"'<target>.phases[phase].final.<name>'; got {given!r}."
+    )
+
+
+class _RowBlock:
+    """The rows of one block constraint group, awaiting the row the derivative is of."""
+
+    __slots__ = ("_columns", "_offset", "_size", "_spelling", "_store", "_wants")
+
+    def __init__(
+        self,
+        store: Structure,
+        columns: EndpointColumns,
+        spelling: str,
+        block: tuple[int, int],
+        wants: int,
+    ) -> None:
+        offset, size = block
+        for attribute, value in (
+            ("_store", store),
+            ("_columns", columns),
+            ("_spelling", spelling),
+            ("_offset", offset),
+            ("_size", size),
+            ("_wants", wants),
+        ):
+            object.__setattr__(self, attribute, value)
+
+    def __getitem__(self, index: Any) -> _Row:
+        """Return the derivative of one row of the group."""
+        spelling: str = object.__getattribute__(self, "_spelling")
+        size: int = object.__getattribute__(self, "_size")
+        if isinstance(index, (Column, ColumnBlock, tuple)):
+            raise TypeError(_NEEDS_ROW.format(spelling=spelling, size=size))
+        row = _row(object.__getattribute__(self, "_offset"), size, index, spelling)
+        return _Row(
+            object.__getattribute__(self, "_store"),
+            object.__getattribute__(self, "_columns"),
+            f"{spelling}[{index}]",
+            (row,),
+            object.__getattribute__(self, "_wants"),
+        )
+
+    def __setitem__(self, index: Any, value: Any) -> None:
+        """Refuse an assignment to a row before the variables are named."""
         del value
         spelling: str = object.__getattribute__(self, "_spelling")
+        size: int = object.__getattribute__(self, "_size")
+        if isinstance(index, (Column, ColumnBlock, tuple)):
+            raise TypeError(_NEEDS_ROW.format(spelling=spelling, size=size))
+        row = _row(object.__getattribute__(self, "_offset"), size, index, spelling)
+        del row
+        wants: int = object.__getattribute__(self, "_wants")
+        form = "[<variable>]" if wants == 1 else "[<variable>, <variable>]"
         msg = (
-            f"{spelling}.{name} names no variable. An endpoint derivative names the end and "
-            f"the variable, for example '{spelling}.final.<name> = ...'."
+            f"{spelling}[{index}] names a constraint but no variable. A derivative names "
+            f"both, '{spelling}[{index}]{form} = ...'."
         )
-        raise AttributeError(msg)
+        raise TypeError(msg)
 
-
-class _FirstNamed:
-    """A second derivative whose first variable is named: select the second's phase next."""
-
-    __slots__ = ("_context", "_first", "_spelling")
-
-    def __init__(self, context: _Context, first: Any, spelling: str) -> None:
-        object.__setattr__(self, "_context", context)
-        object.__setattr__(self, "_first", first)
-        object.__setattr__(self, "_spelling", spelling)
-
-    def __getitem__(self, handle: Any) -> Any:
-        """Return the endpoint namespace of the phase the second variable belongs to."""
-        context: _Context = object.__getattribute__(self, "_context")
-        spelling: str = object.__getattribute__(self, "_spelling")
-        phase = context.columns.lookup(handle, spelling)
-        # the second variable ends the derivative, whatever mode the first was reached in
-        return _Endpoint(
-            context.ending(),
-            phase,
-            f"{spelling}[{phase.name}]",
-            object.__getattribute__(self, "_first"),
+    def __getattr__(self, name: str) -> Any:
+        """Refuse a name written where a row index belongs."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        raise AttributeError(
+            _NEEDS_ROW.format(
+                spelling=object.__getattribute__(self, "_spelling"),
+                size=object.__getattribute__(self, "_size"),
+            )
         )
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Record a second derivative whose second variable is a parameter."""
-        context: _Context = object.__getattribute__(self, "_context")
-        spelling = f"{object.__getattribute__(self, '_spelling')}.{name}"
-        key = _parameter(name, context.columns, spelling, context.what)
-        first = object.__getattribute__(self, "_first")
-        context.store.store_pair(
-            context.key(first, key), context.canonical(first, key), spelling, value
-        )
-
-    def __getattr__(self, name: str) -> Any:
-        """Return a block parameter as the second variable, or refuse a bare name."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        spelling: str = object.__getattribute__(self, "_spelling")
-        context: _Context = object.__getattribute__(self, "_context")
-        block = context.columns.parameter_blocks.get(name)
-        if block is not None:
-            prefix, offset, size = block
-            first = object.__getattribute__(self, "_first")
-
-            def write(row: int, at: str, value: Any) -> None:
-                second = (*prefix, row)
-                context.store.store_pair(
-                    context.key(first, second), context.canonical(first, second), at, value
-                )
-
-            return _BlockWrite(offset, size, f"{spelling}.{name}", write)
-        msg = (
-            f"{spelling}.{name}: the second variable of an endpoint Hessian is reached "
-            f"through its phase, '{spelling}[phase].final.{name} = ...', or named directly "
-            f"if it is a parameter, '{spelling}.{name} = ...'."
-        )
-        raise AttributeError(msg)
-
-
-def _parameter(name: str, columns: EndpointColumns, spelling: str, what: str) -> Any:
-    """Return the column the parameter `name` addresses, for a scalar parameter only."""
-    key = columns.parameter.get(name)
-    if key is not None:
-        return key
-    block = columns.parameter_blocks.get(name)
-    if block is not None:
-        raise AttributeError(_NEEDS_ROW.format(spelling=spelling, size=block[2]))
-    msg = (
-        f"{spelling}: there is no parameter '{name}'."
-        f"{suggest(name, (*columns.parameter, *columns.parameter_blocks))} An endpoint "
-        f"variable is reached through its phase, '{what}[phase].final.{name} = ...'."
-    )
-    raise AttributeError(msg)
-
-
-class _EndpointTarget:
-    """What an endpoint derivative callback fills in: phases by handle, parameters by name."""
-
-    __slots__ = ("_context",)
-
-    def __init__(self, store: Structure, columns: EndpointColumns, what: str, mode: str) -> None:
-        object.__setattr__(self, "_context", _Context(store, columns, what, mode))
-
-    @classmethod
-    def _over(cls, context: _Context) -> _EndpointTarget:
-        """Return a target over a context already built, as a discrete group's row needs."""
-        target = object.__new__(_EndpointTarget)
-        object.__setattr__(target, "_context", context)
-        return target
-
-    def __getitem__(self, handle: Any) -> Any:
-        """Return the endpoint namespace of the phase `handle` names."""
-        context: _Context = object.__getattribute__(self, "_context")
-        phase = context.columns.lookup(handle, context.what)
-        return _Endpoint(context, phase, f"{context.what}[{phase.name}]", None)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Record a derivative with respect to a parameter, which belongs to no phase."""
-        context: _Context = object.__getattribute__(self, "_context")
-        spelling = f"{context.what}.{name}"
-        key = _parameter(name, context.columns, spelling, context.what)
-        if context.mode == "first":
-            msg = (
-                f"{spelling} names one variable. A second derivative names two, for example "
-                f"'{spelling}[phase].final.<name> = ...' or '{spelling}.<parameter> = ...'."
+        """Refuse an assignment written where a row index belongs."""
+        del name, value
+        raise AttributeError(
+            _NEEDS_ROW.format(
+                spelling=object.__getattribute__(self, "_spelling"),
+                size=object.__getattribute__(self, "_size"),
             )
-            raise AttributeError(msg)
-        context.store.store(context.key(key), spelling, value)
-
-    def __getattr__(self, name: str) -> Any:
-        """Return a parameter's node: a block awaiting its row, or a Hessian's first half."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        context: _Context = object.__getattribute__(self, "_context")
-        spelling = f"{context.what}.{name}"
-        block = context.columns.parameter_blocks.get(name)
-        if block is not None:
-            prefix, offset, size = block
-            if context.mode == "first":
-                return _BlockStep(
-                    offset,
-                    size,
-                    spelling,
-                    lambda row, at: _FirstNamed(context, (*prefix, row), at),
-                )
-            return _BlockWrite(
-                offset,
-                size,
-                spelling,
-                lambda row, at, value: context.store.store(context.key((*prefix, row)), at, value),
-            )
-        if context.mode != "first":
-            msg = (
-                f"{spelling} is written, not read. A derivative by an endpoint variable is "
-                f"reached through its phase, '{context.what}[phase].final.{name} = ...'; one "
-                f"by a parameter is '{spelling} = ...'."
-            )
-            raise AttributeError(msg)
-        return _FirstNamed(
-            context, _parameter(name, context.columns, spelling, context.what), spelling
         )
 
 
 class _DiscreteGroups:
-    """The discrete constraint groups of a derivative: one endpoint namespace per row.
+    """The discrete constraint groups: one row of the derivative each, blocks by row."""
 
-    ``jacobian.discrete.link`` scopes the endpoint nodes to that group's row, and everything
-    after it -- the phase selector, the end, the variable -- is what an objective derivative
-    writes. The two differ only in what the key is built on (`_Context.prefix`).
-    """
+    __slots__ = ("_columns", "_spelling", "_store", "_wants")
 
-    __slots__ = ("_context", "_rows")
-
-    def __init__(self, context: _Context, rows: dict[str, int]) -> None:
-        object.__setattr__(self, "_context", context)
-        object.__setattr__(self, "_rows", rows)
+    def __init__(
+        self, store: Structure, columns: EndpointColumns, spelling: str, wants: int
+    ) -> None:
+        for attribute, value in (
+            ("_store", store),
+            ("_columns", columns),
+            ("_spelling", spelling),
+            ("_wants", wants),
+        ):
+            object.__setattr__(self, attribute, value)
 
     def __getattr__(self, name: str) -> Any:
-        """Return the endpoint namespace scoped to the group `name`."""
+        """Return the row, or the rows, of one constraint group."""
         if name.startswith("_"):
             raise AttributeError(name)
-        rows: dict[str, int] = object.__getattribute__(self, "_rows")
-        context: _Context = object.__getattribute__(self, "_context")
-        spelling = f"{context.what}.discrete.{name}"
-        row = rows.get(name)
+        columns: EndpointColumns = object.__getattribute__(self, "_columns")
+        store: Structure = object.__getattribute__(self, "_store")
+        wants: int = object.__getattribute__(self, "_wants")
+        spelling = f"{object.__getattribute__(self, '_spelling')}.{name}"
+        row = columns.discrete.get(name)
         if row is not None:
-            return _EndpointTarget._over(context.at((row,), spelling))
-        blocks = context.columns.discrete_blocks
-        block = blocks.get(name)
+            return _Row(store, columns, spelling, (row,), wants)
+        block = columns.discrete_blocks.get(name)
         if block is not None:
-            offset, size = block
-            return _BlockStep(
-                offset,
-                size,
-                spelling,
-                lambda group_row, at: _EndpointTarget._over(context.at((group_row,), at)),
-            )
-        msg = f"{context.what}.discrete has no group '{name}'." f"{suggest(name, (*rows, *blocks))}"
+            return _RowBlock(store, columns, spelling, block, wants)
+        msg = (
+            f"{object.__getattribute__(self, '_spelling')} has no group '{name}'."
+            f"{suggest(name, (*columns.discrete, *columns.discrete_blocks))}"
+        )
         raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse assigning a group, which names no variable to differentiate by."""
         del value
-        context: _Context = object.__getattribute__(self, "_context")
+        wants: int = object.__getattribute__(self, "_wants")
+        form = "[<variable>]" if wants == 1 else "[<variable>, <variable>]"
+        spelling = f"{object.__getattribute__(self, '_spelling')}.{name}"
         msg = (
-            f"{context.what}.discrete.{name} names a constraint but no variable. A "
-            f"derivative names both, for example "
-            f"'{context.what}.discrete.{name}[phase].final.<name> = ...'."
+            f"{spelling} names a constraint but no variable. A derivative names both, "
+            f"'{spelling}{form} = ...'."
         )
         raise AttributeError(msg)
 
 
-class _DiscreteTarget:
-    """What a discrete derivative callback fills in: the groups, under ``.discrete``."""
+class _EndpointTarget:
+    """What an endpoint derivative callback fills in, and the namespace it writes against.
 
-    __slots__ = ("_context", "_groups")
+    The three roots are fixed words -- `phases`, `parameter`, and `discrete` where there are
+    discrete constraints -- so nothing a user declares is spelled at this level and no field
+    name can collide with them.
+    """
 
-    def __init__(self, store: Structure, columns: EndpointColumns, what: str, mode: str) -> None:
-        context = _Context(store, columns, what, mode)
-        object.__setattr__(self, "_context", context)
-        object.__setattr__(self, "_groups", _DiscreteGroups(context, columns.discrete))
+    __slots__ = ("_columns", "_store", "_wants", "_what")
+
+    def __init__(self, store: Structure, columns: EndpointColumns, what: str, wants: int) -> None:
+        for attribute, value in (
+            ("_store", store),
+            ("_columns", columns),
+            ("_what", what),
+            ("_wants", wants),
+        ):
+            object.__setattr__(self, attribute, value)
 
     def __getattr__(self, name: str) -> Any:
-        """Return the groups. There is one namespace here, and it is `discrete`."""
+        """Return one of the namespaces a derivative is written against."""
         if name.startswith("_"):
             raise AttributeError(name)
-        context: _Context = object.__getattribute__(self, "_context")
-        if name != "discrete":
-            msg = (
-                f"{context.what}.{name}: a discrete derivative names a constraint group, "
-                f"'{context.what}.discrete.<group>'.{suggest(name, ('discrete',))}"
-            )
-            raise AttributeError(msg)
-        return object.__getattribute__(self, "_groups")
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse replacing the groups."""
-        del value
-        context: _Context = object.__getattribute__(self, "_context")
+        columns: EndpointColumns = object.__getattribute__(self, "_columns")
+        what: str = object.__getattribute__(self, "_what")
+        if name == "phases":
+            return _ColumnPhases(columns, "phases", f"{what}.phases")
+        if name == "parameter":
+            return _ColumnParameters(columns, "parameter", f"{what}.parameter")
+        offered = ("phases", "parameter")
         msg = (
-            f"{context.what}.{name} cannot be replaced; write one derivative at a time, for "
-            f"example '{context.what}.discrete.<group>[phase].final.<name> = ...'."
+            f"{what}.{name}: a derivative is written against 'phases[phase].<end>.<name>' or "
+            f"'parameter.<name>'.{suggest(name, offered)}"
         )
         raise AttributeError(msg)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse an assignment to a namespace."""
+        del value
+        what: str = object.__getattribute__(self, "_what")
+        msg = (
+            f"{what}.{name} cannot be assigned; write one derivative at a time, with the "
+            f"variables it relates in the subscript."
+        )
+        raise AttributeError(msg)
+
+
+class _ObjectiveTarget(_EndpointTarget):
+    """An objective derivative: one derivative, so the target is subscripted directly."""
+
+    __slots__ = ()
+
+    def _as_row(self) -> _Row:
+        return _Row(
+            object.__getattribute__(self, "_store"),
+            object.__getattribute__(self, "_columns"),
+            object.__getattribute__(self, "_what"),
+            (),
+            object.__getattribute__(self, "_wants"),
+        )
+
+    def __setitem__(self, index: Any, value: Any) -> None:
+        """Record the derivative by the variables the subscript names."""
+        self._as_row()[index] = value
+
+    def __getitem__(self, index: Any) -> Any:
+        """Refuse a read, with the message the row itself would give."""
+        return self._as_row()[index]
+
+
+class _DiscreteTarget(_EndpointTarget):
+    """A discrete derivative: one derivative per constraint row, reached under `discrete`."""
+
+    __slots__ = ()
+
+    def __getattr__(self, name: str) -> Any:
+        """Return the constraint groups, or one of the variable namespaces."""
+        if name == "discrete":
+            return _DiscreteGroups(
+                object.__getattribute__(self, "_store"),
+                object.__getattribute__(self, "_columns"),
+                f"{object.__getattribute__(self, '_what')}.discrete",
+                object.__getattribute__(self, "_wants"),
+            )
+        return super().__getattr__(name)
+
+    def __setitem__(self, index: Any, value: Any) -> None:
+        """Refuse a derivative written without saying which constraint it is of."""
+        del index, value
+        what: str = object.__getattribute__(self, "_what")
+        msg = (
+            f"{what}[...] names no constraint. A discrete derivative names the constraint "
+            f"first, '{what}.discrete.<group>[...] = ...'."
+        )
+        raise TypeError(msg)
 
 
 class DiscreteJacobian(_DiscreteTarget):
     """What ``problem.register.discrete_jacobian`` fills in.
 
-    ``jacobian.discrete.link[ph].final.h = -1.0`` is the derivative of the constraint group
-    ``link`` with respect to the phase's final ``h``.
+    ``jacobian.discrete.link[f.h] = -1.0``, where ``f = jacobian.phases[ph].final``, is the
+    derivative of the constraint group ``link`` with respect to that phase's final ``h``.
     """
 
     __slots__ = ()
 
     def __init__(self, store: Structure, columns: EndpointColumns) -> None:
-        super().__init__(store, columns, "jacobian", "only")
+        super().__init__(store, columns, "jacobian", 1)
 
 
 class DiscreteHessian(_DiscreteTarget):
     """What ``problem.register.discrete_hessian`` fills in.
 
-    ``hessian.discrete.orbit[ph].final.r[ph].final.r`` is a second derivative of one group:
-    the first variable is named through its phase, then the second is. Each unordered pair is
-    written once. A linear constraint contributes nothing, and saying nothing about it is how
-    that is said.
+    ``hessian.discrete.orbit[f.r, f.r]``, where ``f = hessian.phases[ph].final``, is a second
+    derivative of one group. Each unordered pair is written once. A linear constraint
+    contributes nothing, and saying nothing about it is how that is said.
     """
 
     __slots__ = ()
 
     def __init__(self, store: Structure, columns: EndpointColumns) -> None:
-        super().__init__(store, columns, "hessian", "first")
+        super().__init__(store, columns, "hessian", 2)
 
 
-class ObjectiveGradient(_EndpointTarget):
+class ObjectiveGradient(_ObjectiveTarget):
     """What ``problem.register.objective_gradient`` fills in.
 
-    ``gradient[ph].final.time = 1.0`` is the derivative of the objective with respect to the
-    final value of that phase's independent variable.
+    ``gradient[gradient.phases[ph].final.time] = 1.0`` is the derivative of the objective with
+    respect to the final value of that phase's independent variable.
     """
 
     __slots__ = ()
 
     def __init__(self, store: Structure, columns: EndpointColumns) -> None:
-        super().__init__(store, columns, "gradient", "only")
+        super().__init__(store, columns, "gradient", 1)
 
 
-class ObjectiveHessian(_EndpointTarget):
+class ObjectiveHessian(_ObjectiveTarget):
     """What ``problem.register.objective_hessian`` fills in.
 
-    ``hessian[ph].initial.r[ph].initial.r = 8.0`` is a second derivative: the first variable
-    is named through its phase, then the second is. Each unordered pair is written once.
+    ``hessian[i.r, i.r] = 8.0``, where ``i = hessian.phases[ph].initial``, is a second
+    derivative of the objective. Each unordered pair is written once.
     """
 
     __slots__ = ()
 
     def __init__(self, store: Structure, columns: EndpointColumns) -> None:
-        super().__init__(store, columns, "hessian", "first")
+        super().__init__(store, columns, "hessian", 2)

@@ -234,7 +234,8 @@ class ProblemRegistry(Registry):
         """Register the objective's gradient, as a decorator or as a call.
 
         Required under ``derivatives.method = "user"``. The callback takes the endpoint
-        argument and a `gradient` to fill: ``gradient[ph].final.time = 1.0``. What it writes
+        argument and a `gradient` to fill, subscripted with the variable the derivative is by:
+        ``gradient[gradient.phases[ph].final.time] = 1.0``. What it writes
         is the sparsity structure, so a name it does not write is a derivative that is zero
         everywhere, and the same names must be written on every call.
 
@@ -285,8 +286,10 @@ class ProblemRegistry(Registry):
 
         Required under ``derivatives.method = "user"`` when the problem declares discrete
         constraints. The callback takes the endpoint argument and a `jacobian` whose entries
-        name the constraint group and the variable:
-        ``jacobian.discrete.link[ph].final.h = -1.0``.
+        name the constraint group and, in the subscript, the variable::
+
+            f = jacobian.phases[ph].final
+            jacobian.discrete.link[f.h] = -1.0
 
         Parameters
         ----------

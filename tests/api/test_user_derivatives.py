@@ -82,13 +82,15 @@ def user_newton():
 
     @problem.register.objective_gradient
     def drag_gradient(arg, gradient):
-        gradient[ph].integral.drag = 1.0
-        gradient[ph].initial.r = 8 * arg[ph].initial.r
+        nose = gradient.phases[ph]
+        gradient[nose.integral.drag] = 1.0
+        gradient[nose.initial.r] = 8 * arg[ph].initial.r
         return gradient
 
     @problem.register.objective_hessian
     def drag_hessian(_arg, hessian):
-        hessian[ph].initial.r[ph].initial.r = 8.0
+        r0 = hessian.phases[ph].initial.r
+        hessian[r0, r0] = 8.0
         return hessian
 
     problem.derivatives.method = "user"
@@ -157,7 +159,7 @@ def user_orbit_raising():
 
     @problem.register.objective_gradient
     def largest_orbit_gradient(_arg, gradient):
-        gradient[ph].final.r = 1.0
+        gradient[gradient.phases[ph].final.r] = 1.0
         return gradient
 
     @problem.register.objective_hessian
@@ -167,14 +169,16 @@ def user_orbit_raising():
     @problem.register.discrete_jacobian
     def circular_jacobian(arg, jacobian):
         r = arg[ph].final.r
-        jacobian.discrete.circular[ph].final.v_theta = 1.0
-        jacobian.discrete.circular[ph].final.r = sqrt(mu) / (2 * r**1.5)
+        final = jacobian.phases[ph].final
+        jacobian.discrete.circular[final.v_theta] = 1.0
+        jacobian.discrete.circular[final.r] = sqrt(mu) / (2 * r**1.5)
         return jacobian
 
     @problem.register.discrete_hessian
     def circular_hessian(arg, hessian):
         r = arg[ph].final.r
-        hessian.discrete.circular[ph].final.r[ph].final.r = -3 * sqrt(mu) / (4 * r**2.5)
+        rf = hessian.phases[ph].final.r
+        hessian.discrete.circular[rf, rf] = -3 * sqrt(mu) / (4 * r**2.5)
         return hessian
 
     problem.derivatives.method = "user"
@@ -262,7 +266,7 @@ def user_goddard():
 
     @problem.register.objective_gradient
     def final_altitude_gradient(_arg, gradient):
-        gradient[coast].final.h = 1.0
+        gradient[gradient.phases[coast].final.h] = 1.0
         return gradient
 
     @problem.register.objective_hessian
@@ -273,22 +277,23 @@ def user_goddard():
     def linkage_jacobian(_arg, jacobian):
         """Each group is `later - earlier`, so its derivatives are +1 and -1 and nothing else."""
         d = jacobian.discrete
-        d.boost_singular_h[singular].initial.h = 1.0
-        d.boost_singular_h[boost].final.h = -1.0
-        d.boost_singular_v[singular].initial.v = 1.0
-        d.boost_singular_v[boost].final.v = -1.0
-        d.boost_singular_m[singular].initial.m = 1.0
-        d.boost_singular_m[boost].final.m = -1.0
-        d.boost_singular_time[singular].initial.time = 1.0
-        d.boost_singular_time[boost].final.time = -1.0
-        d.singular_coast_h[coast].initial.h = 1.0
-        d.singular_coast_h[singular].final.h = -1.0
-        d.singular_coast_v[coast].initial.v = 1.0
-        d.singular_coast_v[singular].final.v = -1.0
-        d.singular_coast_m[coast].initial.m = 1.0
-        d.singular_coast_m[singular].final.m = -1.0
-        d.singular_coast_time[coast].initial.time = 1.0
-        d.singular_coast_time[singular].final.time = -1.0
+        b, s, c = (jacobian.phases[phase] for phase in (boost, singular, coast))
+        d.boost_singular_h[s.initial.h] = 1.0
+        d.boost_singular_h[b.final.h] = -1.0
+        d.boost_singular_v[s.initial.v] = 1.0
+        d.boost_singular_v[b.final.v] = -1.0
+        d.boost_singular_m[s.initial.m] = 1.0
+        d.boost_singular_m[b.final.m] = -1.0
+        d.boost_singular_time[s.initial.time] = 1.0
+        d.boost_singular_time[b.final.time] = -1.0
+        d.singular_coast_h[c.initial.h] = 1.0
+        d.singular_coast_h[s.final.h] = -1.0
+        d.singular_coast_v[c.initial.v] = 1.0
+        d.singular_coast_v[s.final.v] = -1.0
+        d.singular_coast_m[c.initial.m] = 1.0
+        d.singular_coast_m[s.final.m] = -1.0
+        d.singular_coast_time[c.initial.time] = 1.0
+        d.singular_coast_time[s.final.time] = -1.0
         return jacobian
 
     @problem.register.discrete_hessian
@@ -539,27 +544,49 @@ def test_a_diagonal_hessian_entry_is_not_a_mirrored_pair(targets):
 
 def test_a_gradient_takes_a_phase_handle(targets):
     with pytest.raises(KeyError, match=r"takes a phase handle"):
-        targets["gradient"]["slide"].final.time = 1.0
+        _ = targets["gradient"].phases["slide"]
 
 
 def test_an_endpoint_derivative_names_an_end(targets, ph):
     with pytest.raises(AttributeError, match=r"'initial', 'final' or 'integral'"):
-        targets["gradient"][ph].finel.time = 1.0
+        _ = targets["gradient"].phases[ph].finel
 
 
 def test_an_unknown_parameter_is_refused(targets):
-    with pytest.raises(AttributeError, match=r"no parameter 'beta'"):
-        targets["gradient"].beta = 1.0
+    with pytest.raises(AttributeError, match=r"the problem has no 'beta'"):
+        _ = targets["gradient"].parameter.beta
 
 
-def test_an_objective_hessian_chains_through_its_phase(targets, ph):
-    """``hessian[ph].initial.x[ph].final.x`` names two endpoint variables, each by its phase."""
-    targets["objective_hessian"][ph].initial.x[ph].final.x = 3.0
+def test_a_variable_is_not_a_derivative(targets, ph):
+    """Assigning to the variable is the mistake the old spelling invited; it is named."""
+    with pytest.raises(AttributeError, match=r"is a variable, not a derivative"):
+        targets["gradient"].phases[ph].final.time = 1.0
 
 
-def test_an_objective_hessian_needs_its_second_phase(targets, ph):
-    with pytest.raises(AttributeError, match=r"A second derivative names two"):
-        targets["objective_hessian"][ph].initial.x = 3.0
+def test_a_column_of_another_problem_is_refused(targets):
+    """A column carries the namespace it came from, so it cannot land in the wrong problem."""
+    elsewhere = bare_problem()
+    other = _targets(elsewhere)["gradient"]
+    column = other.phases[elsewhere.phases.slide].final.time
+    with pytest.raises(ValueError, match=r"belongs to another problem"):
+        targets["gradient"][column] = 1.0
+
+
+def test_a_gradient_takes_one_variable(targets, ph):
+    final = targets["gradient"].phases[ph].final
+    with pytest.raises(TypeError, match=r"A first derivative names one"):
+        targets["gradient"][final.time, final.x] = 1.0
+
+
+def test_an_objective_hessian_names_two_variables(targets, ph):
+    """``hessian[i.x, f.x]`` relates two endpoint variables, each a value in its own right."""
+    phase = targets["objective_hessian"].phases[ph]
+    targets["objective_hessian"][phase.initial.x, phase.final.x] = 3.0
+
+
+def test_an_objective_hessian_needs_its_second_variable(targets, ph):
+    with pytest.raises(TypeError, match=r"A second derivative names two"):
+        targets["objective_hessian"][targets["objective_hessian"].phases[ph].initial.x] = 3.0
 
 
 # ------------------------------------------------------- what the discrete targets refuse
@@ -625,12 +652,12 @@ def discrete_targets(linked):
 
 def test_a_discrete_derivative_names_a_group(discrete_targets, linked):
     jacobian = discrete_targets["jacobian"]
-    jacobian.discrete.gap[linked.phases.slide].final.x = 1.0
+    jacobian.discrete.gap[jacobian.phases[linked.phases.slide].final.x] = 1.0
 
 
 def test_an_unknown_group_is_refused_with_a_suggestion(discrete_targets, linked):
     with pytest.raises(AttributeError, match=r"has no group 'gapp'.*Did you mean 'gap'"):
-        discrete_targets["jacobian"].discrete.gapp[linked.phases.slide].final.x = 1.0
+        _ = discrete_targets["jacobian"].discrete.gapp
 
 
 def test_a_group_needs_a_variable(discrete_targets):
@@ -639,21 +666,22 @@ def test_a_group_needs_a_variable(discrete_targets):
 
 
 def test_a_discrete_derivative_names_discrete(discrete_targets):
-    with pytest.raises(AttributeError, match=r"names a constraint group"):
+    with pytest.raises(AttributeError, match=r"a derivative is written against"):
         _ = discrete_targets["jacobian"].dynamics
 
 
-def test_a_discrete_hessian_chains_through_both_phases(discrete_targets, linked):
-    ph = linked.phases.slide
-    discrete_targets["hessian"].discrete.gap[ph].final.x[ph].final.v = 2.0
+def test_a_discrete_hessian_relates_two_variables(discrete_targets, linked):
+    hessian = discrete_targets["hessian"]
+    final = hessian.phases[linked.phases.slide].final
+    hessian.discrete.gap[final.x, final.v] = 2.0
 
 
 def test_a_mirrored_discrete_hessian_pair_is_refused(discrete_targets, linked):
-    ph = linked.phases.slide
     hessian = discrete_targets["hessian"]
-    hessian.discrete.gap[ph].final.x[ph].final.v = 2.0
+    final = hessian.phases[linked.phases.slide].final
+    hessian.discrete.gap[final.x, final.v] = 2.0
     with pytest.raises(ValueError, match=r"same second derivative written both ways round"):
-        hessian.discrete.gap[ph].final.v[ph].final.x = 2.0
+        hessian.discrete.gap[final.v, final.x] = 2.0
 
 
 class TwoLinks(yapss.Vector):
@@ -681,8 +709,9 @@ def test_the_same_pair_in_two_groups_is_two_entries():
     spec = snapshot(problem)
     store = Structure("hessian")
     hessian = DiscreteHessian(store, endpoint_columns(spec.phases, spec.parameter, spec.discrete))
-    hessian.discrete.gap[ph].final.x[ph].final.v = 2.0
-    hessian.discrete.slack[ph].final.x[ph].final.v = 3.0
+    final = hessian.phases[ph].final
+    hessian.discrete.gap[final.x, final.v] = 2.0
+    hessian.discrete.slack[final.x, final.v] = 3.0
     assert len(store.entries) == 2
     assert sorted(store.entries.values()) == [2.0, 3.0]
 

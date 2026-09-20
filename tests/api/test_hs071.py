@@ -37,7 +37,9 @@ def test_it_agrees_with_the_released_api(problem):
     assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-14)
 
 
-@pytest.mark.parametrize("method", ["auto", "central-difference", "central-difference-full"])
+@pytest.mark.parametrize(
+    "method", ["user", "auto", "central-difference", "central-difference-full"]
+)
 def test_every_derivative_method_agrees(problem, method):
     problem.derivatives.method = method
     assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-10)
@@ -62,50 +64,36 @@ def test_there_are_no_phases_to_reach(problem):
 
 
 def test_user_derivatives_need_no_continuous_callbacks():
-    """With no phases there is no continuous callback, so `"user"` wants only the endpoint pair."""
+    """With no phases there is no continuous callback, so `"user"` wants only the endpoint four.
+
+    The example itself is written that way, so this states what `setup()` already does rather
+    than building a second copy of it.
+    """
     problem = setup()
     problem.ipopt_options.print_level = 0
+    assert problem.derivatives.method == "user"
+    assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-10)
 
-    @problem.register.objective_gradient
-    def gradient(arg, gradient):
-        x = arg.parameter.x
-        gradient.x[0] = x[3] * (2 * x[0] + x[1] + x[2])
-        gradient.x[1] = x[0] * x[3]
-        gradient.x[2] = x[0] * x[3] + 1.0
-        gradient.x[3] = x[0] * (x[0] + x[1] + x[2])
+
+def test_the_hand_written_derivatives_are_the_ones_used():
+    """Break one entry of the objective gradient and the solve must not reach the answer.
+
+    Without this the example would pass whether or not its callbacks were reached, since a
+    wrong derivative costs iterations rather than raising.
+    """
+    problem = setup()
+    problem.ipopt_options.print_level = 0
+    problem.ipopt_options.max_iter = 5
+
+    def wrong(arg, gradient):
+        dx = gradient.parameter.x
+        for i in range(4):
+            gradient[dx[i]] = 1.0
         return gradient
 
-    @problem.register.objective_hessian
-    def hessian(arg, hessian):
-        x = arg.parameter.x
-        hessian.x[0].x[0] = 2 * x[3]
-        hessian.x[0].x[1] = x[3]
-        hessian.x[0].x[2] = x[3]
-        hessian.x[0].x[3] = 2 * x[0] + x[1] + x[2]
-        hessian.x[1].x[3] = x[0]
-        hessian.x[2].x[3] = x[0]
-        return hessian
-
-    @problem.register.discrete_jacobian
-    def jacobian(arg, jacobian):
-        x = arg.parameter.x
-        for i in range(4):
-            jacobian.discrete.product.x[i] = np.prod([x[j] for j in range(4) if j != i])
-            jacobian.discrete.sum_of_squares.x[i] = 2 * x[i]
-        return jacobian
-
-    @problem.register.discrete_hessian
-    def discrete_hessian(arg, hessian):
-        x = arg.parameter.x
-        for i in range(4):
-            hessian.discrete.sum_of_squares.x[i].x[i] = 2.0
-            for j in range(i + 1, 4):
-                rest = [k for k in range(4) if k not in (i, j)]
-                hessian.discrete.product.x[i].x[j] = x[rest[0]] * x[rest[1]]
-        return hessian
-
-    problem.derivatives.method = "user"
-    assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-10)
+    problem.register.objective_gradient(wrong, replace=True)
+    with pytest.warns(yapss.IpoptConvergenceWarning):
+        assert problem.solve().objective != pytest.approx(RELEASED, rel=1e-6)
 
 
 def test_the_declarations_are_what_they_look_like():

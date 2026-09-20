@@ -93,8 +93,9 @@ def build():
 
     @problem.register.objective_gradient
     def gradient(arg, gradient):
-        gradient[ph].integral.cost = 1.0
-        gradient[ph].final.h = 1.0
+        run = gradient.phases[ph]
+        gradient[run.integral.cost] = 1.0
+        gradient[run.final.h] = 1.0
         return gradient
 
     @problem.register.objective_hessian
@@ -108,8 +109,9 @@ def build():
 
     @problem.register.discrete_jacobian
     def discrete_jacobian(arg, jacobian):
-        jacobian.discrete.close[ph].final.r[0] = 1.0
-        jacobian.discrete.close[ph].initial.r[0] = -1.0
+        run = jacobian.phases[ph]
+        jacobian.discrete.close[run.final.r[0]] = 1.0
+        jacobian.discrete.close[run.initial.r[0]] = -1.0
         return jacobian
 
     @problem.register.discrete_hessian
@@ -287,18 +289,18 @@ def test_an_unknown_row_is_refused() -> None:
 
 
 def test_an_endpoint_gradient_names_the_end_and_the_variable() -> None:
-    """`gradient[ph].final.h`: which phase, which end, which variable."""
+    """`gradient.phases[ph].final.h`: which phase, which end, which variable."""
     problem, _ = build()
 
     def gradient(arg, gradient):
-        gradient[problem.phases.run].final = 1.0
+        gradient[gradient.phases[problem.phases.run].final] = 1.0
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
     with raises(
-        (AttributeError, TypeError),
-        "names no variable",
-        at="final = 1.0",
+        TypeError,
+        "takes an endpoint variable",
+        at="gradient[gradient.phases[problem.phases.run].final] = 1.0",
     ):
         problem.solve()
 
@@ -308,11 +310,11 @@ def test_an_endpoint_gradient_names_a_variable_that_exists() -> None:
     problem, _ = build()
 
     def gradient(arg, gradient):
-        gradient[problem.phases.run].final.nope = 1.0
+        gradient[gradient.phases[problem.phases.run].final.nope] = 1.0
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
-    with raises(AttributeError, "final", at="final.nope"):
+    with raises(AttributeError, "has no 'nope'", at="final.nope"):
         problem.solve()
 
 
@@ -321,9 +323,10 @@ def test_a_parameter_derivative_is_named_directly() -> None:
     problem, _ = build()
 
     def gradient(arg, gradient):
-        gradient[problem.phases.run].integral.cost = 1.0
-        gradient[problem.phases.run].final.h = 1.0
-        gradient.k = 0.0
+        run = gradient.phases[problem.phases.run]
+        gradient[run.integral.cost] = 1.0
+        gradient[run.final.h] = 1.0
+        gradient[gradient.parameter.k] = 0.0
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
@@ -335,33 +338,32 @@ def test_an_unknown_parameter_says_where_endpoint_variables_live() -> None:
     problem, _ = build()
 
     def gradient(arg, gradient):
-        gradient.h = 1.0
+        gradient[gradient.parameter.h] = 1.0
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
     with raises(
         AttributeError,
-        "there is no parameter 'h'",
+        "the problem has no 'h'",
         "reached through its phase",
-        at="gradient.h",
+        at="gradient.parameter.h",
     ):
         problem.solve()
 
 
-def test_an_endpoint_hessian_reaches_its_second_variable_through_a_phase() -> None:
-    """Two endpoint variables, so the second names its phase as the first does."""
+def test_an_endpoint_hessian_names_both_of_its_variables() -> None:
+    """A second derivative relates two variables, so one alone is half an entry."""
     problem, _ = build()
 
     def objective_hessian(arg, hessian):
-        hessian[problem.phases.run].final.h = 1.0
+        hessian[hessian.phases[problem.phases.run].final.h] = 1.0
         return hessian
 
     problem.register.objective_hessian(objective_hessian, replace=True)
     with raises(
-        (AttributeError, TypeError),
-        "names one variable",
-        "second derivative names two",
-        at="final.h = 1.0",
+        TypeError,
+        "A second derivative names two",
+        at="hessian[hessian.phases[problem.phases.run].final.h] = 1.0",
     ):
         problem.solve()
 
@@ -371,11 +373,11 @@ def test_a_discrete_jacobian_names_the_constraint_first() -> None:
     problem, _ = build()
 
     def discrete_jacobian(arg, jacobian):
-        jacobian.discrete.nope[problem.phases.run].final.h = 1.0
+        jacobian.discrete.nope[jacobian.phases[problem.phases.run].final.h] = 1.0
         return jacobian
 
     problem.register.discrete_jacobian(discrete_jacobian, replace=True)
-    with raises(AttributeError, "nope", at="jacobian.discrete.nope"):
+    with raises(AttributeError, "has no group 'nope'", at="jacobian.discrete.nope"):
         problem.solve()
 
 
@@ -477,13 +479,13 @@ def test_a_discrete_derivative_names_the_discrete_group() -> None:
     problem, _ = build()
 
     def discrete_jacobian(arg, jacobian):
-        jacobian.discreet.close[problem.phases.run].final.h = 1.0
+        jacobian.discreet.close[jacobian.phases[problem.phases.run].final.h] = 1.0
         return jacobian
 
     problem.register.discrete_jacobian(discrete_jacobian, replace=True)
     with raises(
         AttributeError,
-        "names a constraint group",
+        "a derivative is written against",
         at="jacobian.discreet",
     ):
         problem.solve()
@@ -500,7 +502,7 @@ def test_the_discrete_group_cannot_be_replaced() -> None:
     problem.register.discrete_jacobian(discrete_jacobian, replace=True)
     with raises(
         AttributeError,
-        "cannot be replaced",
+        "cannot be assigned",
         "one derivative at a time",
         at="jacobian.discrete = 1.0",
     ):
@@ -508,49 +510,56 @@ def test_the_discrete_group_cannot_be_replaced() -> None:
 
 
 def test_an_endpoint_derivative_is_written_not_read() -> None:
-    """Reading one back is a mistake about what the object is for."""
+    """Reading an entry back is a mistake about what the target is for."""
     problem, _ = build()
 
     def gradient(arg, gradient):
-        _ = gradient.k
+        _ = gradient[gradient.parameter.k]
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
-    with raises(AttributeError, "is written, not read", at="gradient.k"):
-        problem.solve()
-
-
-def test_an_endpoint_hessian_names_two_variables() -> None:
-    """One parameter alone is half an entry, and the message shows both ways to finish it."""
-    problem, _ = build()
-
-    def objective_hessian(arg, hessian):
-        hessian.k = 1.0
-        return hessian
-
-    problem.register.objective_hessian(objective_hessian, replace=True)
     with raises(
-        AttributeError,
-        "names one variable",
-        "A second derivative names two",
-        at="hessian.k = 1.0",
+        TypeError,
+        "is the whole of the derivative",
+        at="_ = gradient[gradient.parameter.k]",
     ):
         problem.solve()
 
 
-def test_the_second_variable_of_an_endpoint_hessian_names_its_phase() -> None:
-    """A state at an end belongs to a phase; only a parameter is named on its own."""
+def test_an_endpoint_hessian_names_two_variables() -> None:
+    """One parameter alone is half an entry, and the message names the form that works."""
     problem, _ = build()
 
     def objective_hessian(arg, hessian):
-        hessian[problem.phases.run].final.h.h = 1.0
+        hessian[hessian.parameter.k] = 1.0
+        return hessian
+
+    problem.register.objective_hessian(objective_hessian, replace=True)
+    with raises(
+        TypeError,
+        "A second derivative names two",
+        at="hessian[hessian.parameter.k] = 1.0",
+    ):
+        problem.solve()
+
+
+def test_a_variable_is_not_a_place_to_write() -> None:
+    """The namespace names variables; the target is what a derivative is written on.
+
+    This is the mistake the 0.4.0 path spelling invited, so it is the one the message has to
+    answer: what was written names a variable and says nothing about the derivative.
+    """
+    problem, _ = build()
+
+    def objective_hessian(arg, hessian):
+        hessian.phases[problem.phases.run].final.h = 1.0
         return hessian
 
     problem.register.objective_hessian(objective_hessian, replace=True)
     with raises(
         AttributeError,
-        "reached through its phase",
-        at="final.h.h",
+        "is a variable, not a derivative",
+        at="hessian.phases[problem.phases.run].final.h = 1.0",
     ):
         problem.solve()
 
@@ -563,11 +572,15 @@ def test_an_endpoint_block_state_names_its_row() -> None:
     problem, _ = build()
 
     def gradient(arg, gradient):
-        gradient[problem.phases.run].final.r = 1.0
+        gradient[gradient.phases[problem.phases.run].final.r] = 1.0
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
-    with raises(AttributeError, "block field of 2 rows", at="final.r = 1.0"):
+    with raises(
+        TypeError,
+        "block field of 2 rows",
+        at="gradient[gradient.phases[problem.phases.run].final.r] = 1.0",
+    ):
         problem.solve()
 
 
@@ -576,11 +589,15 @@ def test_a_block_parameter_names_its_row() -> None:
     problem, _ = build()
 
     def gradient(arg, gradient):
-        gradient.m = 1.0
+        gradient[gradient.parameter.m] = 1.0
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
-    with raises(AttributeError, "block field of 2 rows", at="gradient.m = 1.0"):
+    with raises(
+        TypeError,
+        "block field of 2 rows",
+        at="gradient[gradient.parameter.m] = 1.0",
+    ):
         problem.solve()
 
 
@@ -589,11 +606,11 @@ def test_a_finished_endpoint_derivative_takes_no_index() -> None:
     problem, _ = build()
 
     def gradient(arg, gradient):
-        gradient[problem.phases.run].final.h[0] = 1.0
+        gradient[gradient.phases[problem.phases.run].final.h[0]] = 1.0
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
-    with raises(AttributeError, "is the whole of the derivative", at="final.h[0] = 1.0"):
+    with raises(TypeError, "has one row, so it takes no row index", at="final.h[0]"):
         problem.solve()
 
 
@@ -602,9 +619,13 @@ def test_the_second_variable_of_an_endpoint_hessian_may_be_a_block_parameter() -
     problem, _ = build()
 
     def objective_hessian(arg, hessian):
-        hessian[problem.phases.run].final.h.m = 1.0
+        hessian[hessian.phases[problem.phases.run].final.h, hessian.parameter.m] = 1.0
         return hessian
 
     problem.register.objective_hessian(objective_hessian, replace=True)
-    with raises(AttributeError, "block field of 2 rows", at="final.h.m = 1.0"):
+    with raises(
+        TypeError,
+        "block field of 2 rows",
+        at="hessian[hessian.phases[problem.phases.run].final.h, hessian.parameter.m] = 1.0",
+    ):
         problem.solve()

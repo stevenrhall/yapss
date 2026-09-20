@@ -143,7 +143,7 @@ def setup() -> yapss.Problem:
     @problem.register.objective_gradient
     def final_altitude_gradient(_arg, gradient):
         """Compute the gradient of the objective, which is one in the final altitude."""
-        gradient[ph].final.h = 1.0
+        gradient[gradient.phases[ph].final.h] = 1.0
         return gradient
 
     @problem.register.objective_hessian

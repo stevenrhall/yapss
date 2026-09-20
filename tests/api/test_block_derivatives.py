@@ -173,33 +173,37 @@ def _derivatives(problem, ph):
     @problem.register.objective_gradient
     def grad(arg, gradient):
         e = arg[ph]
-        gradient[ph].final.r[0] = 2 * e.final.r[0]
-        gradient[ph].initial.m = arg.parameter.beta[1]
-        gradient.beta[1] = e.initial.m
-        gradient[ph].integral.cost[0] = 1.0
+        initial, final = gradient.phases[ph].initial, gradient.phases[ph].final
+        gradient[final.r[0]] = 2 * e.final.r[0]
+        gradient[initial.m] = arg.parameter.beta[1]
+        gradient[gradient.parameter.beta[1]] = e.initial.m
+        gradient[gradient.phases[ph].integral.cost[0]] = 1.0
         return gradient
 
     @problem.register.objective_hessian
     def ohess(_arg, hessian):
-        hessian[ph].final.r[0][ph].final.r[0] = 2.0
-        hessian[ph].initial.m.beta[1] = 1.0
+        initial, final = hessian.phases[ph].initial, hessian.phases[ph].final
+        hessian[final.r[0], final.r[0]] = 2.0
+        hessian[initial.m, hessian.parameter.beta[1]] = 1.0
         return hessian
 
     @problem.register.discrete_jacobian
     def djac(arg, jacobian):
         e = arg[ph]
+        initial, final = jacobian.phases[ph].initial, jacobian.phases[ph].final
         for i in range(3):
-            jacobian.discrete.gap[i][ph].final.r[i] = 1.0
-            jacobian.discrete.gap[i][ph].initial.r[i] = -1.0
-        jacobian.discrete.total[ph].final.r[0] = e.final.r[1]
-        jacobian.discrete.total[ph].final.r[1] = e.final.r[0]
-        jacobian.discrete.total.beta[0] = 2 * arg.parameter.beta[0]
+            jacobian.discrete.gap[i][final.r[i]] = 1.0
+            jacobian.discrete.gap[i][initial.r[i]] = -1.0
+        jacobian.discrete.total[final.r[0]] = e.final.r[1]
+        jacobian.discrete.total[final.r[1]] = e.final.r[0]
+        jacobian.discrete.total[jacobian.parameter.beta[0]] = 2 * arg.parameter.beta[0]
         return jacobian
 
     @problem.register.discrete_hessian
     def dhess(_arg, hessian):
-        hessian.discrete.total[ph].final.r[0][ph].final.r[1] = 1.0
-        hessian.discrete.total.beta[0].beta[0] = 2.0
+        final, beta = hessian.phases[ph].final, hessian.parameter.beta
+        hessian.discrete.total[final.r[0], final.r[1]] = 1.0
+        hessian.discrete.total[beta[0], beta[0]] = 2.0
         return hessian
 
 

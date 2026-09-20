@@ -70,7 +70,7 @@ def build() -> tuple[yapss.Problem, object]:
 
     @problem.register.objective_gradient
     def gradient(arg, gradient):
-        gradient[ph].final.time = 1.0
+        gradient[gradient.phases[ph].final.time] = 1.0
         return gradient
 
     @problem.register.objective_hessian
@@ -271,19 +271,36 @@ def test_the_same_names_must_be_written_on_every_call() -> None:
 # ------------------------------------------------------------- the endpoint derivatives
 
 
+def test_an_endpoint_variable_is_a_value() -> None:
+    """An endpoint variable is four coordinates, so it is a value and not a path of names.
+
+    Binding the end is what keeps the cost of naming one down to a single dot, and it is what
+    lets the same variable be written twice, kept in a list, or built in a loop.
+    """
+    problem, ph = build()
+
+    def gradient(arg, gradient):
+        final = gradient.phases[ph].final
+        gradient[final.time] = 1.0
+        return gradient
+
+    problem.register.objective_gradient(gradient, replace=True)
+    assert problem.solve().converged
+
+
 def test_an_endpoint_derivative_names_an_end() -> None:
     """The gradient of the objective is by a variable at an end of a phase."""
     problem, _ = build()
 
     def gradient(arg, gradient):
-        gradient[problem.phases.fall].middle.time = 1.0
+        gradient[gradient.phases[problem.phases.fall].middle.time] = 1.0
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
     with raises(
         AttributeError,
-        "names 'initial', 'final' or 'integral'",
-        at="middle.time",
+        "an endpoint variable is at 'initial', 'final' or 'integral'",
+        at="gradient.phases[problem.phases.fall].middle",
     ):
         problem.solve()
 
@@ -293,11 +310,56 @@ def test_an_endpoint_gradient_takes_a_phase_handle() -> None:
     problem, _ = build()
 
     def gradient(arg, gradient):
-        gradient["fall"].final.time = 1.0
+        gradient[gradient.phases["fall"].final.time] = 1.0
         return gradient
 
     problem.register.objective_gradient(gradient, replace=True)
-    with raises(KeyError, "takes a phase handle", at='gradient["fall"]'):
+    with raises(KeyError, "takes a phase handle", at='gradient.phases["fall"]'):
+        problem.solve()
+
+
+def test_a_variable_is_not_a_derivative() -> None:
+    """Assigning to a variable says nothing about what the derivative is of."""
+    problem, ph = build()
+
+    def gradient(arg, gradient):
+        gradient.phases[ph].final.time = 1.0
+        return gradient
+
+    problem.register.objective_gradient(gradient, replace=True)
+    with raises(
+        AttributeError,
+        "is a variable, not a derivative",
+        at="gradient.phases[ph].final.time = 1.0",
+    ):
+        problem.solve()
+
+
+def test_a_variable_of_another_problem_is_refused() -> None:
+    """A variable carries its own namespace, so it cannot land in the wrong problem.
+
+    Without the check the key would still be structurally valid, so the entry would go to the
+    wrong column and cost iterations rather than raise -- the failure this surface exists to
+    prevent.
+    """
+    problem, ph = build()
+    elsewhere, elsewhere_ph = build()
+    stolen = []
+
+    def lend(arg, gradient):
+        stolen.append(gradient.phases[elsewhere_ph].final.time)
+        gradient[gradient.phases[elsewhere_ph].final.time] = 1.0
+        return gradient
+
+    elsewhere.register.objective_gradient(lend, replace=True)
+    elsewhere.solve()
+
+    def gradient(arg, gradient):
+        gradient[stolen[0]] = 1.0
+        return gradient
+
+    problem.register.objective_gradient(gradient, replace=True)
+    with raises(ValueError, "belongs to another problem", at="gradient[stolen[0]] = 1.0"):
         problem.solve()
 
 

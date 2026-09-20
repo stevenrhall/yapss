@@ -89,7 +89,7 @@ def setup() -> yapss.Problem:
     @problem.register.objective_gradient
     def minimum_time_gradient(_arg, gradient):
         """Compute the gradient of the objective, which is one in the final time."""
-        gradient[ph].final.time = 1.0
+        gradient[gradient.phases[ph].final.time] = 1.0
         return gradient
 
     @problem.register.objective_hessian

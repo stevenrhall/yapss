@@ -10,6 +10,11 @@ and discrete callbacks are the ones every problem has, and there are simply no p
 It is here because it is the shortest complete statement of that, and because a library that
 refused it would be refusing arithmetic it can already do.
 
+Its derivatives are written by hand rather than traced, because with no phases there is no
+continuous callback and so they are four short functions. How to write them is explained
+where it is taught, in `yapss.examples.brachistochrone_user_derivatives`; this is only the
+smallest problem where the whole of that surface fits on one screen.
+
 """
 
 __all__ = ["main", "print_solution", "setup"]
@@ -63,6 +68,61 @@ def setup() -> yapss.Problem:
         out.discrete.product = x[0] * x[1] * x[2] * x[3]
         out.discrete.sum_of_squares = x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + x[3] ** 2
         return out
+
+    @problem.register.objective_gradient
+    def objective_gradient(arg, gradient):
+        """Compute the gradient of the objective."""
+        x, dx = arg.parameter.x, gradient.parameter.x
+        gradient[dx[0]] = x[3] * (2 * x[0] + x[1] + x[2])
+        gradient[dx[1]] = x[0] * x[3]
+        gradient[dx[2]] = x[0] * x[3] + 1.0
+        gradient[dx[3]] = x[0] * (x[0] + x[1] + x[2])
+        return gradient
+
+    @problem.register.objective_hessian
+    def objective_hessian(arg, hessian):
+        """Compute the second derivatives of the objective.
+
+        Each unordered pair is written once: ``hessian[dx[0], dx[3]]`` and
+        ``hessian[dx[3], dx[0]]`` name the same derivative, and writing both is refused
+        rather than summed. Pairs left out are zero everywhere, which is most of them.
+        """
+        x, dx = arg.parameter.x, hessian.parameter.x
+        hessian[dx[0], dx[0]] = 2 * x[3]
+        hessian[dx[0], dx[1]] = x[3]
+        hessian[dx[0], dx[2]] = x[3]
+        hessian[dx[0], dx[3]] = 2 * x[0] + x[1] + x[2]
+        hessian[dx[1], dx[3]] = x[0]
+        hessian[dx[2], dx[3]] = x[0]
+        return hessian
+
+    @problem.register.discrete_jacobian
+    def discrete_jacobian(arg, jacobian):
+        """Compute the first derivatives of the two constraints."""
+        x, dx = arg.parameter.x, jacobian.parameter.x
+        for i in range(4):
+            others = [x[j] for j in range(4) if j != i]
+            jacobian.discrete.product[dx[i]] = others[0] * others[1] * others[2]
+            jacobian.discrete.sum_of_squares[dx[i]] = 2 * x[i]
+        return jacobian
+
+    @problem.register.discrete_hessian
+    def discrete_hessian(arg, hessian):
+        """Compute the second derivatives of the two constraints.
+
+        The product is bilinear in every pair, so each off-diagonal entry is the product of
+        the two variables not named; its diagonal is zero. The sum of squares is the other
+        way round: diagonal only, and constant.
+        """
+        x, dx = arg.parameter.x, hessian.parameter.x
+        for i in range(4):
+            hessian.discrete.sum_of_squares[dx[i], dx[i]] = 2.0
+            for j in range(i + 1, 4):
+                rest = [k for k in range(4) if k not in (i, j)]
+                hessian.discrete.product[dx[i], dx[j]] = x[rest[0]] * x[rest[1]]
+        return hessian
+
+    problem.derivatives.method = "user"
 
     problem.parameter.bounds.x[:] = (1.0, 5.0)
     problem.parameter.guess.x[:] = [1.0, 5.0, 5.0, 1.0]
