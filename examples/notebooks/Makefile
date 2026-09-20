@@ -10,8 +10,13 @@ execute: $(wildcard *.ipynb) ## Execute all JupyterLab notebooks in place
 .PHONY: clean
 clean: $(wildcard *.ipynb) ## Clear output cells and remove kernel and language metadata from all JupyterLab notebooks
 	nbwipers clean-all . -y
+# --indent 1 is nbformat's own serialization, which is what Jupyter writes on save
+# and what black writes when it reformats a cell. jq's default of 2 disagreed with
+# both, so every notebook one of them touched came back reindented from end to end
+# and a one-line change read as a diff of the whole file. At 1 the three agree
+# byte for byte and nothing reindents anything.
 	@for nb in *.ipynb; do \
 		echo "Stripping kernel metadata from $$nb"; \
-		jq 'del(.metadata.kernelspec, .metadata.language_info)' "$$nb" > tmp_$$nb && mv tmp_$$nb "$$nb"; \
+		jq --indent 1 'del(.metadata.kernelspec, .metadata.language_info)' "$$nb" > tmp_$$nb && mv tmp_$$nb "$$nb"; \
 	done
 	rm -rf .ipynb_checkpoints
