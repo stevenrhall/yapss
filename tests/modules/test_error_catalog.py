@@ -1,7 +1,7 @@
 """Tests for the error-catalogue renderer.
 
 The catalogue is only built by `make error-catalog`, so nothing else would notice if the
-renderer broke or if `_contract.raises` stopped feeding it the shape it expects.
+renderer broke or if `_harness.raises` stopped feeding it the shape it expects.
 """
 
 from __future__ import annotations
@@ -89,7 +89,14 @@ def test_a_type_ignore_comment_is_stripped_from_the_statement():
 
 
 def test_the_contract_helper_still_feeds_the_expected_fields(tmp_path, monkeypatch):
-    """A field renamed in `_contract.raises` would silently empty the catalogue."""
+    """A field renamed in `_harness.raises` would silently empty the catalogue.
+
+    Three of the fields are not read by this renderer at all. `front` separates the two
+    suites, so one run cannot file one front end's messages under the other; `kind` tells a
+    warning from an error; and `site` is the line of YAPSS that produced the message, which
+    is what makes completeness measurable against the raises in the package. They are
+    checked here because this is the test that notices when the record changes shape.
+    """
     catalog = tmp_path / "errors.jsonl"
     monkeypatch.setenv("YAPSS_ERROR_CATALOG", str(catalog))
     import json
@@ -114,5 +121,17 @@ def test_the_contract_helper_still_feeds_the_expected_fields(tmp_path, monkeypat
     )
     assert catalog.exists(), result.stdout + result.stderr
     entry = json.loads(catalog.read_text().splitlines()[0])
-    assert set(entry) == {"area", "type", "message", "statement", "test"}
+    assert set(entry) == {
+        "front",
+        "area",
+        "kind",
+        "type",
+        "message",
+        "statement",
+        "test",
+        "site",
+    }
     assert entry["area"] == "scale"
+    assert entry["front"] == "legacy"
+    assert entry["kind"] == "error"
+    assert entry["site"].startswith("_legacy/")
