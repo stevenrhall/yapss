@@ -157,13 +157,17 @@ the control vector:
     >>>
     >>> class RocketState(yapss.Vector):
     ...     """Define the rows of the state vector."""
-    ...     h = yapss.field(units="ft", latex="h", doc="altitude")
-    ...     v = yapss.field(units="ft/s", latex="v", doc="velocity")
-    ...     m = yapss.field(units="slug", latex="m", doc="mass")
+    ...     h = yapss.field()
+    ...     """Altitude."""
+    ...     v = yapss.field()
+    ...     """Velocity."""
+    ...     m = yapss.field()
+    ...     """Mass."""
     ...
     >>> class Thrust(yapss.Vector):
     ...     """Define the rows of the control vector."""
-    ...     thrust = yapss.field(units="lbf", latex="T", doc="thrust")
+    ...     thrust = yapss.field()
+    ...     """Thrust."""
 
 The vector classes can be named anything you like, and in a one-phase problem it would be
 natural to default to "State" and "Control". But for multi-phase problems, the states in

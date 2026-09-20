@@ -4,7 +4,7 @@ The brachistochrone problem, written as briefly as the API allows.
 
 This is the shortest complete statement of a problem: the variables are named in two classes,
 the phase is declared, the dynamics and the objective are registered, and the bounds and the
-guess are set. `brachistochrone.py` is the same problem with units, labels and commentary.
+guess are set. `brachistochrone.py` is the same problem with docstrings and commentary.
 
 """
 

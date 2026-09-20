@@ -14,8 +14,8 @@ Vectors
 -------
 
 The classes that name the rows of each vector. A field is listed here when it carries a
-docstring of its own, written on the line below it; the ``doc=`` argument of ``field()`` is
-metadata for YAPSS and is not read by Sphinx. The empty parentheses in each directive
+docstring of its own, written on the line below it, which is the only place a field's
+description lives. The empty parentheses in each directive
 suppress the inherited ``__init__`` signature, which exists only to refuse construction.
 
 .. autoclass:: yapss.examples.isoperimetric.State()

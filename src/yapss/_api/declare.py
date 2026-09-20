@@ -70,7 +70,7 @@ class PhaseDeclaration:
     independent: str
     """What the phase calls its independent variable, which is `time` unless it named it."""
     independent_field: Field
-    """The metadata of that variable: its units, its LaTeX, its one-line description."""
+    """The field that named it, which records its size and nothing else."""
 
 
 def _vector_class(value: object, argument: str) -> type[Vector]:
@@ -121,7 +121,7 @@ def phase(
     **independent : Field
         One further keyword names the phase's independent variable, which is otherwise
         ``time``. The keyword is the name, as it is in a vector's class body, and its value is
-        a `field`: ``yapss.phase(state=Nose, r=yapss.field(latex="r"))``.
+        a `field`: ``yapss.phase(state=Nose, r=yapss.field())``.
 
     Returns
     -------
@@ -195,7 +195,7 @@ def _independent(given: dict[str, Any]) -> tuple[str, Field]:
     passes a vector class, is not a field, and is refused with the suggestion.
     """
     if not given:
-        return DEFAULT_INDEPENDENT, Field(units="", latex="", doc="", size=None)
+        return DEFAULT_INDEPENDENT, Field()
     for name, value in given.items():
         if not isinstance(value, Field):
             msg = (

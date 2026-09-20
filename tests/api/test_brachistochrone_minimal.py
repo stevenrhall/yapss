@@ -1,7 +1,7 @@
 """The shortest complete statement of a problem, which must agree with the long one.
 
 `brachistochrone_minimal` and `brachistochrone` are the same problem written twice: one with
-units, labels and commentary, one with none of it. They should give the same answer to the last
+docstrings and commentary, one with none of it. They should give the same answer to the last
 bit, and this is what says so -- if they diverge, one of them has been edited and the other has
 not.
 """

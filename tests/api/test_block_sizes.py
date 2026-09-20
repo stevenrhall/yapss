@@ -23,13 +23,13 @@ def declarations():
     """Return the brachistochrone's classes, with a one-row block and an empty one."""
 
     class Slide(yapss.Vector):
-        x = yapss.field(units="ft")
-        y = yapss.field(size=1, units="ft")
-        v = yapss.field(units="ft/s")
-        spare = yapss.field(size=0, units="ft")
+        x = yapss.field()
+        y = yapss.field(size=1)
+        v = yapss.field()
+        spare = yapss.field(size=0)
 
     class Angle(yapss.Vector):
-        u = yapss.field(size=1, units="rad")
+        u = yapss.field(size=1)
 
     return Slide, Angle
 

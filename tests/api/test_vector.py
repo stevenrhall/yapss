@@ -13,9 +13,12 @@ from yapss._api.kinds import Bounds, Guess, ReadOnlyRows, Rows
 class Rocket(Vector):
     """Three plain fields."""
 
-    h = field(units="ft", latex="h", doc="altitude")
-    v = field(units="ft/s")
+    h = field()
+    """Altitude."""
+    v = field()
+    """Velocity."""
     m = field()
+    """Mass."""
 
 
 class Ascent(Vector):
@@ -34,9 +37,8 @@ def test_fields_are_collected_in_declaration_order():
     assert len(Rocket._new(Bounds, "x")) == 3
 
 
-def test_metadata_is_kept_and_the_marker_is_removed():
-    assert Rocket._meta["h"].units == "ft"
-    assert Rocket._meta["h"].latex == "h"
+def test_the_marker_is_removed_once_the_class_is_defined():
+    assert Rocket._meta["h"].size is None
     assert not hasattr(Rocket, "h")
 
 
@@ -83,7 +85,6 @@ def test_inheriting_a_declaration_is_refused():
         ({"size": -1}, ValueError, "must be 0 or more"),
         ({"size": 2.5}, TypeError, "must be an integer"),
         ({"size": True}, TypeError, "must be an integer"),
-        ({"units": 3}, TypeError, "must be a string"),
     ],
 )
 def test_field_arguments_are_checked_at_declaration(kwargs, error, match):

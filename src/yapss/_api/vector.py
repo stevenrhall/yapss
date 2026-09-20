@@ -6,9 +6,12 @@ A `Vector` subclass is a *declaration*. It names the members of a state, control
 integral, parameter, or discrete-constraint vector, and says how many rows each member has::
 
     class Rocket(yapss.Vector):
-        h = yapss.field(units="ft", latex="h", doc="altitude")
-        v = yapss.field(units="ft/s", latex="v", doc="velocity")
-        m = yapss.field(units="slug", latex="m", doc="mass")
+        h = yapss.field()
+        v = yapss.field()
+        m = yapss.field(size=3)
+
+A field is described by the docstring written under it, in the class body, which is where
+Sphinx, an IDE and a reader all look. Nothing about a field is recorded but its size.
 
 The user never instantiates it. YAPSS creates every instance, and each one is a *kind*-specific
 subclass generated once per (declaration, kind) pair: an instance holding bounds validates its
@@ -36,36 +39,23 @@ __all__ = ["Empty", "Field", "Maker", "Vector", "field"]
 
 
 class Field:
-    """Metadata recorded for one declared field. Created by `field`, never directly.
+    """What one declared field records. Created by `field`, never directly.
 
     Attributes
     ----------
-    units : str
-        The physical units of the field, as a string. YAPSS does no unit arithmetic; the
-        string is used in messages and plot labels.
-    latex : str
-        A LaTeX fragment labelling the field in plots.
-    doc : str
-        A one-line description.
     size : int or None
         The number of rows in a block field, or None for a scalar member. A block field keeps
         its leading axis at every size, including one row and none.
     """
 
-    __slots__ = ("doc", "latex", "size", "units")
+    __slots__ = ("size",)
 
-    def __init__(self, *, units: str, latex: str, doc: str, size: int | None) -> None:
-        self.units = units
-        self.latex = latex
-        self.doc = doc
+    def __init__(self, *, size: int | None = None) -> None:
         self.size = size
 
     def __repr__(self) -> str:
-        """Return a representation naming only the metadata that was given."""
-        parts = [f"{n}={getattr(self, n)!r}" for n in ("units", "latex", "doc") if getattr(self, n)]
-        if self.size is not None:
-            parts.append(f"size={self.size}")
-        return f"field({', '.join(parts)})"
+        """Return the call that would declare this field."""
+        return "field()" if self.size is None else f"field(size={self.size})"
 
     @property
     def rows(self) -> int:
@@ -73,18 +63,14 @@ class Field:
         return 1 if self.size is None else self.size
 
 
-def field(*, units: str = "", latex: str = "", doc: str = "", size: int | None = None) -> Any:
+def field(*, size: int | None = None) -> Any:
     """Declare one field of a `Vector`.
+
+    A field is described by the docstring written under it, which Sphinx, an IDE and a reader
+    all see. Nothing else about it is recorded here.
 
     Parameters
     ----------
-    units : str, default ""
-        The physical units of the field. YAPSS does no unit arithmetic; the string appears in
-        messages and plot labels.
-    latex : str, default ""
-        A LaTeX fragment labelling the field in plots.
-    doc : str, default ""
-        A one-line description of the field.
     size : int, optional
         The number of rows, for a field that holds a block of them, such as a position vector.
         Any count from 0 up is allowed, so that a declaration built by an algorithm needs no
@@ -95,16 +81,9 @@ def field(*, units: str = "", latex: str = "", doc: str = "", size: int | None =
     Returns
     -------
     Any
-        A marker recording the metadata. YAPSS replaces it when the class is defined, so it is
+        A marker recording the size. YAPSS replaces it when the class is defined, so it is
         never seen again.
     """
-    # Typed as object so that the runtime check, which is for callers who use no
-    # annotations at all, is not read as unreachable.
-    strings: tuple[tuple[str, object], ...] = (("units", units), ("latex", latex), ("doc", doc))
-    for name, value in strings:
-        if not isinstance(value, str):
-            msg = f"field({name}=) must be a string; got {value!r}"
-            raise TypeError(msg)
     if size is not None:
         if not _is_integer(size):
             msg = f"field(size=) must be an integer; got {size!r}"
@@ -113,7 +92,7 @@ def field(*, units: str = "", latex: str = "", doc: str = "", size: int | None =
         if size < 0:
             msg = f"field(size=) must be 0 or more; got {size}"
             raise ValueError(msg)
-    return Field(units=units, latex=latex, doc=doc, size=size)
+    return Field(size=size)
 
 
 class PerRow(tuple[Any, ...]):
