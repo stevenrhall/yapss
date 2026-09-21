@@ -123,7 +123,7 @@ def setup() -> yapss.Problem:
     ph.state.v_theta.bounds = (v_min, v_max)
     ph.control.u_r.bounds = (u_min, u_max)
     ph.control.u_theta.bounds = (u_min, u_max)
-    ph.path.unit_thrust.bounds = (-np.inf, 1.0)
+    ph.path.unit_thrust.bounds = (None, 1.0)
     problem.discrete.circular.bounds = (0.0, 0.0)
 
     ph.time.guess = (t_0, t_f)

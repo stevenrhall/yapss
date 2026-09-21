@@ -102,8 +102,8 @@ def setup(y_max: float = 1.0) -> yapss.Problem:
     ph.r.initial = (0.0, 0.0)
     ph.r.final = (1.0, 1.0)
     ph.state.y.bounds = (0.0, y_max)
-    ph.state.yp.bounds = (-np.inf, 0.0)
-    ph.control.u.bounds = (-np.inf, 0.0)
+    ph.state.yp.bounds = (None, 0.0)
+    ph.control.u.bounds = (None, 0.0)
 
     ph.r.guess = (0.0, 1.0)
     ph.state.y.guess = (y_max, 0.0)
