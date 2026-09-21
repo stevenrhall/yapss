@@ -9,7 +9,7 @@ raise, and the configuration sets ``warn_unused_ignores``, so an ignore that sup
 
 `test_typed_problem.py` solves the problem, so the annotations are also exercised at run time:
 without ``from __future__ import annotations`` each one is evaluated where it is written, and
-``yapss.ContinuousArg[Slide]`` has to be a subscriptable class for that to work.
+``yapss.ContinuousArg[State, Control]`` has to be a subscriptable class for that to work.
 """
 
 from typing import Any
@@ -73,7 +73,7 @@ class Phases(yapss.Phases):
     slide: Slide
 
 
-def dynamics(arg: yapss.ContinuousArg[Slide, Parameter], out: State) -> None:
+def dynamics(arg: yapss.ContinuousArg[State, Control, Parameter], out: State) -> None:
     """Fill the dynamics: a helper takes the output vector itself, typed as the state."""
     v, u = arg.state.v, arg.control.u
     out.x = v * cos(u)
@@ -88,7 +88,8 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
 
     @ph.register.continuous
     def continuous(
-        arg: yapss.ContinuousArg[Slide, Parameter], out: yapss.ContinuousOut[Slide]
+        arg: yapss.ContinuousArg[State, Control, Parameter],
+        out: yapss.ContinuousOut[State, Path, Integral],
     ) -> None:
         dynamics(arg, out.dynamics)
         out.path.speed = arg.state.v
@@ -143,15 +144,15 @@ class Nose(yapss.Phase):
     r: yapss.Independent
 
 
-def over_radius(arg: yapss.ContinuousArg[Nose], out: yapss.ContinuousOut[Nose]) -> None:
+def over_radius(arg: yapss.ContinuousArg[Radius], out: yapss.ContinuousOut[Radius]) -> None:
     """Read the independent variable by the name the phase gave it, which must check."""
     out.dynamics.y = arg.r
 
 
 def mistakes(
     problem: yapss.Problem[Phases, Discrete, Parameter],
-    arg: yapss.ContinuousArg[Slide, Parameter],
-    out: yapss.ContinuousOut[Slide],
+    arg: yapss.ContinuousArg[State, Control, Parameter],
+    out: yapss.ContinuousOut[State, Path, Integral],
     endpoint: yapss.EndpointArg[Parameter],
     discrete: yapss.DiscreteOut[Discrete],
 ) -> None:
@@ -173,6 +174,10 @@ def mistakes(
     endpoint[ph].integral.distanse  # type: ignore[attr-defined]
     endpoint["slide"]  # type: ignore[index]
     discrete.discrete.landin = 0.0  # type: ignore[attr-defined]
+
+
+def wrong_role(arg: yapss.ContinuousArg[Control]) -> None:  # type: ignore[type-var]
+    """A control named where the state belongs is reported: each parameter is bounded by its role."""
 
 
 def swapped() -> None:

@@ -12,15 +12,17 @@ Each class is generic in the declarations it carries, so a callback can be annot
 checked, down to the field:
 
     @ph.register.continuous
-    def continuous(arg: yapss.ContinuousArg[Arc], out: yapss.ContinuousOut[Arc]) -> None:
-        out.dynamics.h = arg.state.v      # checked: Arc's state has h and v
+    def continuous(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State]
+    ) -> None:
+        out.dynamics.h = arg.state.v      # checked: State has h and v
 
-The parameter is the phase's shape, not its vectors, and the vectors are recovered from the
-shape's annotations by matching it against a protocol (`_HasState` and the rest): a class
-annotated ``state: Rocket`` satisfies ``_HasState[Rocket]``, which is how ``arg.state`` is
-typed as ``Rocket`` although nothing was passed to a type parameter. Unparameterized, every
-class degrades to `Any`, so an unannotated callback, or one annotated with the bare class,
-is exactly as unchecked as before and never falsely reported.
+The parameters name the vectors, not the phase's shape. The shape would be shorter, and the
+vectors can be recovered from it by matching it against a protocol, which mypy follows; but
+PyCharm's own type engine does not, and there an annotated callback got no completion and no
+warnings at all. Plain type parameters are followed by every checker and every editor.
+Unparameterized, every class degrades to `Any`, so an unannotated callback, or one annotated
+with the bare class, is exactly as unchecked as before and never falsely reported.
 
 """
 
@@ -35,7 +37,8 @@ from typing_extensions import TypeVar
 from .containers import suggest
 
 if TYPE_CHECKING:
-    from .vector import Vector
+    from .declare import AnyPhase
+    from .vector import Control, Discrete, Integral, Parameter, Path, State, Vector
 
 __all__ = [
     "ContinuousArg",
@@ -47,43 +50,32 @@ __all__ = [
     "Endpoints",
 ]
 
-# What a class is generic in: a phase's shape, or one of the problem's declarations. Each
-# defaults to `Any`, so the bare class checks nothing rather than refusing every name.
-SH_co = TypeVar("SH_co", covariant=True, default=Any)
-"""The shape of the phase a callback is for: a `yapss.Phase` subclass."""
-PR_co = TypeVar("PR_co", covariant=True, default=Any)
+# What a class is generic in: the declarations it carries. Each is bounded by its role, so a
+# state named where a control belongs is reported, and each defaults to `Any`, so the bare
+# class checks nothing rather than refusing every name.
+S_co = TypeVar("S_co", bound="State", covariant=True, default=Any)
+"""The phase's state declaration."""
+C_co = TypeVar("C_co", bound="Control", covariant=True, default=Any)
+"""The phase's control declaration."""
+P_co = TypeVar("P_co", bound="Path", covariant=True, default=Any)
+"""The phase's path constraint declaration."""
+PR_co = TypeVar("PR_co", bound="Parameter", covariant=True, default=Any)
 """The problem's parameter declaration."""
-D_co = TypeVar("D_co", covariant=True, default=Any)
+D_co = TypeVar("D_co", bound="Discrete", covariant=True, default=Any)
 """The problem's discrete constraint declaration."""
-I_co = TypeVar("I_co", covariant=True, default=Any)
+I_co = TypeVar("I_co", bound="Integral", covariant=True, default=Any)
 """A phase's integral declaration."""
 
-_V_co = TypeVar("_V_co", covariant=True)
-
-
-class _HasState(Protocol[_V_co]):
-    """A phase shape, as far as its state: what ``state: Rocket`` in a shape satisfies."""
-
-    @property
-    def state(self) -> _V_co: ...
-
-
-class _HasControl(Protocol[_V_co]):
-    """A phase shape, as far as its control."""
-
-    @property
-    def control(self) -> _V_co: ...
-
-
-class _HasPath(Protocol[_V_co]):
-    """A phase shape, as far as its path constraints."""
-
-    @property
-    def path(self) -> _V_co: ...
+_V_co = TypeVar("_V_co", bound="Integral", covariant=True)
 
 
 class _HasIntegral(Protocol[_V_co]):
-    """A phase shape, as far as its integrals."""
+    """A phase handle, as far as its integrals: what ``integral: Effort`` in a shape satisfies.
+
+    The one place a protocol is still matched against a shape. ``arg[ph]`` differs by phase,
+    so nothing written on the callback could type it; the handle can. Where a checker does not
+    follow the match -- PyCharm's engine does not -- ``arg[ph].integral`` is merely unchecked.
+    """
 
     @property
     def integral(self) -> _V_co: ...
@@ -116,12 +108,12 @@ class _Frozen:
         raise AttributeError(msg)
 
 
-class ContinuousArg(_Frozen, Generic[SH_co, PR_co]):
+class ContinuousArg(_Frozen, Generic[S_co, C_co, PR_co]):
     """What a continuous callback is given, for one phase at one set of time points.
 
-    Annotated ``yapss.ContinuousArg[Arc]`` for a phase of shape ``Arc``, or
-    ``yapss.ContinuousArg[Arc, Parameter]`` when the callback reads parameters, a type checker
-    follows ``arg.state``, ``arg.control`` and ``arg.parameter`` to their declarations.
+    Annotated ``yapss.ContinuousArg[State, Control, Parameter]`` -- the phase's state and
+    control, and the problem's parameters -- a type checker follows ``arg.state``,
+    ``arg.control`` and ``arg.parameter`` to their declarations. Trailing ones may be left out.
 
     The independent variable is reached by the name the phase gave it, so this class is
     generated per name by `phase_arg_class`: a subclass with the points under a property of
@@ -144,14 +136,11 @@ class ContinuousArg(_Frozen, Generic[SH_co, PR_co]):
     _independent = "time"
 
     if TYPE_CHECKING:
-        phase: SH_co
+        phase: AnyPhase
+        state: S_co
+        control: C_co
         parameter: PR_co
         time: Any
-
-        @property
-        def state(self: ContinuousArg[_HasState[_V_co], Any]) -> _V_co: ...
-        @property
-        def control(self: ContinuousArg[_HasControl[_V_co], Any]) -> _V_co: ...
 
         # The independent variable is reached by the name the phase gave it, which nothing in
         # a type parameter can carry, so `arg.r` must not be an error. This reader answers for
@@ -177,7 +166,7 @@ class ContinuousArg(_Frozen, Generic[SH_co, PR_co]):
 
 
 @cache
-def phase_arg_class(name: str) -> type[ContinuousArg[Any, Any]]:
+def phase_arg_class(name: str) -> type[ContinuousArg[Any, Any, Any]]:
     """Return the `ContinuousArg` subclass whose independent variable is called `name`."""
     return type(
         f"ContinuousArg_{name}",
@@ -190,23 +179,20 @@ def phase_arg_class(name: str) -> type[ContinuousArg[Any, Any]]:
     )
 
 
-class ContinuousOut(_Frozen, Generic[SH_co]):
+class ContinuousOut(_Frozen, Generic[S_co, P_co, I_co]):
     """What a continuous callback fills in: the dynamics, path constraints, and integrands.
 
     Each is a vector of the class the phase was declared with, so ``out.dynamics`` has the
-    state's field names -- and, annotated ``yapss.ContinuousOut[Arc]``, a type checker knows it.
+    state's field names -- and, annotated ``yapss.ContinuousOut[State, Path, Integral]``, a type
+    checker knows it. Trailing ones may be left out.
     """
 
     __slots__ = ("dynamics", "integrand", "path")
 
     if TYPE_CHECKING:
-
-        @property
-        def dynamics(self: ContinuousOut[_HasState[_V_co]]) -> _V_co: ...
-        @property
-        def path(self: ContinuousOut[_HasPath[_V_co]]) -> _V_co: ...
-        @property
-        def integrand(self: ContinuousOut[_HasIntegral[_V_co]]) -> _V_co: ...
+        dynamics: S_co
+        path: P_co
+        integrand: I_co
 
     def __init__(self, dynamics: Vector, path: Vector, integrand: Vector) -> None:
         object.__setattr__(self, "dynamics", dynamics)

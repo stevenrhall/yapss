@@ -32,13 +32,12 @@ Annotating callbacks
 A callback is checked once its arguments are annotated. Each argument type is generic in what
 the callback can see:
 
-``yapss.ContinuousArg[Shape, Parameter]``
-    What a continuous callback reads. ``Shape`` is the phase's shape, from which ``arg.state``
-    and ``arg.control`` are typed; ``Parameter`` is the problem's parameter class, and may be
-    left out if the callback reads no parameters.
+``yapss.ContinuousArg[State, Control, Parameter]``
+    What a continuous callback reads: ``arg.state``, ``arg.control``, and ``arg.parameter``, typed
+    as the phase's state and control classes and the problem's parameter class.
 
-``yapss.ContinuousOut[Shape]``
-    What a continuous callback fills: ``out.dynamics`` is typed as the shape's state,
+``yapss.ContinuousOut[State, Path, Integral]``
+    What a continuous callback fills: ``out.dynamics`` is typed as the phase's state class,
     ``out.path`` as its path constraints, and ``out.integrand`` as its integrals.
 
 ``yapss.EndpointArg[Parameter]``
@@ -48,17 +47,18 @@ the callback can see:
 ``yapss.DiscreteOut[Discrete]``
     What the discrete callback fills: ``out.discrete`` is typed as the discrete class.
 
-The shape is written once, and every vector is recovered from its annotations. Here is a
-continuous callback annotated in full, from a problem whose phase has the shape ``Slide``:
+Each parameter is bounded by its role, so naming a control where the state belongs is
+reported. Trailing parameters may be left out -- ``yapss.ContinuousArg[State, Control]`` for a
+callback that reads no parameters -- and a class left bare checks nothing at all. A callback
+used by several phases of one shape needs the annotation written once, and a long one can be
+named once and reused: ``SlideArg = yapss.ContinuousArg[State, Control, Parameter]``.
 
-.. literalinclude:: ../../../tests/typed/typed_problem.py
-   :language: python
-   :pyobject: Slide
+Here is a problem's setup with every callback annotated in full:
 
 .. literalinclude:: ../../../tests/typed/typed_problem.py
    :language: python
    :pyobject: setup
-   :lines: 1-20
+   :lines: 1-21
 
 A helper that fills one output can take the output vector itself, typed as the declaration it
 is an instance of:
@@ -66,6 +66,11 @@ is an instance of:
 .. literalinclude:: ../../../tests/typed/typed_problem.py
    :language: python
    :pyobject: dynamics
+
+The vectors are named, rather than the phase's shape, because that is what every checker and
+every editor can follow: the shape carries the same information, but recovering it takes a
+match that some editors, PyCharm among them, do not make, and an annotation they cannot follow
+gives no completion there at all.
 
 The objective returns a float when the problem is evaluated and a symbol when YAPSS traces it
 for automatic differentiation, so its honest return type is ``Any``. A value read from a
@@ -88,7 +93,13 @@ These are the limits, stated so that a silent checker is not mistaken for a pass
   run time. The independent variable is reached by the name the phase gave it, ``arg.r`` for a
   phase declaring ``r: yapss.Independent``, and no type parameter can carry that name, so the
   argument accepts any name at its top level. Below it, ``arg.state.xx`` is checked.
+- Nothing checks that a callback's annotation matches the phase it is registered on. The
+  classes named are what the checker uses; the runtime gives the callback the phase's own.
 - The solution, and the arguments of user-supplied derivative callbacks, are not typed yet.
+
+In VS Code, completion and navigation work as they are, but misspellings are underlined only
+once Pylance's type checking is turned on: set ``python.analysis.typeCheckingMode`` to
+``"standard"``.
 
 The file the examples on this page come from, ``tests/typed/typed_problem.py``, is checked in
 strict mode on every change to YAPSS, together with a list of mistakes each of which must be
