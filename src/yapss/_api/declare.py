@@ -34,14 +34,22 @@ from __future__ import annotations
 import inspect
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, cast, overload
 
 # `TypeVar` from typing_extensions, not typing: PEP 696 defaults are native only from
 # Python 3.13, and the floor is 3.11. The defaults are what let `yapss.Phase[Slide, Angle]`
 # be written without naming the two declarations a phase usually does not have.
 from typing_extensions import TypeVar
 
-from .containers import Container, HasRegistry, Registry, is_callable, is_subclass, suggest
+from .containers import (
+    CallbackT,
+    Container,
+    HasRegistry,
+    Registry,
+    is_callable,
+    is_subclass,
+    suggest,
+)
 from .fields import Fields
 from .kinds import Bounds, Guess, ScalarGuess, Scale, is_bool, is_pair, is_real
 from .mesh import Mesh
@@ -520,6 +528,12 @@ class PhaseRegistry(Registry):
 
         return register if function is None else register(function)
 
+    @overload
+    def continuous(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    @overload
+    def continuous(
+        self, function: None = None, /, *, replace: bool = False
+    ) -> Callable[[CallbackT], CallbackT]: ...
     def continuous(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
     ) -> Any:
@@ -541,6 +555,14 @@ class PhaseRegistry(Registry):
         """
         return self._register("continuous", function, replace=replace)
 
+    @overload
+    def continuous_jacobian(
+        self, function: CallbackT, /, *, replace: bool = False
+    ) -> CallbackT: ...
+    @overload
+    def continuous_jacobian(
+        self, function: None = None, /, *, replace: bool = False
+    ) -> Callable[[CallbackT], CallbackT]: ...
     def continuous_jacobian(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
     ) -> Any:
@@ -568,6 +590,12 @@ class PhaseRegistry(Registry):
         """
         return self._register("continuous_jacobian", function, replace=replace)
 
+    @overload
+    def continuous_hessian(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    @overload
+    def continuous_hessian(
+        self, function: None = None, /, *, replace: bool = False
+    ) -> Callable[[CallbackT], CallbackT]: ...
     def continuous_hessian(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
     ) -> Any:

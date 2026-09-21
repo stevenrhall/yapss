@@ -53,6 +53,9 @@ import numpy as np
 
 from .kinds import MISSING, Kind, is_sequence
 
+if TYPE_CHECKING:
+    from typing import Self
+
 __all__ = [
     "ROLES",
     "Control",
@@ -111,6 +114,11 @@ class Field:
 # The same markers are what a field is *read* as, in a callback or a solution, so they also
 # declare arithmetic and indexing. `arg.state.v * 2.0` checks as well as `ph.state.v.bounds`;
 # the price is that `arg.state.v.bounds` checks too, and fails only at run time.
+#
+# And they are what a callback *writes*: `out.dynamics.h = 0.0` assigns a value to a field
+# whose declared type is the marker. So a marker is a descriptor to the checker, reading as
+# itself and accepting any value. The same permission lets `ph.state.h = 0.0` pass the checker
+# in setup, where the runtime refuses it with the form to use -- the permissive direction again.
 
 _Bound: TypeAlias = "tuple[SupportsFloat | None, SupportsFloat | None] | list[SupportsFloat | None]"
 """A bound: a lower and an upper value, either of which may be None for no bound."""
@@ -118,29 +126,25 @@ _Bound: TypeAlias = "tuple[SupportsFloat | None, SupportsFloat | None] | list[Su
 _T = TypeVar("_T")
 
 
-class _AsValue:
-    """A field read as its value -- a float, a symbol, or an array -- in a callback or solution."""
+if TYPE_CHECKING:
 
-    if TYPE_CHECKING:
+    class _AsValue(np.ndarray[Any, np.dtype[Any]]):
+        """A field read as its value, in a callback or solution: to a checker, an array.
 
-        def __add__(self, other: Any) -> Any: ...
-        def __radd__(self, other: Any) -> Any: ...
-        def __sub__(self, other: Any) -> Any: ...
-        def __rsub__(self, other: Any) -> Any: ...
-        def __mul__(self, other: Any) -> Any: ...
-        def __rmul__(self, other: Any) -> Any: ...
-        def __truediv__(self, other: Any) -> Any: ...
-        def __rtruediv__(self, other: Any) -> Any: ...
-        def __pow__(self, other: Any) -> Any: ...
-        def __rpow__(self, other: Any) -> Any: ...
-        def __neg__(self) -> Any: ...
-        def __pos__(self) -> Any: ...
-        def __abs__(self) -> Any: ...
-        def __lt__(self, other: Any) -> Any: ...
-        def __le__(self, other: Any) -> Any: ...
-        def __gt__(self, other: Any) -> Any: ...
-        def __ge__(self, other: Any) -> Any: ...
-        def __getitem__(self, index: Any) -> Any: ...
+        At run time a value read in a continuous callback or a solution is a numpy array --
+        of floats, or of symbols under the "auto" trace -- so it is typed as one, which is what
+        lets it pass to numpy, to `yapss.math`, and to a helper a user annotated as taking an
+        array. A parameter or an endpoint value is a single number or symbol instead, and it
+        also checks as an array: the permissive direction.
+        """
+
+        def __get__(self, obj: object, owner: Any) -> Self: ...
+        def __set__(self, obj: object, value: Any) -> None: ...
+
+else:
+
+    class _AsValue:
+        """A field marker's base, which at run time holds nothing."""
 
 
 class ScalarField(_AsValue):

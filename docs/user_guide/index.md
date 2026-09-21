@@ -127,6 +127,7 @@ notebooks/tutorial.ipynb
 :maxdepth: 1
 
 reference/problem.rst
+reference/typing.rst
 reference/callbacks.rst
 reference/bounds.rst
 reference/guess.rst

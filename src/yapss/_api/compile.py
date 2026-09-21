@@ -26,12 +26,12 @@ from yapss._backend.solver import solve
 from yapss._backend.spec import PhaseSpec, ProblemSpec, frozen_array
 
 from .args import (
-    DiscreteOutput,
+    ContinuousArg,
+    ContinuousOut,
+    DiscreteOut,
     Endpoint,
     EndpointArg,
     EndpointValues,
-    PhaseArg,
-    PhaseOutput,
     phase_arg_class,
 )
 from .derivatives import (
@@ -96,7 +96,7 @@ def _check_complete(output: Any, callback: Callable[..., Any], what: str) -> Non
 class _PhaseMakers:
     """What one phase's continuous call needs that does not change between calls."""
 
-    _arg: PhaseArg | None
+    _arg: ContinuousArg | None
 
     __slots__ = (
         "_arg",
@@ -115,7 +115,7 @@ class _PhaseMakers:
         "what",
     )
 
-    def arg(self, data: Any, parameter: Any) -> PhaseArg:
+    def arg(self, data: Any, parameter: Any) -> ContinuousArg:
         """Return the continuous argument for one evaluation.
 
         The inputs are read-only vectors that read their rows where they are, so the argument
@@ -168,7 +168,7 @@ def _make_continuous(spec: ProblemSpec_) -> Callable[[Any], None]:
             maker = makers[index]
             data = arg.phase[index]
             new_arg = maker.arg(data, arg.parameter)
-            out = PhaseOutput(maker.dynamics.make(), maker.path.make(), maker.integrand.make())
+            out = ContinuousOut(maker.dynamics.make(), maker.path.make(), maker.integrand.make())
             result = maker.callback(new_arg, out)
             _check_return(result, out, maker.callback, maker.what)
             _check_complete(out, maker.callback, maker.what)
@@ -319,7 +319,7 @@ def _make_discrete(
     discrete_maker = Maker(spec.discrete, Rows, "discrete")
 
     def discrete(arg: Any) -> None:
-        out = DiscreteOutput(discrete_maker.make())
+        out = DiscreteOut(discrete_maker.make())
         result = callback(makers.arg(arg), out)
         _check_return(result, out, callback, "discrete callback")
         _check_complete(out, callback, "discrete callback")
@@ -342,7 +342,7 @@ def _make_discrete(
 class _DerivativeMakers:
     """What one phase's derivative call needs that does not change between calls."""
 
-    _arg: PhaseArg | None
+    _arg: ContinuousArg | None
 
     __slots__ = (
         "_arg",
@@ -372,7 +372,7 @@ class _DerivativeMakers:
         self.columns = phase_columns(phase, spec.parameter)
         self._arg = None
 
-    def arg(self, data: Any, parameter: Any) -> PhaseArg:
+    def arg(self, data: Any, parameter: Any) -> ContinuousArg:
         """Return the derivative argument for one evaluation, built once and re-pointed."""
         cached = self._arg
         if cached is None:

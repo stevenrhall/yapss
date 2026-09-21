@@ -13,9 +13,24 @@ guard writable arrays as well.
 from __future__ import annotations
 
 import difflib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
-__all__ = ["Container", "HasRegistry", "Registry", "is_callable", "is_string", "is_subclass"]
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+__all__ = [
+    "CallbackT",
+    "Container",
+    "HasRegistry",
+    "Registry",
+    "is_callable",
+    "is_string",
+    "is_subclass",
+]
+
+CallbackT = TypeVar("CallbackT", bound="Callable[..., Any]")
+"""A callback being registered, which a registration returns unchanged -- so a decorated
+function keeps its own type, annotations and all, rather than becoming `Any`."""
 
 
 def is_string(value: object) -> bool:

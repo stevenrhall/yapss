@@ -8,12 +8,29 @@ to write into out of turn, nothing held across calls, and nothing to reset. Inpu
 read-only; an output is filled field by field and checked for completeness when the callback
 returns.
 
+Each class is generic in the declarations it carries, so a callback can be annotated and
+checked, down to the field:
+
+    @ph.register.continuous
+    def continuous(arg: yapss.ContinuousArg[Arc], out: yapss.ContinuousOut[Arc]) -> None:
+        out.dynamics.h = arg.state.v      # checked: Arc's state has h and v
+
+The parameter is the phase's shape, not its vectors, and the vectors are recovered from the
+shape's annotations by matching it against a protocol (`_HasState` and the rest): a class
+annotated ``state: Rocket`` satisfies ``_HasState[Rocket]``, which is how ``arg.state`` is
+typed as ``Rocket`` although nothing was passed to a type parameter. Unparameterized, every
+class degrades to `Any`, so an unannotated callback, or one annotated with the bare class,
+is exactly as unchecked as before and never falsely reported.
+
 """
 
 from __future__ import annotations
 
 from functools import cache
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Generic, Protocol
+
+# `TypeVar` from typing_extensions for PEP 696 defaults, as in `declare`.
+from typing_extensions import TypeVar
 
 from .containers import suggest
 
@@ -21,14 +38,55 @@ if TYPE_CHECKING:
     from .vector import Vector
 
 __all__ = [
-    "DiscreteOutput",
+    "ContinuousArg",
+    "ContinuousOut",
+    "DiscreteOut",
     "Endpoint",
     "EndpointArg",
     "EndpointValues",
     "Endpoints",
-    "PhaseArg",
-    "PhaseOutput",
 ]
+
+# What a class is generic in: a phase's shape, or one of the problem's declarations. Each
+# defaults to `Any`, so the bare class checks nothing rather than refusing every name.
+SH_co = TypeVar("SH_co", covariant=True, default=Any)
+"""The shape of the phase a callback is for: a `yapss.Phase` subclass."""
+PR_co = TypeVar("PR_co", covariant=True, default=Any)
+"""The problem's parameter declaration."""
+D_co = TypeVar("D_co", covariant=True, default=Any)
+"""The problem's discrete constraint declaration."""
+I_co = TypeVar("I_co", covariant=True, default=Any)
+"""A phase's integral declaration."""
+
+_V_co = TypeVar("_V_co", covariant=True)
+
+
+class _HasState(Protocol[_V_co]):
+    """A phase shape, as far as its state: what ``state: Rocket`` in a shape satisfies."""
+
+    @property
+    def state(self) -> _V_co: ...
+
+
+class _HasControl(Protocol[_V_co]):
+    """A phase shape, as far as its control."""
+
+    @property
+    def control(self) -> _V_co: ...
+
+
+class _HasPath(Protocol[_V_co]):
+    """A phase shape, as far as its path constraints."""
+
+    @property
+    def path(self) -> _V_co: ...
+
+
+class _HasIntegral(Protocol[_V_co]):
+    """A phase shape, as far as its integrals."""
+
+    @property
+    def integral(self) -> _V_co: ...
 
 
 class _Frozen:
@@ -36,15 +94,20 @@ class _Frozen:
 
     __slots__: tuple[str, ...] = ()
 
-    def __getattr__(self, name: str) -> Any:
-        """Refuse an unknown name with a suggestion."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        names = getattr(self, "_names", None) or tuple(
-            n for n in self.__slots__ if not n.startswith("_")
-        )
-        msg = f"{type(self).__name__} has no '{name}'.{suggest(name, names)}"
-        raise AttributeError(msg)
+    # Hidden from type checkers, as `Container`'s is: one that sees a reader answering any name
+    # stops reporting misspellings. `ContinuousArg` declares its own, for the one name it cannot
+    # know statically.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name):
+            """Refuse an unknown name with a suggestion."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            names = getattr(self, "_names", None) or tuple(
+                n for n in self.__slots__ if not n.startswith("_")
+            )
+            msg = f"{type(self).__name__} has no '{name}'.{suggest(name, names)}"
+            raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment."""
@@ -53,8 +116,12 @@ class _Frozen:
         raise AttributeError(msg)
 
 
-class PhaseArg(_Frozen):
+class ContinuousArg(_Frozen, Generic[SH_co, PR_co]):
     """What a continuous callback is given, for one phase at one set of time points.
+
+    Annotated ``yapss.ContinuousArg[Arc]`` for a phase of shape ``Arc``, or
+    ``yapss.ContinuousArg[Arc, Parameter]`` when the callback reads parameters, a type checker
+    follows ``arg.state``, ``arg.control`` and ``arg.parameter`` to their declarations.
 
     The independent variable is reached by the name the phase gave it, so this class is
     generated per name by `phase_arg_class`: a subclass with the points under a property of
@@ -76,6 +143,22 @@ class PhaseArg(_Frozen):
 
     _independent = "time"
 
+    if TYPE_CHECKING:
+        phase: SH_co
+        parameter: PR_co
+        time: Any
+
+        @property
+        def state(self: ContinuousArg[_HasState[_V_co], Any]) -> _V_co: ...
+        @property
+        def control(self: ContinuousArg[_HasControl[_V_co], Any]) -> _V_co: ...
+
+        # The independent variable is reached by the name the phase gave it, which nothing in
+        # a type parameter can carry, so `arg.r` must not be an error. This reader answers for
+        # it, at the top level only: `arg.state.x` is still checked. The cost is that
+        # `arg.stat` passes the checker, and is refused at run time with a suggestion.
+        def __getattr__(self, name: str) -> Any: ...
+
     def __init__(
         self, phase: Any, points: Any, state: Vector, control: Vector, parameter: Vector
     ) -> None:
@@ -94,11 +177,11 @@ class PhaseArg(_Frozen):
 
 
 @cache
-def phase_arg_class(name: str) -> type[PhaseArg]:
-    """Return the `PhaseArg` subclass whose independent variable is called `name`."""
+def phase_arg_class(name: str) -> type[ContinuousArg[Any, Any]]:
+    """Return the `ContinuousArg` subclass whose independent variable is called `name`."""
     return type(
-        f"PhaseArg_{name}",
-        (PhaseArg,),
+        f"ContinuousArg_{name}",
+        (ContinuousArg,),
         {
             "__slots__": (),
             "_independent": name,
@@ -107,14 +190,23 @@ def phase_arg_class(name: str) -> type[PhaseArg]:
     )
 
 
-class PhaseOutput(_Frozen):
+class ContinuousOut(_Frozen, Generic[SH_co]):
     """What a continuous callback fills in: the dynamics, path constraints, and integrands.
 
     Each is a vector of the class the phase was declared with, so ``out.dynamics`` has the
-    state's field names.
+    state's field names -- and, annotated ``yapss.ContinuousOut[Arc]``, a type checker knows it.
     """
 
     __slots__ = ("dynamics", "integrand", "path")
+
+    if TYPE_CHECKING:
+
+        @property
+        def dynamics(self: ContinuousOut[_HasState[_V_co]]) -> _V_co: ...
+        @property
+        def path(self: ContinuousOut[_HasPath[_V_co]]) -> _V_co: ...
+        @property
+        def integrand(self: ContinuousOut[_HasIntegral[_V_co]]) -> _V_co: ...
 
     def __init__(self, dynamics: Vector, path: Vector, integrand: Vector) -> None:
         object.__setattr__(self, "dynamics", dynamics)
@@ -137,11 +229,8 @@ class PhaseOutput(_Frozen):
 
     def _is_complete(self) -> bool:
         """Report whether every output field has been assigned."""
-        return bool(
-            self.dynamics._is_complete()
-            and self.path._is_complete()
-            and self.integrand._is_complete()
-        )
+        vectors: list[Vector] = [getattr(self, name) for name in self.__slots__]
+        return all(vector._is_complete() for vector in vectors)
 
     def _missing(self) -> list[str]:
         """Return ``"<output>.<field>"`` for every field left unassigned."""
@@ -208,8 +297,14 @@ class EndpointValues(_Frozen):
         return len(object.__getattribute__(self, "_state"))
 
 
-class Endpoint(_Frozen):
+class Endpoint(_Frozen, Generic[I_co]):
     """The endpoint values of one phase, as an endpoint callback sees them.
+
+    Typed by the phase's integral declaration, which `EndpointArg` reads from the handle's
+    shape. ``initial`` and ``final`` are not typed: each holds the state's fields *and* the
+    independent variable, one namespace at run time, and a type that is one class plus one more
+    name is an intersection, which Python's typing cannot write. Typing them as the state would
+    report ``arg[ph].final.time`` as an error, and that is working code.
 
     Attributes
     ----------
@@ -223,6 +318,11 @@ class Endpoint(_Frozen):
 
     _names = ("final", "initial", "integral")
 
+    if TYPE_CHECKING:
+        initial: Any
+        final: Any
+        integral: I_co
+
     def __init__(
         self, data: Any, initial: EndpointValues, final: EndpointValues, integral: Vector
     ) -> None:
@@ -232,19 +332,24 @@ class Endpoint(_Frozen):
         object.__setattr__(self, "integral", integral)
 
 
-class EndpointArg(_Frozen):
+class EndpointArg(_Frozen, Generic[PR_co]):
     """What the objective and discrete callbacks are given: every phase's endpoints.
 
     A phase's endpoints are reached by indexing with its handle, ``arg[phases.coast]``.
+    Annotated ``yapss.EndpointArg[Parameter]``, a type checker follows ``arg.parameter``; what
+    ``arg[ph]`` holds is typed from the handle itself, so it needs no parameter of its own.
     """
 
     __slots__ = ("_endpoints", "parameter")
+
+    if TYPE_CHECKING:
+        parameter: PR_co
 
     def __init__(self, endpoints: Endpoints, parameter: Vector) -> None:
         object.__setattr__(self, "_endpoints", endpoints)
         object.__setattr__(self, "parameter", parameter)
 
-    def __getitem__(self, phase: Any) -> Endpoint:
+    def __getitem__(self, phase: _HasIntegral[_V_co]) -> Endpoint[_V_co]:
         """Return the endpoint values of `phase`, which is a phase handle."""
         endpoints: Endpoints = object.__getattribute__(self, "_endpoints")
         try:
@@ -256,10 +361,16 @@ class EndpointArg(_Frozen):
             raise KeyError(msg) from None
 
 
-class DiscreteOutput(_Frozen):
-    """What the discrete callback fills in: the discrete constraint groups."""
+class DiscreteOut(_Frozen, Generic[D_co]):
+    """What the discrete callback fills in: the discrete constraint groups.
+
+    Annotated ``yapss.DiscreteOut[Discrete]``, a type checker follows ``out.discrete``.
+    """
 
     __slots__ = ("discrete",)
+
+    if TYPE_CHECKING:
+        discrete: D_co
 
     def __init__(self, discrete: Vector) -> None:
         object.__setattr__(self, "discrete", discrete)
@@ -268,7 +379,7 @@ class DiscreteOutput(_Frozen):
         """Refuse replacing the discrete vector, explaining how to fill it."""
         del value
         if name == "discrete":
-            fields = getattr(self.discrete, "_fields", ())
+            fields = getattr(getattr(self, "discrete"), "_fields", ())  # noqa: B009
             example = f"out.discrete.{fields[0]}" if fields else "out.discrete[:]"
             msg = (
                 f"out.discrete cannot be replaced; fill it field by field, for example "
@@ -280,8 +391,10 @@ class DiscreteOutput(_Frozen):
 
     def _is_complete(self) -> bool:
         """Report whether every group has been assigned."""
-        return bool(self.discrete._is_complete())
+        discrete: Vector = getattr(self, "discrete")  # noqa: B009
+        return bool(discrete._is_complete())
 
     def _missing(self) -> list[str]:
         """Return ``"discrete.<field>"`` for every group left unassigned."""
-        return [f"discrete.{field}" for field in self.discrete.missing()]
+        discrete: Vector = getattr(self, "discrete")  # noqa: B009
+        return [f"discrete.{field}" for field in discrete.missing()]

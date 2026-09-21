@@ -4,6 +4,7 @@
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
+from ._api.args import ContinuousArg, ContinuousOut, DiscreteOut, EndpointArg
 from ._api.declare import Independent, Phase, Phases
 from ._api.mesh import Mesh
 from ._api.problem import Problem
@@ -26,8 +27,12 @@ from ._backend.solution import IpoptConvergenceWarning
 from .math.functions import UnsupportedMathFunctionError
 
 __all__ = [
+    "ContinuousArg",
+    "ContinuousOut",
     "Control",
     "Discrete",
+    "DiscreteOut",
+    "EndpointArg",
     "Independent",
     "Integral",
     "IpoptConvergenceWarning",

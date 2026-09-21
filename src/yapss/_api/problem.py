@@ -11,7 +11,7 @@ afterwards never alters what an earlier solution recorded.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Literal
+from typing import TYPE_CHECKING, Any, Generic, Literal, overload
 
 # See `_api.declare`: PEP 696 defaults, which `typing.TypeVar` cannot carry below 3.13.
 from typing_extensions import TypeVar
@@ -20,7 +20,15 @@ from yapss._backend.ipopt_options import IpoptOptions
 from yapss._backend.solution import warn_if_not_converged
 
 from .compile import solve_problem
-from .containers import Container, HasRegistry, Registry, is_callable, is_string, is_subclass
+from .containers import (
+    CallbackT,
+    Container,
+    HasRegistry,
+    Registry,
+    is_callable,
+    is_string,
+    is_subclass,
+)
 from .declare import Phases, declared_role
 from .fields import Fields
 from .kinds import Bounds, ScalarGuess, Scale
@@ -184,6 +192,12 @@ class ProblemRegistry(Registry):
     def __init__(self, problem: Problem[Any, Any, Any]) -> None:
         self._problem = problem
 
+    @overload
+    def objective(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    @overload
+    def objective(
+        self, function: None = None, /, *, replace: bool = False
+    ) -> Callable[[CallbackT], CallbackT]: ...
     def objective(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
     ) -> Any:
@@ -206,6 +220,12 @@ class ProblemRegistry(Registry):
         """
         return self._problem._register("objective", function, replace=replace)
 
+    @overload
+    def discrete(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    @overload
+    def discrete(
+        self, function: None = None, /, *, replace: bool = False
+    ) -> Callable[[CallbackT], CallbackT]: ...
     def discrete(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
     ) -> Any:
@@ -225,6 +245,12 @@ class ProblemRegistry(Registry):
         """
         return self._problem._register("discrete", function, replace=replace)
 
+    @overload
+    def objective_gradient(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    @overload
+    def objective_gradient(
+        self, function: None = None, /, *, replace: bool = False
+    ) -> Callable[[CallbackT], CallbackT]: ...
     def objective_gradient(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
     ) -> Any:
@@ -250,6 +276,12 @@ class ProblemRegistry(Registry):
         """
         return self._problem._register("objective_gradient", function, replace=replace)
 
+    @overload
+    def objective_hessian(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    @overload
+    def objective_hessian(
+        self, function: None = None, /, *, replace: bool = False
+    ) -> Callable[[CallbackT], CallbackT]: ...
     def objective_hessian(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
     ) -> Any:
@@ -276,6 +308,12 @@ class ProblemRegistry(Registry):
         """
         return self._problem._register("objective_hessian", function, replace=replace)
 
+    @overload
+    def discrete_jacobian(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    @overload
+    def discrete_jacobian(
+        self, function: None = None, /, *, replace: bool = False
+    ) -> Callable[[CallbackT], CallbackT]: ...
     def discrete_jacobian(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
     ) -> Any:
@@ -302,6 +340,12 @@ class ProblemRegistry(Registry):
         """
         return self._problem._register("discrete_jacobian", function, replace=replace)
 
+    @overload
+    def discrete_hessian(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    @overload
+    def discrete_hessian(
+        self, function: None = None, /, *, replace: bool = False
+    ) -> Callable[[CallbackT], CallbackT]: ...
     def discrete_hessian(
         self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
     ) -> Any:
