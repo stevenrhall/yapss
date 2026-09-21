@@ -16,11 +16,11 @@ from yapss._api.spec import snapshot
 def build(row_guess):
     """Return a two-state problem whose block field's second row is guessed by `row_guess`."""
 
-    class Pair(yapss.Vector):
-        r = yapss.field(size=2)
+    class Pair(yapss.State):
+        r = yapss.vector(2)
 
-    class Rate(yapss.Vector):
-        u = yapss.field()
+    class Rate(yapss.Control):
+        u = yapss.scalar()
 
     class Phases(yapss.Phases):
         only = yapss.phase(state=Pair, control=Rate)

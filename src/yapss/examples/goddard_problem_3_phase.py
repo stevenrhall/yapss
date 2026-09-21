@@ -30,32 +30,32 @@ m0, mf = 3.0, 1.0
 """Initial and final mass (slug)."""
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """Where the rocket is, how fast it is going, and what it weighs."""
 
-    h = yapss.field()
+    h = yapss.scalar()
     """Altitude."""
-    v = yapss.field()
+    v = yapss.scalar()
     """Velocity."""
-    m = yapss.field()
+    m = yapss.scalar()
     """Mass."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """The engine setting."""
 
-    thrust = yapss.field()
+    thrust = yapss.scalar()
     """Thrust."""
 
 
-class SingularArc(yapss.Vector):
+class SingularArc(yapss.Path):
     """The condition that holds along the singular arc."""
 
-    switching = yapss.field()
+    switching = yapss.scalar()
     """Singular-arc switching function."""
 
 
-class Discrete(yapss.Vector):
+class Discrete(yapss.Discrete):
     """Continuity of time and state where one phase meets the next.
 
     One field per quantity rather than one block per joint, because the quantities are of
@@ -65,21 +65,21 @@ class Discrete(yapss.Vector):
     converges without scaling them, so none is set; the point is that it could be.
     """
 
-    boost_singular_h = yapss.field()
+    boost_singular_h = yapss.scalar()
     """Altitude, boost to singular."""
-    boost_singular_v = yapss.field()
+    boost_singular_v = yapss.scalar()
     """Speed, boost to singular."""
-    boost_singular_m = yapss.field()
+    boost_singular_m = yapss.scalar()
     """Mass, boost to singular."""
-    boost_singular_time = yapss.field()
+    boost_singular_time = yapss.scalar()
     """Time, boost to singular."""
-    singular_coast_h = yapss.field()
+    singular_coast_h = yapss.scalar()
     """Altitude, singular to coast."""
-    singular_coast_v = yapss.field()
+    singular_coast_v = yapss.scalar()
     """Speed, singular to coast."""
-    singular_coast_m = yapss.field()
+    singular_coast_m = yapss.scalar()
     """Mass, singular to coast."""
-    singular_coast_time = yapss.field()
+    singular_coast_time = yapss.scalar()
     """Time, singular to coast."""
 
 

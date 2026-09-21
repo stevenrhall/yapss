@@ -17,36 +17,36 @@ AREA = "user_derivatives"
 A = 0.7
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """A scalar row and a block of two."""
 
-    h = yapss.field()
-    r = yapss.field(size=2)
+    h = yapss.scalar()
+    r = yapss.vector(2)
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """A block control of two rows."""
 
-    u = yapss.field(size=2)
+    u = yapss.vector(2)
 
 
-class Integral(yapss.Vector):
+class Integral(yapss.Integral):
     """What is accumulated along the phase."""
 
-    cost = yapss.field()
+    cost = yapss.scalar()
 
 
-class Parameter(yapss.Vector):
+class Parameter(yapss.Parameter):
     """A scalar parameter and a block of two."""
 
-    k = yapss.field()
-    m = yapss.field(size=2)
+    k = yapss.scalar()
+    m = yapss.vector(2)
 
 
-class Discrete(yapss.Vector):
+class Discrete(yapss.Discrete):
     """One constraint, closing a row of the state."""
 
-    close = yapss.field()
+    close = yapss.scalar()
 
 
 class Phases(yapss.Phases):

@@ -20,20 +20,20 @@ G0 = 32.174
 """Acceleration of gravity, ft/s^2."""
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """Where the bead is and how fast it is going."""
 
-    x = yapss.field()
+    x = yapss.scalar()
 
-    y = yapss.field()
+    y = yapss.scalar()
 
-    v = yapss.field()
+    v = yapss.scalar()
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """The slope of the path."""
 
-    u = yapss.field()
+    u = yapss.scalar()
 
 
 class Phases(yapss.Phases):

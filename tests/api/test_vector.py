@@ -6,27 +6,37 @@ import re
 import numpy as np
 import pytest
 
-from yapss._api import Empty, Vector, field
 from yapss._api.kinds import Bounds, Guess, ReadOnlyRows, Rows
+from yapss._api.vector import (
+    Control,
+    Discrete,
+    Integral,
+    Parameter,
+    Path,
+    State,
+    Vector,
+    scalar,
+    vector,
+)
 
 
 class Rocket(Vector):
     """Three plain fields."""
 
-    h = field()
+    h = scalar()
     """Altitude."""
-    v = field()
+    v = scalar()
     """Velocity."""
-    m = field()
+    m = scalar()
     """Mass."""
 
 
 class Ascent(Vector):
     """Two block fields and a plain one."""
 
-    r = field(size=3)
-    v = field(size=3)
-    m = field()
+    r = vector(3)
+    v = vector(3)
+    m = scalar()
 
 
 # --- declaration --------------------------------------------------------------------------
@@ -59,15 +69,15 @@ def test_behavior_on_a_declaration_is_refused():
     with pytest.raises(TypeError, match=r"holds no behavior"):
 
         class A(Vector):
-            h = field()
+            h = scalar()
 
             def go(self):
                 """Not allowed."""
 
 
-@pytest.mark.parametrize("body", ["h: float = field()", "h: float"])
+@pytest.mark.parametrize("body", ["h: float = scalar()", "h: float"])
 def test_annotated_fields_are_refused(body):
-    namespace = {"Vector": Vector, "field": field}
+    namespace = {"Vector": Vector, "scalar": scalar}
     with pytest.raises(TypeError, match=r"is annotated"):
         exec(f"class A(Vector):\n    {body}", namespace)
 
@@ -76,20 +86,20 @@ def test_inheriting_a_declaration_is_refused():
     with pytest.raises(TypeError, match=r"cannot inherit from the vector declaration"):
 
         class A(Rocket):
-            w = field()
+            w = scalar()
 
 
 @pytest.mark.parametrize(
     ("kwargs", "error", "match"),
     [
         ({"size": -1}, ValueError, "must be 0 or more"),
-        ({"size": 2.5}, TypeError, "must be an integer"),
-        ({"size": True}, TypeError, "must be an integer"),
+        ({"size": 2.5}, TypeError, "whole number of components"),
+        ({"size": True}, TypeError, "whole number of components"),
     ],
 )
-def test_field_arguments_are_checked_at_declaration(kwargs, error, match):
+def test_vector_arguments_are_checked_at_declaration(kwargs, error, match):
     with pytest.raises(error, match=match):
-        field(**kwargs)
+        vector(**kwargs)
 
 
 def test_a_declaration_cannot_be_instantiated():
@@ -98,7 +108,7 @@ def test_a_declaration_cannot_be_instantiated():
 
 
 def test_empty_has_no_fields_and_says_so():
-    empty = Empty._new(Rows, "phase 'boost' path")
+    empty = Path._new(Rows, "phase 'boost' path")
     with pytest.raises(AttributeError, match=r"has no fields"):
         empty.switching = 1.0
 
@@ -210,7 +220,7 @@ def test_a_two_row_block_is_not_ambiguous_any_more():
     """
 
     class Pair(Vector):
-        w = field(size=2)
+        w = vector(2)
 
     bounds = Pair._new(Bounds, "bounds")
     bounds.w[:] = (0, 1)
@@ -341,10 +351,10 @@ def test_inputs_read_by_name_index_and_slice():
 class Generated(Vector):
     """The shape a declaration built by an algorithm takes: block fields of every size."""
 
-    none = field(size=0)
-    one = field(size=1)
-    two = field(size=2)
-    scalar = field()
+    none = vector(0)
+    one = vector(1)
+    two = vector(2)
+    scalar = scalar()
 
 
 def test_a_block_field_keeps_its_leading_axis_at_every_size():
@@ -414,23 +424,23 @@ def test_every_declared_setting_actually_exists():
     from yapss._api import Phases, Problem, phase
     from yapss._api.containers import Container
 
-    class S(Vector):
-        x = field()
+    class S(State):
+        x = scalar()
 
-    class C(Vector):
-        u = field()
+    class C(Control):
+        u = scalar()
 
-    class H(Vector):
-        g = field()
+    class H(Path):
+        g = scalar()
 
-    class Q(Vector):
-        j = field()
+    class Q(Integral):
+        j = scalar()
 
-    class D(Vector):
-        d = field()
+    class D(Discrete):
+        d = scalar()
 
-    class P(Vector):
-        p = field()
+    class P(Parameter):
+        p = scalar()
 
     class OnePhase(Phases):
         only = phase(state=S, control=C, path=H, integral=Q)

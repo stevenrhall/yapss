@@ -14,17 +14,22 @@ from .mesh import Mesh
 from .problem import Problem
 from .sampled import interp
 from .solution import PhaseSolution, Solution
-from .vector import Empty, Vector, field
+from .vector import Control, Discrete, Integral, Parameter, Path, State, scalar, vector
 
 __all__ = [
-    "Empty",
+    "Control",
+    "Discrete",
+    "Integral",
     "Mesh",
+    "Parameter",
+    "Path",
     "PhaseSolution",
     "Phases",
     "Problem",
     "Solution",
-    "Vector",
-    "field",
+    "State",
     "interp",
     "phase",
+    "scalar",
+    "vector",
 ]

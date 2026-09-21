@@ -19,13 +19,13 @@ from yapss.math import cos, sin
 from ._api import G0, not_yet, raises, solvable
 
 
-class _Two(yapss.Vector):
-    a = yapss.field()
-    b = yapss.field()
+class _Two(yapss.State):
+    a = yapss.scalar()
+    b = yapss.scalar()
 
 
-class _One(yapss.Vector):
-    c = yapss.field()
+class _One(yapss.Control):
+    c = yapss.scalar()
 
 
 def dynamics(arg, out):

@@ -24,12 +24,12 @@ MINIMUM = (1.0, 1.0)
 """Where the function is smallest, which the solver should find."""
 
 
-class Parameter(yapss.Vector):
+class Parameter(yapss.Parameter):
     """The point to be chosen."""
 
-    x = yapss.field()
+    x = yapss.scalar()
     """Horizontal coordinate."""
-    y = yapss.field()
+    y = yapss.scalar()
     """Vertical coordinate."""
 
 

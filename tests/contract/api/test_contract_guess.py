@@ -142,7 +142,7 @@ def test_the_independent_variable_is_named_in_the_complaint() -> None:
     """A phase that renamed its independent variable is told about *that* name."""
 
     class Radial(yapss.Phases):
-        nose = yapss.phase(state=State, control=Control, r=yapss.field())
+        nose = yapss.phase(state=State, control=Control, r=yapss.scalar())
 
     p = yapss.Problem("p", phases=Radial)
     ph = p.phases.nose

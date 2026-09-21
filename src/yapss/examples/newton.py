@@ -35,26 +35,26 @@ import numpy as np
 import yapss
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """The shape of the nosecone."""
 
-    y = yapss.field()
+    y = yapss.scalar()
     """Height of the profile."""
-    yp = yapss.field()
+    yp = yapss.scalar()
     """Slope of the profile."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """How the slope is allowed to change."""
 
-    u = yapss.field()
+    u = yapss.scalar()
     """Second derivative of the profile."""
 
 
-class Integral(yapss.Vector):
+class Integral(yapss.Integral):
     """What is being minimized."""
 
-    drag = yapss.field()
+    drag = yapss.scalar()
     """Pressure drag on the nosecone."""
 
 
@@ -65,7 +65,7 @@ class Phases(yapss.Phases):
         state=State,
         control=Control,
         integral=Integral,
-        r=yapss.field(),
+        r=yapss.scalar(),
     )
 
 

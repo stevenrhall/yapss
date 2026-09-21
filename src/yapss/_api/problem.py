@@ -21,10 +21,10 @@ from yapss._backend.solution import warn_if_not_converged
 
 from .compile import solve_problem
 from .containers import Container, HasRegistry, Registry, is_callable, is_string, is_subclass
-from .declare import Phases
+from .declare import Phases, declared_role
 from .kinds import Bounds, ScalarGuess, Scale
 from .spec import snapshot, validate_problem
-from .vector import Empty, Vector
+from .vector import Discrete, Parameter, Vector
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -33,9 +33,9 @@ __all__ = ["Problem"]
 
 PH_co = TypeVar("PH_co", bound=Phases, default=Phases, covariant=True)
 """The class declaring the problem's phases."""
-D_co = TypeVar("D_co", bound=Vector, default=Vector, covariant=True)
+D_co = TypeVar("D_co", bound=Discrete, default=Discrete, covariant=True)
 """The class declaring the problem's discrete constraint groups."""
-PR_co = TypeVar("PR_co", bound=Vector, default=Vector, covariant=True)
+PR_co = TypeVar("PR_co", bound=Parameter, default=Parameter, covariant=True)
 """The class declaring the problem's parameters."""
 
 METHODS = ("lgl", "lgr", "lg")
@@ -338,10 +338,10 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         A name for the problem, used in messages and printed output.
     phases : type[Phases]
         The class declaring the problem's phases.
-    discrete : type[Vector], optional
-        The class naming the problem's discrete constraint groups.
-    parameter : type[Vector], optional
-        The class naming the problem's parameters.
+    discrete : type[Discrete], optional
+        The class naming the problem's discrete constraint groups; none, if omitted.
+    parameter : type[Parameter], optional
+        The class naming the problem's parameters; none, if omitted.
     """
 
     _held = (
@@ -378,8 +378,8 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         phases: type[PH_co],
         # See `_api.declare.phase`: the defaults are declared on the type parameters, and a
         # checker measures the default value against the parameter type regardless.
-        discrete: type[D_co] = Empty,  # type: ignore[assignment]
-        parameter: type[PR_co] = Empty,  # type: ignore[assignment]
+        discrete: type[D_co] = Discrete,  # type: ignore[assignment]
+        parameter: type[PR_co] = Parameter,  # type: ignore[assignment]
     ) -> None:
         if not is_string(name):
             msg = f"the problem name must be a string; got {name!r}"
@@ -390,13 +390,9 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
                 f"'class Phases(yapss.Phases)'; got {phases!r}"
             )
             raise TypeError(msg)
-        for label, value in (("discrete", discrete), ("parameter", parameter)):
-            if not is_subclass(value, Vector):
-                msg = (
-                    f"Problem({label}=) takes a vector class declared with "
-                    f"'class X(yapss.Vector)'; got {value!r}"
-                )
-                raise TypeError(msg)
+        roles = ("discrete", "parameter")
+        declared_role(discrete, "Problem", "discrete", Discrete, roles)
+        declared_role(parameter, "Problem", "parameter", Parameter, roles)
 
         self._name = name
         self._label = "problem"

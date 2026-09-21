@@ -30,48 +30,48 @@ AREA = 1 / (4 * math.pi)
 """The largest area a closed curve of unit perimeter can enclose."""
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """A point on the curve."""
 
-    x = yapss.field()
+    x = yapss.scalar()
     """Horizontal position."""
-    y = yapss.field()
+    y = yapss.scalar()
     """Vertical position."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """The direction the curve is going, which is the control."""
 
-    tx = yapss.field()
+    tx = yapss.scalar()
     """Horizontal component of the tangent."""
-    ty = yapss.field()
+    ty = yapss.scalar()
     """Vertical component of the tangent."""
 
 
-class Path(yapss.Vector):
+class Path(yapss.Path):
     """The constraint that makes the independent variable arc length."""
 
-    speed_squared = yapss.field()
+    speed_squared = yapss.scalar()
     """Squared speed along the curve, which must be one."""
 
 
-class Integral(yapss.Vector):
+class Integral(yapss.Integral):
     """What is accumulated along the curve."""
 
-    area = yapss.field()
+    area = yapss.scalar()
     """Area enclosed, by the shoelace formula."""
-    x_moment = yapss.field()
+    x_moment = yapss.scalar()
     """First moment about the y axis."""
-    y_moment = yapss.field()
+    y_moment = yapss.scalar()
     """First moment about the x axis."""
 
 
-class Discrete(yapss.Vector):
+class Discrete(yapss.Discrete):
     """What it means for the curve to close."""
 
-    closure_x = yapss.field()
+    closure_x = yapss.scalar()
     """Horizontal gap between the ends."""
-    closure_y = yapss.field()
+    closure_y = yapss.scalar()
     """Vertical gap between the ends."""
 
 
@@ -83,7 +83,7 @@ class Phases(yapss.Phases):
         control=Control,
         path=Path,
         integral=Integral,
-        s=yapss.field(),
+        s=yapss.scalar(),
     )
 
 

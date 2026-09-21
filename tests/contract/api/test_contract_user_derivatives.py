@@ -17,17 +17,17 @@ from ._api import not_yet, proposed, raises
 G = 32.174
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """Where the bead is and how fast it is going."""
 
-    y = yapss.field()
-    v = yapss.field()
+    y = yapss.scalar()
+    v = yapss.scalar()
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """The slope of the wire."""
 
-    theta = yapss.field()
+    theta = yapss.scalar()
 
 
 class Phases(yapss.Phases):

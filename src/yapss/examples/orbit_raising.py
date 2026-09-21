@@ -29,39 +29,39 @@ v_min, v_max = -10.0, 10.0
 u_min, u_max = -1.1, 1.1
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """Where the vehicle is and how fast it is going, in polar coordinates."""
 
-    r = yapss.field()
+    r = yapss.scalar()
     """Radius."""
-    theta = yapss.field()
+    theta = yapss.scalar()
     """Polar angle."""
-    v_r = yapss.field()
+    v_r = yapss.scalar()
     """Radial velocity."""
-    v_theta = yapss.field()
+    v_theta = yapss.scalar()
     """Tangential velocity."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """The direction the thrust points, as a unit vector in polar coordinates."""
 
-    u_r = yapss.field()
+    u_r = yapss.scalar()
     """Radial component of the thrust direction."""
-    u_theta = yapss.field()
+    u_theta = yapss.scalar()
     """Tangential component."""
 
 
-class Path(yapss.Vector):
+class Path(yapss.Path):
     """The steering vector must have unit magnitude."""
 
-    unit_thrust = yapss.field()
+    unit_thrust = yapss.scalar()
     """Squared magnitude of the thrust direction."""
 
 
-class Discrete(yapss.Vector):
+class Discrete(yapss.Discrete):
     """The orbit that must be reached."""
 
-    circular = yapss.field()
+    circular = yapss.scalar()
     """The final orbit must be circular."""
 
 

@@ -24,7 +24,7 @@ def test_a_phase_that_declares_nothing_still_has_its_own_times():
     """A phase contributes an initial and a final time even with no state and no control."""
 
     class Phases(yapss.Phases):
-        p = yapss.phase(state=yapss.Empty)
+        p = yapss.phase(state=yapss.State)
 
     problem = yapss.Problem("bare phase", phases=Phases)
     ph = problem.phases.p
@@ -54,7 +54,7 @@ def test_the_endpoints_alone_make_an_optimization_problem():
     """
 
     class Phases(yapss.Phases):
-        interval = yapss.phase(state=yapss.Empty)
+        interval = yapss.phase(state=yapss.State)
 
     problem = yapss.Problem("endpoints alone", phases=Phases)
     ph = problem.phases.interval
@@ -81,13 +81,13 @@ def test_the_endpoints_alone_make_an_optimization_problem():
 def test_a_parameter_of_no_rows_is_not_a_variable():
     """A declaration can be non-empty and still contribute nothing.
 
-    `field(size=0)` is a block field with no rows, which is legal so that a declaration built
+    `vector(0)` is a vector field with no components, which is legal so that a declaration built
     by an algorithm needs no special case. Counting fields rather than rows would let this
     reach the derivative setup, where it fails inside CasADi.
     """
 
-    class Design(yapss.Vector):
-        a = yapss.field(size=0)
+    class Design(yapss.Parameter):
+        a = yapss.vector(0)
 
     class Phases(yapss.Phases):
         pass
@@ -108,8 +108,8 @@ def test_a_parameter_of_no_rows_is_not_a_variable():
 def test_a_problem_of_parameters_alone_solves():
     """No phases at all is an ordinary nonlinear program, which is how hs071 is written."""
 
-    class Design(yapss.Vector):
-        a = yapss.field()
+    class Design(yapss.Parameter):
+        a = yapss.scalar()
 
     class Phases(yapss.Phases):
         pass

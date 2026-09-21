@@ -11,22 +11,22 @@ import pytest
 import yapss
 
 
-class State(yapss.Vector):
-    h = yapss.field()
-    v = yapss.field()
+class State(yapss.State):
+    h = yapss.scalar()
+    v = yapss.scalar()
 
 
-class Control(yapss.Vector):
-    u = yapss.field()
+class Control(yapss.Control):
+    u = yapss.scalar()
 
 
 class Phases(yapss.Phases):
     only = yapss.phase(state=State, control=Control)
 
 
-def vector(*names):
-    """Return a vector declaration with the given field names."""
-    return type("Made", (yapss.Vector,), {name: yapss.field() for name in names})
+def made(role, *names):
+    """Return a declaration of `role` with the given scalar field names."""
+    return type("Made", (role,), {name: yapss.scalar() for name in names})
 
 
 # --- what phase() checks ------------------------------------------------------------------
@@ -34,34 +34,36 @@ def vector(*names):
 
 def test_a_state_and_a_control_may_not_share_a_name():
     with pytest.raises(ValueError, match=r"both declare 'v'.*one namespace"):
-        yapss.phase(state=State, control=vector("v"))
+        yapss.phase(state=State, control=made(yapss.Control, "v"))
 
 
 def test_a_state_may_not_be_called_time():
     with pytest.raises(ValueError, match="declares 'time' as a state"):
-        yapss.phase(state=vector("time"))
+        yapss.phase(state=made(yapss.State, "time"))
 
 
 def test_a_state_may_not_share_the_independent_variable_s_name():
     with pytest.raises(ValueError, match=r"declares 'r' as a state.*which you named"):
-        yapss.phase(state=vector("r"), r=yapss.field())
+        yapss.phase(state=made(yapss.State, "r"), r=yapss.scalar())
 
 
 def test_a_control_may_not_share_the_independent_variable_s_name():
     with pytest.raises(ValueError, match="declares 'r' as a control"):
-        yapss.phase(state=State, control=vector("r"), r=yapss.field())
+        yapss.phase(state=State, control=made(yapss.Control, "r"), r=yapss.scalar())
 
 
 def test_path_and_integral_names_are_outside_the_namespace():
     # they are outputs, so they appear on the other side of a derivative
-    yapss.phase(state=State, control=Control, path=vector("h"), integral=vector("u"))
+    yapss.phase(
+        state=State, control=Control, path=made(yapss.Path, "h"), integral=made(yapss.Integral, "u")
+    )
 
 
 def test_a_name_may_be_a_control_in_one_phase_and_a_state_in_another():
     # which matters when a quantity is commanded during one phase and coasts through the next
     class Mixed(yapss.Phases):
-        burn = yapss.phase(state=State, control=vector("thrust"))
-        coast = yapss.phase(state=vector("thrust"), control=Control)
+        burn = yapss.phase(state=State, control=made(yapss.Control, "thrust"))
+        coast = yapss.phase(state=made(yapss.State, "thrust"), control=Control)
 
     assert [phase.name for phase in Mixed()] == ["burn", "coast"]
 
@@ -75,15 +77,15 @@ def test_a_name_may_be_a_control_in_one_phase_and_a_state_in_another():
 )
 def test_a_parameter_may_not_share_a_phase_variable_s_name(name, role):
     with pytest.raises(ValueError, match=rf"declares '{name}'.*phase 'only' also has as {role}"):
-        yapss.Problem("p", phases=Phases, parameter=vector(name))
+        yapss.Problem("p", phases=Phases, parameter=made(yapss.Parameter, name))
 
 
 def test_a_parameter_that_collides_with_no_phase_is_accepted():
-    problem = yapss.Problem("p", phases=Phases, parameter=vector("wind"))
+    problem = yapss.Problem("p", phases=Phases, parameter=made(yapss.Parameter, "wind"))
     assert problem.parameter.bounds._fields == ("wind",)
 
 
 def test_a_discrete_name_may_match_a_phase_variable():
     # discrete constraints are outputs, like path and integral names
-    problem = yapss.Problem("p", phases=Phases, discrete=vector("h"))
+    problem = yapss.Problem("p", phases=Phases, discrete=made(yapss.Discrete, "h"))
     assert problem.discrete.bounds._fields == ("h",)

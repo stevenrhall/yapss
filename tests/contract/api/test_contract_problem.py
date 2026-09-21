@@ -12,7 +12,7 @@ import pytest
 
 import yapss
 
-from ._api import Control, Discrete, Phases, State, problem, raises, solvable
+from ._api import Control, Discrete, Parameter, Phases, State, problem, raises, solvable
 
 # --------------------------------------------------------------- what Problem() accepts
 
@@ -29,23 +29,44 @@ def test_phases_must_be_a_phases_subclass() -> None:
         yapss.Problem("p", phases=[])  # type: ignore[arg-type]
 
 
-def test_discrete_must_be_a_vector_subclass() -> None:
-    """`discrete=` takes a vector class."""
-    with raises(TypeError, "declared with", "yapss.Vector", at="yapss.Problem("):
+def test_discrete_must_be_a_discrete_declaration() -> None:
+    """`discrete=` takes a subclass of `yapss.Discrete`."""
+    with raises(TypeError, "takes a subclass of", "yapss.Discrete", at="yapss.Problem("):
         yapss.Problem("p", phases=Phases, discrete=object)  # type: ignore[arg-type]
 
 
-def test_parameter_must_be_a_vector_subclass() -> None:
-    """`parameter=` takes a vector class, and the message names which keyword was wrong."""
-    with raises(TypeError, "parameter", "yapss.Vector", at="yapss.Problem("):
+def test_parameter_must_be_a_parameter_declaration() -> None:
+    """`parameter=` takes a subclass of `yapss.Parameter`, and the message names the keyword."""
+    with raises(TypeError, "parameter=", "yapss.Parameter", at="yapss.Problem("):
         yapss.Problem("p", phases=Phases, parameter=object)  # type: ignore[arg-type]
+
+
+def test_a_declaration_is_refused_in_the_wrong_role() -> None:
+    """A state handed to a phase as its control is refused where it was handed over.
+
+    Without the check the problem would build and solve, mislabelled throughout, and nothing
+    would ever raise: the names a callback writes would simply be in the wrong places.
+    """
+    with raises(
+        TypeError, "takes a subclass of yapss.Control", "subclasses yapss.State", at="yapss.phase("
+    ):
+        yapss.phase(state=State, control=State)  # type: ignore[type-var]
+
+
+def test_a_swapped_argument_is_named() -> None:
+    """The likeliest way to get a role wrong is to swap two arguments, so that is what is said.
+
+    Changing the class's base would also silence the error, and would be the wrong fix.
+    """
+    with raises(TypeError, "Did you mean parameter=", at="yapss.Problem("):
+        yapss.Problem("p", phases=Phases, discrete=Parameter)  # type: ignore[arg-type]
 
 
 def test_a_parameter_may_not_share_a_name_with_a_phase_variable() -> None:
     """Parameters and a phase's variables are one namespace, so the names must differ."""
 
-    class Shared(yapss.Vector):
-        x = yapss.field()
+    class Shared(yapss.Parameter):
+        x = yapss.scalar()
 
     with raises(
         ValueError,
@@ -59,8 +80,8 @@ def test_a_parameter_may_not_share_a_name_with_a_phase_variable() -> None:
 def test_the_message_names_the_phase_the_parameter_collided_in() -> None:
     """Which phase the name collided in is the actionable part of the message."""
 
-    class Other(yapss.Vector):
-        u = yapss.field()
+    class Other(yapss.Parameter):
+        u = yapss.scalar()
 
     class TwoPhases(yapss.Phases):
         early = yapss.phase(state=State, control=Control)
@@ -246,23 +267,23 @@ def test_the_complaints_are_reported_together() -> None:
 # ------------------------------------------------------------ declaring vectors and phases
 
 
-def test_a_field_takes_an_integer_size() -> None:
-    """A block field's size is a count of rows."""
-    with raises(TypeError, "field(size=) must be an integer", at="yapss.field"):
-        yapss.field(size="two")
+def test_a_vector_takes_a_whole_number_of_components() -> None:
+    """A vector field's size is a count of components."""
+    with raises(TypeError, "vector(size) takes a whole number of components", at="yapss.vector"):
+        yapss.vector("two")  # type: ignore[arg-type]
 
 
-def test_a_field_size_is_not_negative() -> None:
-    """Zero rows is allowed -- every count may be zero -- but a negative count is not."""
-    with raises(ValueError, "field(size=) must be 0 or more", at="yapss.field"):
-        yapss.field(size=-1)
+def test_a_vector_size_is_not_negative() -> None:
+    """Zero components is allowed -- every count may be zero -- but a negative count is not."""
+    with raises(ValueError, "vector(size) must be 0 or more", at="yapss.vector"):
+        yapss.vector(-1)
 
 
 def test_a_declaration_holds_only_fields() -> None:
     """Anything else in the class body is a mistake, and the message shows the form."""
-    with raises(TypeError, "is not a field", "yapss.field(", at="class Wrong"):
+    with raises(TypeError, "is not a field", "yapss.scalar()", at="class Wrong"):
 
-        class Wrong(yapss.Vector):
+        class Wrong(yapss.State):
             x = 1.0
 
 
@@ -270,8 +291,8 @@ def test_a_field_is_declared_without_an_annotation() -> None:
     """An annotation makes it a class variable rather than a field, so it is caught."""
     with raises(TypeError, "is annotated", "without annotations", at="class Annotated"):
 
-        class Annotated(yapss.Vector):
-            x: float = yapss.field()
+        class Annotated(yapss.State):
+            x: float = yapss.scalar()
 
 
 def test_a_declaration_may_not_be_inherited_from() -> None:
@@ -279,20 +300,20 @@ def test_a_declaration_may_not_be_inherited_from() -> None:
     with raises(TypeError, "cannot inherit from the vector declaration", at="class Child"):
 
         class Child(State):
-            z = yapss.field()
+            z = yapss.scalar()
 
 
-def test_a_phase_takes_vector_classes() -> None:
+def test_a_phase_takes_role_declarations() -> None:
     """Each role is a declaration, and the message names the role that was not one."""
-    with raises(TypeError, "phase(state=) takes a vector class", at="yapss.phase"):
+    with raises(TypeError, "phase(state=) takes a subclass of yapss.State", at="yapss.phase"):
         yapss.phase(state=object)
 
 
 def test_a_phase_has_one_namespace() -> None:
     """A state and a control may not share a name: a callback reaches both from one `arg`."""
 
-    class Same(yapss.Vector):
-        x = yapss.field()
+    class Same(yapss.Control):
+        x = yapss.scalar()
 
     with raises(ValueError, "both declare 'x'", "one namespace", at="yapss.phase"):
         yapss.phase(state=State, control=Same)
@@ -301,7 +322,7 @@ def test_a_phase_has_one_namespace() -> None:
 def test_the_independent_variable_shares_that_namespace() -> None:
     """Naming it after a state is the same collision, and the message says how to rename."""
     with raises(ValueError, "one namespace", at="yapss.phase"):
-        yapss.phase(state=State, control=Control, x=yapss.field())
+        yapss.phase(state=State, control=Control, x=yapss.scalar())
 
 
 def test_a_phase_takes_one_independent_variable() -> None:
@@ -311,13 +332,13 @@ def test_a_phase_takes_one_independent_variable() -> None:
         "one independent variable",
         at="yapss.phase",
     ):
-        yapss.phase(state=State, control=Control, r=yapss.field(), s=yapss.field())
+        yapss.phase(state=State, control=Control, r=yapss.scalar(), s=yapss.scalar())
 
 
-def test_the_independent_variable_has_no_size() -> None:
-    """It is one value, so a size would be meaningless."""
-    with raises(TypeError, "takes no size", at="yapss.phase"):
-        yapss.phase(state=State, control=Control, r=yapss.field(size=3))
+def test_the_independent_variable_is_a_scalar() -> None:
+    """It is one value, so it is declared as a scalar and never as a vector."""
+    with raises(TypeError, "is one value", "yapss.scalar()", at="yapss.phase"):
+        yapss.phase(state=State, control=Control, r=yapss.vector(3))
 
 
 def test_a_misspelled_role_is_refused_with_a_suggestion() -> None:

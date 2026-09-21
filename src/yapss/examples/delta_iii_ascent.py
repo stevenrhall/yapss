@@ -87,61 +87,61 @@ MASS_FLOW = (
 )
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """Where the vehicle is, how fast it is going, and what it weighs."""
 
-    r = yapss.field(size=3)
+    r = yapss.vector(3)
     """Position."""
-    v = yapss.field(size=3)
+    v = yapss.vector(3)
     """Velocity."""
-    m = yapss.field()
+    m = yapss.scalar()
     """Mass."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """The direction the thrust points, as a unit vector."""
 
-    u = yapss.field(size=3)
+    u = yapss.vector(3)
     """Thrust direction."""
 
 
-class Path(yapss.Vector):
+class Path(yapss.Path):
     """What must hold at every instant of the flight."""
 
-    unit_thrust = yapss.field()
+    unit_thrust = yapss.scalar()
     """The steering vector must have unit magnitude."""
-    radius = yapss.field()
+    radius = yapss.scalar()
     """The vehicle must stay above the ground."""
 
 
-class Discrete(yapss.Vector):
+class Discrete(yapss.Discrete):
     """Continuity where the stages meet, and the orbit that must be reached.
 
     Position and velocity are separate groups, rather than one block of six, because they are
     scaled differently; the same reason separates the semi-major axis from the angles.
     """
 
-    stage_0_1_position = yapss.field(size=3)
+    stage_0_1_position = yapss.vector(3)
 
-    stage_0_1_velocity = yapss.field(size=3)
+    stage_0_1_velocity = yapss.vector(3)
 
-    stage_1_2_position = yapss.field(size=3)
+    stage_1_2_position = yapss.vector(3)
 
-    stage_1_2_velocity = yapss.field(size=3)
+    stage_1_2_velocity = yapss.vector(3)
 
-    stage_2_3_position = yapss.field(size=3)
+    stage_2_3_position = yapss.vector(3)
 
-    stage_2_3_velocity = yapss.field(size=3)
+    stage_2_3_velocity = yapss.vector(3)
 
-    semi_major_axis = yapss.field()
+    semi_major_axis = yapss.scalar()
 
-    eccentricity = yapss.field()
+    eccentricity = yapss.scalar()
 
-    inclination = yapss.field()
+    inclination = yapss.scalar()
 
-    raan = yapss.field()
+    raan = yapss.scalar()
     """Right ascension of ascending node."""
-    argument_of_perigee = yapss.field()
+    argument_of_perigee = yapss.scalar()
 
 
 class Phases(yapss.Phases):

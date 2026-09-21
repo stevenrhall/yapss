@@ -189,8 +189,8 @@ def test_a_field_cannot_be_replaced_on_the_declaration() -> None:
     declaration this one broke.
     """
 
-    class Local(yapss.Vector):
-        x = yapss.field()
+    class Local(yapss.State):
+        x = yapss.scalar()
 
     with raises(TypeError, "is a declaration", at="Local.x"):
         Local.x = (0.0, 1.0)

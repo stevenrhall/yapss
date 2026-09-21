@@ -27,27 +27,27 @@ from typing_extensions import TypeVar
 from .containers import Container, HasRegistry, Registry, is_callable, is_subclass, suggest
 from .kinds import Bounds, Guess, ScalarGuess, Scale, is_bool, is_pair, is_real
 from .mesh import Mesh
-from .vector import Empty, Field, Vector
+from .vector import Control, Field, Integral, Path, State, Vector, role_of
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
 __all__ = ["AnyPhase", "Phase", "Phases", "phase"]
 
-# Each default is `Vector` rather than `Empty`, and nothing is lost by that: `Vector` declares
-# no fields either, so both say the same thing about an omitted argument -- no field of this is
-# known. `Empty` cannot be the default because variance is about subtyping and `Empty` is a
-# sibling of every user declaration rather than an ancestor of one; a covariant parameter whose
-# default is not a supertype of what a declaration supplies makes `Problem[Mine, ...]`
-# unassignable to the bare `yapss.Problem`. Covariance is sound because all of these are
-# reached only for reading.
-S_co = TypeVar("S_co", bound=Vector, default=Vector, covariant=True)
+# Each parameter is bounded by its role, which is what makes a state handed over as a control a
+# type error. Each default is the role itself: a role class declares no fields, so it says what
+# an omitted argument means -- no field of this is known -- and it is an *ancestor* of every
+# declaration of that role, which a default has to be. (The old `Empty` could not be: it was a
+# sibling of every user declaration, and a covariant parameter whose default is not a supertype
+# of what a declaration supplies makes `Problem[Mine, ...]` unassignable to the bare
+# `yapss.Problem`.) Covariance is sound because all of these are reached only for reading.
+S_co = TypeVar("S_co", bound=State, default=State, covariant=True)
 """The class declaring a phase's states."""
-C_co = TypeVar("C_co", bound=Vector, default=Vector, covariant=True)
+C_co = TypeVar("C_co", bound=Control, default=Control, covariant=True)
 """The class declaring a phase's controls."""
-P_co = TypeVar("P_co", bound=Vector, default=Vector, covariant=True)
+P_co = TypeVar("P_co", bound=Path, default=Path, covariant=True)
 """The class declaring a phase's path constraints."""
-I_co = TypeVar("I_co", bound=Vector, default=Vector, covariant=True)
+I_co = TypeVar("I_co", bound=Integral, default=Integral, covariant=True)
 """The class declaring a phase's integrals."""
 
 AnyPhase: TypeAlias = "Phase[Any, Any, Any, Any]"
@@ -73,14 +73,54 @@ class PhaseDeclaration:
     """The field that named it, which records its size and nothing else."""
 
 
-def _vector_class(value: object, argument: str) -> type[Vector]:
+def declared_role(
+    value: object, call: str, argument: str, role: type[Vector], keywords: tuple[str, ...]
+) -> type[Vector]:
+    """Return `value` if it is a declaration of `role`, or refuse it naming what it is.
+
+    The role is read from the class hierarchy, so a state handed over as a control is refused
+    here, at the line that made the mistake -- which, without the check, would build and solve a
+    problem mislabelled throughout, and never raise at all.
+
+    The likeliest way to get this wrong is to swap two arguments, so when the class belongs to
+    another keyword of the same call the message names that keyword. Changing the class's base
+    would also silence the error, and would be the wrong fix.
+
+    Parameters
+    ----------
+    value : object
+        What was passed.
+    call : str
+        The call it was passed to, for the message, such as ``"phase"``.
+    argument : str
+        The keyword it was passed as.
+    role : type[Vector]
+        The role that keyword takes.
+    keywords : tuple of str
+        Every role keyword of the same call, so a swapped argument can be named.
+    """
+    base = f"yapss.{role.__name__}"
     if not is_subclass(value, Vector):
         msg = (
-            f"phase({argument}=) takes a vector class declared with 'class X(yapss.Vector)'; "
-            f"got {value!r}"
+            f"{call}({argument}=) takes a subclass of {base}, such as "
+            f"'class X({base})'; got {value!r}"
         )
         raise TypeError(msg)
-    return cast("type[Vector]", value)
+    cls = cast("type[Vector]", value)
+    actual = role_of(cls)
+    if actual == role._role:
+        return cls
+    if actual is None:
+        msg = (
+            f"{call}({argument}=) takes a subclass of {base}, but {cls.__name__} has no role. "
+            f"Declare it as 'class {cls.__name__}({base})'."
+        )
+    else:
+        msg = f"{call}({argument}=) takes a subclass of {base}, but {cls.__name__} subclasses "
+        msg += f"yapss.{actual.title()}."
+        if actual in keywords:
+            msg += f" Did you mean {actual}={cls.__name__}?"
+    raise TypeError(msg)
 
 
 DEFAULT_INDEPENDENT = "time"
@@ -90,38 +130,37 @@ _ROLES = ("state", "control", "path", "integral")
 
 
 # A type checker solves a type parameter from an argument that was passed, never from the
-# default of one that was not, so an omitted `control`, `path` or `integral` would leave its
-# parameter unsolved and the whole declaration untyped. These overloads say what each omission
-# means -- `Empty`, the declaration with no fields -- for the combinations a phase is actually
-# written with. They add nothing to the runtime signature below.
+# default of one that was not, so an omitted `control`, `path` or `integral` resolves to the
+# type parameter's own default -- the role, which declares no fields -- rather than leaving the
+# whole declaration untyped.
 def phase(
     *,
     state: type[S_co],
-    # `Empty` is the declared default of each of these parameters, so an omitted argument
-    # resolves to it rather than leaving the phase untyped. A type checker still measures the
-    # default *value* against `type[C_co]` for an arbitrary `C`, which it cannot satisfy, hence
-    # the three waivers.
-    control: type[C_co] = Empty,  # type: ignore[assignment]
-    path: type[P_co] = Empty,  # type: ignore[assignment]
-    integral: type[I_co] = Empty,  # type: ignore[assignment]
+    # The role itself is the declared default of each of these parameters, so an omitted
+    # argument resolves to it rather than leaving the phase untyped. A type checker still
+    # measures the default *value* against `type[C_co]` for an arbitrary `C`, which it cannot
+    # satisfy, hence the three waivers.
+    control: type[C_co] = Control,  # type: ignore[assignment]
+    path: type[P_co] = Path,  # type: ignore[assignment]
+    integral: type[I_co] = Integral,  # type: ignore[assignment]
     **independent: Any,
 ) -> Phase[S_co, C_co, P_co, I_co]:
     """Declare one phase of a problem.
 
     Parameters
     ----------
-    state : type[Vector]
+    state : type[State]
         The class naming the phase's states.
-    control : type[Vector], optional
-        The class naming the phase's controls.
-    path : type[Vector], optional
-        The class naming the phase's path constraints.
-    integral : type[Vector], optional
-        The class naming the phase's integrals.
+    control : type[Control], optional
+        The class naming the phase's controls; none, if omitted.
+    path : type[Path], optional
+        The class naming the phase's path constraints; none, if omitted.
+    integral : type[Integral], optional
+        The class naming the phase's integrals; none, if omitted.
     **independent : Field
         One further keyword names the phase's independent variable, which is otherwise
         ``time``. The keyword is the name, as it is in a vector's class body, and its value is
-        a `field`: ``yapss.phase(state=Nose, r=yapss.field())``.
+        a scalar: ``yapss.phase(state=Nose, r=yapss.scalar())``.
 
     Returns
     -------
@@ -132,14 +171,18 @@ def phase(
         ``problem.phases.<name>`` down to the fields of its state and control.
     """
     name, marker = _independent(independent)
-    _check_namespace(_vector_class(state, "state"), _vector_class(control, "control"), name)
+    _check_namespace(
+        declared_role(state, "phase", "state", State, _ROLES),
+        declared_role(control, "phase", "control", Control, _ROLES),
+        name,
+    )
     return cast(
         "Phase[S_co, C_co, P_co, I_co]",
         PhaseDeclaration(
-            state=_vector_class(state, "state"),
-            control=_vector_class(control, "control"),
-            path=_vector_class(path, "path"),
-            integral=_vector_class(integral, "integral"),
+            state=declared_role(state, "phase", "state", State, _ROLES),
+            control=declared_role(control, "phase", "control", Control, _ROLES),
+            path=declared_role(path, "phase", "path", Path, _ROLES),
+            integral=declared_role(integral, "phase", "integral", Integral, _ROLES),
             independent=name,
             independent_field=marker,
         ),
@@ -181,7 +224,7 @@ def _check_namespace(state: type[Vector], control: type[Vector], independent: st
                 f"{independent!r} as a {role}, and that is also {whose}. They are one "
                 f"namespace, so their names must differ; rename the {role}, or name the "
                 f"independent variable something else with "
-                f"'phase(..., <name>=yapss.field(...))'."
+                f"'phase(..., <name>=yapss.scalar())'."
             )
             raise ValueError(msg)
 
@@ -191,7 +234,7 @@ def _independent(given: dict[str, Any]) -> tuple[str, Field]:
 
     A keyword `phase` does not know is the independent variable's name -- which is what makes
     the name arrive the way a field's name always does, from where it is bound. The value must
-    be a `field`, and that is what keeps a misspelled role a misspelled role: `contrl=Thrust`
+    be a `scalar()`, and that is what keeps a misspelled role a misspelled role: `contrl=Thrust`
     passes a vector class, is not a field, and is refused with the suggestion.
     """
     if not given:
@@ -205,7 +248,7 @@ def _independent(given: dict[str, Any]) -> tuple[str, Field]:
                 if is_subclass(value, Vector)
                 else (
                     f"phase({name}=) names the phase's independent variable, so it takes a "
-                    f"field: '{name}=yapss.field(...)'; got {value!r}."
+                    f"scalar: '{name}=yapss.scalar()'; got {value!r}."
                     f"{suggest(name, _ROLES)}"
                 )
             )
@@ -217,8 +260,8 @@ def _independent(given: dict[str, Any]) -> tuple[str, Field]:
     name, marker = next(iter(given.items()))
     if marker.size is not None:
         msg = (
-            f"phase({name}=) names the independent variable, which is one value, so its field "
-            f"takes no size; got size={marker.size}"
+            f"phase({name}=) names the independent variable, which is one value: write "
+            f"'{name}=yapss.scalar()', not 'yapss.vector({marker.size})'"
         )
         raise TypeError(msg)
     return name, marker
@@ -578,7 +621,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         self._label = f"phase '{name}'"
         self._hold("mesh", Mesh.uniform())
 
-        state: StateAspects[Vector] = StateAspects()
+        state: StateAspects[State] = StateAspects()
         state._label = f"{self._label} state"
         for aspect, kind in (
             ("bounds", Bounds),
@@ -591,20 +634,20 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
             state._hold(aspect, declaration.state._new(kind, f"{state._label} {aspect}"))
         self._hold("state", state)
 
-        control: ControlAspects[Vector] = ControlAspects()
+        control: ControlAspects[Control] = ControlAspects()
         control._label = f"{self._label} control"
         control._hold("bounds", declaration.control._new(Bounds, f"{control._label} bounds"))
         control._hold("guess", declaration.control._new(Guess, f"{control._label} guess"))
         control._hold("scale", declaration.control._new(Scale, f"{control._label} scale"))
         self._hold("control", control)
 
-        path: PathAspects[Vector] = PathAspects()
+        path: PathAspects[Path] = PathAspects()
         path._label = f"{self._label} path"
         path._hold("bounds", declaration.path._new(Bounds, f"{path._label} bounds"))
         path._hold("scale", declaration.path._new(Scale, f"{path._label} scale"))
         self._hold("path", path)
 
-        integral: IntegralAspects[Vector] = IntegralAspects()
+        integral: IntegralAspects[Integral] = IntegralAspects()
         integral._label = f"{self._label} integral"
         integral._hold("bounds", declaration.integral._new(Bounds, f"{integral._label} bounds"))
         integral._hold("guess", declaration.integral._new(ScalarGuess, f"{integral._label} guess"))

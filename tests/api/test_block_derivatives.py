@@ -40,31 +40,31 @@ from yapss.math import exp
 from .test_user_derivatives import SPECTRAL_METHODS, _build, _dense_hessian, _dense_jacobian
 
 
-class State(yapss.Vector):
-    r = yapss.field(size=3)
-    m = yapss.field()
+class State(yapss.State):
+    r = yapss.vector(3)
+    m = yapss.scalar()
 
 
-class Control(yapss.Vector):
-    u = yapss.field(size=2)
+class Control(yapss.Control):
+    u = yapss.vector(2)
 
 
-class Path(yapss.Vector):
-    limit = yapss.field(size=2)
+class Path(yapss.Path):
+    limit = yapss.vector(2)
 
 
-class Integral(yapss.Vector):
-    cost = yapss.field(size=2)
+class Integral(yapss.Integral):
+    cost = yapss.vector(2)
 
 
-class Parameter(yapss.Vector):
-    beta = yapss.field(size=2)
-    gamma = yapss.field()
+class Parameter(yapss.Parameter):
+    beta = yapss.vector(2)
+    gamma = yapss.scalar()
 
 
-class Discrete(yapss.Vector):
-    gap = yapss.field(size=3)
-    total = yapss.field()
+class Discrete(yapss.Discrete):
+    gap = yapss.vector(3)
+    total = yapss.scalar()
 
 
 class Phases(yapss.Phases):

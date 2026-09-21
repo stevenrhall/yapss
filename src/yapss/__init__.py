@@ -9,7 +9,7 @@ from ._api.mesh import Mesh
 from ._api.problem import Problem
 from ._api.sampled import interp
 from ._api.solution import PhaseSolution, Solution
-from ._api.vector import Empty, Vector, field
+from ._api.vector import Control, Discrete, Integral, Parameter, Path, State, scalar, vector
 from ._backend.exceptions import (
     REMOVED_NAMES,
     LargeSegmentWarning,
@@ -26,26 +26,31 @@ from ._backend.solution import IpoptConvergenceWarning
 from .math.functions import UnsupportedMathFunctionError
 
 __all__ = [
-    "Empty",
+    "Control",
+    "Discrete",
+    "Integral",
     "IpoptConvergenceWarning",
     "IpoptOptionSettingWarning",
     "IpoptStatus",
     "LargeSegmentWarning",
     "Mesh",
+    "Parameter",
+    "Path",
     "Phase",
     "PhaseSolution",
     "Phases",
     "Problem",
     "Solution",
+    "State",
     "UnsupportedMathFunctionError",
-    "Vector",
     "YapssDeprecationWarning",
     "YapssError",
     "YapssWarning",
     "__version__",
-    "field",
     "interp",
     "phase",
+    "scalar",
+    "vector",
 ]
 
 try:

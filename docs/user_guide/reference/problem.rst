@@ -155,18 +155,18 @@ the control vector:
 
     >>> import yapss
     >>>
-    >>> class RocketState(yapss.Vector):
+    >>> class RocketState(yapss.State):
     ...     """Define the rows of the state vector."""
-    ...     h = yapss.field()
+    ...     h = yapss.scalar()
     ...     """Altitude."""
-    ...     v = yapss.field()
+    ...     v = yapss.scalar()
     ...     """Velocity."""
-    ...     m = yapss.field()
+    ...     m = yapss.scalar()
     ...     """Mass."""
     ...
-    >>> class Thrust(yapss.Vector):
+    >>> class Thrust(yapss.Control):
     ...     """Define the rows of the control vector."""
-    ...     thrust = yapss.field()
+    ...     thrust = yapss.scalar()
     ...     """Thrust."""
 
 The vector classes can be named anything you like, and in a one-phase problem it would be
@@ -207,10 +207,10 @@ followed by three keyword arguments:
   but the subclass can have zero phases, just as a list can have no elements. An optimal control
   problem with zero phases reduces to a parameter optimization problem.
 - `discrete`: The discrete constraints of the problem, defined as a subclass of
-  `yapss.Vector`. (Path constraints belong to a phase, and are declared there.) This keyword is
-  optional, and defaults to a vector with no fields.
-- `parameter`: The static parameters of the problem, defined as a subclass of `yapss.Vector`.
-  This keyword is optional, and defaults to a vector with no fields.
+  `yapss.Discrete`. (Path constraints belong to a phase, and are declared there.) This keyword is
+  optional, and defaults to `yapss.Discrete` itself, which declares no fields.
+- `parameter`: The static parameters of the problem, defined as a subclass of `yapss.Parameter`.
+  This keyword is optional, and defaults to `yapss.Parameter` itself, which declares no fields.
 
 See the :ref:`Problem Class Reference <problem-class-reference>` section below for the full API.
 

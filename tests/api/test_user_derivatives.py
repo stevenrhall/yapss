@@ -410,20 +410,20 @@ def test_the_solved_objective_matches_auto(name, spectral_method):
 # ---------------------------------------------------------------- what the callbacks refuse
 
 
-class Slide(yapss.Vector):
-    x = yapss.field()
-    v = yapss.field()
+class Slide(yapss.State):
+    x = yapss.scalar()
+    v = yapss.scalar()
 
 
-class Angle(yapss.Vector):
-    u = yapss.field()
+class Angle(yapss.Control):
+    u = yapss.scalar()
 
 
-class Block(yapss.Vector):
+class Block(yapss.State):
     """A state with one block field and one scalar, so each side can be tested alone."""
 
-    r = yapss.field(size=3)
-    m = yapss.field()
+    r = yapss.vector(3)
+    m = yapss.scalar()
 
 
 class Phases(yapss.Phases):
@@ -592,8 +592,8 @@ def test_an_objective_hessian_needs_its_second_variable(targets, ph):
 # ------------------------------------------------------- what the discrete targets refuse
 
 
-class Link(yapss.Vector):
-    gap = yapss.field()
+class Link(yapss.Discrete):
+    gap = yapss.scalar()
 
 
 def linked_problem():
@@ -684,9 +684,9 @@ def test_a_mirrored_discrete_hessian_pair_is_refused(discrete_targets, linked):
         hessian.discrete.gap[final.v, final.x] = 2.0
 
 
-class TwoLinks(yapss.Vector):
-    gap = yapss.field()
-    slack = yapss.field()
+class TwoLinks(yapss.Discrete):
+    gap = yapss.scalar()
+    slack = yapss.scalar()
 
 
 def test_the_same_pair_in_two_groups_is_two_entries():

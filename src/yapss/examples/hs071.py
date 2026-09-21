@@ -25,19 +25,19 @@ OPTIMUM = 17.01401714
 """The known objective value, used as the installation smoke test."""
 
 
-class Parameter(yapss.Vector):
+class Parameter(yapss.Parameter):
     """The four variables to be chosen."""
 
-    x = yapss.field(size=4)
+    x = yapss.vector(4)
     """Design variables."""
 
 
-class Discrete(yapss.Vector):
+class Discrete(yapss.Discrete):
     """The two constraints relating them."""
 
-    product = yapss.field()
+    product = yapss.scalar()
     """The product of all four, at least 25."""
-    sum_of_squares = yapss.field()
+    sum_of_squares = yapss.scalar()
     """The sum of their squares, exactly 40."""
 
 

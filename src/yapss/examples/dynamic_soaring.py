@@ -48,54 +48,54 @@ load_factor_max = 5.0
 """The structural limit, which the path constraint enforces."""
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """Where the vehicle is and how it is moving."""
 
-    x = yapss.field()
+    x = yapss.scalar()
     """East position."""
-    y = yapss.field()
+    y = yapss.scalar()
     """North position."""
-    h = yapss.field()
+    h = yapss.scalar()
     """Altitude."""
-    v = yapss.field()
+    v = yapss.scalar()
     """Airspeed."""
-    gamma = yapss.field()
+    gamma = yapss.scalar()
     """Flight path angle."""
-    psi = yapss.field()
+    psi = yapss.scalar()
     """Heading angle."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """How the vehicle is being flown."""
 
-    cl = yapss.field()
+    cl = yapss.scalar()
     """Lift coefficient."""
-    phi = yapss.field()
+    phi = yapss.scalar()
     """Bank angle."""
 
 
-class Path(yapss.Vector):
+class Path(yapss.Path):
     """What the airframe will take."""
 
-    load_factor = yapss.field()
+    load_factor = yapss.scalar()
     """Load factor, in gravities."""
 
 
-class Parameter(yapss.Vector):
+class Parameter(yapss.Parameter):
     """The wind profile, which is what the problem is solving for."""
 
-    beta = yapss.field()
+    beta = yapss.scalar()
     """Wind gradient with altitude."""
 
 
-class Discrete(yapss.Vector):
+class Discrete(yapss.Discrete):
     """What it means for the flight to be a repeatable circuit."""
 
-    v_periodic = yapss.field()
+    v_periodic = yapss.scalar()
     """Change in airspeed over the circuit."""
-    gamma_periodic = yapss.field()
+    gamma_periodic = yapss.scalar()
     """Change in flight path angle."""
-    psi_periodic = yapss.field()
+    psi_periodic = yapss.scalar()
     """Change in heading, one full turn."""
 
 

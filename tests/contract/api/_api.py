@@ -43,57 +43,57 @@ G0 = 32.174
 """Gravitational acceleration, for the small solvable problem below."""
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """A scalar row and a block of two, so both shapes are in every clause's reach."""
 
-    x = yapss.field()
+    x = yapss.scalar()
     """A scalar state."""
-    y = yapss.field(size=2)
+    y = yapss.vector(2)
     """A block state of two rows."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """One of each, as the state has."""
 
-    u = yapss.field()
+    u = yapss.scalar()
     """A scalar control."""
-    w = yapss.field(size=2)
+    w = yapss.vector(2)
     """A block control of two rows."""
 
 
-class Path(yapss.Vector):
+class Path(yapss.Path):
     """One path constraint of each shape."""
 
-    g = yapss.field()
+    g = yapss.scalar()
     """A scalar path constraint."""
-    h = yapss.field(size=2)
+    h = yapss.vector(2)
     """A block path constraint of two rows."""
 
 
-class Integral(yapss.Vector):
+class Integral(yapss.Integral):
     """One integral of each shape."""
 
-    q = yapss.field()
+    q = yapss.scalar()
     """A scalar integral."""
-    r = yapss.field(size=2)
+    r = yapss.vector(2)
     """A block integral of two rows."""
 
 
-class Discrete(yapss.Vector):
+class Discrete(yapss.Discrete):
     """One discrete constraint of each shape."""
 
-    d = yapss.field()
+    d = yapss.scalar()
     """A scalar discrete constraint."""
-    e = yapss.field(size=2)
+    e = yapss.vector(2)
     """A block discrete constraint of two rows."""
 
 
-class Parameter(yapss.Vector):
+class Parameter(yapss.Parameter):
     """One parameter of each shape."""
 
-    s = yapss.field()
+    s = yapss.scalar()
     """A scalar parameter."""
-    t = yapss.field(size=2)
+    t = yapss.vector(2)
     """A block parameter of two rows."""
 
 
@@ -116,42 +116,42 @@ def problem() -> Any:
 # segments of four points keep each solve to milliseconds.
 
 
-class Slide(yapss.Vector):
+class Slide(yapss.State):
     """The bead's position and speed."""
 
-    x = yapss.field()
+    x = yapss.scalar()
     """Horizontal position."""
-    y = yapss.field()
+    y = yapss.scalar()
     """Vertical drop."""
-    v = yapss.field()
+    v = yapss.scalar()
     """Speed."""
 
 
-class Angle(yapss.Vector):
+class Angle(yapss.Control):
     """The slope of the wire."""
 
-    theta = yapss.field()
+    theta = yapss.scalar()
     """Path angle."""
 
 
-class Speed(yapss.Vector):
+class Speed(yapss.Path):
     """A path constraint that is always satisfied, so the solve is not about it."""
 
-    speed = yapss.field()
+    speed = yapss.scalar()
     """The bead's speed, bounded loosely."""
 
 
-class Effort(yapss.Vector):
+class Effort(yapss.Integral):
     """What is accumulated along the slide."""
 
-    effort = yapss.field()
+    effort = yapss.scalar()
     """The integral of the control squared."""
 
 
-class Height(yapss.Vector):
+class Height(yapss.Discrete):
     """One discrete constraint, on where the bead ends up."""
 
-    drop = yapss.field()
+    drop = yapss.scalar()
     """The final depth."""
 
 

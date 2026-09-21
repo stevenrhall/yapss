@@ -22,14 +22,14 @@ ANALYTIC = math.sqrt(math.pi / G0)
 def declarations():
     """Return the brachistochrone's classes, with a one-row block and an empty one."""
 
-    class Slide(yapss.Vector):
-        x = yapss.field()
-        y = yapss.field(size=1)
-        v = yapss.field()
-        spare = yapss.field(size=0)
+    class Slide(yapss.State):
+        x = yapss.scalar()
+        y = yapss.vector(1)
+        v = yapss.scalar()
+        spare = yapss.vector(0)
 
-    class Angle(yapss.Vector):
-        u = yapss.field(size=1)
+    class Angle(yapss.Control):
+        u = yapss.vector(1)
 
     return Slide, Angle
 

@@ -47,21 +47,21 @@ tf_min, tf_max = 20.0, 100.0
 """How long the flight may last."""
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """Where the rocket is, how fast it is going, and what it weighs."""
 
-    h = yapss.field()
+    h = yapss.scalar()
     """Altitude."""
-    v = yapss.field()
+    v = yapss.scalar()
     """Velocity."""
-    m = yapss.field()
+    m = yapss.scalar()
     """Mass."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """The engine setting."""
 
-    thrust = yapss.field()
+    thrust = yapss.scalar()
     """Thrust."""
 
 

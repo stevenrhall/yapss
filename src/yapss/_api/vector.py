@@ -1,17 +1,25 @@
 """
 
-`Vector`, the single container of the redesigned YAPSS API.
+`Vector`, the single container of the redesigned YAPSS API, and the six roles a vector has.
 
-A `Vector` subclass is a *declaration*. It names the members of a state, control, path,
-integral, parameter, or discrete-constraint vector, and says how many rows each member has::
+A vector class is a *declaration*. It names the members of a state, control, path, integral,
+parameter, or discrete-constraint vector, and says the shape of each::
 
-    class Rocket(yapss.Vector):
-        h = yapss.field()
-        v = yapss.field()
-        m = yapss.field(size=3)
+    class Rocket(yapss.State):
+        h = yapss.scalar()
+        v = yapss.scalar()
+        r = yapss.vector(3)
+
+A declaration is made by subclassing its role -- `State`, `Control`, `Path`, `Integral`,
+`Parameter` or `Discrete` -- so what the class is for is said where it is declared, and a
+state handed to a phase as its control is refused. `Vector` is the base the roles share and is
+not public: nothing a user writes is a vector without a role.
+
+A role class declares no fields, so it is also the empty declaration of that role: a phase with
+no path constraints has `Path` for its path, and there is no separate `Empty`.
 
 A field is described by the docstring written under it, in the class body, which is where
-Sphinx, an IDE and a reader all look. Nothing about a field is recorded but its size.
+Sphinx, an IDE and a reader all look. Nothing about a field is recorded but its shape.
 
 The user never instantiates it. YAPSS creates every instance, and each one is a *kind*-specific
 subclass generated once per (declaration, kind) pair: an instance holding bounds validates its
@@ -19,8 +27,8 @@ elements as bounds, one holding a callback's output rows validates them as rows,
 The declaration is reused for every aspect of the vector it names, so a member is spelled the
 same way wherever it is reached.
 
-Names address fields; integers and slices address flat rows, so a block field declared with
-``field(size=3)`` occupies three consecutive positions.
+Names address fields; integers and slices address flat rows, so a vector field declared with
+``vector(3)`` occupies three consecutive positions.
 
 """
 
@@ -35,7 +43,21 @@ import numpy as np
 
 from .kinds import MISSING, Kind, is_sequence
 
-__all__ = ["Empty", "Field", "Maker", "Vector", "field"]
+__all__ = [
+    "ROLES",
+    "Control",
+    "Discrete",
+    "Field",
+    "Integral",
+    "Maker",
+    "Parameter",
+    "Path",
+    "State",
+    "Vector",
+    "role_of",
+    "scalar",
+    "vector",
+]
 
 
 class Field:
@@ -55,7 +77,7 @@ class Field:
 
     def __repr__(self) -> str:
         """Return the call that would declare this field."""
-        return "field()" if self.size is None else f"field(size={self.size})"
+        return "scalar()" if self.size is None else f"vector({self.size})"
 
     @property
     def rows(self) -> int:
@@ -63,35 +85,53 @@ class Field:
         return 1 if self.size is None else self.size
 
 
-def field(*, size: int | None = None) -> Any:
-    """Declare one field of a `Vector`.
+# Both markers are typed as returning `Any` for now. In the aspect-first tree a field's name is
+# the *last* segment -- `ph.state.bounds.h` -- so the declared attribute has to accept a bound,
+# a guess and a scale alike, and only `Any` does. Once the tree is inverted, the aspect is last
+# and each marker can carry the type of its rank.
 
-    A field is described by the docstring written under it, which Sphinx, an IDE and a reader
-    all see. Nothing else about it is recorded here.
 
-    Parameters
-    ----------
-    size : int, optional
-        The number of rows, for a field that holds a block of them, such as a position vector.
-        Any count from 0 up is allowed, so that a declaration built by an algorithm needs no
-        special case at one row or none. Omitting it is not the same as ``size=1``: a field
-        with no size is a scalar member, read as ``(npoints,)``, while a block field of one row
-        is read as ``(1, npoints)``.
+def scalar() -> Any:
+    """Declare a field holding one value: a scalar member of the vector.
+
+    A scalar is read as ``(npoints,)`` in a callback. It is not the same as ``vector(1)``, which
+    is a vector of one component and is read as ``(1, npoints)``: rank is part of the shape,
+    and the two markers say which.
 
     Returns
     -------
     Any
-        A marker recording the size. YAPSS replaces it when the class is defined, so it is
+        A marker recording the shape. YAPSS replaces it when the class is defined, so it is
         never seen again.
     """
-    if size is not None:
-        if not _is_integer(size):
-            msg = f"field(size=) must be an integer; got {size!r}"
-            raise TypeError(msg)
-        size = int(size)
-        if size < 0:
-            msg = f"field(size=) must be 0 or more; got {size}"
-            raise ValueError(msg)
+    return Field(size=None)
+
+
+def vector(size: int) -> Any:
+    """Declare a field holding `size` values: a vector member, such as a position.
+
+    Any count from 0 up is allowed, so that a declaration built by an algorithm needs no special
+    case at one component or none. A vector keeps its leading axis at every size, so
+    ``vector(1)`` is read as ``(1, npoints)`` and never collapses to a scalar.
+
+    Parameters
+    ----------
+    size : int
+        The number of components.
+
+    Returns
+    -------
+    Any
+        A marker recording the shape. YAPSS replaces it when the class is defined, so it is
+        never seen again.
+    """
+    if not _is_integer(size):
+        msg = f"vector(size) takes a whole number of components; got {size!r}"
+        raise TypeError(msg)
+    size = int(size)
+    if size < 0:
+        msg = f"vector(size) must be 0 or more; got {size}"
+        raise ValueError(msg)
     return Field(size=size)
 
 
@@ -278,6 +318,8 @@ class Vector:
     # Constant for every instance of a generated subclass, so they live on the class and an
     # instance made in a callback sets only what varies.
     _label: str = "vector"
+    _role: str | None = None
+    """The role this class declares, set by each role base; see `role_of`."""
     _npoints: int | None = None
     _source: Any = None
     _values: dict[Any, Any]
@@ -315,7 +357,8 @@ class Vector:
                 else:
                     msg = (
                         f"{cls.__name__}.{name} is not a field. A vector declaration holds "
-                        f"only fields; write '{name} = yapss.field(...)'."
+                        f"only fields; write '{name} = yapss.scalar()' or "
+                        f"'{name} = yapss.vector(n)'."
                     )
                 raise TypeError(msg)
             meta[name] = value
@@ -359,7 +402,8 @@ class Vector:
         if annotated:
             msg = (
                 f"{cls.__name__}.{annotated[0]} is annotated. Fields are declared without "
-                f"annotations: write '{annotated[0]} = yapss.field(...)'."
+                f"annotations: write '{annotated[0]} = yapss.scalar()' or "
+                f"'{annotated[0]} = yapss.vector(n)'."
             )
             raise TypeError(msg)
 
@@ -816,8 +860,64 @@ class Vector:
         return f"{cls.__name__}({', '.join(parts)})"
 
 
-class Empty(Vector):
-    """A vector with no fields, for a phase that declares no path or integral."""
+# --------------------------------------------------------------------------------- the roles
+#
+# A declaration subclasses its role. Each role declares no fields, which is what lets it serve
+# as the empty declaration of that role -- the default for a phase with no path constraints is
+# `Path` itself -- and it is also what lets a user subclass it, since `_check_bases` refuses
+# only a base that has fields of its own.
+
+
+class State(Vector):
+    """Base of a state declaration: the variables a phase's dynamics govern."""
+
+    _role = "state"
+
+
+class Control(Vector):
+    """Base of a control declaration: the variables a phase chooses freely at every point."""
+
+    _role = "control"
+
+
+class Path(Vector):
+    """Base of a path declaration: the constraints a phase holds at every point."""
+
+    _role = "path"
+
+
+class Integral(Vector):
+    """Base of an integral declaration: the quantities a phase accumulates."""
+
+    _role = "integral"
+
+
+class Parameter(Vector):
+    """Base of a parameter declaration: the variables a problem chooses once, for all phases."""
+
+    _role = "parameter"
+
+
+class Discrete(Vector):
+    """Base of a discrete declaration: the constraints on a problem's endpoints and parameters."""
+
+    _role = "discrete"
+
+
+ROLES: tuple[type[Vector], ...] = (State, Control, Path, Integral, Parameter, Discrete)
+"""The six roles, in the order a problem is declared."""
+
+
+def role_of(cls: type[Vector]) -> str | None:
+    """Return the role a declaration was made with, or None if it subclasses `Vector` directly.
+
+    Read off the class hierarchy rather than stored on the declaration, so a declaration cannot
+    claim one role and descend from another.
+    """
+    for role in ROLES:
+        if issubclass(cls, role):
+            return role._role
+    return None
 
 
 class Maker:

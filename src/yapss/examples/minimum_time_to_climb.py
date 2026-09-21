@@ -40,23 +40,23 @@ Isp = 1600.0
 """Specific impulse (s)."""
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """Where the aircraft is, how fast it is going, and what it weighs."""
 
-    h = yapss.field()
+    h = yapss.scalar()
     """Altitude."""
-    v = yapss.field()
+    v = yapss.scalar()
     """Speed."""
-    gamma = yapss.field()
+    gamma = yapss.scalar()
     """Flight path angle."""
-    mass = yapss.field()
+    mass = yapss.scalar()
     """Mass."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """How the aircraft is flown."""
 
-    alpha = yapss.field()
+    alpha = yapss.scalar()
     """Angle of attack."""
 
 

@@ -20,21 +20,21 @@ from yapss.math import cos, sin
 g0 = 32.174
 
 
-class State(yapss.Vector):
+class State(yapss.State):
     """Define the state vector of the brachistochrone problem."""
 
-    x = yapss.field()
+    x = yapss.scalar()
     """Horizontal position."""
-    y = yapss.field()
+    y = yapss.scalar()
     """Vertical drop."""
-    v = yapss.field()
+    v = yapss.scalar()
     """Speed."""
 
 
-class Control(yapss.Vector):
+class Control(yapss.Control):
     """Define the control vector of the brachistochrone problem."""
 
-    u = yapss.field()
+    u = yapss.scalar()
     """Path angle."""
 
 
