@@ -169,25 +169,24 @@ def setup() -> yapss.Problem:
     ph.time.final = (10.0, 30.0)
 
     # the circuit starts and ends at the origin
-    for end in (ph.state.initial, ph.state.final):
-        end.x = (0.0, 0.0)
-        end.y = (0.0, 0.0)
-        end.h = (0.0, 0.0)
+    ph.state.x.initial = ph.state.x.final = (0.0, 0.0)
+    ph.state.y.initial = ph.state.y.final = (0.0, 0.0)
+    ph.state.h.initial = ph.state.h.final = (0.0, 0.0)
 
-    ph.state.bounds.x = (-1500, 1500)
-    ph.state.bounds.y = (-1000, 1000)
-    ph.state.bounds.h = (0, 1000)
-    ph.state.bounds.v = (10, 350)
-    ph.state.bounds.gamma = (np.radians(-75), np.radians(75))
-    ph.state.bounds.psi = (np.radians(-225), np.radians(225))
+    ph.state.x.bounds = (-1500, 1500)
+    ph.state.y.bounds = (-1000, 1000)
+    ph.state.h.bounds = (0, 1000)
+    ph.state.v.bounds = (10, 350)
+    ph.state.gamma.bounds = (np.radians(-75), np.radians(75))
+    ph.state.psi.bounds = (np.radians(-225), np.radians(225))
 
-    ph.control.bounds.cl = (0, cl_max)
-    ph.control.bounds.phi = (np.radians(-75), np.radians(75))
-    ph.path.bounds.load_factor = (-2, load_factor_max)
+    ph.control.cl.bounds = (0, cl_max)
+    ph.control.phi.bounds = (np.radians(-75), np.radians(75))
+    ph.path.load_factor.bounds = (-2, load_factor_max)
 
-    problem.discrete.bounds.v_periodic = (0.0, 0.0)
-    problem.discrete.bounds.gamma_periodic = (0.0, 0.0)
-    problem.discrete.bounds.psi_periodic = (np.radians(360), np.radians(360))
+    problem.discrete.v_periodic.bounds = (0.0, 0.0)
+    problem.discrete.gamma_periodic.bounds = (0.0, 0.0)
+    problem.discrete.psi_periodic.bounds = (np.radians(360), np.radians(360))
 
     # A circuit that is roughly the right shape and size, so the solver starts from a closed
     # loop rather than having to find one.
@@ -196,27 +195,27 @@ def setup() -> yapss.Problem:
     turn = 2 * np.pi * t / tf
     x = 600 * (np.cos(turn) - 1)
     ph.time.guess = (0.0, tf)
-    ph.state.guess.x = yapss.interp(t, x)
-    ph.state.guess.y = yapss.interp(t, -200 * np.sin(turn))
-    ph.state.guess.h = yapss.interp(t, -0.7 * x)
-    ph.state.guess.v = (150.0, 150.0)
-    ph.state.guess.gamma = (0.0, 0.0)
-    ph.state.guess.psi = yapss.interp(t, np.radians(t / tf * 360))
-    ph.control.guess.cl = (0.5, 0.5)
-    ph.control.guess.phi = (np.radians(45), np.radians(45))
-    problem.parameter.guess.beta = 0.08
+    ph.state.x.guess = yapss.interp(t, x)
+    ph.state.y.guess = yapss.interp(t, -200 * np.sin(turn))
+    ph.state.h.guess = yapss.interp(t, -0.7 * x)
+    ph.state.v.guess = (150.0, 150.0)
+    ph.state.gamma.guess = (0.0, 0.0)
+    ph.state.psi.guess = yapss.interp(t, np.radians(t / tf * 360))
+    ph.control.cl.guess = (0.5, 0.5)
+    ph.control.phi.guess = (np.radians(45), np.radians(45))
+    problem.parameter.beta.guess = 0.08
 
     # Scaling, which this problem needs: the states run over four orders of magnitude.
     problem.objective.scale = 0.1
-    problem.parameter.scale.beta = 0.1
+    problem.parameter.beta.scale = 0.1
     for name in Discrete._fields:
-        setattr(problem.discrete.scale, name, 200.0)
+        getattr(problem.discrete, name).scale = 200.0
     for name, value in (("x", 1000.0), ("y", 1000.0), ("h", 1000.0), ("v", 200.0)):
-        setattr(ph.state.scale, name, value)
-        setattr(ph.state.defect_scale, name, value)
-    ph.state.scale.gamma = ph.state.defect_scale.gamma = 1.0
-    ph.state.scale.psi = ph.state.defect_scale.psi = 6.0
-    ph.path.scale.load_factor = 7.0
+        field = getattr(ph.state, name)
+        field.scale = field.defect_scale = value
+    ph.state.gamma.scale = ph.state.gamma.defect_scale = 1.0
+    ph.state.psi.scale = ph.state.psi.defect_scale = 6.0
+    ph.path.load_factor.scale = 7.0
     ph.time.scale = 30.0
 
     # A dense mesh, to capture where the lift coefficient meets its limit and the derivatives

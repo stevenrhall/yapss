@@ -423,6 +423,7 @@ def test_every_declared_setting_actually_exists():
     """
     from yapss._api import Phases, Problem, phase
     from yapss._api.containers import Container
+    from yapss._api.fields import Fields, aspects_of
 
     class S(State):
         x = scalar()
@@ -455,6 +456,9 @@ def test_every_declared_setting_actually_exists():
         seen.append(container)
         for name in (*container._held, *container._settable):
             value = getattr(container, name)
+            # a vector's settings are reached field first, through a view over the container
+            if isinstance(value, Fields):
+                value = aspects_of(value)
             if isinstance(value, Container):
                 pending.append(value)
     assert len(seen) >= 8

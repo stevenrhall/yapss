@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from yapss._api.fields import aspects_of
 from yapss.examples.goddard_problem_3_phase import Discrete, Phases, mf, setup
 
 FINAL_ALTITUDE = 18550.871863824515
@@ -94,7 +95,7 @@ def test_registering_a_second_callback_is_refused(problem):
 
 def test_an_unbounded_discrete_group_is_refused():
     problem = setup()
-    problem.discrete.bounds._values.pop("singular_coast_time")
+    aspects_of(problem.discrete).bounds._values.pop("singular_coast_time")
     with pytest.raises(ValueError, match="'singular_coast_time' has no bound"):
         problem.validate()
 

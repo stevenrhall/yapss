@@ -23,22 +23,22 @@ def test_a_pair_is_linear_from_one_end_to_the_other() -> None:
     apart later, and a pair of numbers cannot say which of them it is.
     """
     ph = problem().phases.first
-    ph.state.guess.x = (0.0, 10.0)
-    assert ph.state.guess.x == ("linear", 0.0, 10.0)
+    ph.state.x.guess = (0.0, 10.0)
+    assert ph.state.x.guess == ("linear", 0.0, 10.0)
 
 
 def test_samples_carry_their_own_times() -> None:
     """A sampled guess is pure data on its own grid, so rows need not share one."""
     ph = problem().phases.first
-    ph.state.guess.x = yapss.interp([0.0, 0.5, 1.0], [0.0, 2.0, 1.0])
-    assert ph.state.guess.x is not None
+    ph.state.x.guess = yapss.interp([0.0, 0.5, 1.0], [0.0, 2.0, 1.0])
+    assert ph.state.x.guess is not None
 
 
 def test_a_block_field_takes_one_guess_per_row() -> None:
     """Rows of a block are guessed as the rows of any other aspect are written."""
     ph = problem().phases.first
-    ph.state.guess.y[:] = [(0.0, 1.0), (2.0, 3.0)]
-    assert list(ph.state.guess.y) == [("linear", 0.0, 1.0), ("linear", 2.0, 3.0)]
+    ph.state.y.guess[:] = [(0.0, 1.0), (2.0, 3.0)]
+    assert list(ph.state.y.guess) == [("linear", 0.0, 1.0), ("linear", 2.0, 3.0)]
 
 
 # ------------------------------------------------------------------------ what is refused
@@ -51,30 +51,30 @@ def test_a_guess_is_a_pair_not_a_number() -> None:
         TypeError,
         "a guess is a (first, last) pair",
         "write (0.5, 0.5)",
-        at="guess.x",
+        at="x.guess",
     ):
-        ph.state.guess.x = 0.5
+        ph.state.x.guess = 0.5
 
 
 def test_a_guess_takes_exactly_two_values() -> None:
     """Three values is neither a pair nor samples, and the message counts them."""
     ph = problem().phases.first
-    with raises(ValueError, "a guess is (first, last); got 3 values", at="guess.x"):
-        ph.state.guess.x = (1, 2, 3)
+    with raises(ValueError, "a guess is (first, last); got 3 values", at="x.guess"):
+        ph.state.x.guess = (1, 2, 3)
 
 
 def test_a_guess_names_both_forms_it_accepts() -> None:
     """When a value is neither, the message says what the two forms are."""
     ph = problem().phases.first
-    with raises(TypeError, "(first, last) pair or yapss.interp(...)", at="guess.x"):
-        ph.state.guess.x = "a"
+    with raises(TypeError, "(first, last) pair or yapss.interp(...)", at="x.guess"):
+        ph.state.x.guess = "a"
 
 
 def test_samples_are_not_a_bare_pair_of_sequences() -> None:
     """`(t, values)` is too easily confused with the two-point form, so it is refused."""
     ph = problem().phases.first
-    with raises(TypeError, "takes two numbers", at="guess.x"):
-        ph.state.guess.x = ([0.0, 1.0], [2.0, 3.0])
+    with raises(TypeError, "takes two numbers", at="x.guess"):
+        ph.state.x.guess = ([0.0, 1.0], [2.0, 3.0])
 
 
 # ------------------------------------------------------------------------ yapss.interp
@@ -168,7 +168,7 @@ def test_samples_that_fall_well_short_are_refused() -> None:
     """Samples covering a fraction of the phase are a mistake, and the message does the sum."""
     p = solvable()
     ph = p.phases.slide
-    ph.state.guess.x = yapss.interp([0.0, 0.1], [0.0, 0.2])
+    ph.state.x.guess = yapss.interp([0.0, 0.1], [0.0, 0.2])
     with raises(ValueError, "samples end at", "must reach", at="validate"):
         p.validate()
 
@@ -177,7 +177,7 @@ def test_samples_that_fall_a_little_short_hold_their_end_values() -> None:
     """Within the tolerance, the ends are held, as ``numpy.interp`` does: never a trend."""
     p = solvable()
     ph = p.phases.slide
-    ph.state.guess.x = yapss.interp([0.02, 0.98], [0.0, 1.0])
+    ph.state.x.guess = yapss.interp([0.02, 0.98], [0.0, 1.0])
     p.validate()
     assert p.solve().converged
 
@@ -186,7 +186,7 @@ def test_a_guess_outside_the_bounds_is_clipped_rather_than_refused() -> None:
     """Ipopt moves the starting point inside the bounds; YAPSS does it first, and says nothing."""
     p = solvable()
     ph = p.phases.slide
-    ph.state.guess.v = (-5.0, 50.0)
+    ph.state.v.guess = (-5.0, 50.0)
     assert p.solve().converged
     assert np.isfinite(p.solve().objective)
 
@@ -197,8 +197,8 @@ def test_a_guess_outside_the_bounds_is_clipped_rather_than_refused() -> None:
 def test_a_boolean_is_not_a_guess() -> None:
     """The same rule as a bound's: a comparison written by accident is caught."""
     ph = problem().phases.first
-    with raises(TypeError, "a boolean is not a number", at="guess.x"):
-        ph.state.guess.x = True
+    with raises(TypeError, "a boolean is not a number", at="x.guess"):
+        ph.state.x.guess = True
 
 
 def test_the_time_guess_refuses_a_boolean_too() -> None:
@@ -218,8 +218,8 @@ def test_a_block_field_takes_a_row_of_samples_each() -> None:
     """`(size, n)` samples give each row of a block its own history."""
     ph = problem().phases.first
     t = np.linspace(0.0, 1.0, 5)
-    ph.state.guess.y[:] = yapss.interp(t, np.vstack([t, 2 * t]))
-    assert ph.state.guess.y is not None
+    ph.state.y.guess[:] = yapss.interp(t, np.vstack([t, 2 * t]))
+    assert ph.state.y.guess is not None
 
 
 def test_the_ends_of_the_time_guess_are_numbers() -> None:
@@ -241,6 +241,6 @@ def test_a_parameter_is_guessed_as_one_number() -> None:
     with raises(
         (TypeError, ValueError),
         "one number",
-        at="parameter.guess.s",
+        at="parameter.s.guess",
     ):
-        p.parameter.guess.s = (0.0, 1.0)
+        p.parameter.s.guess = (0.0, 1.0)

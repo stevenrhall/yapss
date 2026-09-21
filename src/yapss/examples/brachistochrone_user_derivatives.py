@@ -106,19 +106,19 @@ def setup() -> yapss.Problem:
         # ------------------------------------------------------------------- setup
 
     ph.time.initial = (0.0, 0.0)
-    ph.state.initial.x = (0.0, 0.0)
-    ph.state.initial.y = (0.0, 0.0)
-    ph.state.initial.v = (0.0, 0.0)
-    ph.state.final.x = (1.0, 1.0)
-    ph.state.bounds.x = (0, 10)
-    ph.state.bounds.y = (0, 10)
-    ph.state.bounds.v = (0, 10)
-    ph.control.bounds.u = (-pi / 2, pi / 2)
+    ph.state.x.initial = (0.0, 0.0)
+    ph.state.y.initial = (0.0, 0.0)
+    ph.state.v.initial = (0.0, 0.0)
+    ph.state.x.final = (1.0, 1.0)
+    ph.state.x.bounds = (0, 10)
+    ph.state.y.bounds = (0, 10)
+    ph.state.v.bounds = (0, 10)
+    ph.control.u.bounds = (-pi / 2, pi / 2)
 
     ph.time.guess = (0.0, 1.0)
-    ph.state.guess.x = (0, 1)
-    ph.state.guess.y = (0, 1)
-    ph.state.guess.v = (0, 5)
+    ph.state.x.guess = (0, 1)
+    ph.state.y.guess = (0, 1)
+    ph.state.v.guess = (0, 5)
 
     problem.derivatives.method = "user"
     problem.derivatives.order = "second"

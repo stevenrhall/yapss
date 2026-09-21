@@ -154,32 +154,32 @@ def setup() -> yapss.Problem:
     problem.objective.sense = "maximize"
 
     for ph in phases:
-        ph.state.bounds.h = (0, 20_000)
-        ph.state.bounds.v = (0, 10_000)
-        ph.state.bounds.m = (mf, m0)
+        ph.state.h.bounds = (0, 20_000)
+        ph.state.v.bounds = (0, 10_000)
+        ph.state.m.bounds = (mf, m0)
 
     boost.time.initial = (0.0, 0.0)
-    boost.state.initial.h = (0.0, 0.0)
-    boost.state.initial.v = (0.0, 0.0)
-    boost.state.initial.m = (m0, m0)
-    coast.state.final.v = (0, None)
-    coast.state.final.m = (mf, mf)
+    boost.state.h.initial = (0.0, 0.0)
+    boost.state.v.initial = (0.0, 0.0)
+    boost.state.m.initial = (m0, m0)
+    coast.state.v.final = (0, None)
+    coast.state.m.final = (mf, mf)
 
-    boost.control.bounds.thrust = (Tm, Tm)
-    singular.control.bounds.thrust = (0.01 * Tm, 0.99 * Tm)
-    coast.control.bounds.thrust = (0.0, 0.0)
+    boost.control.thrust.bounds = (Tm, Tm)
+    singular.control.thrust.bounds = (0.01 * Tm, 0.99 * Tm)
+    coast.control.thrust.bounds = (0.0, 0.0)
 
-    singular.path.bounds.switching = (0.0, 0.0)
+    singular.path.switching.bounds = (0.0, 0.0)
     for name in Discrete._fields:
-        setattr(problem.discrete.bounds, name, (0.0, 0.0))
+        getattr(problem.discrete, name).bounds = (0.0, 0.0)
 
     for ph in phases:
         k = ph.index
         ph.time.guess = (15.0 * k, 15.0 * (k + 1))
-        ph.state.guess.h = (6000 * k, 6000 * (k + 1))
-        ph.state.guess.v = (500.0, 500.0)
-        ph.state.guess.m = (3 - 2 / 3 * k, 3 - 2 / 3 * (k + 1))
-        ph.control.guess.thrust = (Tm * (2 - k) / 2, Tm * (2 - k) / 2)
+        ph.state.h.guess = (6000 * k, 6000 * (k + 1))
+        ph.state.v.guess = (500.0, 500.0)
+        ph.state.m.guess = (3 - 2 / 3 * k, 3 - 2 / 3 * (k + 1))
+        ph.control.thrust.guess = (Tm * (2 - k) / 2, Tm * (2 - k) / 2)
 
     problem.method = "lgl"
     problem.derivatives.method = "auto"

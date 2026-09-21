@@ -101,22 +101,22 @@ def _make(user):
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (1.0, 1.0)
     ph.time.guess = (0.0, 1.0)
-    ph.state.bounds.r[:] = (-10.0, 10.0)
-    ph.state.bounds.m = (0.5, 5.0)
-    ph.control.bounds.u[:] = [(-2.0, 2.0)] * 2
-    ph.path.bounds.limit[:] = [(-50.0, 50.0)] * 2
-    ph.integral.bounds.cost[:] = [(-100.0, 100.0)] * 2
-    problem.parameter.bounds.beta[:] = [(-3.0, 3.0)] * 2
-    problem.parameter.bounds.gamma = (-3.0, 3.0)
-    problem.discrete.bounds.gap[:] = (0.0, 0.0)
-    problem.discrete.bounds.total = (0.0, 5.0)
+    ph.state.r.bounds[:] = (-10.0, 10.0)
+    ph.state.m.bounds = (0.5, 5.0)
+    ph.control.u.bounds[:] = [(-2.0, 2.0)] * 2
+    ph.path.limit.bounds[:] = [(-50.0, 50.0)] * 2
+    ph.integral.cost.bounds[:] = [(-100.0, 100.0)] * 2
+    problem.parameter.beta.bounds[:] = [(-3.0, 3.0)] * 2
+    problem.parameter.gamma.bounds = (-3.0, 3.0)
+    problem.discrete.gap.bounds[:] = (0.0, 0.0)
+    problem.discrete.total.bounds = (0.0, 5.0)
 
-    ph.state.guess.r[:] = [(0.3, 1.1), (0.4, 1.2), (0.5, 1.3)]
-    ph.state.guess.m = (1.0, 2.0)
-    ph.control.guess.u[:] = [(0.2, 0.7), (0.3, 0.8)]
-    ph.integral.guess.cost[:] = [0.4, 0.6]
-    problem.parameter.guess.beta[:] = [0.7, 0.9]
-    problem.parameter.guess.gamma = 1.1
+    ph.state.r.guess[:] = [(0.3, 1.1), (0.4, 1.2), (0.5, 1.3)]
+    ph.state.m.guess = (1.0, 2.0)
+    ph.control.u.guess[:] = [(0.2, 0.7), (0.3, 0.8)]
+    ph.integral.cost.guess[:] = [0.4, 0.6]
+    problem.parameter.beta.guess[:] = [0.7, 0.9]
+    problem.parameter.gamma.guess = 1.1
 
     if user:
         _derivatives(problem, ph)

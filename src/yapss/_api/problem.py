@@ -22,6 +22,7 @@ from yapss._backend.solution import warn_if_not_converged
 from .compile import solve_problem
 from .containers import Container, HasRegistry, Registry, is_callable, is_string, is_subclass
 from .declare import Phases, declared_role
+from .fields import Fields
 from .kinds import Bounds, ScalarGuess, Scale
 from .spec import snapshot, validate_problem
 from .vector import Discrete, Parameter, Vector
@@ -92,14 +93,10 @@ def _not_a_decorator(which: str, phrase: str) -> str:
     )
 
 
-class DiscreteAspects(Container, Generic[D_co]):
+class DiscreteAspects(Container):
     """The discrete constraints: their bounds and their scales."""
 
     _held = ("bounds", "scale")
-
-    if TYPE_CHECKING:
-        bounds: D_co
-        scale: D_co
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Refuse a registration written here, which is a likely slip. See `_not_a_decorator`."""
@@ -107,15 +104,10 @@ class DiscreteAspects(Container, Generic[D_co]):
         raise TypeError(_not_a_decorator("discrete", "the discrete constraints"))
 
 
-class ParameterAspects(Container, Generic[PR_co]):
+class ParameterAspects(Container):
     """The problem's parameters: their bounds, their guesses, and their scales."""
 
     _held = ("bounds", "guess", "scale")
-
-    if TYPE_CHECKING:
-        bounds: PR_co
-        guess: PR_co
-        scale: PR_co
 
 
 class Derivatives(Container):
@@ -362,8 +354,10 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         # which is what keeps the bare `yapss.Problem` -- the spelling every example's `setup`
         # returns -- both legal under `disallow_any_generics` and meaningful.
         phases: PH_co
-        discrete: DiscreteAspects[D_co]
-        parameter: ParameterAspects[PR_co]
+        # Typed as the declarations, so a setting is reached field first and checked: see
+        # `Phase`. At runtime each is a `fields.Fields` over the aspect container.
+        discrete: D_co
+        parameter: PR_co
         objective: ObjectiveAspects
         derivatives: Derivatives
         ipopt_options: IpoptOptions
@@ -413,18 +407,22 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         self._hold("method", "lgl")
         self._hold("catch_keyboard_interrupt", CATCH_KEYBOARD_INTERRUPT)
 
-        discrete_aspects: DiscreteAspects[Any] = DiscreteAspects()
+        discrete_aspects = DiscreteAspects()
         discrete_aspects._label = "problem discrete"
-        discrete_aspects._hold("bounds", discrete._new(Bounds, "discrete bounds"))
-        discrete_aspects._hold("scale", discrete._new(Scale, "discrete scale"))
-        self._hold("discrete", discrete_aspects)
+        discrete_aspects._hold("bounds", discrete._new(Bounds, "discrete bounds", aspect="bounds"))
+        discrete_aspects._hold("scale", discrete._new(Scale, "discrete scale", aspect="scale"))
+        self._hold("discrete", Fields(discrete_aspects, discrete, discrete_aspects._label))
 
-        parameter_aspects: ParameterAspects[Any] = ParameterAspects()
+        parameter_aspects = ParameterAspects()
         parameter_aspects._label = "problem parameter"
-        parameter_aspects._hold("bounds", parameter._new(Bounds, "parameter bounds"))
-        parameter_aspects._hold("guess", parameter._new(ScalarGuess, "parameter guess"))
-        parameter_aspects._hold("scale", parameter._new(Scale, "parameter scale"))
-        self._hold("parameter", parameter_aspects)
+        parameter_aspects._hold(
+            "bounds", parameter._new(Bounds, "parameter bounds", aspect="bounds")
+        )
+        parameter_aspects._hold(
+            "guess", parameter._new(ScalarGuess, "parameter guess", aspect="guess")
+        )
+        parameter_aspects._hold("scale", parameter._new(Scale, "parameter scale", aspect="scale"))
+        self._hold("parameter", Fields(parameter_aspects, parameter, parameter_aspects._label))
         self._hold("register", ProblemRegistry(self))
 
     @property

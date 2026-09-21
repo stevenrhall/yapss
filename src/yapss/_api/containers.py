@@ -116,7 +116,11 @@ class Container:
         """Return the message for an attempt to replace the sub-object `name`."""
         held = object.__getattribute__(self, name)
         fields = getattr(held, "_fields", ())
-        example = f"{name}.{fields[0]}" if fields else f"{name}.<field>"
+        if hasattr(type(held), "_example"):
+            # a vector's settings, reached field first: 'state.x.bounds', not 'state.x'
+            example = f"{name}.{held._example()}"
+        else:
+            example = f"{name}.{fields[0]}" if fields else f"{name}.<field>"
         return (
             f"{self._label} {name} cannot be replaced; it is set one field at a time, "
             f"for example '{example} = ...'."

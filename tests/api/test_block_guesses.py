@@ -38,11 +38,11 @@ def build(row_guess):
         return arg[ph].final.time
 
     ph.time.initial = (0.0, 0.0)
-    ph.state.initial.r[:] = [0.0, 0.0]
-    ph.state.bounds.r[:] = [(-10, 10), (-10, 10)]
-    ph.control.bounds.u = (-1, 1)
+    ph.state.r.initial[:] = [0.0, 0.0]
+    ph.state.r.bounds[:] = [(-10, 10), (-10, 10)]
+    ph.control.u.bounds = (-1, 1)
     ph.time.guess = (0.0, 1.0)
-    ph.state.guess.r[:] = [(0, 1), row_guess]
+    ph.state.r.guess[:] = [(0, 1), row_guess]
     problem.ipopt_options.print_level = 0
     return problem, ph
 

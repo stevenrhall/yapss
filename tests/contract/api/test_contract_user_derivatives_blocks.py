@@ -122,20 +122,20 @@ def build():
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (1.0, 1.0)
     ph.time.guess = (0.0, 1.0)
-    ph.state.initial.h = (0.0, 0.0)
-    ph.state.initial.r[:] = (0.0, 0.0)
-    ph.state.final.h = (1.0, 1.0)
-    ph.state.bounds.h = (-10.0, 10.0)
-    ph.state.bounds.r[:] = (-10.0, 10.0)
-    ph.control.bounds.u[:] = (-5.0, 5.0)
-    ph.state.guess.h = (0.0, 1.0)
-    ph.state.guess.r[:] = (0.0, 1.0)
-    ph.control.guess.u[:] = (0.0, 1.0)
-    problem.parameter.bounds.k = (0.5, 2.0)
-    problem.parameter.guess.k = 1.0
-    problem.parameter.bounds.m[:] = (0.0, 1.0)
-    problem.parameter.guess.m[:] = 0.5
-    problem.discrete.bounds.close = (0.0, 0.0)
+    ph.state.h.initial = (0.0, 0.0)
+    ph.state.r.initial[:] = (0.0, 0.0)
+    ph.state.h.final = (1.0, 1.0)
+    ph.state.h.bounds = (-10.0, 10.0)
+    ph.state.r.bounds[:] = (-10.0, 10.0)
+    ph.control.u.bounds[:] = (-5.0, 5.0)
+    ph.state.h.guess = (0.0, 1.0)
+    ph.state.r.guess[:] = (0.0, 1.0)
+    ph.control.u.guess[:] = (0.0, 1.0)
+    problem.parameter.k.bounds = (0.5, 2.0)
+    problem.parameter.k.guess = 1.0
+    problem.parameter.m.bounds[:] = (0.0, 1.0)
+    problem.parameter.m.guess[:] = 0.5
+    problem.discrete.close.bounds = (0.0, 0.0)
     ph.mesh = yapss.Mesh.uniform(segments=2, points=4)
     problem.ipopt_options.print_level = 0
     return problem, ph

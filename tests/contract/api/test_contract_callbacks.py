@@ -156,8 +156,8 @@ def test_an_explicit_zero_is_an_assignment() -> None:
         return out
 
     p.phases.slide.register.continuous(flat, replace=True)
-    p.phases.slide.state.final.x = (0.0, 1.0)
-    p.discrete.bounds.drop = (0.0, 0.0)
+    p.phases.slide.state.x.final = (0.0, 1.0)
+    p.discrete.drop.bounds = (0.0, 0.0)
     assert p.solve() is not None
 
 
@@ -321,12 +321,12 @@ def test_a_problem_may_have_no_discrete_constraints() -> None:
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (1.0, 1.0)
     ph.time.guess = (0.0, 1.0)
-    ph.state.initial.a = (0.0, 0.0)
-    ph.state.initial.b = (0.0, 0.0)
-    ph.state.guess.a = (0.0, 1.0)
-    ph.state.guess.b = (0.0, 0.0)
-    ph.control.guess.c = (0.0, 0.0)
-    ph.control.bounds.c = (-1.0, 1.0)
+    ph.state.a.initial = (0.0, 0.0)
+    ph.state.b.initial = (0.0, 0.0)
+    ph.state.a.guess = (0.0, 1.0)
+    ph.state.b.guess = (0.0, 0.0)
+    ph.control.c.guess = (0.0, 0.0)
+    ph.control.c.bounds = (-1.0, 1.0)
     p.ipopt_options.print_level = 0
     assert p.solve() is not None
 

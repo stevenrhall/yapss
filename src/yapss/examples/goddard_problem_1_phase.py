@@ -163,24 +163,24 @@ def setup() -> yapss.Problem:
 
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (tf_min, tf_max)
-    ph.state.initial.h = (0.0, 0.0)
-    ph.state.initial.v = (0.0, 0.0)
-    ph.state.initial.m = (m0, m0)
-    ph.state.bounds.h = (0, h_max)
-    ph.state.bounds.v = (0, v_max)
-    ph.state.bounds.m = (mf, m0)
-    ph.state.final.m = (mf, mf)
-    ph.control.bounds.thrust = (0, Tm)
+    ph.state.h.initial = (0.0, 0.0)
+    ph.state.v.initial = (0.0, 0.0)
+    ph.state.m.initial = (m0, m0)
+    ph.state.h.bounds = (0, h_max)
+    ph.state.v.bounds = (0, v_max)
+    ph.state.m.bounds = (mf, m0)
+    ph.state.m.final = (mf, mf)
+    ph.control.thrust.bounds = (0, Tm)
 
     ph.time.guess = (0.0, tf_max)
-    ph.state.guess.h = (0.0, h_max)
-    ph.state.guess.v = (0.0, 0.0)
-    ph.state.guess.m = (m0, mf)
-    ph.control.guess.thrust = (Tm, 0.0)
+    ph.state.h.guess = (0.0, h_max)
+    ph.state.v.guess = (0.0, 0.0)
+    ph.state.m.guess = (m0, mf)
+    ph.control.thrust.guess = (Tm, 0.0)
 
-    ph.state.scale.h = ph.state.defect_scale.h = 18_000.0
-    ph.state.scale.v = ph.state.defect_scale.v = 800.0
-    ph.state.scale.m = ph.state.defect_scale.m = 3.0
+    ph.state.h.scale = ph.state.h.defect_scale = 18_000.0
+    ph.state.v.scale = ph.state.v.defect_scale = 800.0
+    ph.state.m.scale = ph.state.m.defect_scale = 3.0
     ph.time.scale = 30.0
 
     problem.ipopt_options.print_level = 3

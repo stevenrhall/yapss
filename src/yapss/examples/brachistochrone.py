@@ -72,20 +72,20 @@ def setup() -> yapss.Problem:
 
     # set boundary conditions
     phase.time.initial = (0.0, 0.0)
-    phase.state.initial.x = (0.0, 0.0)
-    phase.state.initial.y = (0.0, 0.0)
-    phase.state.initial.v = (0.0, 0.0)
-    phase.state.final.x = (1.0, 1.0)
-    phase.state.bounds.x = (0, 10)
-    phase.state.bounds.y = (0, 10)
-    phase.state.bounds.v = (0, 10)
-    phase.control.bounds.u = (-pi / 2, pi / 2)
+    phase.state.x.initial = (0.0, 0.0)
+    phase.state.y.initial = (0.0, 0.0)
+    phase.state.v.initial = (0.0, 0.0)
+    phase.state.x.final = (1.0, 1.0)
+    phase.state.x.bounds = (0, 10)
+    phase.state.y.bounds = (0, 10)
+    phase.state.v.bounds = (0, 10)
+    phase.control.u.bounds = (-pi / 2, pi / 2)
 
     # set guess for solution
     phase.time.guess = (0.0, 1.0)
-    phase.state.guess.x = (0, 1)
-    phase.state.guess.y = (0, 1)
-    phase.state.guess.v = (0, 5)
+    phase.state.x.guess = (0, 1)
+    phase.state.y.guess = (0, 1)
+    phase.state.v.guess = (0, 5)
 
     # set ipopt options
     problem.ipopt_options.print_level = 3

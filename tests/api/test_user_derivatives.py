@@ -618,7 +618,7 @@ def linked_problem():
 
     ph.time.initial = (0.0, 0.0)
     ph.time.guess = (0.0, 1.0)
-    problem.discrete.bounds.gap = (0.0, 0.0)
+    problem.discrete.gap.bounds = (0.0, 0.0)
     problem.derivatives.method = "user"
     return problem
 

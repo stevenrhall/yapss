@@ -124,10 +124,10 @@ def setup() -> yapss.Problem:
 
     problem.derivatives.method = "user"
 
-    problem.parameter.bounds.x[:] = (1.0, 5.0)
-    problem.parameter.guess.x[:] = [1.0, 5.0, 5.0, 1.0]
-    problem.discrete.bounds.product = (25.0, None)
-    problem.discrete.bounds.sum_of_squares = (40.0, 40.0)
+    problem.parameter.x.bounds[:] = (1.0, 5.0)
+    problem.parameter.x.guess[:] = [1.0, 5.0, 5.0, 1.0]
+    problem.discrete.product.bounds = (25.0, None)
+    problem.discrete.sum_of_squares.bounds = (40.0, 40.0)
 
     problem.ipopt_options.print_level = 3
     return problem

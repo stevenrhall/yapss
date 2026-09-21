@@ -24,58 +24,58 @@ def test_a_bound_is_a_pair_not_a_number() -> None:
         TypeError,
         "a bound is a pair",
         "write (500.0, 500.0)",
-        at="bounds.x",
+        at="x.bounds",
     ):
-        ph.state.bounds.x = 500.0
+        ph.state.x.bounds = 500.0
 
 
 def test_a_bound_of_none_names_the_pair_that_means_unbounded() -> None:
     """`None` is how one side is left open, so the message says how to open both."""
     ph = problem().phases.first
-    with raises(TypeError, "write (None, None)", at="bounds.x"):
-        ph.state.bounds.x = None
+    with raises(TypeError, "write (None, None)", at="x.bounds"):
+        ph.state.x.bounds = None
 
 
 def test_a_bound_takes_exactly_two_values() -> None:
     """Three values is not an interval, and the message counts them."""
     ph = problem().phases.first
-    with raises(ValueError, "got 3 values", at="bounds.x"):
-        ph.state.bounds.x = (1, 2, 3)
+    with raises(ValueError, "got 3 values", at="x.bounds"):
+        ph.state.x.bounds = (1, 2, 3)
 
 
 def test_a_bound_may_not_be_inverted() -> None:
     """A lower bound above its upper bound has no solutions, so it is refused where written."""
     ph = problem().phases.first
-    with raises(ValueError, "lower 2.0 > upper 1.0", at="bounds.x"):
-        ph.state.bounds.x = (2, 1)
+    with raises(ValueError, "lower 2.0 > upper 1.0", at="x.bounds"):
+        ph.state.x.bounds = (2, 1)
 
 
 def test_each_side_of_a_bound_is_a_number_or_none() -> None:
     """Anything else is a mistake about what a bound is."""
     ph = problem().phases.first
-    with raises(TypeError, "a number or None", at="bounds.x"):
-        ph.state.bounds.x = (0, "a")
+    with raises(TypeError, "a number or None", at="x.bounds"):
+        ph.state.x.bounds = (0, "a")
 
 
 def test_a_boolean_is_not_a_number() -> None:
     """True is 1 to Python and a mistake here, most often a comparison written by accident."""
     ph = problem().phases.first
-    with raises(TypeError, "a boolean is not a number", "comparison", at="bounds.x"):
-        ph.state.bounds.x = True
+    with raises(TypeError, "a boolean is not a number", "comparison", at="x.bounds"):
+        ph.state.x.bounds = True
 
 
 def test_one_side_may_be_left_open() -> None:
     """The accepted form, which is what makes the refusals above about shape and not about None."""
     ph = problem().phases.first
-    ph.state.bounds.x = (0.0, None)
-    assert ph.state.bounds.x == (0.0, np.inf)
+    ph.state.x.bounds = (0.0, None)
+    assert ph.state.x.bounds == (0.0, np.inf)
 
 
 def test_leaving_one_side_unchanged_is_not_built_yet() -> None:
     """`...` is designed and not built, and says so rather than doing something else."""
     ph = problem().phases.first
-    with raises(TypeError, "not implemented yet", "give both ends", at="bounds.x"):
-        ph.state.bounds.x = (0.0, ...)
+    with raises(TypeError, "not implemented yet", "give both ends", at="x.bounds"):
+        ph.state.x.bounds = (0.0, ...)
 
 
 # -------------------------------------------------------- writing a field that has rows
@@ -84,36 +84,36 @@ def test_leaving_one_side_unchanged_is_not_built_yet() -> None:
 def test_a_block_field_refuses_a_bare_name() -> None:
     """A field of several rows cannot be written by name alone: it cannot show what was meant."""
     ph = problem().phases.first
-    with raises(TypeError, "has 2 rows, so say which", at="bounds.y"):
-        ph.state.bounds.y = (0.0, 1.0)
+    with raises(TypeError, "has 2 rows, so say which", at="y.bounds"):
+        ph.state.y.bounds = (0.0, 1.0)
 
 
 def test_a_block_field_takes_the_same_bound_for_every_row() -> None:
     """`[:]` with one bound gives every row that bound, which is the common case."""
     ph = problem().phases.first
-    ph.state.bounds.y[:] = (0.0, 1.0)
-    assert list(ph.state.bounds.y) == [(0.0, 1.0), (0.0, 1.0)]
+    ph.state.y.bounds[:] = (0.0, 1.0)
+    assert list(ph.state.y.bounds) == [(0.0, 1.0), (0.0, 1.0)]
 
 
 def test_a_block_field_takes_one_bound_per_row() -> None:
     """A sequence of bounds gives the rows their own, in order."""
     ph = problem().phases.first
-    ph.state.bounds.y[:] = [(0.0, 1.0), (2.0, 3.0)]
-    assert list(ph.state.bounds.y) == [(0.0, 1.0), (2.0, 3.0)]
+    ph.state.y.bounds[:] = [(0.0, 1.0), (2.0, 3.0)]
+    assert list(ph.state.y.bounds) == [(0.0, 1.0), (2.0, 3.0)]
 
 
 def test_a_row_may_be_written_by_index() -> None:
     """One row at a time, which is what an index is for."""
     ph = problem().phases.first
-    ph.state.bounds.y[1] = (4.0, 5.0)
-    assert ph.state.bounds.y[1] == (4.0, 5.0)
+    ph.state.y.bounds[1] = (4.0, 5.0)
+    assert ph.state.y.bounds[1] == (4.0, 5.0)
 
 
 def test_the_number_of_rows_must_match() -> None:
     """Three bounds for two rows is a mistake about the declaration, and the message counts both."""
     ph = problem().phases.first
-    with raises(ValueError, "covers 2 rows; got 3 values", at="bounds.y"):
-        ph.state.bounds.y[:] = [(0.0, 1.0)] * 3
+    with raises(ValueError, "covers 2 rows; got 3 values", at="y.bounds"):
+        ph.state.y.bounds[:] = [(0.0, 1.0)] * 3
 
 
 @not_yet(
@@ -128,15 +128,15 @@ def test_an_index_is_an_integer_or_a_slice() -> None:
     already has for this is written and unreached.
     """
     ph = problem().phases.first
-    with raises(TypeError, "integers or slices", at="bounds.y"):
-        ph.state.bounds.y["x"] = (0.0, 1.0)
+    with raises(TypeError, "integers or slices", at="y.bounds"):
+        ph.state.y.bounds["x"] = (0.0, 1.0)
 
 
 def test_an_index_out_of_range_names_the_fields() -> None:
     """The message says how many rows there are and what they are called."""
     ph = problem().phases.first
-    with raises(IndexError, "has 2 rows; there is no row 5", at="bounds.y"):
-        ph.state.bounds.y[5] = (0.0, 1.0)
+    with raises(IndexError, "has 2 rows; there is no row 5", at="y.bounds"):
+        ph.state.y.bounds[5] = (0.0, 1.0)
 
 
 # ------------------------------------------------------------------ reading a bound back
@@ -149,21 +149,21 @@ def test_a_bound_never_written_is_unbounded() -> None:
     reads back rather than refusing, while a guess left out has nothing to fall back on.
     """
     ph = problem().phases.first
-    assert ph.state.bounds.x == (-np.inf, np.inf)
+    assert ph.state.x.bounds == (-np.inf, np.inf)
 
 
 def test_a_bound_written_reads_back() -> None:
     """What was stored is what is read, converted to floats."""
     ph = problem().phases.first
-    ph.state.bounds.x = (0, 1)
-    assert ph.state.bounds.x == (0.0, 1.0)
+    ph.state.x.bounds = (0, 1)
+    assert ph.state.x.bounds == (0.0, 1.0)
 
 
 def test_a_misspelled_field_is_refused_with_a_suggestion() -> None:
     """The name is checked against the declaration, and a near miss is named."""
     ph = problem().phases.first
-    with raises(AttributeError, "xx", at="bounds.xx"):
-        ph.state.bounds.xx = (0.0, 1.0)
+    with raises(AttributeError, "xx", at="xx.bounds"):
+        ph.state.xx.bounds = (0.0, 1.0)
 
 
 # ------------------------------------------------------------- the declaration is not a value
@@ -171,7 +171,7 @@ def test_a_misspelled_field_is_refused_with_a_suggestion() -> None:
 
 def test_a_declaration_is_not_a_value() -> None:
     """Building one says where the values go instead."""
-    with raises(TypeError, "is a declaration, not a value", "phase.state.bounds.", at="State("):
+    with raises(TypeError, "is a declaration, not a value", "phase.state.x.bounds", at="State("):
         State(x=(0.0, 1.0))
 
 
@@ -205,9 +205,9 @@ def test_a_row_given_a_sequence_of_elements_is_refused() -> None:
     with raises(
         TypeError,
         "is one row, so it takes one element",
-        at="bounds.y[0]",
+        at="y.bounds[0]",
     ):
-        ph.state.bounds.y[0] = [(0.0, 1.0), (2.0, 3.0)]
+        ph.state.y.bounds[0] = [(0.0, 1.0), (2.0, 3.0)]
 
 
 def test_a_slice_takes_one_element_or_one_per_row() -> None:
@@ -216,39 +216,48 @@ def test_a_slice_takes_one_element_or_one_per_row() -> None:
     with raises(
         TypeError,
         "takes one element for all of them or 2 of them",
-        at="bounds.y[:]",
+        at="y.bounds[:]",
     ):
-        ph.state.bounds.y[:] = 5
+        ph.state.y.bounds[:] = 5
 
 
-def test_a_vector_cannot_be_read_by_slice() -> None:
-    """A vector is a namespace, not a sequence: its fields are reached by name."""
+def test_a_setting_is_reached_through_its_field() -> None:
+    """A bound belongs to a field, so the field is named first, and the old order says so."""
     ph = problem().phases.first
-    with raises(TypeError, "cannot be read by slice", "by name", at="ph.state.bounds[0:1]"):
-        _ = ph.state.bounds[0:1]
+    with raises(AttributeError, "has no field 'bounds'", "named first", at="ph.state.bounds"):
+        _ = ph.state.bounds
 
 
-def test_a_vector_cannot_be_written_by_position() -> None:
-    """Positions are what this API replaced, so writing one says how to write a name."""
+def test_a_vector_has_no_positions() -> None:
+    """Positions are what this API replaced: a field is reached by name, never by index."""
     ph = problem().phases.first
-    with raises(
-        TypeError,
-        "cannot be set by position",
-        "for example 'x = ...'",
-        at="ph.state.bounds[0]",
-    ):
-        ph.state.bounds[0] = (0.0, 1.0)
+    with raises(TypeError, "a vector has no positions", "reached by name", at="ph.state[0]"):
+        _ = ph.state[0]
 
 
-def test_a_vector_index_out_of_range_names_the_fields() -> None:
-    """Reading a row by position is allowed, and the message names what the rows are."""
+def test_a_vector_is_not_written_by_position() -> None:
+    """Writing a position is refused as reading one is, with the form that works."""
     ph = problem().phases.first
-    with raises(IndexError, "out of range for 3 rows", "(x, y)", at="ph.state.bounds[9]"):
-        _ = ph.state.bounds[9]
+    with raises(TypeError, "a vector has no positions", "x.bounds", at="ph.state[0]"):
+        ph.state[0] = (0.0, 1.0)
 
 
-def test_a_vector_index_is_not_a_name() -> None:
-    """A name is reached as an attribute; an index is a position."""
+def test_a_field_takes_no_index_of_its_own() -> None:
+    """Rows belong to one of the field's settings, so the index goes after the setting."""
     ph = problem().phases.first
-    with raises(TypeError, "indices are integers or slices, not str", at="ph.state.bounds["):
-        _ = ph.state.bounds["x"]
+    with raises(TypeError, "has no rows of its own", "y.bounds[0]", at="ph.state.y[0]"):
+        _ = ph.state.y[0]
+
+
+def test_a_row_out_of_range_names_the_setting_and_its_rows() -> None:
+    """Reading a row by position is allowed, and a bad one says how many rows there are."""
+    ph = problem().phases.first
+    with raises(IndexError, "'y'[9] is out of range for 2 rows", at="ph.state.y.bounds[9]"):
+        _ = ph.state.y.bounds[9]
+
+
+def test_a_row_index_is_not_a_name() -> None:
+    """A row is reached by a whole number or a slice; a name reaches a field."""
+    ph = problem().phases.first
+    with raises(TypeError, "is read by row", "a whole number or a slice", at="ph.state.y.bounds["):
+        _ = ph.state.y.bounds["a"]

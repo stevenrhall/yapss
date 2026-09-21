@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeAlias, cast
 from typing_extensions import TypeVar
 
 from .containers import Container, HasRegistry, Registry, is_callable, is_subclass, suggest
+from .fields import Fields
 from .kinds import Bounds, Guess, ScalarGuess, Scale, is_bool, is_pair, is_real
 from .mesh import Mesh
 from .vector import Control, Field, Integral, Path, State, Vector, role_of
@@ -371,7 +372,7 @@ class Phases:
 # -- aspects ---------------------------------------------------------------------------------
 
 
-class StateAspects(Container, Generic[S_co]):
+class StateAspects(Container):
     """The state of one phase: its bounds, its endpoint bounds, its guess, and its scales.
 
     There are two scales. ``scale`` says how large the state itself typically is; while
@@ -379,51 +380,29 @@ class StateAspects(Container, Generic[S_co]):
     which is a constraint rather than a variable and can be of a quite different size.
 
     Every aspect is an instance of the declaration itself, which is what makes the fields
-    reachable by the names they were declared with -- and, to a type checker, what makes a
-    name that was never declared an error.
+    reachable by the names they were declared with. It is read field first, through
+    `fields.Fields`, and a type checker never sees it: `ph.state` is typed as the declaration.
     """
 
     _held = ("bounds", "initial", "final", "guess", "scale", "defect_scale")
 
-    if TYPE_CHECKING:
-        bounds: S_co
-        initial: S_co
-        final: S_co
-        guess: S_co
-        scale: S_co
-        defect_scale: S_co
 
-
-class ControlAspects(Container, Generic[C_co]):
+class ControlAspects(Container):
     """The control of one phase: its bounds, its guess, and its scale."""
 
     _held = ("bounds", "guess", "scale")
 
-    if TYPE_CHECKING:
-        bounds: C_co
-        guess: C_co
-        scale: C_co
 
-
-class PathAspects(Container, Generic[P_co]):
+class PathAspects(Container):
     """The path constraints of one phase: their bounds and their scales."""
 
     _held = ("bounds", "scale")
 
-    if TYPE_CHECKING:
-        bounds: P_co
-        scale: P_co
 
-
-class IntegralAspects(Container, Generic[I_co]):
+class IntegralAspects(Container):
     """The integrals of one phase: their bounds, their guesses, and their scales."""
 
     _held = ("bounds", "guess", "scale")
-
-    if TYPE_CHECKING:
-        bounds: I_co
-        guess: I_co
-        scale: I_co
 
 
 class TimeAspects(Container):
@@ -593,10 +572,14 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
     _settable = ("mesh",)
 
     if TYPE_CHECKING:
-        state: StateAspects[S_co]
-        control: ControlAspects[C_co]
-        path: PathAspects[P_co]
-        integral: IntegralAspects[I_co]
+        # Typed as the declarations themselves, which is what makes a setting reachable field
+        # first -- `ph.state.x.bounds` -- and checkable: `State.x` is the marker `scalar()` or
+        # `vector(n)` returned, and the marker's type says which settings that rank takes. At
+        # runtime each is a `fields.Fields`, forwarding to the aspect containers below.
+        state: S_co
+        control: C_co
+        path: P_co
+        integral: I_co
         mesh: Mesh
         register: PhaseRegistry
 
@@ -621,7 +604,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         self._label = f"phase '{name}'"
         self._hold("mesh", Mesh.uniform())
 
-        state: StateAspects[State] = StateAspects()
+        state = StateAspects()
         state._label = f"{self._label} state"
         for aspect, kind in (
             ("bounds", Bounds),
@@ -631,28 +614,46 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
             ("scale", Scale),
             ("defect_scale", Scale),
         ):
-            state._hold(aspect, declaration.state._new(kind, f"{state._label} {aspect}"))
-        self._hold("state", state)
+            state._hold(
+                aspect, declaration.state._new(kind, f"{state._label} {aspect}", aspect=aspect)
+            )
+        self._hold("state", Fields(state, declaration.state, state._label))
 
-        control: ControlAspects[Control] = ControlAspects()
+        control = ControlAspects()
         control._label = f"{self._label} control"
-        control._hold("bounds", declaration.control._new(Bounds, f"{control._label} bounds"))
-        control._hold("guess", declaration.control._new(Guess, f"{control._label} guess"))
-        control._hold("scale", declaration.control._new(Scale, f"{control._label} scale"))
-        self._hold("control", control)
+        control._hold(
+            "bounds", declaration.control._new(Bounds, f"{control._label} bounds", aspect="bounds")
+        )
+        control._hold(
+            "guess", declaration.control._new(Guess, f"{control._label} guess", aspect="guess")
+        )
+        control._hold(
+            "scale", declaration.control._new(Scale, f"{control._label} scale", aspect="scale")
+        )
+        self._hold("control", Fields(control, declaration.control, control._label))
 
-        path: PathAspects[Path] = PathAspects()
+        path = PathAspects()
         path._label = f"{self._label} path"
-        path._hold("bounds", declaration.path._new(Bounds, f"{path._label} bounds"))
-        path._hold("scale", declaration.path._new(Scale, f"{path._label} scale"))
-        self._hold("path", path)
+        path._hold(
+            "bounds", declaration.path._new(Bounds, f"{path._label} bounds", aspect="bounds")
+        )
+        path._hold("scale", declaration.path._new(Scale, f"{path._label} scale", aspect="scale"))
+        self._hold("path", Fields(path, declaration.path, path._label))
 
-        integral: IntegralAspects[Integral] = IntegralAspects()
+        integral = IntegralAspects()
         integral._label = f"{self._label} integral"
-        integral._hold("bounds", declaration.integral._new(Bounds, f"{integral._label} bounds"))
-        integral._hold("guess", declaration.integral._new(ScalarGuess, f"{integral._label} guess"))
-        integral._hold("scale", declaration.integral._new(Scale, f"{integral._label} scale"))
-        self._hold("integral", integral)
+        integral._hold(
+            "bounds",
+            declaration.integral._new(Bounds, f"{integral._label} bounds", aspect="bounds"),
+        )
+        integral._hold(
+            "guess",
+            declaration.integral._new(ScalarGuess, f"{integral._label} guess", aspect="guess"),
+        )
+        integral._hold(
+            "scale", declaration.integral._new(Scale, f"{integral._label} scale", aspect="scale")
+        )
+        self._hold("integral", Fields(integral, declaration.integral, integral._label))
 
         name = declaration.independent
         self._hold(name, TimeAspects(f"{self._label} {name}"))

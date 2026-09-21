@@ -37,7 +37,17 @@ from __future__ import annotations
 import difflib
 import inspect
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    SupportsFloat,
+    SupportsIndex,
+    TypeAlias,
+    TypeVar,
+    cast,
+    overload,
+)
 
 import numpy as np
 
@@ -85,13 +95,110 @@ class Field:
         return 1 if self.size is None else self.size
 
 
-# Both markers are typed as returning `Any` for now. In the aspect-first tree a field's name is
-# the *last* segment -- `ph.state.bounds.h` -- so the declared attribute has to accept a bound,
-# a guess and a scale alike, and only `Any` does. Once the tree is inverted, the aspect is last
-# and each marker can carry the type of its rank.
+# ------------------------------------------------------------ what a type checker sees
+#
+# A setting is written field first -- `ph.state.x.bounds` -- so the setting is the last name,
+# and its type is known. Each marker returns a type listing the settings its rank takes and
+# what each accepts, transcribed from the runtime grammar in `kinds`. The transcription is the
+# whole risk: a type narrower than the runtime tells a user that working code is wrong, which
+# is worse than no check. So where the grammar is rich -- a guess is a pair, a sample, an
+# interpolant, or a number, depending on the role -- the type is `Any`, and the runtime says the
+# rest. The corpus type-checking clean, with no `# type: ignore`, is the test.
+#
+# One type serves every role, so a setting one role lacks -- `ph.control.u.initial` -- passes
+# the checker and is refused at run time. That is the permissive direction, and acceptable.
+#
+# The same markers are what a field is *read* as, in a callback or a solution, so they also
+# declare arithmetic and indexing. `arg.state.v * 2.0` checks as well as `ph.state.v.bounds`;
+# the price is that `arg.state.v.bounds` checks too, and fails only at run time.
+
+_Bound: TypeAlias = "tuple[SupportsFloat | None, SupportsFloat | None] | list[SupportsFloat | None]"
+"""A bound: a lower and an upper value, either of which may be None for no bound."""
+
+_T = TypeVar("_T")
 
 
-def scalar() -> Any:
+class _AsValue:
+    """A field read as its value -- a float, a symbol, or an array -- in a callback or solution."""
+
+    if TYPE_CHECKING:
+
+        def __add__(self, other: Any) -> Any: ...
+        def __radd__(self, other: Any) -> Any: ...
+        def __sub__(self, other: Any) -> Any: ...
+        def __rsub__(self, other: Any) -> Any: ...
+        def __mul__(self, other: Any) -> Any: ...
+        def __rmul__(self, other: Any) -> Any: ...
+        def __truediv__(self, other: Any) -> Any: ...
+        def __rtruediv__(self, other: Any) -> Any: ...
+        def __pow__(self, other: Any) -> Any: ...
+        def __rpow__(self, other: Any) -> Any: ...
+        def __neg__(self) -> Any: ...
+        def __pos__(self) -> Any: ...
+        def __abs__(self) -> Any: ...
+        def __lt__(self, other: Any) -> Any: ...
+        def __le__(self, other: Any) -> Any: ...
+        def __gt__(self, other: Any) -> Any: ...
+        def __ge__(self, other: Any) -> Any: ...
+        def __getitem__(self, index: Any) -> Any: ...
+
+
+class ScalarField(_AsValue):
+    """A field declared with `scalar()`, as a type checker sees it: one value per setting."""
+
+    if TYPE_CHECKING:
+        bounds: _Bound
+        initial: _Bound
+        final: _Bound
+        guess: Any
+        scale: SupportsFloat
+        defect_scale: SupportsFloat
+
+
+class WrittenByRows:
+    """What a vector's setting takes when assigned whole: nothing.
+
+    A vector field's settings are written through its rows, ``r.bounds[:] = ...`` for every row
+    alike or ``r.bounds[0] = ...`` for one, because assigning the whole setting cannot say which
+    was meant. A checker reporting this type is reporting that assignment.
+    """
+
+
+class _Rows(Generic[_T]):
+    """One setting of a vector field, indexed by row."""
+
+    if TYPE_CHECKING:
+
+        def __getitem__(self, index: SupportsIndex | slice) -> Any: ...
+        def __setitem__(self, index: SupportsIndex | slice, value: _T | Sequence[_T]) -> None: ...
+        def __len__(self) -> int: ...
+
+
+class _ByRows(Generic[_T]):
+    """A vector field's setting: read and indexed by row, never assigned whole."""
+
+    if TYPE_CHECKING:
+
+        @overload
+        def __get__(self, obj: None, owner: Any) -> _ByRows[_T]: ...
+        @overload
+        def __get__(self, obj: object, owner: Any) -> _Rows[_T]: ...
+        def __get__(self, obj: Any, owner: Any) -> Any: ...
+        def __set__(self, obj: object, value: WrittenByRows) -> None: ...
+
+
+class VectorField(_AsValue):
+    """A field declared with `vector(n)`, as a type checker sees it: each setting by row."""
+
+    bounds: _ByRows[_Bound] = _ByRows()
+    initial: _ByRows[_Bound] = _ByRows()
+    final: _ByRows[_Bound] = _ByRows()
+    guess: _ByRows[Any] = _ByRows()
+    scale: _ByRows[SupportsFloat] = _ByRows()
+    defect_scale: _ByRows[SupportsFloat] = _ByRows()
+
+
+def scalar() -> ScalarField:
     """Declare a field holding one value: a scalar member of the vector.
 
     A scalar is read as ``(npoints,)`` in a callback. It is not the same as ``vector(1)``, which
@@ -100,14 +207,14 @@ def scalar() -> Any:
 
     Returns
     -------
-    Any
+    ScalarField
         A marker recording the shape. YAPSS replaces it when the class is defined, so it is
-        never seen again.
+        never seen again; its type is what a checker reads the field as.
     """
-    return Field(size=None)
+    return cast("ScalarField", Field(size=None))
 
 
-def vector(size: int) -> Any:
+def vector(size: int) -> VectorField:
     """Declare a field holding `size` values: a vector member, such as a position.
 
     Any count from 0 up is allowed, so that a declaration built by an algorithm needs no special
@@ -121,9 +228,9 @@ def vector(size: int) -> Any:
 
     Returns
     -------
-    Any
+    VectorField
         A marker recording the shape. YAPSS replaces it when the class is defined, so it is
-        never seen again.
+        never seen again; its type is what a checker reads the field as.
     """
     if not _is_integer(size):
         msg = f"vector(size) takes a whole number of components; got {size!r}"
@@ -132,7 +239,7 @@ def vector(size: int) -> Any:
     if size < 0:
         msg = f"vector(size) must be 0 or more; got {size}"
         raise ValueError(msg)
-    return Field(size=size)
+    return cast("VectorField", Field(size=size))
 
 
 class PerRow(tuple[Any, ...]):
@@ -172,8 +279,26 @@ class BlockRows(Sequence[Any]):
         self._name = name
 
     def __getitem__(self, index: Any) -> Any:
-        """Return the element of one row, or of the rows a slice covers."""
-        return self._rows[index]
+        """Return the element of one row, or of the rows a slice covers.
+
+        The indices accepted are exactly the ones a sequence accepts; only the failures are
+        reworded, to say which setting was indexed and how many rows it has, rather than
+        speaking of the tuple the rows happen to be stored in.
+        """
+        try:
+            return self._rows[index]
+        except IndexError:
+            msg = (
+                f"{self._owner._label} '{self._name}'[{index!r}] is out of range for "
+                f"{len(self._rows)} rows"
+            )
+            raise IndexError(msg) from None
+        except TypeError:
+            msg = (
+                f"{self._owner._label} '{self._name}' is read by row, with a whole number or a "
+                f"slice; got {index!r}"
+            )
+            raise TypeError(msg) from None
 
     def __setitem__(self, index: int | slice, value: Any) -> None:
         """Assign to the rows `index` covers. See the class docstring."""
@@ -318,6 +443,8 @@ class Vector:
     # Constant for every instance of a generated subclass, so they live on the class and an
     # instance made in a callback sets only what varies.
     _label: str = "vector"
+    _aspect: str | None = None
+    """The setting an instance holds, such as ``"bounds"``; see `_new`."""
     _role: str | None = None
     """The role this class declares, set by each role base; see `role_of`."""
     _npoints: int | None = None
@@ -420,7 +547,7 @@ class Vector:
         example = self._fields[0] if self._fields else "x"
         msg = (
             f"{type(self).__name__} is a declaration, not a value. Set fields on the aspect "
-            f"that holds them, for example 'phase.state.bounds.{example} = (0, 1)'."
+            f"that holds them, for example 'phase.state.{example}.bounds = (0, 1)'."
         )
         raise TypeError(msg)
 
@@ -470,7 +597,9 @@ class Vector:
         return cached
 
     @classmethod
-    def _new(cls, kind: type[Kind], label: str, npoints: int | None = None) -> Any:
+    def _new(
+        cls, kind: type[Kind], label: str, npoints: int | None = None, aspect: str | None = None
+    ) -> Any:
         """Create an instance holding elements of `kind`.
 
         Parameters
@@ -481,6 +610,10 @@ class Vector:
             What to call this instance in a message, such as ``"phase 'boost' state bounds"``.
         npoints : int, optional
             The number of time points a row must cover, when that is known.
+        aspect : str, optional
+            The setting this instance holds, such as ``"bounds"``, when it is one. A setting is
+            written field first -- ``ph.state.r.bounds[:]`` -- so a message showing the form
+            that works has to know it.
 
         Returns
         -------
@@ -489,6 +622,7 @@ class Vector:
         """
         obj = object.__new__(cls._for(kind, label, npoints))
         object.__setattr__(obj, "_values", {})
+        object.__setattr__(obj, "_aspect", aspect)
         return obj
 
     # -- field access -------------------------------------------------------------------------
@@ -620,12 +754,15 @@ class Vector:
         and it takes one element. A block field has rows, and is written through them.
         """
         if spec.size is not None:
-            example = f"{name}[:]" if spec.size != 1 else f"{name}[0]"
+            # A setting is written field first, `r.bounds[:]`, so the form shown is that one;
+            # the bare `r[:]` would name the field alone, which takes no index.
+            target = f"{name}.{self._aspect}" if self._aspect else name
+            example = f"{target}[:]" if spec.size != 1 else f"{target}[0]"
             msg = (
                 f"{self._label} '{name}' has {spec.size} rows, so say which: "
                 f"'{example} = ...' gives every row the same, and an index or a slice gives "
-                f"rows their own. The bare name is refused because it cannot show which was "
-                f"meant."
+                f"rows their own. Assigning it whole is refused because that cannot show which "
+                f"was meant."
             )
             raise TypeError(msg)
         return kind.check(value, label=self._label, name=name, npoints=self._npoints)

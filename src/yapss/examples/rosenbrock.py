@@ -68,8 +68,8 @@ def setup() -> yapss.Problem:
         """Return the Rosenbrock function at the chosen point."""
         return rosenbrock(arg.parameter.x, arg.parameter.y)
 
-    problem.parameter.guess.x = -1.2
-    problem.parameter.guess.y = 1.0
+    problem.parameter.x.guess = -1.2
+    problem.parameter.y.guess = 1.0
 
     problem.ipopt_options.print_level = 5
     problem.ipopt_options.tol = 1e-10

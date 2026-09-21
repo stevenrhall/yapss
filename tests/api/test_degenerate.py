@@ -120,8 +120,8 @@ def test_a_problem_of_parameters_alone_solves():
     def objective(arg):
         return (arg.parameter.a - 2.0) ** 2
 
-    problem.parameter.bounds.a = (-10.0, 10.0)
-    problem.parameter.guess.a = 0.0
+    problem.parameter.a.bounds = (-10.0, 10.0)
+    problem.parameter.a.guess = 0.0
     problem.ipopt_options.print_level = 0
     assert problem.solve().objective == pytest.approx(0.0, abs=1e-12)
 

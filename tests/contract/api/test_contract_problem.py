@@ -231,8 +231,8 @@ def test_declared_discrete_constraints_need_a_callback() -> None:
         return arg[ph].final.x
 
     ph.time.guess = (0.0, 1.0)
-    p.discrete.bounds.d = (0.0, 0.0)
-    p.discrete.bounds.e[:] = (0.0, 0.0)
+    p.discrete.d.bounds = (0.0, 0.0)
+    p.discrete.e.bounds[:] = (0.0, 0.0)
     with raises(ValueError, "no discrete callback", at="validate"):
         p.validate()
 

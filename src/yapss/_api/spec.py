@@ -19,6 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
+from .fields import aspects_of
 from .sampled import coverage_complaint
 
 if TYPE_CHECKING:
@@ -118,10 +119,10 @@ def validate_problem(problem: Problem[Any, Any, Any]) -> None:
         if independent.guess is None:
             name = phase._independent
             complaints.append(f"{label} has no {name} guess; set 'ph.{name}.guess = (start, end)'")
-        complaints.extend(_unbounded(phase.path.bounds, f"{label} path"))
+        complaints.extend(_unbounded(aspects_of(phase.path).bounds, f"{label} path"))
         if independent.guess is not None:
             for what in ("state", "control"):
-                aspect = getattr(phase, what).guess
+                aspect = aspects_of(getattr(phase, what)).guess
                 complaints.extend(_uncovered(aspect, independent.guess, f"{label} {what} guess"))
     if not problem.phases and not problem._parameter_class._nrows:
         # Every count in this API may be zero, and the transcription holds at the bottom
@@ -150,7 +151,7 @@ def validate_problem(problem: Problem[Any, Any, Any]) -> None:
         complaints.append("the problem has no objective callback")
     if problem._discrete_class._fields and problem._discrete_function is None:
         complaints.append("discrete constraints are declared but there is no discrete callback")
-    complaints.extend(_unbounded(problem.discrete.bounds, "discrete constraint"))
+    complaints.extend(_unbounded(aspects_of(problem.discrete).bounds, "discrete constraint"))
     if problem.derivatives.method == "user":
         complaints.extend(_missing_derivatives(problem))
     if complaints:
@@ -265,20 +266,20 @@ def snapshot(problem: Problem[Any, Any, Any]) -> ProblemSpec:
             continuous=phase._continuous,
             continuous_jacobian=phase._continuous_jacobian,
             continuous_hessian=phase._continuous_hessian,
-            state_bounds=_values(phase.state.bounds),
-            state_initial=_values(phase.state.initial),
-            state_final=_values(phase.state.final),
-            state_guess=_values(phase.state.guess),
-            control_bounds=_values(phase.control.bounds),
-            control_guess=_values(phase.control.guess),
-            path_bounds=_values(phase.path.bounds),
-            integral_bounds=_values(phase.integral.bounds),
-            integral_guess=_values(phase.integral.guess),
-            state_scale=_values(phase.state.scale),
-            state_defect_scale=_values(phase.state.defect_scale),
-            control_scale=_values(phase.control.scale),
-            path_scale=_values(phase.path.scale),
-            integral_scale=_values(phase.integral.scale),
+            state_bounds=_values(aspects_of(phase.state).bounds),
+            state_initial=_values(aspects_of(phase.state).initial),
+            state_final=_values(aspects_of(phase.state).final),
+            state_guess=_values(aspects_of(phase.state).guess),
+            control_bounds=_values(aspects_of(phase.control).bounds),
+            control_guess=_values(aspects_of(phase.control).guess),
+            path_bounds=_values(aspects_of(phase.path).bounds),
+            integral_bounds=_values(aspects_of(phase.integral).bounds),
+            integral_guess=_values(aspects_of(phase.integral).guess),
+            state_scale=_values(aspects_of(phase.state).scale),
+            state_defect_scale=_values(aspects_of(phase.state).defect_scale),
+            control_scale=_values(aspects_of(phase.control).scale),
+            path_scale=_values(aspects_of(phase.path).scale),
+            integral_scale=_values(aspects_of(phase.integral).scale),
             time_initial=getattr(phase, phase._independent).initial,
             time_final=getattr(phase, phase._independent).final,
             time_guess=getattr(phase, phase._independent).guess,
@@ -295,13 +296,13 @@ def snapshot(problem: Problem[Any, Any, Any]) -> ProblemSpec:
         name=problem.name,
         phases=phases,
         discrete=problem._discrete_class,
-        discrete_bounds=_values(problem.discrete.bounds),
+        discrete_bounds=_values(aspects_of(problem.discrete).bounds),
         discrete_function=problem._discrete_function,
         parameter=problem._parameter_class,
-        parameter_bounds=_values(problem.parameter.bounds),
-        parameter_guess=_values(problem.parameter.guess),
-        parameter_scale=_values(problem.parameter.scale),
-        discrete_scale=_values(problem.discrete.scale),
+        parameter_bounds=_values(aspects_of(problem.parameter).bounds),
+        parameter_guess=_values(aspects_of(problem.parameter).guess),
+        parameter_scale=_values(aspects_of(problem.parameter).scale),
+        discrete_scale=_values(aspects_of(problem.discrete).scale),
         objective_function=objective,
         objective_gradient_function=problem._objective_gradient_function,
         objective_hessian_function=problem._objective_hessian_function,

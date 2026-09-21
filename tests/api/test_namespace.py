@@ -9,6 +9,7 @@ has the classes in front of it, and `Problem` is where the parameters arrive.
 import pytest
 
 import yapss
+from yapss._api.fields import aspects_of
 
 
 class State(yapss.State):
@@ -82,10 +83,10 @@ def test_a_parameter_may_not_share_a_phase_variable_s_name(name, role):
 
 def test_a_parameter_that_collides_with_no_phase_is_accepted():
     problem = yapss.Problem("p", phases=Phases, parameter=made(yapss.Parameter, "wind"))
-    assert problem.parameter.bounds._fields == ("wind",)
+    assert aspects_of(problem.parameter).bounds._fields == ("wind",)
 
 
 def test_a_discrete_name_may_match_a_phase_variable():
     # discrete constraints are outputs, like path and integral names
     problem = yapss.Problem("p", phases=Phases, discrete=made(yapss.Discrete, "h"))
-    assert problem.discrete.bounds._fields == ("h",)
+    assert aspects_of(problem.discrete).bounds._fields == ("h",)

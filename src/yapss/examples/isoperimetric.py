@@ -129,21 +129,21 @@ def setup() -> yapss.Problem:
     # Arc length runs from 0 to the perimeter, and unit speed is what makes it arc length.
     ph.s.initial = (0.0, 0.0)
     ph.s.final = (PERIMETER, PERIMETER)
-    ph.path.bounds.speed_squared = (1.0, 1.0)
+    ph.path.speed_squared.bounds = (1.0, 1.0)
 
     # The centroid at the origin, which fixes the circle's position rather than its shape.
-    ph.integral.bounds.x_moment = (0.0, 0.0)
-    ph.integral.bounds.y_moment = (0.0, 0.0)
+    ph.integral.x_moment.bounds = (0.0, 0.0)
+    ph.integral.y_moment.bounds = (0.0, 0.0)
 
-    problem.discrete.bounds.closure_x = (0.0, 0.0)
-    problem.discrete.bounds.closure_y = (0.0, 0.0)
+    problem.discrete.closure_x.bounds = (0.0, 0.0)
+    problem.discrete.closure_y.bounds = (0.0, 0.0)
 
     # A square of the right perimeter, so the guess satisfies the constraint it starts from.
     side = PERIMETER / 4
     corners = np.array([0.0, 0.25, 0.5, 0.75, 1.0]) * PERIMETER
     ph.s.guess = (0.0, PERIMETER)
-    ph.state.guess.x = yapss.interp(corners, side * np.array([0.5, 0.5, -0.5, -0.5, 0.5]))
-    ph.state.guess.y = yapss.interp(corners, side * np.array([0.5, -0.5, -0.5, 0.5, 0.5]))
+    ph.state.x.guess = yapss.interp(corners, side * np.array([0.5, 0.5, -0.5, -0.5, 0.5]))
+    ph.state.y.guess = yapss.interp(corners, side * np.array([0.5, -0.5, -0.5, 0.5, 0.5]))
 
     ph.mesh = yapss.Mesh.uniform(segments=3, points=12)
 

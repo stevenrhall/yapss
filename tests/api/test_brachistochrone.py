@@ -71,7 +71,7 @@ def test_a_phase_is_reached_by_handle_not_by_index(problem):
 def test_a_later_edit_does_not_alter_an_earlier_solution(problem):
     """Each solve snapshots the problem, so a continuation loop cannot rewrite its own past."""
     first = problem.solve()
-    problem.phases.slide.state.bounds.x = (0, 100)
+    problem.phases.slide.state.x.bounds = (0, 100)
     assert first.objective == pytest.approx(ANALYTIC, rel=1e-8)
     assert problem.solve().objective == pytest.approx(ANALYTIC, rel=1e-8)
 
