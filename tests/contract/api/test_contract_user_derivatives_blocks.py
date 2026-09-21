@@ -49,10 +49,16 @@ class Discrete(yapss.Discrete):
     close = yapss.scalar()
 
 
+class Run(yapss.Phase):
+    state: State
+    control: Control
+    integral: Integral
+
+
 class Phases(yapss.Phases):
     """One phase."""
 
-    run = yapss.phase(state=State, control=Control, integral=Integral)
+    run: Run
 
 
 def build():

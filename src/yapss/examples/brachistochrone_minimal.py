@@ -36,10 +36,17 @@ class Control(yapss.Control):
     u = yapss.scalar()
 
 
+class Slide(yapss.Phase):
+    """The bead's descent, built from the state and control above."""
+
+    state: State
+    control: Control
+
+
 class Phases(yapss.Phases):
     """One phase: the bead slides."""
 
-    slide = yapss.phase(state=State, control=Control)
+    slide: Slide
 
 
 def setup() -> yapss.Problem:

@@ -42,15 +42,30 @@ def test_parameter_must_be_a_parameter_declaration() -> None:
 
 
 def test_a_declaration_is_refused_in_the_wrong_role() -> None:
-    """A state handed to a phase as its control is refused where it was handed over.
+    """A state annotated as a phase's control is refused where it was annotated.
 
     Without the check the problem would build and solve, mislabelled throughout, and nothing
     would ever raise: the names a callback writes would simply be in the wrong places.
     """
     with raises(
-        TypeError, "takes a subclass of yapss.Control", "subclasses yapss.State", at="yapss.phase("
+        TypeError,
+        "Wrong.control is annotated State",
+        "subclasses yapss.State",
+        "takes a subclass of yapss.Control",
+        at="class Wrong",
     ):
-        yapss.phase(state=State, control=State)  # type: ignore[type-var]
+
+        class Wrong(yapss.Phase):
+            state: State
+            control: State  # type: ignore[assignment]
+
+
+def test_a_swapped_annotation_is_named() -> None:
+    """A control annotated as the state is most likely a swap, so the message says which."""
+    with raises(TypeError, "Did you mean 'control: Control'?", at="class Swapped"):
+
+        class Swapped(yapss.Phase):
+            state: Control  # type: ignore[assignment]
 
 
 def test_a_swapped_argument_is_named() -> None:
@@ -83,8 +98,12 @@ def test_the_message_names_the_phase_the_parameter_collided_in() -> None:
     class Other(yapss.Parameter):
         u = yapss.scalar()
 
+    class Early(yapss.Phase):
+        state: State
+        control: Control
+
     class TwoPhases(yapss.Phases):
-        early = yapss.phase(state=State, control=Control)
+        early: Early
 
     with raises(ValueError, "phase 'early'", at="yapss.Problem("):
         yapss.Problem("p", phases=TwoPhases, parameter=Other)
@@ -176,8 +195,12 @@ def test_replace_true_replaces_the_callback() -> None:
 def test_a_problem_with_no_objective_is_incomplete() -> None:
     """A problem states what is to be made smallest; without it there is nothing to solve."""
 
+    class Only(yapss.Phase):
+        state: State
+        control: Control
+
     class OnlyPhase(yapss.Phases):
-        only = yapss.phase(state=State, control=Control)
+        only: Only
 
     p = yapss.Problem("p", phases=OnlyPhase)
     ph = p.phases.only
@@ -214,8 +237,12 @@ def test_a_phase_with_no_continuous_callback_is_incomplete() -> None:
 def test_declared_discrete_constraints_need_a_callback() -> None:
     """Declaring a constraint and never computing it is a mistake, not an option."""
 
+    class Only(yapss.Phase):
+        state: State
+        control: Control
+
     class OnlyPhase(yapss.Phases):
-        only = yapss.phase(state=State, control=Control)
+        only: Only
 
     p = yapss.Problem("p", phases=OnlyPhase, discrete=Discrete)
     ph = p.phases.only
@@ -304,9 +331,19 @@ def test_a_declaration_may_not_be_inherited_from() -> None:
 
 
 def test_a_phase_takes_role_declarations() -> None:
-    """Each role is a declaration, and the message names the role that was not one."""
-    with raises(TypeError, "phase(state=) takes a subclass of yapss.State", at="yapss.phase"):
-        yapss.phase(state=object)
+    """Each role is a declaration, and the message names the slot that was not given one."""
+    with raises(TypeError, "Wrong.state is annotated", "yapss.State", at="class Wrong"):
+
+        class Wrong(yapss.Phase):
+            state: object  # type: ignore[assignment]
+
+
+def test_a_phase_has_a_state() -> None:
+    """The other roles may be omitted, and a phase with none of them still has a state."""
+    with raises(TypeError, "Bare declares no state", "state: ", at="class Bare"):
+
+        class Bare(yapss.Phase):
+            control: Control
 
 
 def test_a_phase_has_one_namespace() -> None:
@@ -315,44 +352,107 @@ def test_a_phase_has_one_namespace() -> None:
     class Same(yapss.Control):
         x = yapss.scalar()
 
-    with raises(ValueError, "both declare 'x'", "one namespace", at="yapss.phase"):
-        yapss.phase(state=State, control=Same)
+    with raises(ValueError, "both declare 'x'", "one namespace", at="class Clash"):
+
+        class Clash(yapss.Phase):
+            state: State
+            control: Same
 
 
 def test_the_independent_variable_shares_that_namespace() -> None:
     """Naming it after a state is the same collision, and the message says how to rename."""
-    with raises(ValueError, "one namespace", at="yapss.phase"):
-        yapss.phase(state=State, control=Control, x=yapss.scalar())
+    with raises(ValueError, "one namespace", "yapss.Independent", at="class Clash"):
+
+        class Clash(yapss.Phase):
+            state: State
+            control: Control
+            x: yapss.Independent
 
 
 def test_a_phase_takes_one_independent_variable() -> None:
     """Two would leave no way to say which a guess or a bound is about."""
-    with raises(
-        (TypeError, ValueError),
-        "one independent variable",
-        at="yapss.phase",
-    ):
-        yapss.phase(state=State, control=Control, r=yapss.scalar(), s=yapss.scalar())
+    with raises(TypeError, "one independent variable", "'r', 's'", at="class Twice"):
+
+        class Twice(yapss.Phase):
+            state: State
+            r: yapss.Independent
+            s: yapss.Independent
 
 
-def test_the_independent_variable_is_a_scalar() -> None:
-    """It is one value, so it is declared as a scalar and never as a vector."""
-    with raises(TypeError, "is one value", "yapss.scalar()", at="yapss.phase"):
-        yapss.phase(state=State, control=Control, r=yapss.vector(3))
+def test_the_independent_variable_is_not_a_phase_attribute() -> None:
+    """A phase already has a ``mesh``, so a variable of that name could not be reached."""
+    with raises(TypeError, "already a phase's own attribute", at="class Meshed"):
+
+        class Meshed(yapss.Phase):
+            state: State
+            mesh: yapss.Independent  # type: ignore[assignment]
 
 
 def test_a_misspelled_role_is_refused_with_a_suggestion() -> None:
-    """`phase(states=...)` is a typo, not a new role and not an independent variable."""
-    with raises(TypeError, "unexpected keyword 'controls'", at="yapss.phase"):
-        yapss.phase(state=State, controls=Control)
+    """`controls: Control` is a typo, not a new role and not an independent variable."""
+    with raises(
+        TypeError, "Typo.controls is not one of", "Did you mean 'control'?", at="class Typo"
+    ):
+
+        class Typo(yapss.Phase):
+            state: State
+            controls: Control
+
+
+def test_a_role_under_an_unrelated_name_is_named() -> None:
+    """With nothing close to suggest, the vector's own role says which slot was meant."""
+    with raises(TypeError, "Control is a yapss.Control: did you mean 'control'?", at="class Odd"):
+
+        class Odd(yapss.Phase):
+            state: State
+            thrust: Control
+
+
+def test_anything_else_annotated_on_a_phase_is_refused() -> None:
+    """An annotation that is neither a role nor the independent variable says what both are."""
+    with raises(TypeError, "is annotated float", "yapss.Independent", at="class Odd"):
+
+        class Odd(yapss.Phase):
+            state: State
+            r: float
+
+
+def test_a_phase_is_annotated_not_assigned() -> None:
+    """``state = State`` for ``state: State`` would leave the slot empty, so it is refused."""
+    with raises(TypeError, "Old.state is assigned", "annotated, not assigned", at="class Old"):
+
+        class Old(yapss.Phase):
+            state = State
+
+
+def test_a_phase_s_shape_may_not_be_inherited_from() -> None:
+    """A shape is declared whole where it is used, as a vector's fields are."""
+
+    class Shape(yapss.Phase):
+        state: State
+
+    with raises(TypeError, "cannot inherit from Shape", at="class Child"):
+
+        class Child(Shape):
+            control: Control
+
+
+def test_the_base_phase_is_not_a_phase() -> None:
+    """``yapss.Phase`` is a shape to subclass, so naming a phase with it is refused."""
+    with raises(TypeError, "is not a phase's shape", at="class Bare"):
+
+        class Bare(yapss.Phases):
+            only: yapss.Phase
 
 
 def test_a_phases_declaration_holds_only_phases() -> None:
-    """The same rule as a vector's, for the class that declares phases."""
-    with raises(TypeError, "is not a phase", "yapss.phase(", at="class Wrong"):
+    """Each phase is annotated with its shape, and anything else is refused, naming it."""
+    with raises(
+        TypeError, "Wrong.first is annotated State", "subclass of yapss.Phase", at="class Wrong"
+    ):
 
         class Wrong(yapss.Phases):
-            first = 1.0
+            first: State
 
 
 def test_a_phase_cannot_be_assigned_after_declaration() -> None:
@@ -376,18 +476,20 @@ def test_a_registration_is_called_not_assigned() -> None:
 
 def test_a_phases_declaration_may_not_be_inherited_from() -> None:
     """The same rule as a vector's: the phases are declared where they are used."""
-    with raises(TypeError, "cannot inherit from the phase declaration", at="class Child"):
+    with raises(TypeError, "cannot inherit from Phases", at="class Child"):
 
         class Child(Phases):
-            third = yapss.phase(state=State, control=Control)
+            pass
 
 
-def test_a_phase_is_declared_without_an_annotation() -> None:
-    """An annotation would make it a class variable rather than a phase."""
-    with raises(TypeError, "is annotated", "without annotations", at="class Annotated"):
+def test_a_phase_is_annotated_not_assigned_among_phases() -> None:
+    """An assignment among the phases is refused, and the message gives the annotation."""
+    with raises(
+        TypeError, "Assigned.first is assigned", "'first: <a yapss.Phase", at="class Assigned"
+    ):
 
-        class Annotated(yapss.Phases):
-            first: object = yapss.phase(state=State, control=Control)
+        class Assigned(yapss.Phases):
+            first = State
 
 
 def test_a_phase_callback_must_be_callable() -> None:

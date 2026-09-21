@@ -30,10 +30,15 @@ class Control(yapss.Control):
     theta = yapss.scalar()
 
 
+class Fall(yapss.Phase):
+    state: State
+    control: Control
+
+
 class Phases(yapss.Phases):
     """One phase: the fall."""
 
-    fall = yapss.phase(state=State, control=Control)
+    fall: Fall
 
 
 def build() -> tuple[yapss.Problem, object]:

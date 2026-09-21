@@ -67,8 +67,15 @@ class Discrete(yapss.Discrete):
     total = yapss.scalar()
 
 
+class Only(yapss.Phase):
+    state: State
+    control: Control
+    path: Path
+    integral: Integral
+
+
 class Phases(yapss.Phases):
-    only = yapss.phase(state=State, control=Control, path=Path, integral=Integral)
+    only: Only
 
 
 def _make(user):

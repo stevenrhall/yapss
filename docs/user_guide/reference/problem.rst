@@ -174,15 +174,37 @@ natural to default to "State" and "Control". But for multi-phase problems, the s
 different phases don't have to have the same shape, so naming vectors more descriptively can be
 helpful.
 
-Once the vector definitions are complete, the phases of the problem can be defined. This problem has
-only one phase, and no path constraints or integrals, so the definition is straightforward:
+Once the vector definitions are complete, the phases of the problem can be defined, in two
+steps. First, the shape of a phase is a subclass of `yapss.Phase`, whose annotations say which
+vector class plays each role. A ``state`` is required; ``control``, ``path``, and ``integral``
+are optional, and a phase that omits one has none of it. This problem has no path constraints
+or integrals:
+
+.. doctest:: example
+
+    >>> class Flight(yapss.Phase):
+    ...     """The shape of the flight: the rocket's state, and its thrust."""
+    ...
+    ...     state: RocketState
+    ...     control: Thrust
+
+Then the phases themselves are named in a subclass of `yapss.Phases`, each annotated with its
+shape. This problem has only one:
 
 .. doctest:: example
 
     >>> class Phases(yapss.Phases):
     ...     """Define the single phase of this problem."""
     ...
-    ...     flight = yapss.phase(state=RocketState, control=Thrust)
+    ...     flight: Flight
+
+A shape is not a phase, so two phases may share one: in the three-phase version of this
+problem, the boost and coast arcs are both annotated with one shape, and only the singular arc
+between them, which adds a path constraint, has its own.
+
+Each phase's independent variable is called ``time`` unless its shape names it otherwise, with
+one more annotation of type `yapss.Independent`. A phase that runs over a radius declares
+``r: yapss.Independent``, and its extent is then set as ``ph.r.initial`` and ``ph.r.final``.
 
 Then instantiate the problem, by providing the name of the problem and the phase information:
 

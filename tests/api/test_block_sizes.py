@@ -38,8 +38,12 @@ def declarations():
 def problem():
     slide_class, angle_class = declarations()
 
+    class SlidePhase(yapss.Phase):
+        state: slide_class
+        control: angle_class
+
     class Phases(yapss.Phases):
-        slide = yapss.phase(state=slide_class, control=angle_class)
+        slide: SlidePhase
 
     problem = yapss.Problem("block sizes", phases=Phases)
     ph = problem.phases.slide

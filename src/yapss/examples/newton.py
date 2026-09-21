@@ -58,15 +58,19 @@ class Integral(yapss.Integral):
     """Pressure drag on the nosecone."""
 
 
+class Nose(yapss.Phase):
+    """The nosecone's profile, run over the radius ``r`` rather than time."""
+
+    state: State
+    control: Control
+    integral: Integral
+    r: yapss.Independent
+
+
 class Phases(yapss.Phases):
     """One phase, run over the radius rather than over time."""
 
-    nose = yapss.phase(
-        state=State,
-        control=Control,
-        integral=Integral,
-        r=yapss.scalar(),
-    )
+    nose: Nose
 
 
 def setup(y_max: float = 1.0) -> yapss.Problem:

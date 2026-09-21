@@ -426,8 +426,13 @@ class Block(yapss.State):
     m = yapss.scalar()
 
 
+class SlidePhase(yapss.Phase):
+    state: Slide
+    control: Angle
+
+
 class Phases(yapss.Phases):
-    slide = yapss.phase(state=Slide, control=Angle)
+    slide: SlidePhase
 
 
 def bare_problem():
@@ -737,8 +742,13 @@ def test_a_problem_without_discrete_constraints_needs_neither(problem):
 # --------------------------------------------------- block fields: what the row index does
 
 
+class Only(yapss.Phase):
+    state: Block
+    control: Angle
+
+
 class BlockPhases(yapss.Phases):
-    only = yapss.phase(state=Block, control=Angle)
+    only: Only
 
 
 def _block_jacobian():

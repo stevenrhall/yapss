@@ -125,8 +125,8 @@ class PhaseColumns:
 
     The state, the control, the independent variable and the problem's parameters are one
     space, which is why a derivative names a variable without saying which vector it came
-    from. `phase()` and `Problem.__init__` between them guarantee those names do not collide,
-    so this mapping is well defined.
+    from. A phase's declaration and `Problem.__init__` between them guarantee those names do
+    not collide, so this mapping is well defined.
 
     Attributes
     ----------

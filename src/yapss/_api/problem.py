@@ -32,7 +32,12 @@ if TYPE_CHECKING:
 
 __all__ = ["Problem"]
 
-PH_co = TypeVar("PH_co", bound=Phases, default=Phases, covariant=True)
+# The default is `Any`, not `Phases`, unlike the other two. A bare `yapss.Problem` -- the
+# annotation a helper taking any problem writes -- cannot say which phases were declared, so it
+# answers any name; a problem built from a declaration is typed by it, and a misspelled phase
+# is reported there. The base class cannot do both: a permissive reader on `Phases` would be
+# inherited by every declaration and blind the checker to every phase name.
+PH_co = TypeVar("PH_co", bound=Phases, default=Any, covariant=True)
 """The class declaring the problem's phases."""
 D_co = TypeVar("D_co", bound=Discrete, default=Discrete, covariant=True)
 """The class declaring the problem's discrete constraint groups."""
@@ -139,8 +144,8 @@ def _check_parameters(parameter: type[Vector], phases: Any) -> None:
     Jacobian. The phase declaration cannot check this half, because the parameters are the
     problem's and arrive here; this is where they meet.
 
-    The message names the phase, which is what distinguishes this from the half `phase()`
-    checks -- there the two classes are the actionable thing, here it is which phase the
+    The message names the phase, which is what distinguishes this from the half a phase's
+    declaration checks -- there the two classes are the actionable thing, here it is which phase the
     parameter collided in.
     """
     if not parameter._fields:
@@ -384,9 +389,9 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
                 f"'class Phases(yapss.Phases)'; got {phases!r}"
             )
             raise TypeError(msg)
-        roles = ("discrete", "parameter")
-        declared_role(discrete, "Problem", "discrete", Discrete, roles)
-        declared_role(parameter, "Problem", "parameter", Parameter, roles)
+        roles: dict[str, type[Vector]] = {"discrete": Discrete, "parameter": Parameter}
+        declared_role(discrete, "Problem", "discrete", roles)
+        declared_role(parameter, "Problem", "parameter", roles)
 
         self._name = name
         self._label = "problem"

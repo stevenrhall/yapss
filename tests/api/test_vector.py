@@ -421,7 +421,7 @@ def test_every_declared_setting_actually_exists():
     written in different places, so they can drift apart; this walks every container a problem
     reaches and reads each one.
     """
-    from yapss._api import Phases, Problem, phase
+    from yapss._api import Phase, Phases, Problem
     from yapss._api.containers import Container
     from yapss._api.fields import Fields, aspects_of
 
@@ -443,8 +443,14 @@ def test_every_declared_setting_actually_exists():
     class P(Parameter):
         p = scalar()
 
+    class Only(Phase):
+        state: S
+        control: C
+        path: H
+        integral: Q
+
     class OnePhase(Phases):
-        only = phase(state=S, control=C, path=H, integral=Q)
+        only: Only
 
     problem = Problem("t", phases=OnePhase, discrete=D, parameter=P)
     seen = []

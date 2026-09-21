@@ -2,20 +2,37 @@
 
 Phase declarations and the setup aspects reached from a phase.
 
-A phase is declared by naming the vector classes it uses::
+A phase's shape is a class, whose annotations name the vectors it is built from, and a
+problem's phases are a class whose annotations name each phase and give it a shape::
+
+    class Arc(yapss.Phase):
+        state: Rocket
+        control: Thrust
+
+    class Singular(yapss.Phase):
+        state: Rocket
+        control: Thrust
+        path: SingularArc
 
     class Phases(yapss.Phases):
-        boost = yapss.phase(state=Rocket, control=Thrust)
-        singular = yapss.phase(state=Rocket, control=Thrust, path=SingularArc)
+        boost: Arc
+        singular: Singular
+        coast: Arc
 
-The declaration fixes what every aspect of that phase contains, so ``ph.state.bounds``,
-``ph.state.guess``, and the ``dynamics`` a callback fills all carry the same field names.
+A shape is not a phase: two phases may share one, as boost and coast do. Declaring both in
+class bodies is what lets a type checker follow them -- ``problem.phases.boost`` is an `Arc`,
+and its ``state`` a `Rocket` -- and what refuses a state annotated where a control belongs,
+since the base class declares each slot's role and the override must agree with it.
+
+The shape fixes what every aspect of a phase contains, so ``ph.state.x.bounds``,
+``ph.state.x.guess``, and the ``dynamics`` a callback fills all carry the same field names.
 
 """
 
 from __future__ import annotations
 
 import inspect
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, TypeAlias, cast
 
@@ -28,12 +45,12 @@ from .containers import Container, HasRegistry, Registry, is_callable, is_subcla
 from .fields import Fields
 from .kinds import Bounds, Guess, ScalarGuess, Scale, is_bool, is_pair, is_real
 from .mesh import Mesh
-from .vector import Control, Field, Integral, Path, State, Vector, role_of
+from .vector import Control, Integral, Path, State, Vector, role_of
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-__all__ = ["AnyPhase", "Phase", "Phases", "phase"]
+__all__ = ["AnyPhase", "Independent", "Phase", "Phases"]
 
 # Each parameter is bounded by its role, which is what makes a state handed over as a control a
 # type error. Each default is the role itself: a role class declares no fields, so it says what
@@ -62,7 +79,7 @@ rather than an unknown.
 
 @dataclass(frozen=True, slots=True)
 class PhaseDeclaration:
-    """What `phase` records. Replaced by a `Phase` when the problem is built."""
+    """What a `Phase` subclass declares, read from its annotations when the class is made."""
 
     state: type[Vector]
     control: type[Vector]
@@ -70,42 +87,49 @@ class PhaseDeclaration:
     integral: type[Vector]
     independent: str
     """What the phase calls its independent variable, which is `time` unless it named it."""
-    independent_field: Field
-    """The field that named it, which records its size and nothing else."""
 
 
 def declared_role(
-    value: object, call: str, argument: str, role: type[Vector], keywords: tuple[str, ...]
+    value: object,
+    owner: str,
+    slot: str,
+    slots: dict[str, type[Vector]],
+    *,
+    annotation: bool = False,
 ) -> type[Vector]:
     """Return `value` if it is a declaration of `role`, or refuse it naming what it is.
 
-    The role is read from the class hierarchy, so a state handed over as a control is refused
-    here, at the line that made the mistake -- which, without the check, would build and solve a
-    problem mislabelled throughout, and never raise at all.
+    The role is read from the class hierarchy, so a state put where a control belongs is refused
+    at the line that did it -- which, without the check, would build and solve a problem
+    mislabelled throughout, and never raise at all.
 
-    The likeliest way to get this wrong is to swap two arguments, so when the class belongs to
-    another keyword of the same call the message names that keyword. Changing the class's base
-    would also silence the error, and would be the wrong fix.
+    The likeliest way to get this wrong is to swap two, so when the class belongs in another
+    slot of the same owner the message names that slot. Changing the class's base would also
+    silence the error, and would be the wrong fix.
 
     Parameters
     ----------
     value : object
-        What was passed.
-    call : str
-        The call it was passed to, for the message, such as ``"phase"``.
-    argument : str
-        The keyword it was passed as.
-    role : type[Vector]
-        The role that keyword takes.
-    keywords : tuple of str
-        Every role keyword of the same call, so a swapped argument can be named.
+        What was given.
+    owner : str
+        What it was given to: a call such as ``"Problem"``, or a class such as ``"Slide"``.
+    slot : str
+        The keyword or annotation it was given as.
+    slots : dict
+        Every role slot of the same owner and the role each takes, so the slot's own role is
+        known and a swapped one can be named.
+    annotation : bool, default False
+        Whether the slot is an annotation in a class body rather than a call's keyword, which
+        is only a matter of how the message spells it.
     """
+    role = slots[slot]
     base = f"yapss.{role.__name__}"
+    where = f"{owner}.{slot} is annotated" if annotation else f"{owner}({slot}=) takes"
     if not is_subclass(value, Vector):
-        msg = (
-            f"{call}({argument}=) takes a subclass of {base}, such as "
-            f"'class X({base})'; got {value!r}"
-        )
+        if annotation:
+            msg = f"{where} {value!r}; it takes a subclass of {base}, such as 'class X({base})'"
+        else:
+            msg = f"{where} a subclass of {base}, such as 'class X({base})'; got {value!r}"
         raise TypeError(msg)
     cls = cast("type[Vector]", value)
     actual = role_of(cls)
@@ -113,13 +137,23 @@ def declared_role(
         return cls
     if actual is None:
         msg = (
-            f"{call}({argument}=) takes a subclass of {base}, but {cls.__name__} has no role. "
+            f"{owner}.{slot} takes a subclass of {base}, but {cls.__name__} has no role. "
             f"Declare it as 'class {cls.__name__}({base})'."
         )
+        raise TypeError(msg)
+    if annotation:
+        msg = (
+            f"{where} {cls.__name__}, which subclasses yapss.{actual.title()}; it takes a "
+            f"subclass of {base}."
+        )
+        if actual in slots:
+            msg += f" Did you mean '{actual}: {cls.__name__}'?"
     else:
-        msg = f"{call}({argument}=) takes a subclass of {base}, but {cls.__name__} subclasses "
-        msg += f"yapss.{actual.title()}."
-        if actual in keywords:
+        msg = (
+            f"{where} a subclass of {base}, but {cls.__name__} subclasses "
+            f"yapss.{actual.title()}."
+        )
+        if actual in slots:
             msg += f" Did you mean {actual}={cls.__name__}?"
     raise TypeError(msg)
 
@@ -127,80 +161,96 @@ def declared_role(
 DEFAULT_INDEPENDENT = "time"
 """What a phase's independent variable is called when the phase does not name it."""
 
-_ROLES = ("state", "control", "path", "integral")
+_ROLES: dict[str, type[Vector]] = {
+    "state": State,
+    "control": Control,
+    "path": Path,
+    "integral": Integral,
+}
+"""A phase's slots and the role each takes, in the order a phase is declared."""
+
+_RESERVED = ("mesh", "register", "name", "index")
+"""A phase's own attributes, which its independent variable cannot also be called."""
 
 
-# A type checker solves a type parameter from an argument that was passed, never from the
-# default of one that was not, so an omitted `control`, `path` or `integral` resolves to the
-# type parameter's own default -- the role, which declares no fields -- rather than leaving the
-# whole declaration untyped.
-def phase(
-    *,
-    state: type[S_co],
-    # The role itself is the declared default of each of these parameters, so an omitted
-    # argument resolves to it rather than leaving the phase untyped. A type checker still
-    # measures the default *value* against `type[C_co]` for an arbitrary `C`, which it cannot
-    # satisfy, hence the three waivers.
-    control: type[C_co] = Control,  # type: ignore[assignment]
-    path: type[P_co] = Path,  # type: ignore[assignment]
-    integral: type[I_co] = Integral,  # type: ignore[assignment]
-    **independent: Any,
-) -> Phase[S_co, C_co, P_co, I_co]:
-    """Declare one phase of a problem.
+def _not_a_slot(owner: str, name: str, value: object) -> str:
+    """Return the message for an annotation that is neither a role slot nor `Independent`.
+
+    A vector class under an unknown name is a misspelled slot, and is answered as one, since
+    that is far likelier than an independent variable annotated with the wrong type.
+    """
+    hint = suggest(name, tuple(_ROLES))
+    if is_subclass(value, Vector):
+        role = role_of(cast("type[Vector]", value))
+        if role in _ROLES and not hint:
+            hint = f" {_named(value)} is a yapss.{role.title()}: did you mean '{role}'?"
+        return (
+            f"{owner}.{name} is not one of a phase's slots, which are "
+            f"{', '.join(_ROLES)}.{hint}"
+        )
+    return (
+        f"{owner}.{name} is annotated {_named(value)}. A phase annotates its vectors as "
+        f"{', '.join(_ROLES)}, and names its independent variable with "
+        f"'{name}: yapss.Independent'.{hint}"
+    )
+
+
+def own_annotations(cls: type, scope: dict[str, Any]) -> dict[str, Any]:
+    """Return the annotations `cls` declares itself, resolved to the objects they name.
+
+    They are read from the finished class, not its namespace, which is the one place Python 3.11
+    through 3.14 agree: 3.14 evaluates annotations lazily and puts ``__annotate_func__`` in the
+    namespace in place of ``__annotations__``. Only the class's own are read, so what a
+    declaration left out can be told from what it said.
+
+    A module that begins ``from __future__ import annotations`` gives strings. They are resolved
+    against the module and against `scope`, the namespace the class statement ran in, so a
+    class declared inside a function may name another declared there.
 
     Parameters
     ----------
-    state : type[State]
-        The class naming the phase's states.
-    control : type[Control], optional
-        The class naming the phase's controls; none, if omitted.
-    path : type[Path], optional
-        The class naming the phase's path constraints; none, if omitted.
-    integral : type[Integral], optional
-        The class naming the phase's integrals; none, if omitted.
-    **independent : Field
-        One further keyword names the phase's independent variable, which is otherwise
-        ``time``. The keyword is the name, as it is in a vector's class body, and its value is
-        a scalar: ``yapss.phase(state=Nose, r=yapss.scalar())``.
+    cls : type
+        The class being declared.
+    scope : dict
+        The local namespace of the code that declared it.
 
     Returns
     -------
-    Phase
-        A marker recording the declaration. YAPSS replaces it with the `Phase` of that name
-        when the problem is built, so the marker itself is never seen again. It is *typed* as
-        the `Phase` it becomes, which is what lets a type checker follow a declared phase from
-        ``problem.phases.<name>`` down to the fields of its state and control.
+    dict
+        Each annotated name, mapped to what it names.
     """
-    name, marker = _independent(independent)
-    _check_namespace(
-        declared_role(state, "phase", "state", State, _ROLES),
-        declared_role(control, "phase", "control", Control, _ROLES),
-        name,
-    )
-    return cast(
-        "Phase[S_co, C_co, P_co, I_co]",
-        PhaseDeclaration(
-            state=declared_role(state, "phase", "state", State, _ROLES),
-            control=declared_role(control, "phase", "control", Control, _ROLES),
-            path=declared_role(path, "phase", "path", Path, _ROLES),
-            integral=declared_role(integral, "phase", "integral", Integral, _ROLES),
-            independent=name,
-            independent_field=marker,
-        ),
-    )
+    try:
+        return inspect.get_annotations(cls, eval_str=True, locals=scope)
+    except NameError as exc:
+        msg = (
+            f"{cls.__name__}: an annotation names {exc.name!r}, which is not defined where "
+            f"{cls.__name__} is. The classes a declaration names are declared before it."
+        )
+        raise NameError(msg) from None
 
 
-def _check_namespace(state: type[Vector], control: type[Vector], independent: str) -> None:
+def _declaring_scope() -> dict[str, Any]:
+    """Return the local namespace of the class statement being executed.
+
+    Called from an ``__init_subclass__``, which Python calls from inside the creation of the
+    class, so the caller's caller is the code that wrote ``class ...:``.
+    """
+    return dict(sys._getframe(2).f_locals)
+
+
+def _check_namespace(
+    owner: str, state: type[Vector], control: type[Vector], independent: str
+) -> None:
     """Refuse a phase whose states, controls and independent variable share a name.
 
     Those three are one namespace, because that is what they are: the columns of the phase's
     Jacobian, which a derivative names without saying which vector it came from. A name
     belonging to two of them would name two columns.
 
-    The check is here, at the call that brought the classes together, because that is where the
-    collision was made -- and the message names the two classes rather than the phase, since
-    renaming a member of one of them is the fix. The parameters are not here to be checked;
-    they arrive as an argument to `Problem`, which checks them against this namespace there.
+    The check is made where the classes are brought together, in the phase's class body, and
+    the message names the two classes rather than the phase, since renaming a member of one of
+    them is the fix. The parameters are not here to be checked; they arrive as an argument to
+    `Problem`, which checks them against this namespace there.
 
     Path and integral names are not in it. They are outputs, so they appear on the other side
     of a derivative and may collide with a variable freely.
@@ -208,8 +258,8 @@ def _check_namespace(state: type[Vector], control: type[Vector], independent: st
     shared = sorted(set(state._fields) & set(control._fields))
     if shared:
         msg = (
-            f"phase(state={state.__name__}, control={control.__name__}): both declare "
-            f"{shared[0]!r}. A phase's states, controls and independent variable are one "
+            f"{owner}: its state {state.__name__} and its control {control.__name__} both "
+            f"declare {shared[0]!r}. A phase's states, controls and independent variable are one "
             f"namespace, so their names must differ; rename it in one of the two classes."
         )
         raise ValueError(msg)
@@ -221,89 +271,77 @@ def _check_namespace(state: type[Vector], control: type[Vector], independent: st
                 else "the phase's independent variable, which is called 'time' by default"
             )
             msg = (
-                f"phase({role}={declaration.__name__}): {declaration.__name__} declares "
-                f"{independent!r} as a {role}, and that is also {whose}. They are one "
-                f"namespace, so their names must differ; rename the {role}, or name the "
-                f"independent variable something else with "
-                f"'phase(..., <name>=yapss.scalar())'."
+                f"{owner}: its {role} {declaration.__name__} declares {independent!r}, and that "
+                f"is also {whose}. They are one namespace, so their names must differ; rename "
+                f"the {role}, or name the independent variable something else with "
+                f"'<name>: yapss.Independent'."
             )
             raise ValueError(msg)
 
 
-def _independent(given: dict[str, Any]) -> tuple[str, Field]:
-    """Return the name and the field of the phase's independent variable.
+def _assigned(cls: type) -> list[str]:
+    """Return the public names a declaring class assigns in its body.
 
-    A keyword `phase` does not know is the independent variable's name -- which is what makes
-    the name arrive the way a field's name always does, from where it is bound. The value must
-    be a `scalar()`, and that is what keeps a misspelled role a misspelled role: `contrl=Thrust`
-    passes a vector class, is not a field, and is refused with the suggestion.
+    A declaration is made of annotations alone, and an assignment among them is nearly always
+    an annotation mistyped -- ``state = Position`` for ``state: Position`` -- which would
+    otherwise leave the slot silently empty. Refusing now is what can be relaxed later; the
+    other way is not.
     """
-    if not given:
-        return DEFAULT_INDEPENDENT, Field()
-    for name, value in given.items():
-        if not isinstance(value, Field):
-            msg = (
-                # a vector class under an unknown keyword is a misspelled role, not an
-                # independent variable, and that is the message it should get
-                f"phase() got an unexpected keyword '{name}'.{suggest(name, _ROLES)}"
-                if is_subclass(value, Vector)
-                else (
-                    f"phase({name}=) names the phase's independent variable, so it takes a "
-                    f"scalar: '{name}=yapss.scalar()'; got {value!r}."
-                    f"{suggest(name, _ROLES)}"
-                )
-            )
-            raise TypeError(msg)
-    if len(given) > 1:
-        names = ", ".join(repr(name) for name in given)
-        msg = f"a phase has one independent variable, but {names} were given as fields"
-        raise TypeError(msg)
-    name, marker = next(iter(given.items()))
-    if marker.size is not None:
-        msg = (
-            f"phase({name}=) names the independent variable, which is one value: write "
-            f"'{name}=yapss.scalar()', not 'yapss.vector({marker.size})'"
-        )
-        raise TypeError(msg)
-    return name, marker
+    return [name for name in vars(cls) if not name.startswith("_")]
+
+
+def _named(value: object) -> str:
+    """Return how an annotation is named in a message: a class by its name, else its repr."""
+    return value.__name__ if isinstance(value, type) else repr(value)
 
 
 class Phases:
-    """Base of a problem's phase declaration. Subclass it and name the phases.
+    """Base of a problem's phases. Subclass it and annotate each phase with its shape.
 
-    The subclass is passed to `Problem`, which instantiates it; each name then gives the
-    `Phase` handle used to set that phase up and to reach it in callbacks and solutions.
+    Each annotation names a phase and gives it a `Phase` subclass, and the order of the
+    annotations is the order of the phases::
+
+        class Phases(yapss.Phases):
+            boost: Arc
+            coast: Arc
+
+    The subclass is passed to `Problem`, which instantiates it; each name then gives the phase,
+    an instance of its shape, used to set that phase up and to reach it in callbacks and
+    solutions.
     """
 
-    _declared: dict[str, PhaseDeclaration] = {}  # noqa: RUF012
+    _declared: dict[str, type[AnyPhase]] = {}  # noqa: RUF012
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Collect the declared phases, in declaration order."""
         super().__init_subclass__(**kwargs)
         for base in cls.__bases__:
-            if base is not Phases and issubclass(base, Phases) and base._declared:
-                msg = f"{cls.__name__} cannot inherit from the phase declaration {base.__name__}"
+            if base is not Phases and issubclass(base, Phases):
+                msg = (
+                    f"{cls.__name__} cannot inherit from {base.__name__}, which already "
+                    f"declares a problem's phases. Subclass yapss.Phases."
+                )
                 raise TypeError(msg)
-        annotated = [n for n in inspect.get_annotations(cls) if not n.startswith("_")]
-        if annotated:
+        assigned = _assigned(cls)
+        if assigned:
             msg = (
-                f"{cls.__name__}.{annotated[0]} is annotated. Phases are declared without "
-                f"annotations: write '{annotated[0]} = yapss.phase(state=...)'."
+                f"{cls.__name__}.{assigned[0]} is assigned. A problem's phases are annotated "
+                f"with their shape, not assigned: write '{assigned[0]}: <a yapss.Phase "
+                f"subclass>'."
             )
             raise TypeError(msg)
-        declared: dict[str, PhaseDeclaration] = {}
-        for name, value in list(cls.__dict__.items()):
+        declared: dict[str, type[AnyPhase]] = {}
+        for name, value in own_annotations(cls, _declaring_scope()).items():
             if name.startswith("_"):
                 continue
-            if not isinstance(value, PhaseDeclaration):
+            if not (is_subclass(value, Phase) and value is not Phase):
                 msg = (
-                    f"{cls.__name__}.{name} is not a phase. A phase declaration holds only "
-                    f"phases; write '{name} = yapss.phase(state=...)'."
+                    f"{cls.__name__}.{name} is annotated {_named(value)}, which is not a "
+                    f"phase's shape. Each phase is annotated with a subclass of yapss.Phase, "
+                    f"such as 'class {name.title().replace('_', '')}(yapss.Phase)'."
                 )
                 raise TypeError(msg)
             declared[name] = value
-        for name in declared:
-            delattr(cls, name)
         # A class that declares no phases is allowed: zero is a count, and nothing about the
         # transcription changes shape there. What it states is a problem in the parameters and
         # the discrete constraints alone -- an ordinary nonlinear program, which is how a
@@ -311,26 +349,16 @@ class Phases:
         cls._declared = declared
 
     def __init__(self) -> None:
-        """Build one `Phase` per declared name. Called by `Problem`."""
+        """Build each phase, an instance of its shape. Called by `Problem`."""
         handles: dict[str, AnyPhase] = {
-            name: Phase(name, index, declaration)
-            for index, (name, declaration) in enumerate(type(self)._declared.items())
+            name: shape(name, index)
+            for index, (name, shape) in enumerate(type(self)._declared.items())
         }
         object.__setattr__(self, "_handles", handles)
 
-    if TYPE_CHECKING:
-        # A declaration reached through the base class -- as it is from the bare
-        # `yapss.Problem`, whose phase parameter defaults to `Phases` -- cannot say which
-        # phases were declared, so it answers with a phase of unknown declarations rather than
-        # refusing every name. A subclass's own phases are declared attributes and resolve
-        # ahead of this, so nothing is lost where the declaration is known; a misspelled phase
-        # name is caught at runtime, with a suggestion.
-        def __getattr__(self, name: str) -> AnyPhase: ...
-
-    # Hidden from type checkers for the reason `Container`'s are. A subclass names its phases
-    # as ordinary class attributes, and `phase()` is typed as the `Phase` each one becomes, so
-    # with these hidden a type checker reads the declaration and reports a phase name that was
-    # never declared. At runtime the attributes are deleted from the class and answered here.
+    # Hidden from type checkers for the reason `Container`'s are. A subclass annotates its
+    # phases, so a type checker reads the phases from the declaration and reports a name that
+    # was never declared. At runtime the annotations are not attributes, and are answered here.
     if not TYPE_CHECKING:
 
         def __getattr__(self, name):
@@ -405,8 +433,15 @@ class IntegralAspects(Container):
     _held = ("bounds", "guess", "scale")
 
 
-class TimeAspects(Container):
-    """The initial and final time of one phase, and the guess for them.
+class Independent(Container):
+    """A phase's independent variable: its initial and final values, and the guess for them.
+
+    Every phase has one, called ``time`` unless the phase names it otherwise, which it does
+    with an annotation of this type::
+
+        class Nose(yapss.Phase):
+            state: Body
+            r: yapss.Independent
 
     ``initial`` and ``final`` are bounds, written the same way as any other bound. ``guess`` is
     a ``(t0, tf)`` pair, and is the only source of the phase's guessed duration, so a sampled
@@ -559,17 +594,30 @@ class PhaseRegistry(Registry):
 
 
 class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
-    """One phase of a problem: its aspects, its mesh, and its continuous callback.
+    """A phase's shape: the vectors it is built from. Subclass it and annotate them.
 
-    The four parameters are the classes the phase was declared with, so a type checker
-    following ``problem.phases.<name>.state.bounds`` arrives at the state declaration itself
-    and can say whether a field of that name was declared.
+    ``state`` is required; ``control``, ``path`` and ``integral`` are optional, and a phase
+    that omits one has none of it. One further annotation, of type `Independent`, names the
+    phase's independent variable, which is otherwise ``time``::
+
+        class Slide(yapss.Phase):
+            state: Position
+            control: Angle
+
+    The annotations are also what a type checker reads: ``ph.state`` is a ``Position``, and its
+    fields are checked from there. They override annotations of this base class that bound
+    each by its role, so ``state: Angle`` is reported before anything runs, as well as refused
+    when it does.
+
+    A shape is not a phase. The phases are named in a `Phases` class, and each is an instance
+    of its shape, so two phases may share one.
     """
 
     # `register` and the independent variable's name are added per instance, since the
     # latter is whatever the phase called it
     _held = ("state", "control", "path", "integral")
     _settable = ("mesh",)
+    _declaration: PhaseDeclaration | None = None
 
     if TYPE_CHECKING:
         # Typed as the declarations themselves, which is what makes a setting reachable field
@@ -583,20 +631,77 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         mesh: Mesh
         register: PhaseRegistry
 
-        # A phase's independent variable is called whatever the phase called it, so it is the
-        # one held name that is not known until the declaration is read. This reader is
-        # deliberately left visible to type checkers: without it `ph.r` would be an error on a
-        # phase that runs over a radius, and a false positive is worse than the misspelling it
-        # would otherwise catch. `time` is declared above it so that the usual spelling still
-        # resolves to something better than `Any`.
-        time: TimeAspects
+        # `time` is declared even for a phase that renamed its independent variable, which
+        # makes `ph.time` pass the checker there and fail at runtime, with the right name.
+        # The other way -- a reader for any name -- would blind the checker to every
+        # misspelling on a phase, and a phase that renames it declares the new name anyway.
+        time: Independent
 
-        def __getattr__(self, name: str) -> Any: ...
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Read the shape from the subclass's annotations, refusing what is not one."""
+        super().__init_subclass__(**kwargs)
+        owner = cls.__name__
+        for base in cls.__mro__[1:]:
+            if base is not Phase and issubclass(base, Phase) and base._declaration is not None:
+                msg = (
+                    f"{owner} cannot inherit from {base.__name__}, which is already a phase's "
+                    f"shape. Subclass yapss.Phase and annotate the vectors again."
+                )
+                raise TypeError(msg)
+        assigned = _assigned(cls)
+        if assigned:
+            msg = (
+                f"{owner}.{assigned[0]} is assigned. A phase's shape is annotated, not "
+                f"assigned: write '{assigned[0]}: <a class>'."
+            )
+            raise TypeError(msg)
+        roles: dict[str, type[Vector]] = {}
+        independent: list[str] = []
+        for name, value in own_annotations(cls, _declaring_scope()).items():
+            if name.startswith("_"):
+                continue
+            if name in _ROLES:
+                roles[name] = declared_role(value, owner, name, _ROLES, annotation=True)
+            elif value is Independent:
+                independent.append(name)
+            else:
+                raise TypeError(_not_a_slot(owner, name, value))
+        if "state" not in roles:
+            msg = f"{owner} declares no state. Every phase has one: write 'state: <a yapss.State>'."
+            raise TypeError(msg)
+        if len(independent) > 1:
+            names = ", ".join(repr(name) for name in independent)
+            msg = f"{owner}: a phase has one independent variable, but {names} are annotated so"
+            raise TypeError(msg)
+        name = independent[0] if independent else DEFAULT_INDEPENDENT
+        if name in _RESERVED:
+            msg = (
+                f"{owner}.{name} names the independent variable, but '{name}' is already a "
+                f"phase's own attribute. Name it something else."
+            )
+            raise TypeError(msg)
+        state = roles["state"]
+        control = roles.get("control", Control)
+        _check_namespace(owner, state, control, name)
+        cls._declaration = PhaseDeclaration(
+            state=state,
+            control=control,
+            path=roles.get("path", Path),
+            integral=roles.get("integral", Integral),
+            independent=name,
+        )
 
-    def __init__(self, name: str, index: int, declaration: PhaseDeclaration) -> None:
+    def __init__(self, name: str, index: int) -> None:
+        declaration = type(self)._declaration
+        if declaration is None:
+            msg = (
+                "yapss.Phase is a phase's shape to subclass, not a phase: declare "
+                "'class Slide(yapss.Phase)', annotate its vectors, and name the phases in a "
+                "yapss.Phases."
+            )
+            raise TypeError(msg)
         self._name = name
         self._index = index
-        self._declaration = declaration
         self._continuous: Callable[..., Any] | None = None
         self._continuous_jacobian: Callable[..., Any] | None = None
         self._continuous_hessian: Callable[..., Any] | None = None
@@ -656,7 +761,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         self._hold("integral", Fields(integral, declaration.integral, integral._label))
 
         name = declaration.independent
-        self._hold(name, TimeAspects(f"{self._label} {name}"))
+        self._hold(name, Independent(f"{self._label} {name}"))
         self._hold("register", PhaseRegistry(self))
         object.__setattr__(self, "_held", (*Phase._held, name, "register"))
 
@@ -681,9 +786,5 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         return value
 
     def __repr__(self) -> str:
-        """Return a short representation naming the phase and its vector classes."""
-        declaration = self._declaration
-        return (
-            f"<Phase {self._name!r} index={self._index} "
-            f"state={declaration.state.__name__} control={declaration.control.__name__}>"
-        )
+        """Return a short representation naming the phase and its shape."""
+        return f"<{type(self).__name__} {self._name!r} index={self._index}>"

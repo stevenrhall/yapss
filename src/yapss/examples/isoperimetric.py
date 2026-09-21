@@ -75,16 +75,20 @@ class Discrete(yapss.Discrete):
     """Vertical gap between the ends."""
 
 
+class Curve(yapss.Phase):
+    """The curve, run over its arc length ``s`` rather than time."""
+
+    state: State
+    control: Control
+    path: Path
+    integral: Integral
+    s: yapss.Independent
+
+
 class Phases(yapss.Phases):
     """One phase, running over arc length rather than time."""
 
-    curve = yapss.phase(
-        state=State,
-        control=Control,
-        path=Path,
-        integral=Integral,
-        s=yapss.scalar(),
-    )
+    curve: Curve
 
 
 def setup() -> yapss.Problem:

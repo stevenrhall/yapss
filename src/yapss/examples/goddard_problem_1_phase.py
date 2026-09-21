@@ -65,10 +65,17 @@ class Control(yapss.Control):
     """Thrust."""
 
 
+class Flight(yapss.Phase):
+    """The whole flight."""
+
+    state: State
+    control: Control
+
+
 class Phases(yapss.Phases):
     """One phase: the whole flight, whatever shape the thrust programme turns out to have."""
 
-    flight = yapss.phase(state=State, control=Control)
+    flight: Flight
 
 
 def setup() -> yapss.Problem:

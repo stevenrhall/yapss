@@ -97,11 +97,20 @@ class Parameter(yapss.Parameter):
     """A block parameter of two rows."""
 
 
+class Shape(yapss.Phase):
+    """The shape both phases share."""
+
+    state: State
+    control: Control
+    path: Path
+    integral: Integral
+
+
 class Phases(yapss.Phases):
     """Two phases, so that a message naming one can be checked for naming the right one."""
 
-    first = yapss.phase(state=State, control=Control, path=Path, integral=Integral)
-    second = yapss.phase(state=State, control=Control, path=Path, integral=Integral)
+    first: Shape
+    second: Shape
 
 
 def problem() -> Any:
@@ -155,10 +164,17 @@ class Height(yapss.Discrete):
     """The final depth."""
 
 
+class SlidePhase(yapss.Phase):
+    state: Slide
+    control: Angle
+    path: Speed
+    integral: Effort
+
+
 class OnePhase(yapss.Phases):
     """One phase: the slide."""
 
-    slide = yapss.phase(state=Slide, control=Angle, path=Speed, integral=Effort)
+    slide: SlidePhase
 
 
 def solvable(method: str = "auto") -> Any:

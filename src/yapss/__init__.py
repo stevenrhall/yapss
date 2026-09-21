@@ -4,7 +4,7 @@
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
-from ._api.declare import Phase, Phases, phase
+from ._api.declare import Independent, Phase, Phases
 from ._api.mesh import Mesh
 from ._api.problem import Problem
 from ._api.sampled import interp
@@ -28,6 +28,7 @@ from .math.functions import UnsupportedMathFunctionError
 __all__ = [
     "Control",
     "Discrete",
+    "Independent",
     "Integral",
     "IpoptConvergenceWarning",
     "IpoptOptionSettingWarning",
@@ -48,7 +49,6 @@ __all__ = [
     "YapssWarning",
     "__version__",
     "interp",
-    "phase",
     "scalar",
     "vector",
 ]

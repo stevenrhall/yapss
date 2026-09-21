@@ -2,8 +2,8 @@
 
 That is what the columns of a phase's Jacobian are, and a derivative names a variable from it
 without saying which vector it came from, so a name belonging to two of them would name two
-columns. The namespace is assembled in two steps and each step checks what it adds: `phase()`
-has the classes in front of it, and `Problem` is where the parameters arrive.
+columns. The namespace is assembled in two steps and each step checks what it adds: a phase's
+shape has the classes in front of it, and `Problem` is where the parameters arrive.
 """
 
 import pytest
@@ -21,8 +21,13 @@ class Control(yapss.Control):
     u = yapss.scalar()
 
 
+class Only(yapss.Phase):
+    state: State
+    control: Control
+
+
 class Phases(yapss.Phases):
-    only = yapss.phase(state=State, control=Control)
+    only: Only
 
 
 def made(role, *names):
@@ -30,43 +35,47 @@ def made(role, *names):
     return type("Made", (role,), {name: yapss.scalar() for name in names})
 
 
-# --- what phase() checks ------------------------------------------------------------------
+def shape(**annotations):
+    """Return a phase's shape with the given annotations, as a class body would declare it."""
+    return type("Shape", (yapss.Phase,), {"__annotations__": annotations})
+
+
+# --- what a phase's shape checks ----------------------------------------------------------
 
 
 def test_a_state_and_a_control_may_not_share_a_name():
     with pytest.raises(ValueError, match=r"both declare 'v'.*one namespace"):
-        yapss.phase(state=State, control=made(yapss.Control, "v"))
+        shape(state=State, control=made(yapss.Control, "v"))
 
 
 def test_a_state_may_not_be_called_time():
-    with pytest.raises(ValueError, match="declares 'time' as a state"):
-        yapss.phase(state=made(yapss.State, "time"))
+    with pytest.raises(ValueError, match=r"its state Made declares 'time'.*called 'time' by"):
+        shape(state=made(yapss.State, "time"))
 
 
 def test_a_state_may_not_share_the_independent_variable_s_name():
-    with pytest.raises(ValueError, match=r"declares 'r' as a state.*which you named"):
-        yapss.phase(state=made(yapss.State, "r"), r=yapss.scalar())
+    with pytest.raises(ValueError, match=r"its state Made declares 'r'.*which you named"):
+        shape(state=made(yapss.State, "r"), r=yapss.Independent)
 
 
 def test_a_control_may_not_share_the_independent_variable_s_name():
-    with pytest.raises(ValueError, match="declares 'r' as a control"):
-        yapss.phase(state=State, control=made(yapss.Control, "r"), r=yapss.scalar())
+    with pytest.raises(ValueError, match="its control Made declares 'r'"):
+        shape(state=State, control=made(yapss.Control, "r"), r=yapss.Independent)
 
 
 def test_path_and_integral_names_are_outside_the_namespace():
     # they are outputs, so they appear on the other side of a derivative
-    yapss.phase(
+    shape(
         state=State, control=Control, path=made(yapss.Path, "h"), integral=made(yapss.Integral, "u")
     )
 
 
 def test_a_name_may_be_a_control_in_one_phase_and_a_state_in_another():
     # which matters when a quantity is commanded during one phase and coasts through the next
-    class Mixed(yapss.Phases):
-        burn = yapss.phase(state=State, control=made(yapss.Control, "thrust"))
-        coast = yapss.phase(state=made(yapss.State, "thrust"), control=Control)
-
-    assert [phase.name for phase in Mixed()] == ["burn", "coast"]
+    burn = shape(state=State, control=made(yapss.Control, "thrust"))
+    coast = shape(state=made(yapss.State, "thrust"), control=Control)
+    mixed = type("Mixed", (yapss.Phases,), {"__annotations__": {"burn": burn, "coast": coast}})
+    assert [phase.name for phase in mixed()] == ["burn", "coast"]
 
 
 # --- what Problem() checks ----------------------------------------------------------------

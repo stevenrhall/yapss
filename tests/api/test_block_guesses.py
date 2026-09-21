@@ -22,8 +22,12 @@ def build(row_guess):
     class Rate(yapss.Control):
         u = yapss.scalar()
 
+    class Only(yapss.Phase):
+        state: Pair
+        control: Rate
+
     class Phases(yapss.Phases):
-        only = yapss.phase(state=Pair, control=Rate)
+        only: Only
 
     problem = yapss.Problem("block guesses", phases=Phases)
     ph = problem.phases.only

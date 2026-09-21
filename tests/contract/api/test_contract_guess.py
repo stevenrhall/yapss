@@ -118,8 +118,12 @@ def test_the_time_guess_takes_exactly_two() -> None:
 def test_a_phase_without_a_time_guess_is_incomplete() -> None:
     """Required, because everything else sampled is placed against it -- and it says how."""
 
+    class Only(yapss.Phase):
+        state: State
+        control: Control
+
     class OnePhase(yapss.Phases):
-        only = yapss.phase(state=State, control=Control)
+        only: Only
 
     p = yapss.Problem("p", phases=OnePhase)
     ph = p.phases.only
@@ -141,8 +145,13 @@ def test_a_phase_without_a_time_guess_is_incomplete() -> None:
 def test_the_independent_variable_is_named_in_the_complaint() -> None:
     """A phase that renamed its independent variable is told about *that* name."""
 
+    class Nose(yapss.Phase):
+        state: State
+        control: Control
+        r: yapss.Independent
+
     class Radial(yapss.Phases):
-        nose = yapss.phase(state=State, control=Control, r=yapss.scalar())
+        nose: Nose
 
     p = yapss.Problem("p", phases=Radial)
     ph = p.phases.nose

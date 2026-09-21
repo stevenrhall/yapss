@@ -23,8 +23,11 @@ METHODS = ("auto", "central-difference", "central-difference-full", "user")
 def test_a_phase_that_declares_nothing_still_has_its_own_times():
     """A phase contributes an initial and a final time even with no state and no control."""
 
+    class P(yapss.Phase):
+        state: yapss.State
+
     class Phases(yapss.Phases):
-        p = yapss.phase(state=yapss.State)
+        p: P
 
     problem = yapss.Problem("bare phase", phases=Phases)
     ph = problem.phases.p
@@ -53,8 +56,11 @@ def test_the_endpoints_alone_make_an_optimization_problem():
     the zero-variable check in `validate` rests on.
     """
 
+    class Interval(yapss.Phase):
+        state: yapss.State
+
     class Phases(yapss.Phases):
-        interval = yapss.phase(state=yapss.State)
+        interval: Interval
 
     problem = yapss.Problem("endpoints alone", phases=Phases)
     ph = problem.phases.interval

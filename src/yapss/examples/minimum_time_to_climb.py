@@ -60,10 +60,17 @@ class Control(yapss.Control):
     """Angle of attack."""
 
 
+class Climb(yapss.Phase):
+    """The whole climb."""
+
+    state: State
+    control: Control
+
+
 class Phases(yapss.Phases):
     """One phase: the climb."""
 
-    climb = yapss.phase(state=State, control=Control)
+    climb: Climb
 
 
 def setup() -> yapss.Problem:

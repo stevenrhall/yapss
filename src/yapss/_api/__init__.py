@@ -9,7 +9,7 @@ front ends finish changing places. The 0.3.0 API it replaced is `yapss._legacy`.
 
 """
 
-from .declare import Phases, phase
+from .declare import Independent, Phase, Phases
 from .mesh import Mesh
 from .problem import Problem
 from .sampled import interp
@@ -19,17 +19,18 @@ from .vector import Control, Discrete, Integral, Parameter, Path, State, scalar,
 __all__ = [
     "Control",
     "Discrete",
+    "Independent",
     "Integral",
     "Mesh",
     "Parameter",
     "Path",
+    "Phase",
     "PhaseSolution",
     "Phases",
     "Problem",
     "Solution",
     "State",
     "interp",
-    "phase",
     "scalar",
     "vector",
 ]

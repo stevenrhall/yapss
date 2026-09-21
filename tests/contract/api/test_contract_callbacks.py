@@ -302,8 +302,12 @@ def test_the_discrete_callback_fills_its_output() -> None:
 def test_a_problem_may_have_no_discrete_constraints() -> None:
     """The zero case: nothing declared, nothing to fill, no callback needed."""
 
+    class Only(yapss.Phase):
+        state: _Two
+        control: _One
+
     class Bare(yapss.Phases):
-        only = yapss.phase(state=_Two, control=_One)
+        only: Only
 
     p = yapss.Problem("bare", phases=Bare)
     ph = p.phases.only

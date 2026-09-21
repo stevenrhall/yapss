@@ -144,13 +144,21 @@ class Discrete(yapss.Discrete):
     argument_of_perigee = yapss.scalar()
 
 
+class Stage(yapss.Phase):
+    """One stage's burn; the four stages share this shape."""
+
+    state: State
+    control: Control
+    path: Path
+
+
 class Phases(yapss.Phases):
     """One phase per stage."""
 
-    stage_0 = yapss.phase(state=State, control=Control, path=Path)
-    stage_1 = yapss.phase(state=State, control=Control, path=Path)
-    stage_2 = yapss.phase(state=State, control=Control, path=Path)
-    stage_3 = yapss.phase(state=State, control=Control, path=Path)
+    stage_0: Stage
+    stage_1: Stage
+    stage_2: Stage
+    stage_3: Stage
 
 
 def make_dynamics(thrust, mass_flow):

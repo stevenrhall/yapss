@@ -99,10 +99,18 @@ class Discrete(yapss.Discrete):
     """Change in heading, one full turn."""
 
 
+class Loop(yapss.Phase):
+    """One loop of the glider's periodic flight."""
+
+    state: State
+    control: Control
+    path: Path
+
+
 class Phases(yapss.Phases):
     """One phase: one circuit of the loop."""
 
-    loop = yapss.phase(state=State, control=Control, path=Path)
+    loop: Loop
 
 
 def setup() -> yapss.Problem:

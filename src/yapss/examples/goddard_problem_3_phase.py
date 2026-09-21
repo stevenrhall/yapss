@@ -83,12 +83,27 @@ class Discrete(yapss.Discrete):
     """Time, singular to coast."""
 
 
+class Arc(yapss.Phase):
+    """A thrust arc, the shape boost and coast share."""
+
+    state: State
+    control: Control
+
+
+class Singular(yapss.Phase):
+    """The singular arc: a thrust arc, plus the constraint that keeps it singular."""
+
+    state: State
+    control: Control
+    path: SingularArc
+
+
 class Phases(yapss.Phases):
     """The three arcs of the flight."""
 
-    boost = yapss.phase(state=State, control=Control)
-    singular = yapss.phase(state=State, control=Control, path=SingularArc)
-    coast = yapss.phase(state=State, control=Control)
+    boost: Arc
+    singular: Singular
+    coast: Arc
 
 
 def drag(h, v):

@@ -65,10 +65,18 @@ class Discrete(yapss.Discrete):
     """The final orbit must be circular."""
 
 
+class Transfer(yapss.Phase):
+    """The transfer, with the vehicle thrusting throughout."""
+
+    state: State
+    control: Control
+    path: Path
+
+
 class Phases(yapss.Phases):
     """One phase: the vehicle thrusts continuously."""
 
-    raise_ = yapss.phase(state=State, control=Control, path=Path)
+    raise_: Transfer
 
 
 def setup() -> yapss.Problem:

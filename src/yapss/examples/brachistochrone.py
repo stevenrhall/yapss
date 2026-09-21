@@ -38,10 +38,17 @@ class Control(yapss.Control):
     """Path angle."""
 
 
+class Slide(yapss.Phase):
+    """The bead's descent, built from the state and control above."""
+
+    state: State
+    control: Control
+
+
 class Phases(yapss.Phases):
     """Define the only phase of the problem."""
 
-    slide = yapss.phase(state=State, control=Control)
+    slide: Slide
 
 
 def setup() -> yapss.Problem:
