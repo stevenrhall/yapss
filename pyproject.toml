@@ -62,7 +62,13 @@ doc = [
     "sphinxcontrib-bibtex",
     "sphinx-copybutton",
     "sphinx_rtd_theme",
-    "sphinx-llm",
+    # Capped below 1.1, which renamed its builder "markdown" to "llms-markdown" and began
+    # warning on node types 1.0 skipped silently -- nbsphinx's FancyOutputNode and three plain
+    # docutils nodes -- so -W fails. docs/user_guide/conf.py keys two things on the old name:
+    # the handlers that keep notebook code cells in llms.txt, and the guard that stops the
+    # markdown subprocess re-running `make all` alongside the primary build. Lift the cap
+    # once conf.py matches both names and handles those nodes.
+    "sphinx-llm<1.1",
     "myst-parser",
     "nbsphinx",
     "numpydoc",
