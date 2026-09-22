@@ -120,6 +120,11 @@ nitpick_ignore = [
     # documentation covers the redesigned API.
     ("py:class", "yapss._api.problem.Problem"),
     ("py:class", "yapss._api.solution.Solution"),
+    # The type parameters of `Problem`, which `Problem.solve`'s return annotation,
+    # `Solution[D_co, PR_co]`, carries into its signature. Type variables have no page to
+    # resolve against; typing.rst says what they are in prose.
+    ("py:class", "D_co"),
+    ("py:class", "PR_co"),
 ]
 
 # options for HTML output

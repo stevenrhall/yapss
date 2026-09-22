@@ -131,6 +131,46 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
     return problem
 
 
+# The alias a PyCharm user writes once: its engine does not follow `solution[ph]` to the phase's
+# vectors, which mypy does, so the variable is annotated instead.
+SlideSolution = yapss.PhaseSolution[State, Control, Path, Integral]
+
+
+def report(solution: yapss.Solution[Discrete, Parameter], ps: SlideSolution) -> dict[str, Any]:
+    """Read a solution through every tree, each checked down to the field."""
+    nlp = solution.nlp
+    var, con = ps.nlp.index.variable, ps.nlp.index.constraint
+    return {
+        "objective": solution.objective,
+        "gravity": solution.parameter.g,
+        "landing multiplier": solution.multiplier.discrete.landing,
+        "landing": ps.state.x[-1],  # the typed read of `ps.final.x`
+        "costate": ps.costate.v,
+        "same costate": ps.multiplier.dynamics.v,
+        "slope": ps.control.u,
+        "speed multiplier": ps.multiplier.path.speed,
+        "distance": ps.integral.distance,
+        "defects": nlp.g[con.dynamics.x],
+        "raw speed multiplier": nlp.mult_g[con.path.speed],
+        "slope gradient": nlp.grad_f[var.control.u],
+        "gravity position": nlp.index.variable.parameter.g,
+        "landing position": nlp.index.constraint.discrete.landing,
+        "defect points": ps.time[ps.nlp.point.dynamics],
+        "iterations": nlp.convergence.iterations,
+        "jacobian": (nlp.jac_g.row, nlp.jac_g.col, nlp.jac_g.value),
+        "collocated": ps.hamiltonian[ps.collocated],
+    }
+
+
+def solve_and_report() -> dict[str, Any]:
+    """Solve and read, typed with no annotation: the solution from the problem, the phase from
+    its handle."""
+    problem = setup()
+    solution = problem.solve()
+    ps = solution[problem.phases.slide]
+    return report(solution, ps)
+
+
 class Radius(yapss.State):
     """A state for a phase that runs over a radius."""
 
@@ -174,6 +214,41 @@ def mistakes(
     endpoint[ph].integral.distanse  # type: ignore[attr-defined]
     endpoint["slide"]  # type: ignore[index]
     discrete.discrete.landin = 0.0  # type: ignore[attr-defined]
+
+
+def solution_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -> None:
+    """Each line is a mistake in reading a solution that the checker must report."""
+    solution = problem.solve()
+    ps = solution[problem.phases.slide]
+    solution.objectiv  # type: ignore[attr-defined]
+    solution.parameter.gg  # type: ignore[attr-defined]
+    solution.multiplier.discrete.landin  # type: ignore[attr-defined]
+    solution.multiplier.dynamics  # type: ignore[attr-defined]
+    ps.state.xx  # type: ignore[attr-defined]
+    ps.costate.xx  # type: ignore[attr-defined]
+    ps.control.v  # type: ignore[attr-defined]
+    ps.multiplier.path.sped  # type: ignore[attr-defined]
+    ps.multiplier.integral.distanse  # type: ignore[attr-defined]
+    ps.multiplier.dynamic  # type: ignore[attr-defined]
+    ps.nlp.index.variable.state.xx  # type: ignore[attr-defined]
+    ps.nlp.index.constraint.dynamics.xx  # type: ignore[attr-defined]
+    ps.nlp.index.constraint.path.sped  # type: ignore[attr-defined]
+    ps.nlp.points  # type: ignore[attr-defined]
+    solution.nlp.index.variable.parameter.gg  # type: ignore[attr-defined]
+    solution.nlp.convergence.inf_prr  # type: ignore[attr-defined]
+    solution.nlp.jac_g.rows  # type: ignore[attr-defined]
+    solution.nlp.mult_gg  # type: ignore[attr-defined]
+
+
+def no_parameters_declared() -> None:
+    """A problem that declares no parameters reports reading one, from its solution too."""
+    problem = yapss.Problem("none", phases=Phases)
+    problem.solve().parameter.g  # type: ignore[attr-defined]
+
+
+def any_problem(problem: yapss.Problem) -> Any:
+    """The bare annotation cannot say what was declared, so its solution answers any name."""
+    return problem.solve().parameter.anything
 
 
 def wrong_role(arg: yapss.ContinuousArg[Control]) -> None:  # type: ignore[type-var]

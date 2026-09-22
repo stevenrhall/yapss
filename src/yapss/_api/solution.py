@@ -22,14 +22,17 @@ from __future__ import annotations
 from functools import cache
 from itertools import pairwise
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, overload
 
 import numpy as np
+
+# `TypeVar` from typing_extensions for PEP 696 defaults, as in `args` and `declare`.
+from typing_extensions import TypeVar
 
 from yapss._backend.layout import problem_layout
 from yapss._backend.structure import get_nlp_cf_structure, get_nlp_dv_structure
 
-from .args import EndpointValues
+from .args import C_co, D_co, EndpointValues, I_co, P_co, PR_co, S_co
 from .containers import suggest
 from .kinds import ReadOnlyRows
 from .vector import ROLES, Vector, role_of, scalar, vector
@@ -37,9 +40,14 @@ from .vector import ROLES, Vector, role_of, scalar, vector
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from numpy.typing import NDArray
+
+    from yapss._backend.ipopt_status import IpoptStatus
     from yapss._backend.structure import CFStructure, DVStructure
 
+    from .mesh import Mesh
     from .spec import PhaseSpec, ProblemSpec
+    from .vector import Control, Integral, Path, State
 
 __all__ = [
     "ConstraintIndex",
@@ -254,12 +262,16 @@ class _Record:
         """Pickle as the values, which are data all the way down."""
         return (type(self), (self._set(),))
 
-    def __getattr__(self, name: str) -> Any:
-        """Refuse an unknown name with a suggestion."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        msg = f"{self._label} has no '{name}'.{suggest(name, self._names())}"
-        raise AttributeError(msg)
+    # Hidden from type checkers: one that sees a reader answering any name stops
+    # reporting misspellings. The names are declared for them instead.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name):
+            """Refuse an unknown name with a suggestion."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            msg = f"{self._label} has no '{name}'.{suggest(name, self._names())}"
+            raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment: a solution is a record of what was solved."""
@@ -285,24 +297,28 @@ class EndpointMultiplier(_Record):
     __slots__ = ("_fields", "_independent", "_value")
     _label = "the endpoint multipliers"
 
-    def __getattr__(self, name: str) -> Any:
-        """Return the independent variable's multiplier, or explain a state's absence."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        independent = object.__getattribute__(self, "_independent")
-        if name == independent:
-            return object.__getattribute__(self, "_value")
-        fields: tuple[str, ...] = object.__getattribute__(self, "_fields")
-        if name in fields:
-            msg = f"the multiplier of '{name}' at this endpoint is not reported yet. " + (
-                _STATE_BOUNDS_OWED
-            )
+    # Hidden from type checkers: one that sees a reader answering any name stops
+    # reporting misspellings. The names are declared for them instead.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name):
+            """Return the independent variable's multiplier, or explain a state's absence."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            independent = object.__getattribute__(self, "_independent")
+            if name == independent:
+                return object.__getattribute__(self, "_value")
+            fields: tuple[str, ...] = object.__getattribute__(self, "_fields")
+            if name in fields:
+                msg = f"the multiplier of '{name}' at this endpoint is not reported yet. " + (
+                    _STATE_BOUNDS_OWED
+                )
+                raise AttributeError(msg)
+            msg = f"{self._label} have no '{name}'.{suggest(name, (*fields, independent))}"
             raise AttributeError(msg)
-        msg = f"{self._label} have no '{name}'.{suggest(name, (*fields, independent))}"
-        raise AttributeError(msg)
 
 
-class PhaseMultiplier(_Record):
+class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
     """A phase's multipliers, in the shapes of what they belong to: ``ps.multiplier``.
 
     Attributes
@@ -325,17 +341,34 @@ class PhaseMultiplier(_Record):
     __slots__ = ("control", "duration", "dynamics", "final", "initial", "integral", "path")
     _label = "the phase multipliers"
 
-    def __getattr__(self, name: str) -> Any:
-        """Explain the owed state-bound multipliers, or refuse an unknown name."""
-        if name == "state":
-            msg = (
-                f"the multipliers of the state's bounds are not reported yet. {_STATE_BOUNDS_OWED}"
-            )
-            raise AttributeError(msg)
-        return super().__getattr__(name)
+    if TYPE_CHECKING:
+        dynamics: S_co
+        # Reserved and owed: reading it raises, saying so. Declared so that it checks when it
+        # is delivered, and a stub may be permissive.
+        state: S_co
+        control: C_co
+        path: P_co
+        integral: I_co
+        initial: Any
+        final: Any
+        duration: float
+
+    # Hidden from type checkers: one that sees a reader answering any name stops
+    # reporting misspellings. The names are declared for them instead.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name):
+            """Explain the owed state-bound multipliers, or refuse an unknown name."""
+            if name == "state":
+                msg = (
+                    "the multipliers of the state's bounds are not reported yet. "
+                    f"{_STATE_BOUNDS_OWED}"
+                )
+                raise AttributeError(msg)
+            return super().__getattr__(name)
 
 
-class ProblemMultiplier(_Record):
+class ProblemMultiplier(_Record, Generic[D_co, PR_co]):
     """The problem's multipliers: ``solution.multiplier``.
 
     Attributes
@@ -348,6 +381,10 @@ class ProblemMultiplier(_Record):
 
     __slots__ = ("discrete", "parameter")
     _label = "the problem multipliers"
+
+    if TYPE_CHECKING:
+        parameter: PR_co
+        discrete: D_co
 
 
 # -- the solver's record ------------------------------------------------------------------------
@@ -364,15 +401,19 @@ class _MethodOnly(_Record):
 
     _method_only: ClassVar[Mapping[str, str]] = MappingProxyType({})
 
-    def __getattr__(self, name: str) -> Any:
-        """Explain a slot this method does not have, or refuse an unknown name."""
-        if name in self._method_only:
-            msg = f"'{name}' exists only under {self._method_only[name]}"
-            raise AttributeError(msg)
-        return super().__getattr__(name)
+    # Hidden from type checkers: one that sees a reader answering any name stops
+    # reporting misspellings. The names are declared for them instead.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name):
+            """Explain a slot this method does not have, or refuse an unknown name."""
+            if name in self._method_only:
+                msg = f"'{name}' exists only under {self._method_only[name]}"
+                raise AttributeError(msg)
+            return super().__getattr__(name)
 
 
-class VariableIndex(_MethodOnly):
+class VariableIndex(_MethodOnly, Generic[S_co, C_co, I_co]):
     """The positions of a phase's decision variables in any vector of Ipopt's length ``n``.
 
     Each is an integer array shaped like the quantity it locates, so ``nlp.x[var.state.r]`` has
@@ -397,8 +438,16 @@ class VariableIndex(_MethodOnly):
     _label = "the variable index"
     _method_only = MappingProxyType({"zero_mode": "LGL"})
 
+    if TYPE_CHECKING:
+        state: S_co
+        zero_mode: S_co
+        control: C_co
+        integral: I_co
+        initial: Any
+        final: Any
 
-class ConstraintIndex(_MethodOnly):
+
+class ConstraintIndex(_MethodOnly, Generic[S_co, P_co, I_co]):
     """The positions of a phase's constraint rows in any vector of Ipopt's length ``m``.
 
     Attributes
@@ -421,8 +470,15 @@ class ConstraintIndex(_MethodOnly):
     _label = "the constraint index"
     _method_only = MappingProxyType({"continuity": "LG"})
 
+    if TYPE_CHECKING:
+        dynamics: S_co
+        continuity: S_co
+        path: P_co
+        integral: I_co
+        duration: int
 
-class PhaseIndex(_Record):
+
+class PhaseIndex(_Record, Generic[S_co, C_co, P_co, I_co]):
     """A phase's positions in the solver's record: ``ps.nlp.index``.
 
     Attributes
@@ -435,6 +491,10 @@ class PhaseIndex(_Record):
 
     __slots__ = ("constraint", "variable")
     _label = "the phase index"
+
+    if TYPE_CHECKING:
+        variable: VariableIndex[S_co, C_co, I_co]
+        constraint: ConstraintIndex[S_co, P_co, I_co]
 
 
 class PhasePoint(_MethodOnly):
@@ -458,8 +518,12 @@ class PhasePoint(_MethodOnly):
     _label = "the phase's row points"
     _method_only = MappingProxyType({"continuity": "LG"})
 
+    if TYPE_CHECKING:
+        dynamics: NDArray[np.intp]
+        continuity: NDArray[np.intp]
 
-class PhaseNLP(_Record):
+
+class PhaseNLP(_Record, Generic[S_co, C_co, P_co, I_co]):
     """A phase's part of the solver's record: ``ps.nlp``.
 
     Attributes
@@ -473,8 +537,12 @@ class PhaseNLP(_Record):
     __slots__ = ("index", "point")
     _label = "the phase's solver record"
 
+    if TYPE_CHECKING:
+        index: PhaseIndex[S_co, C_co, P_co, I_co]
+        point: PhasePoint
 
-class ProblemVariableIndex(_Record):
+
+class ProblemVariableIndex(_Record, Generic[PR_co]):
     """The positions of the parameters in any vector of length ``n``.
 
     Attributes
@@ -485,8 +553,11 @@ class ProblemVariableIndex(_Record):
     __slots__ = ("parameter",)
     _label = "the variable index"
 
+    if TYPE_CHECKING:
+        parameter: PR_co
 
-class ProblemConstraintIndex(_Record):
+
+class ProblemConstraintIndex(_Record, Generic[D_co]):
     """The positions of the discrete constraints in any vector of length ``m``.
 
     Attributes
@@ -497,8 +568,11 @@ class ProblemConstraintIndex(_Record):
     __slots__ = ("discrete",)
     _label = "the constraint index"
 
+    if TYPE_CHECKING:
+        discrete: D_co
 
-class NLPIndex(_Record):
+
+class NLPIndex(_Record, Generic[D_co, PR_co]):
     """The problem's positions in the solver's record: ``solution.nlp.index``.
 
     Attributes
@@ -509,6 +583,10 @@ class NLPIndex(_Record):
 
     __slots__ = ("constraint", "variable")
     _label = "the problem index"
+
+    if TYPE_CHECKING:
+        variable: ProblemVariableIndex[PR_co]
+        constraint: ProblemConstraintIndex[D_co]
 
 
 class Jacobian(_Record):
@@ -525,6 +603,11 @@ class Jacobian(_Record):
     __slots__ = ("col", "row", "value")
     _label = "the Jacobian"
 
+    if TYPE_CHECKING:
+        row: NDArray[np.intp]
+        col: NDArray[np.intp]
+        value: NDArray[np.float64]
+
 
 class NLPScale(_Record):
     """The scaling YAPSS gave Ipopt.
@@ -540,6 +623,11 @@ class NLPScale(_Record):
 
     __slots__ = ("g", "objective", "x")
     _label = "the scaling"
+
+    if TYPE_CHECKING:
+        objective: float
+        x: NDArray[np.float64]
+        g: NDArray[np.float64]
 
 
 class Convergence(_Record):
@@ -563,8 +651,14 @@ class Convergence(_Record):
     __slots__ = ("complementarity", "inf_du", "inf_pr", "iterations")
     _label = "the convergence measures"
 
+    if TYPE_CHECKING:
+        inf_pr: float
+        inf_du: float
+        complementarity: float
+        iterations: int
 
-class NLPRecord(_Record):
+
+class NLPRecord(_Record, Generic[D_co, PR_co]):
     """What Ipopt saw and what it returned: ``solution.nlp``.
 
     The vectors are in the order Ipopt saw them, which is part of what produced the result and
@@ -620,8 +714,28 @@ class NLPRecord(_Record):
     )
     _label = "the solver's record"
 
+    if TYPE_CHECKING:
+        version: str
+        status: int
+        objective: float
+        x_L: NDArray[np.float64]  # noqa: N815 -- Ipopt's names
+        x_U: NDArray[np.float64]  # noqa: N815
+        z0: NDArray[np.float64]
+        x: NDArray[np.float64]
+        mult_x_L: NDArray[np.float64]  # noqa: N815
+        mult_x_U: NDArray[np.float64]  # noqa: N815
+        grad_f: NDArray[np.float64]
+        g_L: NDArray[np.float64]  # noqa: N815
+        g_U: NDArray[np.float64]  # noqa: N815
+        g: NDArray[np.float64]
+        mult_g: NDArray[np.float64]
+        jac_g: Jacobian
+        scale: NLPScale
+        convergence: Convergence
+        index: NLPIndex[D_co, PR_co]
+
     @classmethod
-    def _from(cls, info: Any, index: NLPIndex) -> NLPRecord:
+    def _from(cls, info: Any, index: NLPIndex[Any, Any]) -> NLPRecord[Any, Any]:
         """Return the record from the back end's `NLPInfo`, copying every array."""
         from yapss import __version__  # noqa: PLC0415 -- the package imports this module
 
@@ -747,7 +861,31 @@ def _row_points(layout: Any) -> PhasePoint:
     return PhasePoint(points)
 
 
-class PhaseSolution:
+_S_co = TypeVar("_S_co", bound="State", covariant=True)
+_C_co = TypeVar("_C_co", bound="Control", covariant=True)
+_P_co = TypeVar("_P_co", bound="Path", covariant=True)
+_I_co = TypeVar("_I_co", bound="Integral", covariant=True)
+
+
+class _PhaseShape(Protocol[_S_co, _C_co, _P_co, _I_co]):
+    """A phase handle, as far as its vectors: what a `yapss.Phase` subclass satisfies.
+
+    ``solution[ph]`` differs by phase, so nothing written on the solution could type it; the
+    handle can, as ``arg[ph]`` is typed from it. A checker that does not follow the match --
+    PyCharm's engine does not -- is given the type by annotating the variable instead.
+    """
+
+    @property
+    def state(self) -> _S_co: ...
+    @property
+    def control(self) -> _C_co: ...
+    @property
+    def path(self) -> _P_co: ...
+    @property
+    def integral(self) -> _I_co: ...
+
+
+class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
     """One phase of a solution.
 
     Attributes
@@ -807,13 +945,35 @@ class PhaseSolution:
         "state",
     )
 
+    if TYPE_CHECKING:
+        time: NDArray[np.float64]
+        state: S_co
+        dynamics: S_co
+        costate: S_co
+        control: C_co
+        path: P_co
+        integrand: I_co
+        integral: I_co
+        multiplier: PhaseMultiplier[S_co, C_co, P_co, I_co]
+        # The state and the independent variable in one namespace, which is an intersection
+        # Python's typing cannot write; see `args.Endpoint`. `ps.state.h[0]` is the typed read.
+        initial: Any
+        final: Any
+        duration: float
+        hamiltonian: NDArray[np.float64]
+        collocated: NDArray[np.bool_]
+        mesh: Mesh
+        nlp: PhaseNLP[S_co, C_co, P_co, I_co]
+
     def __init__(self, independent: str, values: dict[str, Any]) -> None:
         object.__setattr__(self, "_independent", independent)
         for name, value in values.items():
             object.__setattr__(self, name, value)
 
     @classmethod
-    def _from(cls, phase: PhaseSpec, data: Any, method: str, nlp: PhaseNLP) -> PhaseSolution:
+    def _from(
+        cls, phase: PhaseSpec, data: Any, method: str, nlp: PhaseNLP[Any, Any, Any, Any]
+    ) -> PhaseSolution[Any, Any, Any, Any]:
         """Return the solution of `phase` from the back end's record of it."""
         label = f"phase '{phase.name}' solution"
         state = np.asarray(data.state)
@@ -893,7 +1053,7 @@ class PhaseSolution:
         raise AttributeError(msg)
 
 
-class Solution:
+class Solution(Generic[D_co, PR_co]):
     """The result of a solve.
 
     Attributes
@@ -930,12 +1090,23 @@ class Solution:
         "status",
     )
 
+    if TYPE_CHECKING:
+        objective: float
+        converged: bool
+        status: IpoptStatus
+        name: str
+        method: str
+        parameter: PR_co
+        discrete: D_co
+        multiplier: ProblemMultiplier[D_co, PR_co]
+        nlp: NLPRecord[D_co, PR_co]
+
     def __init__(self, values: dict[str, Any]) -> None:
         for name, value in values.items():
             object.__setattr__(self, name, value)
 
     @classmethod
-    def _from(cls, spec: ProblemSpec, record: Any, transcription: Any) -> Solution:
+    def _from(cls, spec: ProblemSpec, record: Any, transcription: Any) -> Solution[Any, Any]:
         """Return the solution of `spec` from the back end's record of the solve.
 
         `transcription` is the back end's spec the solve ran from, which lays out the flat
@@ -1010,6 +1181,14 @@ class Solution:
         values = {name: object.__getattribute__(self, name) for name in self.__slots__}
         return (Solution, (values,))
 
+    @overload
+    def __getitem__(self, phase: str) -> PhaseSolution: ...
+
+    @overload
+    def __getitem__(
+        self, phase: _PhaseShape[_S_co, _C_co, _P_co, _I_co]
+    ) -> PhaseSolution[_S_co, _C_co, _P_co, _I_co]: ...
+
     def __getitem__(self, phase: Any) -> PhaseSolution:
         """Return the solution for `phase`: a phase handle, or the phase's name.
 
@@ -1035,13 +1214,17 @@ class Solution:
         )
         raise KeyError(msg)
 
-    def __getattr__(self, name: str) -> Any:
-        """Refuse an unknown name with a suggestion."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        names = tuple(n for n in self.__slots__ if not n.startswith("_"))
-        msg = f"the solution has no '{name}'.{suggest(name, names)}"
-        raise AttributeError(msg)
+    # Hidden from type checkers: one that sees a reader answering any name stops
+    # reporting misspellings. The names are declared for them instead.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name):
+            """Refuse an unknown name with a suggestion."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            names = tuple(n for n in self.__slots__ if not n.startswith("_"))
+            msg = f"the solution has no '{name}'.{suggest(name, names)}"
+            raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment: a solution is a record of what was solved."""

@@ -38,18 +38,22 @@ from .vector import Discrete, Parameter, Vector
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from .solution import Solution
+
 __all__ = ["Problem"]
 
-# The default is `Any`, not `Phases`, unlike the other two. A bare `yapss.Problem` -- the
-# annotation a helper taking any problem writes -- cannot say which phases were declared, so it
-# answers any name; a problem built from a declaration is typed by it, and a misspelled phase
-# is reported there. The base class cannot do both: a permissive reader on `Phases` would be
-# inherited by every declaration and blind the checker to every phase name.
+# Each default is `Any`, not the role. A bare `yapss.Problem` -- the annotation every example's
+# `setup` returns, and a helper taking any problem writes -- cannot say what was declared, so it
+# answers any name, and so does the solution it returns; a problem built from its declarations
+# is typed by them, and a misspelling is reported there. The base class cannot do both: a
+# permissive reader on `Phases` would be inherited by every declaration and blind the checker to
+# every phase name. A keyword left out of the constructor is typed as its role by the
+# overloads of `Problem.__init__`, so a problem declaring no parameters reports reading one.
 PH_co = TypeVar("PH_co", bound=Phases, default=Any, covariant=True)
 """The class declaring the problem's phases."""
-D_co = TypeVar("D_co", bound=Discrete, default=Discrete, covariant=True)
+D_co = TypeVar("D_co", bound=Discrete, default=Any, covariant=True)
 """The class declaring the problem's discrete constraint groups."""
-PR_co = TypeVar("PR_co", bound=Parameter, default=Parameter, covariant=True)
+PR_co = TypeVar("PR_co", bound=Parameter, default=Any, covariant=True)
 """The class declaring the problem's parameters."""
 
 METHODS = ("lgl", "lgr", "lg")
@@ -414,6 +418,42 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         method: Literal["lgl", "lgr", "lg"]
         catch_keyboard_interrupt: bool
 
+    # One overload per combination of the two optional keywords. A keyword left out pins its
+    # parameter to the role, which declares no fields -- not to the class default, `Any`, which
+    # is for the bare annotation.
+    @overload
+    def __init__(
+        self: Problem[PH_co, D_co, PR_co],
+        name: str,
+        *,
+        phases: type[PH_co],
+        discrete: type[D_co],
+        parameter: type[PR_co],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Problem[PH_co, D_co, Parameter],
+        name: str,
+        *,
+        phases: type[PH_co],
+        discrete: type[D_co],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Problem[PH_co, Discrete, PR_co],
+        name: str,
+        *,
+        phases: type[PH_co],
+        parameter: type[PR_co],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Problem[PH_co, Discrete, Parameter], name: str, *, phases: type[PH_co]
+    ) -> None: ...
+
     def __init__(
         self,
         name: str,
@@ -522,7 +562,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         """
         validate_problem(self)
 
-    def solve(self) -> Any:
+    def solve(self) -> Solution[D_co, PR_co]:
         """Solve the problem.
 
         Returns

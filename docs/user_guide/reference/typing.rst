@@ -78,24 +78,55 @@ continuous callback is typed as a numpy array, which it is: of floats, or of sym
 
 To type the problem itself, give `yapss.Problem` the classes it was built from --
 ``yapss.Problem[Phases, Discrete, Parameter]`` -- as the ``setup`` above does. The bare
-``yapss.Problem`` is also valid, and answers any phase name, since it does not say which phases
-were declared.
+``yapss.Problem`` is also valid, and answers any phase, parameter or discrete name, since it does
+not say what was declared; so does the solution it returns.
+
+Reading a solution
+------------------
+
+A solution is typed from its problem, with nothing written: ``problem.solve()`` returns
+``yapss.Solution[Discrete, Parameter]``, from the classes the problem was built with, so
+``solution.parameter.g`` and ``solution.multiplier.discrete.landing`` are checked, and so are
+their positions in the solver's record, ``solution.nlp.index``.
+
+A phase's solution is ``yapss.PhaseSolution[State, Control, Path, Integral]``, and every tree
+on it is typed from those four: ``ps.state``, ``ps.dynamics``, ``ps.costate`` and
+``ps.multiplier.dynamics`` as the state class, ``ps.control`` and ``ps.multiplier.control`` as
+the control class, and so on into the solver's record, where ``ps.nlp.index.variable.state`` is
+the state class too. mypy types ``solution[ph]`` from the handle, as it types ``arg[ph]``, so
+this needs no annotation:
+
+.. literalinclude:: ../../../tests/typed/typed_problem.py
+   :language: python
+   :pyobject: solve_and_report
+
+PyCharm's engine does not follow that match. There, annotate the variable, most simply through
+an alias written once:
+
+.. literalinclude:: ../../../tests/typed/typed_problem.py
+   :language: python
+   :start-at: SlideSolution =
+   :end-before: def solve_and_report
 
 What is not checked
 -------------------
 
 These are the limits, stated so that a silent checker is not mistaken for a passing one.
 
-- ``arg[ph].initial`` and ``arg[ph].final`` are not typed. Each holds the phase's states *and*
-  its independent variable -- ``arg[ph].final.time`` and ``arg[ph].final.x`` are both valid --
-  and a type that is one class plus one more name cannot be written in Python's type system.
-- A misspelled name at the top of a continuous argument, such as ``arg.stat``, is caught only at
-  run time. The independent variable is reached by the name the phase gave it, ``arg.r`` for a
-  phase declaring ``r: yapss.Independent``, and no type parameter can carry that name, so the
-  argument accepts any name at its top level. Below it, ``arg.state.xx`` is checked.
+- ``arg[ph].initial`` and ``arg[ph].final`` are not typed, nor are a solution's ``ps.initial``,
+  ``ps.final``, ``ps.multiplier.initial`` and ``ps.multiplier.final``. Each holds the phase's
+  states *and* its independent variable -- ``arg[ph].final.time`` and ``arg[ph].final.x`` are
+  both valid -- and a type that is one class plus one more name cannot be written in Python's
+  type system. In a solution the typed read is the trajectory's end: ``ps.state.x[-1]`` and
+  ``ps.time[-1]``.
+- A misspelled name at the top of a continuous argument or a phase's solution, such as
+  ``arg.stat`` or ``ps.stat``, is caught only at run time. The independent variable is reached by
+  the name the phase gave it, ``arg.r`` for a phase declaring ``r: yapss.Independent``, and no
+  type parameter can carry that name, so both accept any name at their top level. Below it,
+  ``arg.state.xx`` and ``ps.state.xx`` are checked.
 - Nothing checks that a callback's annotation matches the phase it is registered on. The
   classes named are what the checker uses; the runtime gives the callback the phase's own.
-- The solution, and the arguments of user-supplied derivative callbacks, are not typed yet.
+- The arguments of user-supplied derivative callbacks are not typed yet.
 
 In VS Code, completion and navigation work as they are, but misspellings are underlined only
 once Pylance's type checking is turned on: set ``python.analysis.typeCheckingMode`` to
