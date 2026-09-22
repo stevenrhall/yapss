@@ -59,7 +59,7 @@ def test_the_solution_reads_under_its_own_names(problem):
 def test_there_are_no_phases_to_reach(problem):
     solution = problem.solve()
     assert list(problem.phases) == []
-    with pytest.raises(KeyError, match="takes a phase handle"):
+    with pytest.raises(KeyError, match="has no phase 'slide'. The problem declared no phases"):
         _ = solution["slide"]
 
 

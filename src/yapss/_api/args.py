@@ -257,6 +257,13 @@ class EndpointValues(_Frozen):
         object.__setattr__(self, "_independent", independent)
         object.__setattr__(self, "_name", name)
 
+    def __reduce__(self) -> tuple[Any, ...]:
+        """Pickle as the constructor's arguments. Only a solution's endpoints are ever pickled."""
+        return (
+            EndpointValues,
+            tuple(object.__getattribute__(self, n) for n in ("_state", "_independent", "_name")),
+        )
+
     def __getattr__(self, name: str) -> Any:
         """Return a state by name, or the independent variable by its own name."""
         if name.startswith("_"):

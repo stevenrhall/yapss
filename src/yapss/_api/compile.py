@@ -681,7 +681,7 @@ def to_transcription_spec(spec: ProblemSpec_) -> ProblemSpec:
     )
 
 
-def solve_problem(spec: ProblemSpec_) -> Solution:
+def solve_problem(spec: ProblemSpec_) -> tuple[Solution, Any]:
     """Solve the problem `spec` describes and return the solution in the new API's shape.
 
     Parameters
@@ -692,6 +692,10 @@ def solve_problem(spec: ProblemSpec_) -> Solution:
     Returns
     -------
     Solution
-        The solution.
+        The solution, which holds data only.
+    record
+        The back end's record of the solve, which `Problem.solve` reads to warn about a solve
+        that did not converge. The solution does not keep it: the record holds the problem.
     """
-    return Solution(spec, solve(to_transcription_spec(spec)))
+    record = solve(to_transcription_spec(spec))
+    return Solution._from(spec, record), record

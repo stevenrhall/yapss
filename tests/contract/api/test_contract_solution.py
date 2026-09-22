@@ -27,11 +27,24 @@ def test_a_phase_is_reached_by_its_handle() -> None:
     assert result[problem.phases.slide] is not None
 
 
-def test_a_phase_is_not_reached_by_its_name() -> None:
-    """A string is refused, and the message shows the form that works."""
+def test_a_phase_is_also_reached_by_its_name() -> None:
+    """A solution is data, readable with no problem at hand -- unpickled in a worker, say."""
+    problem, result = solution()
+    assert result["slide"] is result[problem.phases.slide]
+
+
+def test_a_misspelled_phase_name_is_refused_with_a_suggestion() -> None:
+    """The name is checked against the phases the problem declared."""
     _, result = solution()
-    with raises(KeyError, "takes a phase handle", "problem.phases.", at="result["):
-        result["slide"]
+    with raises(KeyError, "has no phase 'slid'", "Did you mean 'slide'?", at="result["):
+        result["slid"]
+
+
+def test_anything_else_is_refused_naming_both_forms() -> None:
+    """Neither a handle nor a name: the message shows the two forms that work."""
+    _, result = solution()
+    with raises(KeyError, "takes a phase handle", "or a phase's name", at="result["):
+        result[0]
 
 
 def test_every_declared_quantity_reads_back_by_name() -> None:

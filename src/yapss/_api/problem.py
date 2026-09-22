@@ -539,12 +539,12 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
             a contract violation, which is the rule of CLAUDE.md's conventions.
         """
         self.validate()
-        solution = solve_problem(snapshot(self))
+        solution, record = solve_problem(snapshot(self))
         # The warning belongs at the public boundary, not inside the solve, so that its
         # stacklevel points at the caller's own `solve()`; a mesh-refinement loop written
         # against this API calls it once per pass and should hear about each one.
         # stacklevel=3: warn -> warn_if_not_converged -> this method -> user code.
-        warn_if_not_converged(solution._record, stacklevel=3)
+        warn_if_not_converged(record, stacklevel=3)
         return solution
 
     def __repr__(self) -> str:
