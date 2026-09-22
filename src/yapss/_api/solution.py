@@ -21,9 +21,13 @@ from __future__ import annotations
 
 from functools import cache
 from itertools import pairwise
-from typing import TYPE_CHECKING, Any
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
+
+from yapss._backend.layout import problem_layout
+from yapss._backend.structure import get_nlp_cf_structure, get_nlp_dv_structure
 
 from .args import EndpointValues
 from .containers import suggest
@@ -31,14 +35,30 @@ from .kinds import ReadOnlyRows
 from .vector import ROLES, Vector, role_of, scalar, vector
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from yapss._backend.structure import CFStructure, DVStructure
+
     from .spec import PhaseSpec, ProblemSpec
 
 __all__ = [
+    "ConstraintIndex",
+    "Convergence",
     "EndpointMultiplier",
+    "Jacobian",
+    "NLPIndex",
+    "NLPRecord",
+    "NLPScale",
+    "PhaseIndex",
     "PhaseMultiplier",
+    "PhaseNLP",
+    "PhasePoint",
     "PhaseSolution",
+    "ProblemConstraintIndex",
     "ProblemMultiplier",
+    "ProblemVariableIndex",
     "Solution",
+    "VariableIndex",
 ]
 
 Shape = tuple[str, str, tuple[tuple[str, int | None], ...]]
@@ -217,12 +237,22 @@ class _Record:
         for name, value in values.items():
             object.__setattr__(self, name, value)
 
+    def _set(self) -> dict[str, Any]:
+        """Return the slots that hold a value: a group may leave one unset under a method."""
+        values = {}
+        for name in self.__slots__:
+            try:
+                values[name] = object.__getattribute__(self, name)
+            except AttributeError:
+                continue
+        return values
+
     def _names(self) -> tuple[str, ...]:
-        return tuple(n for n in self.__slots__ if not n.startswith("_"))
+        return tuple(n for n in self._set() if not n.startswith("_"))
 
     def __reduce__(self) -> tuple[Any, ...]:
         """Pickle as the values, which are data all the way down."""
-        return (type(self), ({n: object.__getattribute__(self, n) for n in self.__slots__},))
+        return (type(self), (self._set(),))
 
     def __getattr__(self, name: str) -> Any:
         """Refuse an unknown name with a suggestion."""
@@ -320,6 +350,403 @@ class ProblemMultiplier(_Record):
     _label = "the problem multipliers"
 
 
+# -- the solver's record ------------------------------------------------------------------------
+#
+# What Ipopt saw and returned, as flat vectors in Ipopt's order, and beside them the positions of
+# every variable and constraint under the user's names. The numbers are held once, in the flat
+# vectors; a quantity in the solver's terms is one indexing expression, ``nlp.g[con.dynamics.h]``,
+# and since indexing with an integer array copies, nothing read that way shares memory with the
+# record.
+
+
+class _MethodOnly(_Record):
+    """A group with a slot that exists under one spectral method only, and says so elsewhere."""
+
+    _method_only: ClassVar[Mapping[str, str]] = MappingProxyType({})
+
+    def __getattr__(self, name: str) -> Any:
+        """Explain a slot this method does not have, or refuse an unknown name."""
+        if name in self._method_only:
+            msg = f"'{name}' exists only under {self._method_only[name]}"
+            raise AttributeError(msg)
+        return super().__getattr__(name)
+
+
+class VariableIndex(_MethodOnly):
+    """The positions of a phase's decision variables in any vector of Ipopt's length ``n``.
+
+    Each is an integer array shaped like the quantity it locates, so ``nlp.x[var.state.r]`` has
+    the shape of ``ps.state.r``.
+
+    Attributes
+    ----------
+    state : Vector
+        Every stored value of each state, in time order, on the phase's points.
+    zero_mode : Vector
+        One per segment for each state; LGL only.
+    control : Vector
+        Each control, on the collocated points.
+    integral : Vector
+        One per integral.
+    initial, final : EndpointValues
+        The state at each end, and the phase's independent variable under its own name. A
+        state's entries repeat the first and last of `state`.
+    """
+
+    __slots__ = ("control", "final", "initial", "integral", "state", "zero_mode")
+    _label = "the variable index"
+    _method_only = MappingProxyType({"zero_mode": "LGL"})
+
+
+class ConstraintIndex(_MethodOnly):
+    """The positions of a phase's constraint rows in any vector of Ipopt's length ``m``.
+
+    Attributes
+    ----------
+    dynamics : Vector
+        The defect rows of each state, segment by segment. Under LGR and LG they are on the
+        collocated points; under LGL each segment is collocated on its own, so a boundary
+        between two segments has a row from each.
+    continuity : Vector
+        One row per segment for each state; LG only.
+    path : Vector
+        Each path constraint, on the collocated points.
+    integral : Vector
+        One row per integral.
+    duration : int
+        The row bounding the phase's extent.
+    """
+
+    __slots__ = ("continuity", "duration", "dynamics", "integral", "path")
+    _label = "the constraint index"
+    _method_only = MappingProxyType({"continuity": "LG"})
+
+
+class PhaseIndex(_Record):
+    """A phase's positions in the solver's record: ``ps.nlp.index``.
+
+    Attributes
+    ----------
+    variable : VariableIndex
+        Positions in ``x`` and every vector of its length.
+    constraint : ConstraintIndex
+        Positions in ``g`` and every vector of its length.
+    """
+
+    __slots__ = ("constraint", "variable")
+    _label = "the phase index"
+
+
+class PhasePoint(_MethodOnly):
+    """The point each row of a group sits at, as an index into the phase's points.
+
+    Given only for the rows whose points cannot be read off ``ps.collocated``: every other
+    per-point entry of the index trees is on ``ps.<time>[ps.collocated]``, or, for the state,
+    on all of ``ps.<time>``.
+
+    Attributes
+    ----------
+    dynamics : numpy.ndarray
+        The point each defect row is collocated at. Under LGR and LG these are the collocated
+        points; under LGL a boundary between two segments appears twice, once per segment.
+        The same for every state.
+    continuity : numpy.ndarray
+        The segment end each continuity row ties the state at; LG only.
+    """
+
+    __slots__ = ("continuity", "dynamics")
+    _label = "the phase's row points"
+    _method_only = MappingProxyType({"continuity": "LG"})
+
+
+class PhaseNLP(_Record):
+    """A phase's part of the solver's record: ``ps.nlp``.
+
+    Attributes
+    ----------
+    index : PhaseIndex
+        The positions of the phase's variables and constraints in ``solution.nlp``.
+    point : PhasePoint
+        The point each defect and continuity row sits at.
+    """
+
+    __slots__ = ("index", "point")
+    _label = "the phase's solver record"
+
+
+class ProblemVariableIndex(_Record):
+    """The positions of the parameters in any vector of length ``n``.
+
+    Attributes
+    ----------
+    parameter : Vector
+    """
+
+    __slots__ = ("parameter",)
+    _label = "the variable index"
+
+
+class ProblemConstraintIndex(_Record):
+    """The positions of the discrete constraints in any vector of length ``m``.
+
+    Attributes
+    ----------
+    discrete : Vector
+    """
+
+    __slots__ = ("discrete",)
+    _label = "the constraint index"
+
+
+class NLPIndex(_Record):
+    """The problem's positions in the solver's record: ``solution.nlp.index``.
+
+    Attributes
+    ----------
+    variable : ProblemVariableIndex
+    constraint : ProblemConstraintIndex
+    """
+
+    __slots__ = ("constraint", "variable")
+    _label = "the problem index"
+
+
+class Jacobian(_Record):
+    """The constraints' Jacobian at the returned point, in the structure Ipopt was given.
+
+    Attributes
+    ----------
+    row, col : numpy.ndarray
+        Each entry's position in ``g`` and in ``x``, in the positions the index trees give.
+    value : numpy.ndarray
+        Each entry's value.
+    """
+
+    __slots__ = ("col", "row", "value")
+    _label = "the Jacobian"
+
+
+class NLPScale(_Record):
+    """The scaling YAPSS gave Ipopt.
+
+    Attributes
+    ----------
+    objective : float
+        The factor Ipopt multiplied the objective by. Its sign is the problem's sense: Ipopt
+        minimizes, so a maximized objective has a negative factor.
+    x, g : numpy.ndarray
+        The factors for each variable and each constraint row.
+    """
+
+    __slots__ = ("g", "objective", "x")
+    _label = "the scaling"
+
+
+class Convergence(_Record):
+    """Ipopt's own measures of convergence at the returned point, in its scaled terms.
+
+    They are what Ipopt's tolerance is tested against, and the scaled column of its final
+    statistics. NaN where Ipopt had none to give, as when it stopped in its restoration phase.
+
+    Attributes
+    ----------
+    inf_pr : float
+        Primal infeasibility: the largest violation of a constraint or a bound.
+    inf_du : float
+        Dual infeasibility: the largest entry of the Lagrangian's gradient.
+    complementarity : float
+        The largest violation of complementary slackness.
+    iterations : int
+        The number of iterations Ipopt took.
+    """
+
+    __slots__ = ("complementarity", "inf_du", "inf_pr", "iterations")
+    _label = "the convergence measures"
+
+
+class NLPRecord(_Record):
+    """What Ipopt saw and what it returned: ``solution.nlp``.
+
+    The vectors are in the order Ipopt saw them, which is part of what produced the result and
+    is valid for the YAPSS `version` recorded. A position means something through `index` and
+    ``ps.nlp.index``, and not otherwise. The vectors are unscaled -- the problem as posed -- with
+    the scaling beside them.
+
+    Attributes
+    ----------
+    version : str
+        The YAPSS version the order is valid for.
+    status : int
+        Ipopt's return code.
+    objective : float
+        The objective at `x`, as the problem states it.
+    x_L, x_U, z0 : numpy.ndarray
+        The variables' bounds and the starting point.
+    x, mult_x_L, mult_x_U : numpy.ndarray
+        The variables and their bound multipliers at the returned point.
+    grad_f : numpy.ndarray
+        The objective's gradient at `x`.
+    g_L, g_U, g, mult_g : numpy.ndarray
+        The constraints' bounds, values and multipliers.
+    jac_g : Jacobian
+        The constraints' Jacobian at `x`.
+    scale : NLPScale
+        The scaling YAPSS applied.
+    convergence : Convergence
+        Ipopt's final measures of convergence.
+    index : NLPIndex
+        The positions of the parameters and the discrete constraints.
+    """
+
+    __slots__ = (
+        "convergence",
+        "g",
+        "g_L",
+        "g_U",
+        "grad_f",
+        "index",
+        "jac_g",
+        "mult_g",
+        "mult_x_L",
+        "mult_x_U",
+        "objective",
+        "scale",
+        "status",
+        "version",
+        "x",
+        "x_L",
+        "x_U",
+        "z0",
+    )
+    _label = "the solver's record"
+
+    @classmethod
+    def _from(cls, info: Any, index: NLPIndex) -> NLPRecord:
+        """Return the record from the back end's `NLPInfo`, copying every array."""
+        from yapss import __version__  # noqa: PLC0415 -- the package imports this module
+
+        def own(name: str) -> Any:
+            return np.array(getattr(info, name))
+
+        return cls(
+            {
+                "version": __version__,
+                "status": int(info.ipopt_status),
+                "objective": float(info.obj_val),
+                **{
+                    name: own(name)
+                    for name in (
+                        "x_L",
+                        "x_U",
+                        "z0",
+                        "x",
+                        "mult_x_L",
+                        "mult_x_U",
+                        "grad_f",
+                        "g_L",
+                        "g_U",
+                        "g",
+                        "mult_g",
+                    )
+                },
+                "jac_g": Jacobian(
+                    {"row": own("jac_g_row"), "col": own("jac_g_col"), "value": own("jac_g")}
+                ),
+                "scale": NLPScale(
+                    {
+                        "objective": float(info.obj_scaling),
+                        "x": own("x_scaling"),
+                        "g": own("g_scaling"),
+                    }
+                ),
+                "convergence": Convergence(
+                    {
+                        "inf_pr": float(info.inf_pr),
+                        "inf_du": float(info.inf_du),
+                        "complementarity": float(info.complementarity),
+                        "iterations": int(info.iterations),
+                    }
+                ),
+                "index": index,
+            }
+        )
+
+
+def _positions_of(transcription: Any) -> tuple[Any, Any, Any]:
+    """Return the back end's structures over the flat vectors, holding each entry's position."""
+    dv: DVStructure[np.intp] = get_nlp_dv_structure(transcription, np.intp)
+    dv.z[:] = np.arange(dv.z.size)
+    cf: CFStructure[np.intp] = get_nlp_cf_structure(transcription, np.intp)
+    cf.c[:] = np.arange(cf.c.size)
+    return dv, cf, problem_layout(transcription)
+
+
+def _positions(views: Any, npoints: int) -> Any:
+    """Stack a structure's per-row views of positions into a (rows, npoints) integer array."""
+    return np.array([np.asarray(v) for v in views], dtype=np.intp).reshape(len(views), npoints)
+
+
+def _phase_nlp(phase: PhaseSpec, dv_phase: Any, cf_phase: Any, layout: Any) -> PhaseNLP:
+    """Return a phase's positions in the solver's record, under its declared names.
+
+    `layout` is the phase's `PhaseLayout`, which fixes every size here, and whose time order
+    puts LG's stored state, collocation values first, back in time order.
+    """
+    label = f"phase '{phase.name}' index"
+    n_eval = layout.n_eval
+    state = _positions([x[layout.time_order] for x in dv_phase.x], layout.n_time)
+    variable: dict[str, Any] = {
+        "state": _vector(phase.state, state, f"{label} state"),
+        "control": _vector(phase.control, _positions(dv_phase.u, n_eval), f"{label} control"),
+        "integral": _vector(
+            phase.integral, np.array(dv_phase.q, dtype=np.intp), f"{label} integral"
+        ),
+        "initial": _endpoint(phase, state[:, 0], int(dv_phase.t0[0]), f"{label} initial"),
+        "final": _endpoint(phase, state[:, -1], int(dv_phase.tf[0]), f"{label} final"),
+    }
+    constraint: dict[str, Any] = {
+        "dynamics": _vector(
+            phase.state, _positions(cf_phase.defect, layout.n_collocation), f"{label} dynamics"
+        ),
+        "path": _vector(phase.path, _positions(cf_phase.path, n_eval), f"{label} path"),
+        "integral": _vector(
+            phase.integral, np.array(cf_phase.integral, dtype=np.intp), f"{label} integral"
+        ),
+        "duration": int(cf_phase.duration[0]),
+    }
+    n_zero_modes = layout.n_state_storage - layout.n_time
+    if n_zero_modes:
+        variable["zero_mode"] = _vector(
+            phase.state, _positions(dv_phase.xs, n_zero_modes), f"{label} zero_mode"
+        )
+    if layout.n_boundary_defect:
+        constraint["continuity"] = _vector(
+            phase.state,
+            _positions(cf_phase.lg_defect, layout.n_boundary_defect),
+            f"{label} continuity",
+        )
+    index = PhaseIndex(
+        {"variable": VariableIndex(variable), "constraint": ConstraintIndex(constraint)}
+    )
+    return PhaseNLP({"index": index, "point": _row_points(layout)})
+
+
+def _row_points(layout: Any) -> PhasePoint:
+    """Return the point each defect and continuity row sits at, as indices into the points.
+
+    The state is stored at the evaluation points first, so time point ``t`` is an evaluation
+    point exactly when ``time_order[t] < n_eval``, and evaluation point ``e`` is the time point
+    whose ``time_order`` is ``e``. LG's continuity rows determine the state at each segment's
+    end: the points it does not collocate, after the phase's start.
+    """
+    time_of = np.empty(layout.n_time, dtype=np.intp)
+    time_of[layout.time_order] = np.arange(layout.n_time)
+    points: dict[str, Any] = {"dynamics": time_of[layout.defect_index]}
+    if layout.n_boundary_defect:
+        points["continuity"] = np.flatnonzero(layout.time_order >= layout.n_eval)[1:]
+    return PhasePoint(points)
+
+
 class PhaseSolution:
     """One phase of a solution.
 
@@ -356,6 +783,8 @@ class PhaseSolution:
         anything the solver imposed. Checks and statistics use ``quantity[ps.collocated]``.
     mesh : Mesh
         The mesh the phase was solved on.
+    nlp : PhaseNLP
+        The phase's positions in the solver's record, ``solution.nlp``.
     """
 
     __slots__ = (
@@ -373,6 +802,7 @@ class PhaseSolution:
         "integrand",
         "mesh",
         "multiplier",
+        "nlp",
         "path",
         "state",
     )
@@ -383,7 +813,7 @@ class PhaseSolution:
             object.__setattr__(self, name, value)
 
     @classmethod
-    def _from(cls, phase: PhaseSpec, data: Any, method: str) -> PhaseSolution:
+    def _from(cls, phase: PhaseSpec, data: Any, method: str, nlp: PhaseNLP) -> PhaseSolution:
         """Return the solution of `phase` from the back end's record of it."""
         label = f"phase '{phase.name}' solution"
         state = np.asarray(data.state)
@@ -430,6 +860,7 @@ class PhaseSolution:
                 "duration": data.time[-1] - data.time[0],
                 "hamiltonian": fill(data.hamiltonian),
                 "mesh": phase.mesh,
+                "nlp": nlp,
             },
         )
 
@@ -481,6 +912,8 @@ class Solution:
         The problem-level values, named by the classes the problem declared.
     multiplier : ProblemMultiplier
         Their multipliers, in the same shapes: ``solution.multiplier.discrete.d``.
+    nlp : NLPRecord
+        What Ipopt saw and returned, with the positions of every variable and constraint.
     """
 
     __slots__ = (
@@ -491,6 +924,7 @@ class Solution:
         "method",
         "multiplier",
         "name",
+        "nlp",
         "objective",
         "parameter",
         "status",
@@ -501,18 +935,55 @@ class Solution:
             object.__setattr__(self, name, value)
 
     @classmethod
-    def _from(cls, spec: ProblemSpec, record: Any) -> Solution:
+    def _from(cls, spec: ProblemSpec, record: Any, transcription: Any) -> Solution:
         """Return the solution of `spec` from the back end's record of the solve.
 
-        Only data is kept: nothing reached from here refers to the problem, its callbacks, or
-        the classes it was declared with.
+        `transcription` is the back end's spec the solve ran from, which lays out the flat
+        vectors. Only data is kept: nothing reached from here refers to the problem, its
+        callbacks, or the classes it was declared with.
         """
+        dv, cf, layouts = _positions_of(transcription)
         return cls(
             {
                 "_names": tuple(phase.name for phase in spec.phases),
                 "_phases": tuple(
-                    PhaseSolution._from(phase, record.phase[phase.index], spec.method)
+                    PhaseSolution._from(
+                        phase,
+                        record.phase[phase.index],
+                        spec.method,
+                        _phase_nlp(
+                            phase,
+                            dv.phase[phase.index],
+                            cf.phase[phase.index],
+                            layouts[phase.index],
+                        ),
+                    )
                     for phase in spec.phases
+                ),
+                "nlp": NLPRecord._from(
+                    record.nlp_info,
+                    NLPIndex(
+                        {
+                            "variable": ProblemVariableIndex(
+                                {
+                                    "parameter": _vector(
+                                        spec.parameter,
+                                        np.array(dv.s, dtype=np.intp),
+                                        "parameter index",
+                                    )
+                                }
+                            ),
+                            "constraint": ProblemConstraintIndex(
+                                {
+                                    "discrete": _vector(
+                                        spec.discrete,
+                                        np.array(cf.discrete, dtype=np.intp),
+                                        "discrete index",
+                                    )
+                                }
+                            ),
+                        }
+                    ),
                 ),
                 "objective": record.objective,
                 "converged": record.converged,

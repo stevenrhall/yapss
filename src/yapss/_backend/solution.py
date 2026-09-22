@@ -151,7 +151,7 @@ def make_solution_object(
     problem: ProblemSpec,
     mesh: Mesh,
     nlp_temp: NLP,
-    nlp_info: dict[str, NDArray[np.float64] | float | int | bytes],
+    nlp_info: dict[str, Any],
     origin: Any = None,
 ) -> Solution:
     """Extract the optimal control solution from the NLP solver output.
@@ -351,6 +351,7 @@ def make_solution_object(
         ipopt_status=status,
         ipopt_status_message=status_message,
         x=x,
+        **{name: nlp_info[name] for name in _NLP_INPUTS},
     )
 
     return Solution(
@@ -598,9 +599,38 @@ class Solution:
         )
 
 
+_NLP_INPUTS = (
+    "x_L",
+    "x_U",
+    "g_L",
+    "g_U",
+    "z0",
+    "grad_f",
+    "jac_g_row",
+    "jac_g_col",
+    "jac_g",
+    "obj_scaling",
+    "x_scaling",
+    "g_scaling",
+    "iterations",
+    "inf_pr",
+    "inf_du",
+    "complementarity",
+)
+"""What `solver.solve` records beside Ipopt's outputs: its inputs, the first derivatives at the
+returned point, and Ipopt's final measures of convergence."""
+
+
 @dataclass(frozen=True)
 class NLPInfo:
-    """Container for NLP solver information."""
+    """Container for NLP solver information.
+
+    Beside Ipopt's outputs it holds what Ipopt was given -- the bounds ``x_L``, ``x_U``,
+    ``g_L``, ``g_U``, the starting point ``z0``, and the scaling -- and, at the returned point,
+    the objective's gradient ``grad_f`` and the constraints' Jacobian ``jac_g`` in the
+    structure (``jac_g_row``, ``jac_g_col``) Ipopt was given, with Ipopt's final measures of
+    convergence in its scaled terms.
+    """
 
     ipopt_status: IpoptStatus
     ipopt_status_message: str
@@ -610,6 +640,22 @@ class NLPInfo:
     mult_x_L: NDArray[np.float64]  # noqa: N815
     mult_x_U: NDArray[np.float64]  # noqa: N815
     mult_g: NDArray[np.float64]
+    x_L: NDArray[np.float64]  # noqa: N815
+    x_U: NDArray[np.float64]  # noqa: N815
+    g_L: NDArray[np.float64]  # noqa: N815
+    g_U: NDArray[np.float64]  # noqa: N815
+    z0: NDArray[np.float64]
+    grad_f: NDArray[np.float64]
+    jac_g_row: NDArray[np.intp]
+    jac_g_col: NDArray[np.intp]
+    jac_g: NDArray[np.float64]
+    obj_scaling: float
+    x_scaling: NDArray[np.float64]
+    g_scaling: NDArray[np.float64]
+    iterations: int
+    inf_pr: float
+    inf_du: float
+    complementarity: float
 
     def __post_init__(self) -> None:
         attributes = [

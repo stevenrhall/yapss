@@ -108,7 +108,18 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     def signal_handler(signum: int, frame: object) -> None:  # noqa: ARG001
         aborted[0] = True
 
+    # Ipopt's own measures of convergence, kept from the latest iteration. Ipopt calls the
+    # intermediate callback at every iterate, the returned one included, so the last call's
+    # are the final measures. They are read in Ipopt's scaled terms, the terms its tolerance
+    # is tested in, and match the scaled column of its final statistics. During the
+    # restoration phase Ipopt has none to give, and they are NaN.
+    ipopt_problem_: list[MseipoptProblem] = []
+    final: dict[str, Any] = {}
+
     def intermediate(*args: Any) -> bool:
+        final["iterations"] = int(args[1])
+        violations = ipopt_problem_[0].get_current_violations(scaled=True)
+        final.update(_convergence_measures(violations))
         if aborted[0]:
             aborted[0] = False
             return False
@@ -148,6 +159,7 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
         eval_h=_hessian_callback(nlp_temp.hessian),
     )
     ipopt_problem.set_intermediate_callback(nlp_temp.intermediate)
+    ipopt_problem_.append(ipopt_problem)
 
     # apply user ipopt options
     for name, value in problem.ipopt_options.items():
@@ -257,7 +269,43 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     # solves (mesh refinement) raises too; the convergence warning is for the public boundary.
     nlp_info["status"] = status_or_raise(nlp_info["status"])
     nlp_info["x"] = z
+
+    # The rest of what Ipopt saw, and the first derivatives at the returned point, which a
+    # solution needs for the stationarity condition and cannot recompute: it holds no
+    # callbacks.
+    rows, cols = jacobian_structure
+    nlp_info |= {
+        "x_L": lb,
+        "x_U": ub,
+        "g_L": gl,
+        "g_U": gu,
+        "z0": np.array(z0, dtype=np.float64),
+        "grad_f": np.array(nlp_temp.gradient(z), dtype=np.float64),
+        "jac_g_row": np.array(rows, dtype=np.intp),
+        "jac_g_col": np.array(cols, dtype=np.intp),
+        "jac_g": np.array(nlp_temp.jacobian(z), dtype=np.float64),
+        "obj_scaling": obj_scale,
+        "x_scaling": np.array(z_scaling, dtype=np.float64),
+        "g_scaling": np.array(c_scaling, dtype=np.float64),
+        "iterations": final.get("iterations", 0),
+        **{key: final.get(key, np.nan) for key in ("inf_pr", "inf_du", "complementarity")},
+    }
     return make_solution_object(problem, mesh, nlp_temp, nlp_info, origin)
+
+
+def _convergence_measures(violations: dict[str, NDArray[np.float64]] | None) -> dict[str, float]:
+    """Reduce Ipopt's violation vectors to the three measures of its final statistics."""
+    if violations is None:
+        return {"inf_pr": np.nan, "inf_du": np.nan, "complementarity": np.nan}
+
+    def largest(*names: str) -> float:
+        return float(max((np.abs(violations[n]).max(initial=0.0) for n in names), default=0.0))
+
+    return {
+        "inf_pr": largest("nlp_constraint_violation", "x_L_violation", "x_U_violation"),
+        "inf_du": largest("grad_lag_x"),
+        "complementarity": largest("compl_x_L", "compl_x_U", "compl_g"),
+    }
 
 
 def get_nlp_scaling(

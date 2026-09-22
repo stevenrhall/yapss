@@ -697,5 +697,6 @@ def solve_problem(spec: ProblemSpec_) -> tuple[Solution, Any]:
         The back end's record of the solve, which `Problem.solve` reads to warn about a solve
         that did not converge. The solution does not keep it: the record holds the problem.
     """
-    record = solve(to_transcription_spec(spec))
-    return Solution._from(spec, record), record
+    transcription = to_transcription_spec(spec)
+    record = solve(transcription)
+    return Solution._from(spec, record, transcription), record

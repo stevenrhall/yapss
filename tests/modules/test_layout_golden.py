@@ -45,7 +45,7 @@ from yapss._backend.bounds import (
 from yapss._backend.guess import make_initial_guess_nlp
 from yapss._backend.mesh import Mesh
 from yapss._backend.nlp import NLP
-from yapss._backend.solution import make_solution_object
+from yapss._backend.solution import _NLP_INPUTS, make_solution_object
 from yapss._backend.solver import get_nlp_scaling
 
 GOLDEN_PATH = Path(__file__).parent / "data" / "layout_golden.json"
@@ -149,6 +149,8 @@ def solution_fields(problem: Any) -> dict[str, Any]:
         "mult_x_U": 0.3 + 0.1 * np.cos(3.0 + np.arange(nz)) ** 2,
         "status": 0,
     }
+    # What the solver records beside Ipopt's outputs; nothing pinned here reads it.
+    nlp_info |= dict.fromkeys(_NLP_INPUTS)
     solution = make_solution_object(problem._to_spec(), mesh, nlp, nlp_info)
 
     def flat(value: Any) -> Any:

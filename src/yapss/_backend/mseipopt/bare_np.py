@@ -429,6 +429,40 @@ class Problem:
             raise RuntimeError("error setting problem intermediate callback")
         self._callbacks["intermediate_cb"] = intermediate_cb
 
+    def get_current_violations(self, scaled: bool) -> dict[str, NDArray[np.float64]] | None:
+        """Return Ipopt's violation vectors at the current iterate, or ``None``.
+
+        Valid only from inside the intermediate callback. ``None`` means Ipopt had
+        no violations to give, as during the restoration phase. The keys are the
+        argument names of ``GetIpoptCurrentViolations``: ``x_L_violation``,
+        ``x_U_violation``, ``compl_x_L``, ``compl_x_U`` and ``grad_lag_x`` of
+        length ``n``, and ``nlp_constraint_violation`` and ``compl_g`` of length
+        ``m``.
+        """
+        self._require_open()
+        out = {
+            name: np.zeros(self.n, dtype=np.float64)
+            for name in ("x_L_violation", "x_U_violation", "compl_x_L", "compl_x_U", "grad_lag_x")
+        }
+        out |= {
+            name: np.zeros(self.m, dtype=np.float64)
+            for name in ("nlp_constraint_violation", "compl_g")
+        }
+        ok = bare.GetIpoptCurrentViolations(
+            self._problem,
+            scaled,
+            self.n,
+            data_ptr(out["x_L_violation"]),
+            data_ptr(out["x_U_violation"]),
+            data_ptr(out["compl_x_L"]),
+            data_ptr(out["compl_x_U"]),
+            data_ptr(out["grad_lag_x"]),
+            self.m,
+            data_ptr(out["nlp_constraint_violation"]),
+            data_ptr(out["compl_g"]),
+        )
+        return out if ok else None
+
     def solve(
         self,
         x: Any,

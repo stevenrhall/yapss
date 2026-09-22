@@ -90,6 +90,23 @@ def test_nlp_info_holds_the_raw_result_under_ipopt_names(solution):
         "mult_x_L",
         "mult_x_U",
         "mult_g",
+        # what Ipopt was given, the derivatives at the returned point, and its final measures
+        "x_L",
+        "x_U",
+        "g_L",
+        "g_U",
+        "z0",
+        "grad_f",
+        "jac_g_row",
+        "jac_g_col",
+        "jac_g",
+        "obj_scaling",
+        "x_scaling",
+        "g_scaling",
+        "iterations",
+        "inf_pr",
+        "inf_du",
+        "complementarity",
     }
 
 
