@@ -7,63 +7,80 @@ Each stage is a phase, with its own thrust and mass flow, and the phases are joi
 continuity of position and velocity -- but not of mass, which jumps when a stage is dropped.
 The trajectory ends on five of the six classical orbital elements.
 
-The physics -- the vector helpers, the orbital-element conversions, and the constants -- is
-imported from the released version of this example, so that any difference in the answer is
-attributable to the API and not to a slip in transcribing the mathematics.
+The physics -- the constants, the vector helpers, and the orbital-element conversions -- is
+the released version's, with its arithmetic grouped the same way, so that the two versions solve
+the same problem to the last bit and any difference in the answer is the API's.
 
 """
 
 # The orbital elements are conventionally capitalized.
-# ruff: noqa: N806
+# ruff: noqa: N803, N806
 
 __all__ = ["main", "plot_solution", "setup"]
-
-from itertools import pairwise
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 import yapss
-from yapss._legacy.examples.delta_iii_ascent import (
-    CD,
-    I1,
-    I2,
-    T1,
-    T2,
-    Is,
-    Omega_f,
-    R_e,
-    S,
-    Ts,
-    a_f,
-    cross,
-    dot,
-    e_f,
-    g0,
-    h0,
-    i_f,
-    mag,
-    mf_0,
-    mf_1,
-    mf_2,
-    mi_0,
-    mi_1,
-    mi_2,
-    mi_3,
-    mu,
-    oe_to_rv,
-    omega_e,
-    omega_f,
-    pi_p,
-    psi_l,
-    rho0,
-    t0,
-    t1,
-    t2,
-    t3,
-    t4_max,
-)
 from yapss.math import arccos, cos, exp, pi, sin, sqrt
+
+# -- the Earth, the atmosphere and the launch site ------------------------------------------------
+
+mu = 3.986012e14
+"""Earth's gravitational parameter (m^3/s^2)."""
+R_e = 6378145.0
+"""Earth's radius (m)."""
+g0 = 9.80665
+"""Sea-level gravity (m/s^2)."""
+h0 = 7200.0
+"""Density scale height of the atmosphere (m)."""
+rho0 = 1.225
+"""Sea-level air density (kg/m^3)."""
+omega_e = 7.29211585e-5
+"""Earth's rotation rate (rad/s)."""
+CD = 0.5
+"""Drag coefficient."""
+S = 4 * pi
+"""Aerodynamic reference area (m^2)."""
+psi_l = 28.5 * pi / 180.0
+"""Latitude of the launch site (rad)."""
+
+# -- the vehicle: nine solid boosters, a first stage, a second stage, and the payload -------------
+
+pi_s, pi_1, pi_2, pi_p = 19290.0, 104380.0, 19300.0, 4164.0
+"""Total mass of one booster, the first stage, the second stage, and the payload (kg)."""
+rho_s, rho_1, rho_2 = 17010.0, 95550.0, 16820.0
+"""Propellant mass of one booster, the first stage, and the second stage (kg)."""
+phi_s, phi_1 = pi_s - rho_s, pi_1 - rho_1
+"""Dry mass of one booster and of the first stage (kg)."""
+Ts, T1, T2 = 628500.0, 1083100.0, 110094.0
+"""Thrust of one booster, the first stage, and the second stage (N)."""
+tau_s, tau_1, tau_2 = 75.2, 261.0, 700.0
+"""Burn time of a booster, the first stage, and the second stage (s)."""
+# specific impulse of a booster, the first stage, and the second stage (s)
+Is = Ts * tau_s / (rho_s * g0)
+I1 = T1 * tau_1 / (rho_1 * g0)
+I2 = T2 * tau_2 / (rho_2 * g0)
+
+t0, t1, t2, t3 = 0.0, 75.2, 150.4, 261.0
+"""The time at which each stage begins (s)."""
+t4_max = t3 + tau_2
+"""The latest the flight may end (s)."""
+
+# Stage 0 burns six boosters and the first stage; stage 1 drops the six spent boosters and
+# burns the other three; stage 2 drops those and burns the first stage alone; stage 3 drops the
+# first stage and burns the second.
+mi_0 = 9 * pi_s + pi_1 + pi_2 + pi_p
+mf_0 = mi_0 - 6 * rho_s - tau_s / tau_1 * rho_1
+mi_1 = mf_0 - 6 * phi_s
+mf_1 = mi_1 - 3 * rho_s - tau_s / tau_1 * rho_1
+mi_2 = mf_1 - 3 * phi_s
+mf_2 = mi_2 - (1 - 2 * tau_s / tau_1) * rho_1
+mi_3 = mf_2 - phi_1
+
+a_f, e_f, i_f, Omega_f, omega_f = 24361140, 0.7308, 28.5, 269.8, 130.5
+"""The target orbit: semi-major axis (m), eccentricity, inclination, right ascension of the
+ascending node, and argument of perigee (degrees)."""
 
 m_total = mi_0
 """Lift-off mass (kg), which also scales the objective."""
@@ -197,6 +214,71 @@ def make_dynamics(thrust, mass_flow):
     return continuous
 
 
+def cross(x1, x2):
+    """Return the cross product of two 3-vectors."""
+    x3 = [0, 0, 0]
+    x3[0] = x1[1] * x2[2] - x1[2] * x2[1]
+    x3[1] = x1[2] * x2[0] - x1[0] * x2[2]
+    x3[2] = x1[0] * x2[1] - x1[1] * x2[0]
+    return x3
+
+
+def mag(x):
+    """Return the magnitude of a vector, kept away from zero so its derivative exists."""
+    return (sum(xi**2 for xi in x) + 1e-100) ** 0.5
+
+
+def dot(x1, x2):
+    """Return the dot product of two 3-vectors."""
+    return sum(x1[i] * x2[i] for i in range(3))
+
+
+def oe_to_rv(a, e, i, Omega, omega, nu, mu_):  # noqa: PLR0913, PLR0917 -- the six elements
+    """Convert classical orbital elements to inertial position and velocity.
+
+    Parameters
+    ----------
+    a : float
+        Semi-major axis.
+    e : float
+        Eccentricity.
+    i : float
+        Inclination (degrees).
+    Omega : float
+        Right ascension of the ascending node (degrees).
+    omega : float
+        Argument of periapsis (degrees).
+    nu : float
+        True anomaly (rad).
+    mu_ : float
+        Gravitational parameter.
+
+    Returns
+    -------
+    tuple of numpy.ndarray
+        The inertial position and velocity.
+    """
+    p = a * (1 - e**2)
+    r = p / (1 + e * cos(nu))
+    r_vec = np.array([r * cos(nu), r * sin(nu), 0])
+    v_vec = sqrt(mu_ / p) * np.array([-sin(nu), e + cos(nu), 0])
+    deg_to_rad = pi / 180
+    c_O = cos(deg_to_rad * Omega)
+    s_O = sin(deg_to_rad * Omega)
+    c_o = cos(deg_to_rad * omega)
+    s_o = sin(deg_to_rad * omega)
+    c_i = cos(deg_to_rad * i)
+    s_i = sin(deg_to_rad * i)
+    R = np.array(
+        [
+            [c_O * c_o - s_O * s_o * c_i, -c_O * s_o - s_O * c_o * c_i, +s_O * s_i],
+            [s_O * c_o + c_O * s_o * c_i, -s_O * s_o + c_O * c_o * c_i, -c_O * s_i],
+            [s_o * s_i, c_o * s_i, c_i],
+        ],
+    )
+    return R @ r_vec, R @ v_vec
+
+
 def orbital_elements(r_vec, v_vec):
     """Return five of the six classical orbital elements of the given state."""
     r, v = mag(r_vec), mag(v_vec)
@@ -238,11 +320,14 @@ def setup() -> yapss.Problem:
     @problem.register.discrete
     def discrete(arg, out):
         """Join the stages, and require the final state to be on the target orbit."""
-        for index, (before, after) in enumerate(pairwise(stages)):
-            first, second = arg[before].final, arg[after].initial
-            setattr(out.discrete, f"stage_{index}_{index + 1}_position", second.r - first.r)
-            setattr(out.discrete, f"stage_{index}_{index + 1}_velocity", second.v - first.v)
-        final = arg[stages[LAST]].final
+        s0, s1, s2, s3 = (arg[stage] for stage in stages)
+        out.discrete.stage_0_1_position = s1.initial.r - s0.final.r
+        out.discrete.stage_0_1_velocity = s1.initial.v - s0.final.v
+        out.discrete.stage_1_2_position = s2.initial.r - s1.final.r
+        out.discrete.stage_1_2_velocity = s2.initial.v - s1.final.v
+        out.discrete.stage_2_3_position = s3.initial.r - s2.final.r
+        out.discrete.stage_2_3_velocity = s3.initial.v - s2.final.v
+        final = s3.final
         a, e, i, Omega, omega = orbital_elements(final.r, final.v)
         out.discrete.semi_major_axis = a
         out.discrete.eccentricity = e
