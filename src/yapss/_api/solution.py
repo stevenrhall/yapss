@@ -20,6 +20,7 @@ its problem was declared.
 from __future__ import annotations
 
 from functools import cache
+from itertools import pairwise
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -88,6 +89,100 @@ def _rebuild_vector(shape: Shape, label: str, rows: Any) -> Any:
 def _vector(declaration: type[Vector], rows: Any, label: str) -> Any:
     """Return a read-only vector with the fields of `declaration`, holding `rows`."""
     return _rebuild_vector(shape_of(declaration), label, rows)
+
+
+# -- one grid per phase ------------------------------------------------------------------------
+#
+# The state lives on the state points and everything evaluated per point -- control, dynamics,
+# path, integrand, costate, Hamiltonian, the per-point multipliers -- on the collocation points.
+# Under LGL the two coincide. Under LGR the collocation points miss the phase's final point, and
+# under LG they miss both ends of every segment. Every per-point quantity is reported on the
+# state points anyway, so that the whole interval plots under every method, and the points the
+# method produced no value at are filled from the method's own polynomial: barycentric Lagrange
+# interpolation on the segment's collocation points, evaluated at the segment's end, and at an
+# LG join between two segments the average of the two segments' values. The filled values are
+# the polynomial where the method imposed nothing -- a filled control can lie outside its
+# bounds -- and `ps.collocated` marks the points that are the solver's own.
+
+
+def _barycentric(nodes: Any, values: Any, at: float) -> Any:
+    """Evaluate at `at` the polynomial through (`nodes`, `values`), along the last axis.
+
+    The nodes are mapped onto [-1, 1] first, which keeps the weights well scaled whatever the
+    segment's length. `at` may lie outside the nodes' span: evaluating at a segment's end is
+    extrapolation, and the barycentric form is exact there too.
+    """
+    lo, hi = nodes[0], nodes[-1]
+    x = (2.0 * (nodes - lo) / (hi - lo) - 1.0) if hi > lo else nodes - lo
+    t = (2.0 * (at - lo) / (hi - lo) - 1.0) if hi > lo else at - lo
+    diff = x[:, None] - x[None, :]
+    np.fill_diagonal(diff, 1.0)
+    weights = 1.0 / diff.prod(axis=1)
+    d = t - x
+    exact = np.flatnonzero(d == 0.0)
+    if exact.size:
+        return values[..., exact[0]]
+    terms = weights / d
+    return (values * terms).sum(axis=-1) / terms.sum()
+
+
+class _Grid:
+    """Where a phase's collocation points sit among its state points, and how to fill the rest.
+
+    Parameters
+    ----------
+    method : str
+        The spectral method.
+    points : tuple of int
+        The collocation points in each segment.
+    time, time_c : numpy.ndarray
+        The state points and the collocation points, both in time order.
+    """
+
+    def __init__(self, method: str, points: tuple[int, ...], time: Any, time_c: Any) -> None:
+        self.time = time
+        self.time_c = time_c
+        n = len(time)
+        mask = np.ones(n, dtype=bool)
+        # each missing state point, with the segments whose polynomials meet there
+        self.missing: list[tuple[int, list[int]]] = []
+        starts = np.concatenate(([0], np.cumsum(points)))
+        self.segments = [slice(int(a), int(b)) for a, b in pairwise(starts)]
+        if method == "lgr":
+            mask[-1] = False
+            self.missing.append((n - 1, [len(points) - 1]))
+        elif method == "lg":
+            # state points: segment start, its collocation points, next start, ..., final point
+            position = 0
+            for k, count in enumerate(points):
+                mask[position] = False
+                self.missing.append((position, [k] if k == 0 else [k - 1, k]))
+                position += count + 1
+            mask[-1] = False
+            self.missing.append((n - 1, [len(points) - 1]))
+        self.collocated = mask
+
+    def fill(self, values: Any) -> Any:
+        """Return `values`, given on the collocation points, on every state point."""
+        values = np.asarray(values)
+        if values.shape[-1] == len(self.time):
+            return values
+        out = np.empty((*values.shape[:-1], len(self.time)), dtype=values.dtype)
+        out[..., self.collocated] = values
+        if values.shape[-1] == 0 or self.time[-1] == self.time[0]:
+            # a zero-duration phase has no polynomial to evaluate: its points coincide
+            out[..., ~self.collocated] = np.nan
+            return out
+        for position, segments in self.missing:
+            at = self.time[position]
+            out[..., position] = np.mean(
+                [
+                    _barycentric(self.time_c[self.segments[k]], values[..., self.segments[k]], at)
+                    for k in segments
+                ],
+                axis=0,
+            )
+        return out
 
 
 class _Fixed:
@@ -254,6 +349,11 @@ class PhaseSolution:
         The extent of the phase.
     hamiltonian : numpy.ndarray
         The Hamiltonian over `time`.
+    collocated : numpy.ndarray
+        Which points of `time` the solver produced values at. Every per-point quantity is given
+        on every point of `time`; where this is false, the value is the method's polynomial
+        extrapolated there -- close, and fine to plot, but not the solver's, and not bound by
+        anything the solver imposed. Checks and statistics use ``quantity[ps.collocated]``.
     mesh : Mesh
         The mesh the phase was solved on.
     """
@@ -261,6 +361,7 @@ class PhaseSolution:
     __slots__ = (
         "_independent",
         "_points",
+        "collocated",
         "control",
         "costate",
         "duration",
@@ -282,11 +383,13 @@ class PhaseSolution:
             object.__setattr__(self, name, value)
 
     @classmethod
-    def _from(cls, phase: PhaseSpec, data: Any) -> PhaseSolution:
+    def _from(cls, phase: PhaseSpec, data: Any, method: str) -> PhaseSolution:
         """Return the solution of `phase` from the back end's record of it."""
         label = f"phase '{phase.name}' solution"
         state = np.asarray(data.state)
-        costate = _vector(phase.state, data.costate, f"{label} costate")
+        grid = _Grid(method, phase.mesh.collocation_points, data.time, data.time_c)
+        fill = grid.fill
+        costate = _vector(phase.state, fill(data.costate), f"{label} costate")
         fields = phase.state._fields
 
         def at_end(value: float) -> EndpointMultiplier:
@@ -298,9 +401,9 @@ class PhaseSolution:
             {
                 "dynamics": costate,
                 "control": _vector(
-                    phase.control, data.control_multiplier, f"{label} control multiplier"
+                    phase.control, fill(data.control_multiplier), f"{label} control multiplier"
                 ),
-                "path": _vector(phase.path, data.path_multiplier, f"{label} path multiplier"),
+                "path": _vector(phase.path, fill(data.path_multiplier), f"{label} path multiplier"),
                 "integral": _vector(
                     phase.integral, data.integral_multiplier, f"{label} integral multiplier"
                 ),
@@ -313,18 +416,19 @@ class PhaseSolution:
             phase.independent,
             {
                 "_points": data.time,
+                "collocated": grid.collocated,
                 "state": _vector(phase.state, state, f"{label} state"),
                 "costate": costate,
                 "multiplier": multiplier,
-                "dynamics": _vector(phase.state, data.dynamics, f"{label} dynamics"),
-                "control": _vector(phase.control, data.control, f"{label} control"),
-                "path": _vector(phase.path, data.path, f"{label} path"),
-                "integrand": _vector(phase.integral, data.integrand, f"{label} integrand"),
+                "dynamics": _vector(phase.state, fill(data.dynamics), f"{label} dynamics"),
+                "control": _vector(phase.control, fill(data.control), f"{label} control"),
+                "path": _vector(phase.path, fill(data.path), f"{label} path"),
+                "integrand": _vector(phase.integral, fill(data.integrand), f"{label} integrand"),
                 "integral": _vector(phase.integral, data.integral, f"{label} integral"),
                 "initial": _endpoint(phase, state[:, 0], data.time[0], f"{label} initial"),
                 "final": _endpoint(phase, state[:, -1], data.time[-1], f"{label} final"),
                 "duration": data.time[-1] - data.time[0],
-                "hamiltonian": data.hamiltonian,
+                "hamiltonian": fill(data.hamiltonian),
                 "mesh": phase.mesh,
             },
         )
@@ -407,7 +511,8 @@ class Solution:
             {
                 "_names": tuple(phase.name for phase in spec.phases),
                 "_phases": tuple(
-                    PhaseSolution._from(phase, record.phase[phase.index]) for phase in spec.phases
+                    PhaseSolution._from(phase, record.phase[phase.index], spec.method)
+                    for phase in spec.phases
                 ),
                 "objective": record.objective,
                 "converged": record.converged,
