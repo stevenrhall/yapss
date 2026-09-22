@@ -73,7 +73,7 @@ def test_the_problem_level_values_read_back_too() -> None:
     assert result.converged
     assert result.status is not None
     assert abs(result.discrete.drop - 0.5) < 1e-6
-    assert result.discrete_multiplier.drop is not None
+    assert result.multiplier.discrete.drop is not None
 
 
 # --------------------------------------------------------------------------- what is refused

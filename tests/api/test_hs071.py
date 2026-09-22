@@ -53,7 +53,7 @@ def test_the_solution_reads_under_its_own_names(problem):
     )
     assert solution.discrete.product == pytest.approx(25.0)
     assert solution.discrete.sum_of_squares == pytest.approx(40.0)
-    assert solution.discrete_multiplier.product != 0.0
+    assert solution.multiplier.discrete.product != 0.0
 
 
 def test_there_are_no_phases_to_reach(problem):

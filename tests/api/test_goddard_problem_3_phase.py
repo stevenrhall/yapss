@@ -74,7 +74,7 @@ def test_the_discrete_vector_is_read_by_name_and_by_position(problem):
     assert len(solution.discrete) == 8
     assert solution.discrete[:].shape == (8,)
     assert solution.discrete[0] == solution.discrete.boost_singular_h
-    assert np.isfinite(solution.discrete_multiplier.singular_coast_time)
+    assert np.isfinite(solution.multiplier.discrete.singular_coast_time)
 
 
 def test_a_phase_without_a_path_declares_none(problem):

@@ -32,7 +32,13 @@ from .vector import ROLES, Vector, role_of, scalar, vector
 if TYPE_CHECKING:
     from .spec import PhaseSpec, ProblemSpec
 
-__all__ = ["PhaseSolution", "Solution"]
+__all__ = [
+    "EndpointMultiplier",
+    "PhaseMultiplier",
+    "PhaseSolution",
+    "ProblemMultiplier",
+    "Solution",
+]
 
 Shape = tuple[str, str, tuple[tuple[str, int | None], ...]]
 """What a solution keeps of a declaration: its role, its name, and its fields with their sizes."""
@@ -106,6 +112,119 @@ def _endpoint(phase: PhaseSpec, rows: Any, independent: Any, label: str) -> Endp
     )
 
 
+class _Record:
+    """Base of the groups a solution holds: named slots, read-only, pickled as their values."""
+
+    __slots__: tuple[str, ...] = ()
+    _label = "the solution"
+
+    def __init__(self, values: dict[str, Any]) -> None:
+        for name, value in values.items():
+            object.__setattr__(self, name, value)
+
+    def _names(self) -> tuple[str, ...]:
+        return tuple(n for n in self.__slots__ if not n.startswith("_"))
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        """Pickle as the values, which are data all the way down."""
+        return (type(self), ({n: object.__getattribute__(self, n) for n in self.__slots__},))
+
+    def __getattr__(self, name: str) -> Any:
+        """Refuse an unknown name with a suggestion."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        msg = f"{self._label} has no '{name}'.{suggest(name, self._names())}"
+        raise AttributeError(msg)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse every assignment: a solution is a record of what was solved."""
+        del value
+        msg = f"a solution is read-only; '{name}' cannot be assigned"
+        raise AttributeError(msg)
+
+
+_STATE_BOUNDS_OWED = (
+    "A state's bound multiplier has to be divided by the quadrature weight and, at a collocated "
+    "endpoint, folded into the costate, and that is still to be done."
+)
+
+
+class EndpointMultiplier(_Record):
+    """The multipliers at one end of a phase, in the namespace `ps.initial` and `ps.final` use.
+
+    The independent variable's is reported, under the phase's name for it. A state's -- the
+    multiplier of its initial or final condition -- is owed, and asking for one says so rather
+    than calling the name unknown.
+    """
+
+    __slots__ = ("_fields", "_independent", "_value")
+    _label = "the endpoint multipliers"
+
+    def __getattr__(self, name: str) -> Any:
+        """Return the independent variable's multiplier, or explain a state's absence."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        independent = object.__getattribute__(self, "_independent")
+        if name == independent:
+            return object.__getattribute__(self, "_value")
+        fields: tuple[str, ...] = object.__getattribute__(self, "_fields")
+        if name in fields:
+            msg = f"the multiplier of '{name}' at this endpoint is not reported yet. " + (
+                _STATE_BOUNDS_OWED
+            )
+            raise AttributeError(msg)
+        msg = f"{self._label} have no '{name}'.{suggest(name, (*fields, independent))}"
+        raise AttributeError(msg)
+
+
+class PhaseMultiplier(_Record):
+    """A phase's multipliers, in the shapes of what they belong to: ``ps.multiplier``.
+
+    Attributes
+    ----------
+    dynamics : Vector
+        The costate: the multiplier of the dynamics, named by the state's fields. The same
+        object as ``ps.costate``.
+    control : Vector
+        The multipliers of the controls' bounds, densities in time.
+    path : Vector
+        The multipliers of the path constraints, densities in time.
+    integral : Vector
+        One multiplier per integral.
+    initial, final : EndpointMultiplier
+        The multipliers at each end of the phase.
+    duration : float
+        The multiplier of the phase's extent.
+    """
+
+    __slots__ = ("control", "duration", "dynamics", "final", "initial", "integral", "path")
+    _label = "the phase multipliers"
+
+    def __getattr__(self, name: str) -> Any:
+        """Explain the owed state-bound multipliers, or refuse an unknown name."""
+        if name == "state":
+            msg = (
+                f"the multipliers of the state's bounds are not reported yet. {_STATE_BOUNDS_OWED}"
+            )
+            raise AttributeError(msg)
+        return super().__getattr__(name)
+
+
+class ProblemMultiplier(_Record):
+    """The problem's multipliers: ``solution.multiplier``.
+
+    Attributes
+    ----------
+    parameter : Vector
+        The multipliers of the parameters' bounds.
+    discrete : Vector
+        The multipliers of the discrete constraints.
+    """
+
+    __slots__ = ("discrete", "parameter")
+    _label = "the problem multipliers"
+
+
 class PhaseSolution:
     """One phase of a solution.
 
@@ -114,14 +233,21 @@ class PhaseSolution:
     time : numpy.ndarray
         The points every quantity of the phase is given on, under whatever the phase calls
         its independent variable -- `time` unless it was named otherwise.
-    state, costate, dynamics : Vector
+    state, dynamics : Vector
         Arrays over `time`, named by the phase's state class.
     control : Vector
         Arrays over `time`, named by the phase's control class.
     path : Vector
         Arrays over `time`, named by the phase's path class.
+    integrand : Vector
+        Arrays over `time`, named by the phase's integral class.
     integral : Vector
         One value per integral.
+    multiplier : PhaseMultiplier
+        The multipliers, in the same shapes: ``ps.multiplier.path.g``.
+    costate : Vector
+        The multiplier of the dynamics, which is ``ps.multiplier.dynamics`` under the name the
+        field uses for it -- the same object.
     initial, final : EndpointValues
         The phase's variables at each end, read as a callback reads them.
     duration : float
@@ -143,7 +269,9 @@ class PhaseSolution:
         "hamiltonian",
         "initial",
         "integral",
+        "integrand",
         "mesh",
+        "multiplier",
         "path",
         "state",
     )
@@ -158,15 +286,40 @@ class PhaseSolution:
         """Return the solution of `phase` from the back end's record of it."""
         label = f"phase '{phase.name}' solution"
         state = np.asarray(data.state)
+        costate = _vector(phase.state, data.costate, f"{label} costate")
+        fields = phase.state._fields
+
+        def at_end(value: float) -> EndpointMultiplier:
+            return EndpointMultiplier(
+                {"_fields": fields, "_independent": phase.independent, "_value": value}
+            )
+
+        multiplier = PhaseMultiplier(
+            {
+                "dynamics": costate,
+                "control": _vector(
+                    phase.control, data.control_multiplier, f"{label} control multiplier"
+                ),
+                "path": _vector(phase.path, data.path_multiplier, f"{label} path multiplier"),
+                "integral": _vector(
+                    phase.integral, data.integral_multiplier, f"{label} integral multiplier"
+                ),
+                "initial": at_end(data.initial_time_multiplier),
+                "final": at_end(data.final_time_multiplier),
+                "duration": data.duration_multiplier,
+            }
+        )
         return cls(
             phase.independent,
             {
                 "_points": data.time,
                 "state": _vector(phase.state, state, f"{label} state"),
-                "costate": _vector(phase.state, data.costate, f"{label} costate"),
+                "costate": costate,
+                "multiplier": multiplier,
                 "dynamics": _vector(phase.state, data.dynamics, f"{label} dynamics"),
                 "control": _vector(phase.control, data.control, f"{label} control"),
                 "path": _vector(phase.path, data.path, f"{label} path"),
+                "integrand": _vector(phase.integral, data.integrand, f"{label} integrand"),
                 "integral": _vector(phase.integral, data.integral, f"{label} integral"),
                 "initial": _endpoint(phase, state[:, 0], data.time[0], f"{label} initial"),
                 "final": _endpoint(phase, state[:, -1], data.time[-1], f"{label} final"),
@@ -216,8 +369,14 @@ class Solution:
         Whether Ipopt reported a converged solve.
     status : IpoptStatus
         What Ipopt reported.
-    parameter, discrete, discrete_multiplier : Vector
+    name : str
+        The name of the problem this is a solution to.
+    method : str
+        The spectral method it was solved with: ``"lgl"``, ``"lgr"`` or ``"lg"``.
+    parameter, discrete : Vector
         The problem-level values, named by the classes the problem declared.
+    multiplier : ProblemMultiplier
+        Their multipliers, in the same shapes: ``solution.multiplier.discrete.d``.
     """
 
     __slots__ = (
@@ -225,7 +384,9 @@ class Solution:
         "_phases",
         "converged",
         "discrete",
-        "discrete_multiplier",
+        "method",
+        "multiplier",
+        "name",
         "objective",
         "parameter",
         "status",
@@ -251,10 +412,19 @@ class Solution:
                 "objective": record.objective,
                 "converged": record.converged,
                 "status": record.status,
+                "name": spec.name,
+                "method": spec.method,
                 "parameter": _vector(spec.parameter, record.parameter, "parameter"),
                 "discrete": _vector(spec.discrete, record.discrete, "discrete"),
-                "discrete_multiplier": _vector(
-                    spec.discrete, record.discrete_multiplier, "discrete multiplier"
+                "multiplier": ProblemMultiplier(
+                    {
+                        "parameter": _vector(
+                            spec.parameter, record.parameter_multiplier, "parameter multiplier"
+                        ),
+                        "discrete": _vector(
+                            spec.discrete, record.discrete_multiplier, "discrete multiplier"
+                        ),
+                    }
                 ),
             }
         )
