@@ -1,6 +1,6 @@
 """
 
-The Goddard rocket problem in one phase, with derivatives supplied by hand.
+The Goddard rocket problem in one phase.
 
 A rocket rises vertically against drag and gravity, burning fuel to reach the greatest altitude
 it can. The answer is bang-singular-bang: full thrust, then an arc along which a switching
@@ -13,12 +13,6 @@ from one collocation point to the next, whose average is close to the singular t
 altitude is close to the right one. The minimizer is minimizing the problem it was given, and
 the problem it was given does not say the arc is an arc. Stating the three arcs as three phases
 is what says it, which is what the other example does.
-
-It is also where the derivative callbacks are written out on a problem with real dynamics. The
-entries are named rather than numbered -- ``jacobian.dynamics.v.h`` is the derivative of the
-rate of change of speed with respect to altitude -- so the sparsity structure is the set of
-names written, and an entry omitted is structurally zero. Compare `brachistochrone.py` with
-`brachistochrone_user_derivatives.py` for the same pairing on a smaller problem.
 
 """
 
@@ -104,69 +98,7 @@ def setup() -> yapss.Problem:
         """Return the altitude reached, which is to be made as large as possible."""
         return arg[ph].final.h
 
-    # ------------------------------------------------------------- derivatives
-
-    @ph.register.continuous_jacobian
-    def rocket_jacobian(arg, jacobian):
-        """Compute the first derivatives of the dynamics."""
-        h, v, m = arg.state.h, arg.state.v, arg.state.m
-        thrust = arg.control.thrust
-        drag_over_v2 = sigma * exp(-h / h0)
-        drag_over_v = drag_over_v2 * v
-        drag = drag_over_v * v
-
-        jacobian.dynamics.h.v = 1.0
-        jacobian.dynamics.v.h = drag / (h0 * m)
-        jacobian.dynamics.v.v = -2 * drag_over_v / m
-        jacobian.dynamics.v.m = -(thrust - drag) / m**2
-        jacobian.dynamics.v.thrust = 1 / m
-        jacobian.dynamics.m.thrust = -1 / c
-        return jacobian
-
-    @ph.register.continuous_hessian
-    def rocket_hessian(arg, hessian):
-        """Compute the second derivatives of the dynamics.
-
-        Only the speed's rate of change is nonlinear, so it is the only output with any
-        entries. Each unordered pair is written once: ``hessian.dynamics.v.h.m`` and
-        ``hessian.dynamics.v.m.h`` name the same derivative, and writing both is refused
-        rather than summed.
-        """
-        h, v, m = arg.state.h, arg.state.v, arg.state.m
-        thrust = arg.control.thrust
-        drag_over_v2 = sigma * exp(-h / h0)
-        drag_over_v = drag_over_v2 * v
-        drag = drag_over_v * v
-
-        hessian.dynamics.v.h.h = -drag / (h0**2 * m)
-        hessian.dynamics.v.h.v = 2 * drag_over_v / (h0 * m)
-        hessian.dynamics.v.h.m = -drag / (h0 * m**2)
-        hessian.dynamics.v.v.v = -2 * drag_over_v2 / m
-        hessian.dynamics.v.v.m = 2 * drag_over_v / m**2
-        hessian.dynamics.v.m.m = 2 * (thrust - drag) / m**3
-        hessian.dynamics.v.m.thrust = -1 / m**2
-        return hessian
-
-    @problem.register.objective_gradient
-    def final_altitude_gradient(_arg, gradient):
-        """Compute the gradient of the objective, which is one in the final altitude."""
-        gradient[gradient.phases[ph].final.h] = 1.0
-        return gradient
-
-    @problem.register.objective_hessian
-    def final_altitude_hessian(_arg, hessian):
-        """Compute the Hessian of the objective, which is zero everywhere.
-
-        Registering it is what says so: an entry not written is structurally zero, and a
-        callback that writes none says that of every entry. Leaving the callback out would be
-        indistinguishable from forgetting it.
-        """
-        return hessian
-
-    # ------------------------------------------------------------------- setup
-
     problem.objective.sense = "maximize"
-    problem.derivatives.method = "user"
 
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (tf_min, tf_max)

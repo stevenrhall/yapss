@@ -1,6 +1,6 @@
 """How derivatives are computed, and what choosing badly says.
 
-Four methods and two orders. The choice is a setting on the problem rather than an argument to
+Three methods and two orders. The choice is a setting on the problem rather than an argument to
 `solve`, so a misspelling is refused at the line that makes it rather than at the solve.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 from ._api import problem, raises, solvable
 
 
-def test_the_method_is_one_of_four() -> None:
+def test_the_method_is_one_of_three() -> None:
     """The message lists them, which is shorter than going to look."""
     p = problem()
     with raises(
@@ -19,6 +19,24 @@ def test_the_method_is_one_of_four() -> None:
         at="derivatives.method",
     ):
         p.derivatives.method = "fd"
+
+
+def test_derivatives_by_hand_are_not_offered() -> None:
+    """0.3.0 offered ``"user"``, so it is refused with the reason and what to use instead.
+
+    Hand-written derivatives were feasible only for problems small enough that ``"auto"``
+    differentiates them instantly; a model that cannot be traced is what central differences
+    are for.
+    """
+    p = problem()
+    with raises(
+        ValueError,
+        "derivatives.method = 'user' is not offered",
+        "Use 'auto'",
+        "'central-difference'",
+        at='derivatives.method = "user"',
+    ):
+        p.derivatives.method = "user"
 
 
 def test_the_order_is_first_or_second() -> None:

@@ -26,7 +26,6 @@ can be found in the corresponding JupyterLab notebook example in the
    hs071.rst
    brachistochrone_minimal.rst
    brachistochrone.rst
-   brachistochrone_user_derivatives.rst
    isoperimetric.rst
    newton.rst
    goddard_problem_1_phase.rst

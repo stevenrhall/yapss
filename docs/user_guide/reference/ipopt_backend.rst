@@ -54,8 +54,8 @@ the mesh structure. (For calculus fans, this is just an application of the chain
 differentiation.) That calculation is performed by YAPSS internally, to produce the final
 callback functions to be passed to Ipopt.
 
-The ``"central-difference"``, ``"central-difference-full"``, and ``"user"`` differentiation
-methods differentiate the user functions differently, but the additional chain-rule step is
+The ``"central-difference"`` and ``"central-difference-full"`` differentiation methods
+differentiate the user functions differently, but the additional chain-rule step is
 shared by all of the differentiation methods, and so is everything downstream of it.
 
 The difficulty is then that CasADi doesn't have a direct interface to Ipopt itself, and the
@@ -135,7 +135,7 @@ Why is CasADi required if I supply my own derivatives?
 CasADi provides the automatic differentiation behind the default ``derivatives.method`` of
 ``"auto"``, so it is needed for that. But it is also how YAPSS finds the Ipopt library,
 which means YAPSS depends on CasADi even for problems that never use automatic
-differentiation --- with user-supplied derivatives, or with central differences.
+differentiation --- with central differences.
 
 Can I choose which Ipopt library YAPSS uses?
 --------------------------------------------

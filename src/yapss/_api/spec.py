@@ -34,7 +34,7 @@ __all__ = ["PhaseSpec", "ProblemSpec", "snapshot", "validate_problem"]
 
 Sense = Literal["minimize", "maximize"]
 Method = Literal["lgl", "lgr", "lg"]
-DerivativeMethod = Literal["auto", "central-difference", "central-difference-full", "user"]
+DerivativeMethod = Literal["auto", "central-difference", "central-difference-full"]
 Order = Literal["first", "second"]
 
 
@@ -52,8 +52,6 @@ class PhaseSpec:
     independent: str
     """The name of the phase's independent variable, which is `time` unless it was renamed."""
     continuous: Callable[..., Any]
-    continuous_jacobian: Callable[..., Any] | None
-    continuous_hessian: Callable[..., Any] | None
     state_bounds: dict[str, Any]
     state_initial: dict[str, Any]
     state_final: dict[str, Any]
@@ -90,10 +88,6 @@ class ProblemSpec:
     parameter_scale: dict[str, Any]
     discrete_scale: dict[str, Any]
     objective_function: Callable[..., Any]
-    objective_gradient_function: Callable[..., Any] | None
-    objective_hessian_function: Callable[..., Any] | None
-    discrete_jacobian_function: Callable[..., Any] | None
-    discrete_hessian_function: Callable[..., Any] | None
     objective_scale: float
     sense: Sense
     method: Method
@@ -152,58 +146,9 @@ def validate_problem(problem: Problem[Any, Any, Any]) -> None:
     if problem._discrete_class._fields and problem._discrete_function is None:
         complaints.append("discrete constraints are declared but there is no discrete callback")
     complaints.extend(_unbounded(aspects_of(problem.discrete).bounds, "discrete constraint"))
-    if problem.derivatives.method == "user":
-        complaints.extend(_missing_derivatives(problem))
     if complaints:
         msg = "the problem is incomplete:\n  " + "\n  ".join(complaints)
         raise ValueError(msg)
-
-
-def _missing_derivatives(problem: Problem[Any, Any, Any]) -> list[str]:
-    """Return a complaint for every derivative callback the ``"user"`` method needs.
-
-    Every derivative the method needs is registered, *including* the ones that are zero: an
-    empty callback says that every entry of it is structurally zero, and leaving it out would
-    be indistinguishable from forgetting it. Forgetting it is not caught by the answer, since
-    the gradient and the Jacobian still define the same KKT point -- it costs iterations, and
-    losing the speed invisibly is the failure worth refusing in the one feature whose purpose
-    is speed.
-    """
-    second = problem.derivatives.order == "second"
-    complaints: list[str] = []
-    for phase in problem.phases:
-        needed = [("continuous_jacobian", "_continuous_jacobian")]
-        if second:
-            needed.append(("continuous_hessian", "_continuous_hessian"))
-        complaints.extend(
-            f"phase '{phase.name}' has no {which} callback, which "
-            f"'derivatives.method = \"user\"' requires; register it with "
-            f"'@ph.register.{which}'"
-            for which, attribute in needed
-            if getattr(phase, attribute) is None
-        )
-    needed = [("objective_gradient", "_objective_gradient_function")]
-    if second:
-        needed.append(("objective_hessian", "_objective_hessian_function"))
-    complaints.extend(
-        f"the problem has no {which} callback, which "
-        f"'derivatives.method = \"user\"' requires; register it with "
-        f"'@problem.register.{which}'"
-        for which, attribute in needed
-        if getattr(problem, attribute) is None
-    )
-    if problem._discrete_class._fields:
-        needed = [("discrete_jacobian", "_discrete_jacobian_function")]
-        if second:
-            needed.append(("discrete_hessian", "_discrete_hessian_function"))
-        complaints.extend(
-            f"the problem has no {which} callback, which "
-            f"'derivatives.method = \"user\"' requires of a problem with discrete "
-            f"constraints; register it with '@problem.register.{which}'"
-            for which, attribute in needed
-            if getattr(problem, attribute) is None
-        )
-    return complaints
 
 
 def _uncovered(guess: Vector, time_guess: tuple[float, float], label: str) -> list[str]:
@@ -264,8 +209,6 @@ def snapshot(problem: Problem[Any, Any, Any]) -> ProblemSpec:
             integral=phase._declaration.integral,
             independent=phase._independent,
             continuous=phase._continuous,
-            continuous_jacobian=phase._continuous_jacobian,
-            continuous_hessian=phase._continuous_hessian,
             state_bounds=_values(aspects_of(phase.state).bounds),
             state_initial=_values(aspects_of(phase.state).initial),
             state_final=_values(aspects_of(phase.state).final),
@@ -304,10 +247,6 @@ def snapshot(problem: Problem[Any, Any, Any]) -> ProblemSpec:
         parameter_scale=_values(aspects_of(problem.parameter).scale),
         discrete_scale=_values(aspects_of(problem.discrete).scale),
         objective_function=objective,
-        objective_gradient_function=problem._objective_gradient_function,
-        objective_hessian_function=problem._objective_hessian_function,
-        discrete_jacobian_function=problem._discrete_jacobian_function,
-        discrete_hessian_function=problem._discrete_hessian_function,
         objective_scale=problem.objective.scale,
         sense=problem.objective.sense,
         method=problem.method,

@@ -132,7 +132,6 @@ reference/callbacks.rst
 reference/bounds.rst
 reference/guess.rst
 reference/derivatives.rst
-reference/user_derivatives.rst
 reference/scaling.rst
 reference/mesh_structure.rst
 reference/ipopt_options.rst

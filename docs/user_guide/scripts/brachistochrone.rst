@@ -7,9 +7,7 @@ the slope angle of the path, and the objective is the time taken; the answer is 
 This is the example to read first. It states a complete optimal control problem -- a state
 vector, a control, dynamics, bounds, a guess and an objective -- and nothing in it is there
 for any reason but the problem. For the shortest complete statement of the same problem, see
-the :doc:`minimal implementation <brachistochrone_minimal>`; for the same problem with its
-derivatives written out by hand rather than differentiated automatically, see
-:doc:`brachistochrone_user_derivatives`.
+the :doc:`minimal implementation <brachistochrone_minimal>`.
 
 The Python script in this example can be executed from the command line with:
 

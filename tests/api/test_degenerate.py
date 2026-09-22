@@ -17,7 +17,7 @@ import pytest
 
 import yapss
 
-METHODS = ("auto", "central-difference", "central-difference-full", "user")
+METHODS = ("auto", "central-difference", "central-difference-full")
 
 
 def test_a_phase_that_declares_nothing_still_has_its_own_times():

@@ -158,7 +158,6 @@ def test_a_vector_of_a_solution_is_not_an_instance_of_the_users_class(solved):
 EXAMPLES = [
     "brachistochrone",
     "brachistochrone_minimal",
-    "brachistochrone_user_derivatives",
     "delta_iii_ascent",
     "dynamic_soaring",
     "goddard_problem_1_phase",

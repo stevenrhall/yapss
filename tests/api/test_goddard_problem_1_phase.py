@@ -1,10 +1,8 @@
-"""The Goddard rocket in one phase, whose derivative callbacks are part of the example.
+"""The Goddard rocket in one phase.
 
-The entry-by-entry check that those callbacks are right lives in `test_user_derivatives.py`,
-which compares the assembled NLP Jacobian and Hessian against automatic differentiation at an
-off-guess point. What is here is the end-to-end behaviour: the same answer as the released API,
-the same answer from every derivative method, and the bang-singular-bang structure appearing on
-its own rather than being imposed as it is in the three-phase version.
+The end-to-end behaviour: the same answer as the released API, the same answer from every
+derivative method, and the bang-singular-bang structure appearing on its own rather than being
+imposed as it is in the three-phase version.
 """
 
 import numpy as np
@@ -27,9 +25,7 @@ def test_it_agrees_with_the_released_api(problem):
     assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-12)
 
 
-@pytest.mark.parametrize(
-    "method", ["user", "auto", "central-difference", "central-difference-full"]
-)
+@pytest.mark.parametrize("method", ["auto", "central-difference", "central-difference-full"])
 def test_every_derivative_method_agrees(problem, method):
     problem.derivatives.method = method
     assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-6)

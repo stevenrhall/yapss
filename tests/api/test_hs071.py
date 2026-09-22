@@ -5,9 +5,6 @@ count -- no phases, no states, no fields, no rows -- because nothing about the t
 changes shape at the bottom of any of those ranges, so nothing in the interface refuses them.
 Until this example there was one exception, and it was an error message rather than a
 limitation: `Phases` refused to declare none.
-
-It is also the only problem in the corpus whose `"user"` derivatives need no continuous
-callbacks at all, since there is no phase to have any.
 """
 
 import numpy as np
@@ -37,9 +34,7 @@ def test_it_agrees_with_the_released_api(problem):
     assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-14)
 
 
-@pytest.mark.parametrize(
-    "method", ["user", "auto", "central-difference", "central-difference-full"]
-)
+@pytest.mark.parametrize("method", ["auto", "central-difference", "central-difference-full"])
 def test_every_derivative_method_agrees(problem, method):
     problem.derivatives.method = method
     assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-10)
@@ -61,39 +56,6 @@ def test_there_are_no_phases_to_reach(problem):
     assert list(problem.phases) == []
     with pytest.raises(KeyError, match="has no phase 'slide'. The problem declared no phases"):
         _ = solution["slide"]
-
-
-def test_user_derivatives_need_no_continuous_callbacks():
-    """With no phases there is no continuous callback, so `"user"` wants only the endpoint four.
-
-    The example itself is written that way, so this states what `setup()` already does rather
-    than building a second copy of it.
-    """
-    problem = setup()
-    problem.ipopt_options.print_level = 0
-    assert problem.derivatives.method == "user"
-    assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-10)
-
-
-def test_the_hand_written_derivatives_are_the_ones_used():
-    """Break one entry of the objective gradient and the solve must not reach the answer.
-
-    Without this the example would pass whether or not its callbacks were reached, since a
-    wrong derivative costs iterations rather than raising.
-    """
-    problem = setup()
-    problem.ipopt_options.print_level = 0
-    problem.ipopt_options.max_iter = 5
-
-    def wrong(arg, gradient):
-        dx = gradient.parameter.x
-        for i in range(4):
-            gradient[dx[i]] = 1.0
-        return gradient
-
-    problem.register.objective_gradient(wrong, replace=True)
-    with pytest.warns(yapss.IpoptConvergenceWarning):
-        assert problem.solve().objective != pytest.approx(RELEASED, rel=1e-6)
 
 
 def test_the_declarations_are_what_they_look_like():

@@ -4,14 +4,6 @@ Newton's Minimal Resistance Problem
 For a description of Newton's minimal resistance problem, see the
 `JupyterLab notebook documentation <../notebooks/newton.ipynb>`_ for this problem.
 
-This example script has user-defined methods for computing the first and second derivatives of the
-objective and continuous functions. User-defined derivatives can be faster to compute than
-derivatives computed by automatic differentiation, but not by a large factor. Because for most
-problems as much time is spent in the Ipopt solver as in derivative-function evaluations, even
-a substantial speedup in derivative evaluation may not result in a significant speedup in the
-overall solution time, and so it's almost never worth the effort to implement user-defined
-derivatives.
-
 The Python script in this example can be executed from the command line with:
 
 .. code-block:: console

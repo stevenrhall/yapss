@@ -8,7 +8,7 @@ how derivatives are calculated.
 The ``derivatives.method`` Attribute
 ------------------------------------
 
-The ``derivatives.method`` option can take on one of four values:
+The ``derivatives.method`` option can take on one of three values:
 
 *  "auto" (default), for automatic differentiation using the CasADi package. With this method,
    YAPSS calls each callback function a single time, passing symbolic placeholders in place of
@@ -37,8 +37,6 @@ The ``derivatives.method`` option can take on one of four values:
    method can be used, which calculates all the derivatives by central difference, without
    attempting to find the sparsity pattern. This method is slower than the "central-difference"
    method but is more reliable.
-
-*  "user", in which case the user must supply the first and perhaps second derivatives.
 
 .. warning::
 

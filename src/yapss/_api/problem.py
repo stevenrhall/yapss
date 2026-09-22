@@ -57,7 +57,14 @@ PR_co = TypeVar("PR_co", bound=Parameter, default=Any, covariant=True)
 """The class declaring the problem's parameters."""
 
 METHODS = ("lgl", "lgr", "lg")
-DERIVATIVE_METHODS = ("auto", "central-difference", "central-difference-full", "user")
+DERIVATIVE_METHODS = ("auto", "central-difference", "central-difference-full")
+
+_NO_USER_METHOD = (
+    "derivatives.method = 'user' is not offered: derivatives written by hand were feasible "
+    "only for problems small enough that 'auto' differentiates them instantly. Use 'auto'; "
+    "for a model that cannot be traced, use 'central-difference', or "
+    "'central-difference-full' where its sparsity cannot be detected."
+)
 ORDERS = ("first", "second")
 SENSES = ("minimize", "maximize")
 CATCH_KEYBOARD_INTERRUPT = True
@@ -133,7 +140,7 @@ class Derivatives(Container):
     _settable = ("method", "order")
 
     if TYPE_CHECKING:
-        method: Literal["auto", "central-difference", "central-difference-full", "user"]
+        method: Literal["auto", "central-difference", "central-difference-full"]
         order: Literal["first", "second"]
 
     def __init__(self) -> None:
@@ -143,6 +150,9 @@ class Derivatives(Container):
 
     def _check(self, name: str, value: Any) -> Any:
         if name == "method":
+            # 0.3.0 offered "user", so it is the value a user porting a problem will try.
+            if value == "user":
+                raise ValueError(_NO_USER_METHOD)
             return _one_of(value, DERIVATIVE_METHODS, "derivatives.method")
         return _one_of(value, ORDERS, "derivatives.order")
 
@@ -183,14 +193,7 @@ def _check_parameters(parameter: type[Vector], phases: Any) -> None:
 class ProblemRegistry(Registry):
     """The problem's callbacks. Reached as ``problem.register``."""
 
-    _registrations = (
-        "objective",
-        "discrete",
-        "objective_gradient",
-        "objective_hessian",
-        "discrete_jacobian",
-        "discrete_hessian",
-    )
+    _registrations = ("objective", "discrete")
     _label = "problem callbacks"
 
     def __init__(self, problem: Problem[Any, Any, Any]) -> None:
@@ -248,130 +251,6 @@ class ProblemRegistry(Registry):
             The callback, or a decorator that registers one.
         """
         return self._problem._register("discrete", function, replace=replace)
-
-    @overload
-    def objective_gradient(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
-    @overload
-    def objective_gradient(
-        self, function: None = None, /, *, replace: bool = False
-    ) -> Callable[[CallbackT], CallbackT]: ...
-    def objective_gradient(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
-        """Register the objective's gradient, as a decorator or as a call.
-
-        Required under ``derivatives.method = "user"``. The callback takes the endpoint
-        argument and a `gradient` to fill, subscripted with the variable the derivative is by:
-        ``gradient[gradient.phases[ph].final.time] = 1.0``. What it writes
-        is the sparsity structure, so a name it does not write is a derivative that is zero
-        everywhere, and the same names must be written on every call.
-
-        Parameters
-        ----------
-        function : callable, optional
-            The callback. Omit it to use the result as a decorator.
-        replace : bool, default False
-            Replace a callback already registered.
-
-        Returns
-        -------
-        Any
-            The callback, or a decorator that registers one.
-        """
-        return self._problem._register("objective_gradient", function, replace=replace)
-
-    @overload
-    def objective_hessian(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
-    @overload
-    def objective_hessian(
-        self, function: None = None, /, *, replace: bool = False
-    ) -> Callable[[CallbackT], CallbackT]: ...
-    def objective_hessian(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
-        """Register the objective's Hessian, as a decorator or as a call.
-
-        Required under ``derivatives.method = "user"`` at ``derivatives.order = "second"``,
-        *including* when every entry of it is zero: a callback that writes nothing says so,
-        and leaving it out would be indistinguishable from forgetting it. Forgetting it is
-        not caught by the answer, because a wrong Hessian still leaves the same KKT point --
-        it costs iterations instead, which is the one failure worth refusing in a feature
-        whose purpose is speed.
-
-        Parameters
-        ----------
-        function : callable, optional
-            The callback. Omit it to use the result as a decorator.
-        replace : bool, default False
-            Replace a callback already registered.
-
-        Returns
-        -------
-        Any
-            The callback, or a decorator that registers one.
-        """
-        return self._problem._register("objective_hessian", function, replace=replace)
-
-    @overload
-    def discrete_jacobian(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
-    @overload
-    def discrete_jacobian(
-        self, function: None = None, /, *, replace: bool = False
-    ) -> Callable[[CallbackT], CallbackT]: ...
-    def discrete_jacobian(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
-        """Register the discrete constraints' Jacobian, as a decorator or as a call.
-
-        Required under ``derivatives.method = "user"`` when the problem declares discrete
-        constraints. The callback takes the endpoint argument and a `jacobian` whose entries
-        name the constraint group and, in the subscript, the variable::
-
-            f = jacobian.phases[ph].final
-            jacobian.discrete.link[f.h] = -1.0
-
-        Parameters
-        ----------
-        function : callable, optional
-            The callback. Omit it to use the result as a decorator.
-        replace : bool, default False
-            Replace a callback already registered.
-
-        Returns
-        -------
-        Any
-            The callback, or a decorator that registers one.
-        """
-        return self._problem._register("discrete_jacobian", function, replace=replace)
-
-    @overload
-    def discrete_hessian(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
-    @overload
-    def discrete_hessian(
-        self, function: None = None, /, *, replace: bool = False
-    ) -> Callable[[CallbackT], CallbackT]: ...
-    def discrete_hessian(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
-        """Register the discrete constraints' Hessian, as a decorator or as a call.
-
-        Required under ``derivatives.method = "user"`` at ``derivatives.order = "second"``
-        when the problem declares discrete constraints, *including* when every entry is zero:
-        linkage constraints are linear, and an empty callback is how that is said.
-
-        Parameters
-        ----------
-        function : callable, optional
-            The callback. Omit it to use the result as a decorator.
-        replace : bool, default False
-            Replace a callback already registered.
-
-        Returns
-        -------
-        Any
-            The callback, or a decorator that registers one.
-        """
-        return self._problem._register("discrete_hessian", function, replace=replace)
 
 
 class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
@@ -481,10 +360,6 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         self._label = "problem"
         self._objective_function: Callable[..., Any] | None = None
         self._discrete_function: Callable[..., Any] | None = None
-        self._objective_gradient_function: Callable[..., Any] | None = None
-        self._objective_hessian_function: Callable[..., Any] | None = None
-        self._discrete_jacobian_function: Callable[..., Any] | None = None
-        self._discrete_hessian_function: Callable[..., Any] | None = None
         self._discrete_class = discrete
         self._parameter_class = parameter
 

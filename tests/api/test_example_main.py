@@ -18,7 +18,6 @@ import pytest
 FIGURES = {
     "brachistochrone": 5,
     "brachistochrone_minimal": 1,
-    "brachistochrone_user_derivatives": 5,
     "delta_iii_ascent": 7,
     "dynamic_soaring": 7,
     "goddard_problem_1_phase": 5,

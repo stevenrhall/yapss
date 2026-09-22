@@ -126,7 +126,6 @@ These are the limits, stated so that a silent checker is not mistaken for a pass
   ``arg.state.xx`` and ``ps.state.xx`` are checked.
 - Nothing checks that a callback's annotation matches the phase it is registered on. The
   classes named are what the checker uses; the runtime gives the callback the phase's own.
-- The arguments of user-supplied derivative callbacks are not typed yet.
 
 In VS Code, completion and navigation work as they are, but misspellings are underlined only
 once Pylance's type checking is turned on: set ``python.analysis.typeCheckingMode`` to

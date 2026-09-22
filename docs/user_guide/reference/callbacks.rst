@@ -418,8 +418,8 @@ symbolically at all, so ``"auto"`` is unavailable and the question of agreement 
 The :ref:`minimum time to climb problem </notebooks/minimum_time_to_climb.ipynb>` is such an
 example: its aerodynamic and thrust data are irregular tables wrapped in SciPy interpolators,
 it uses ``numpy`` directly rather than ``yapss.math``, and it selects ``"central-difference"``.
-Such a problem is solved with one of the other methods --- ``"central-difference"``,
-``"central-difference-full"``, or ``"user"``.
+Such a problem is solved with one of the other methods --- ``"central-difference"`` or
+``"central-difference-full"``.
 
 So each NumPy `ufunc` falls into exactly one of three categories:
 

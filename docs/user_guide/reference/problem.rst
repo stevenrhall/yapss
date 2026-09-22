@@ -245,7 +245,6 @@ problem using YAPSS:
 - Setting :doc:`bounds <bounds>` on decision variables and constraints.
 - Setting the :doc:`initial guess <guess>` for the decision variables.
 - Setting options for evaluating :doc:`derivatives <derivatives>`.
-- Specifying :doc:`user-defined derivatives <user_derivatives>`. (rarely needed)
 - :doc:`Scaling <scaling>` the problem for improved numerical conditioning.
 - Defining the :doc:`mesh structure <mesh_structure>` for the problem.
 - Setting :doc:`Ipopt options <ipopt_options>`.
