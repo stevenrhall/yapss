@@ -7,11 +7,10 @@ name = "yapss"
 dynamic = ["version"]
 description = "A Python package for solving optimal control problems using pseudospectral methods."
 readme = "README.md"
-# The upper bound follows the casadi ceiling below: casadi <=3.7.2 publishes no wheels
-# for 3.15, so this release cannot install there anyway, and the cap turns a failed
-# casadi source build into pip's "requires a different Python" error for anyone who
-# asks for this release. (A plain `pip install yapss` still falls back to an uncapped
-# 0.2.x and fails in the casadi build; the install docs say so.) Raise both together.
+# The upper bound is the newest Python the CI matrix tests. casadi 3.8.1's cp311-abi3
+# wheels would install on 3.15, but nothing has run there yet, so the cap stays at 3.15
+# until a py315 environment exists. Below 3.8, casadi publishes per-version wheels only,
+# so a Python the cap admits must also have a wheel for the casadi pip resolves to.
 requires-python = ">=3.11,<3.15"
 license = "MIT"
 license-files = ["LICENSE", "LICENSES/*"]
@@ -34,8 +33,16 @@ dependencies = [
     # Ceiling is a stopgap, not an API-compatibility bet: mseipopt binds to the
     # IPOPT library bundled inside the CasADi wheel, whose location and build are
     # not a public interface and could change in any release. Pinned to the
-    # highest version actually tested.
-    "casadi>=3.6.0,<=3.7.2",
+    # highest version actually tested -- including on the ubuntu-22.04-arm CI
+    # runner, whose older libstdc++ is where 3.8.0's mis-tagged manylinux_2_28
+    # aarch64 wheel failed to import; 3.8.0 is excluded by nothing else, so the
+    # ceiling cannot drop below 3.8.1 without readmitting it. From 3.8 on the
+    # wheels are cp311-abi3, one per platform for every Python from 3.11 up.
+    #
+    # The floor stays at 3.6.0 so that nobody is stranded: pip picks the ceiling by
+    # default. CI does not test the floor. 3.6.0 has no Linux aarch64 wheel, and
+    # below 3.8 macOS needs solver.py's QAMD workaround for the METIS crash.
+    "casadi>=3.6.0,<=3.8.1",
     "scipy",
     # Unconstrained deliberately. The NumPy 2.5 breakage (it rewrote
     # numpy.typing.NDArray using PEP 695 `type` statements, which cannot be
@@ -195,6 +202,17 @@ module = [
     "mpl_toolkits.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# CasADi is untyped to mypy, as it was before 3.8. CasADi 3.8 ships SWIG-generated stubs
+# and a py.typed marker, and following them reports 17 errors here, several of them defects
+# in the stubs rather than in YAPSS: `casadi.__version__` is absent, and `tril` of an SX is
+# typed as returning a Sparsity. YAPSS types its CasADi boundary itself, in
+# yapss.math.wrapper; adopting the stubs is a separate change, not part of a version bump.
+module = "casadi"
+follow_imports = "skip"
+# Needed as well: casadi is a stub package, and plain follow_imports does not apply to stubs.
+follow_imports_for_stubs = true
 
 # ========================================= ruff =========================================
 
