@@ -84,16 +84,17 @@ jobs:
           - '3.12'
           - '3.13'
           - '3.14'
+          - '3.15'
         # ... newest two on Windows and macOS.
         include:
           - os: windows-latest
-            python-version: '3.13'
+            python-version: '3.14'
           - os: windows-latest
-            python-version: '3.14'
-          - os: macos-latest
-            python-version: '3.13'
+            python-version: '3.15'
           - os: macos-latest
             python-version: '3.14'
+          - os: macos-latest
+            python-version: '3.15'
           # Linux aarch64, one Python. Ubuntu 22.04 rather than 24.04 because its
           # older libstdc++ is where a mis-tagged CasADi wheel fails to import
           # (CasADi 3.8.0's manylinux_2_28 aarch64 wheel did), so a CasADi ceiling
@@ -110,6 +111,10 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
+          # 3.15 was added at 3.15.0rc2. Without this, setup-python finds no final
+          # release and fails; with it, a final release is still preferred when one
+          # exists, so the line can stay after 3.15.0.
+          allow-prereleases: true
           cache: pip
           cache-dependency-path: tox.ini
 
@@ -284,14 +289,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # ruff/isort pin basepython to 3.13; black pins 3.14; mypy pins 3.13 and
-      # mypy-floor pins 3.11 (see tox.ini). Install all three Python versions.
+      # ruff/isort pin basepython to 3.13; black pins 3.15; mypy pins 3.14 and
+      # mypy-floor pins 3.11 (see tox.ini). Install all four Python versions.
       - uses: actions/setup-python@v7
         with:
           python-version: |
             3.11
             3.13
             3.14
+            3.15
+          # For black's 3.15; see the test job.
+          allow-prereleases: true
           cache: pip
           cache-dependency-path: tox.ini
 

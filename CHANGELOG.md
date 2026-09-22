@@ -69,6 +69,8 @@ below give the details.
 
 ### Added
 
+- Python 3.15 is supported with pip. Conda installs stay at Python 3.11 through 3.14 until
+  conda-forge builds CasADi for 3.15.
 - `solution.status`, a `yapss.IpoptStatus`, and `solution.converged`, true for Ipopt
   statuses 0, 1, and 6. `IpoptStatus` is an `IntEnum` naming Ipopt's return codes, with
   Ipopt's description of each as `.message`, so `solution.status == 0` keeps working.
@@ -333,9 +335,8 @@ below give the details.
   since 0.2.0. Assigning `problem.ipopt_source` raises `AttributeError` with a message
   saying the line can be deleted. A `YAPSS_IPOPT_SOURCE` still set has no effect, and
   the first solve in a process warns that it can be unset.
-- Python 3.10 is no longer supported; YAPSS requires Python `>=3.11,<3.15`. Python 3.10
-  reaches end of life in October 2026. Python 3.15 is not yet supported, because the
-  CasADi versions YAPSS allows publish no wheels for it.
+- Python 3.10 is no longer supported; YAPSS requires Python `>=3.11,<3.16`. Python 3.10
+  reaches end of life in October 2026.
 
 ### Fixed
 

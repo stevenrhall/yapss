@@ -3,6 +3,10 @@ channels:
   - conda-forge
 dependencies:
   # yapss dependencies
+  # One Python short of pyproject.toml's <3.16: conda-forge has Python 3.15 (at
+  # rc2 when pip's cap was raised) but builds CasADi only through 3.14, so a 3.15
+  # environment cannot solve. Raise to <3.16 once conda-forge's casadi has a 3.15
+  # build.
   - python>=3.11,<3.15
   - numpy
   - casadi>=3.6.0

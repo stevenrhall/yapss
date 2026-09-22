@@ -7,11 +7,13 @@ name = "yapss"
 dynamic = ["version"]
 description = "A Python package for solving optimal control problems using pseudospectral methods."
 readme = "README.md"
-# The upper bound is the newest Python the CI matrix tests. casadi 3.8.1's cp311-abi3
-# wheels would install on 3.15, but nothing has run there yet, so the cap stays at 3.15
-# until a py315 environment exists. Below 3.8, casadi publishes per-version wheels only,
-# so a Python the cap admits must also have a wheel for the casadi pip resolves to.
-requires-python = ">=3.11,<3.15"
+# The upper bound is the newest Python the CI matrix tests (3.15, added at 3.15.0rc2).
+# Raise it only with a tox env and a CI row for the new version. casadi's cp311-abi3
+# wheels (3.8 on) install on any CPython from 3.11 up, so casadi no longer sets this
+# bound. Below 3.8 it published per-version wheels, and 3.7.2 stops at cp314, so on
+# 3.15 only the ceiling installs. On Conda the range is still <3.15: see
+# conda/environment.yml.
+requires-python = ">=3.11,<3.16"
 license = "MIT"
 license-files = ["LICENSE", "LICENSES/*"]
 keywords = ["optimal control", "optimization", "pseudospectral methods"]
@@ -27,6 +29,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
@@ -304,7 +307,7 @@ known-third-party = ["numpy", "scipy", "matplotlib", "casadi", "pytest"]
 
 [tool.black]
 line-length = 100
-target-version = ["py311", "py312", "py313", "py314"]
+target-version = ["py311", "py312", "py313", "py314", "py315"]
 
 # ======================================== isort =========================================
 
