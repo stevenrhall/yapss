@@ -136,12 +136,20 @@ style = "pep440"
 version_scheme = "guess-next-dev"
 local_scheme = "no-local-version"
 
+[tool.hatch.build]
+# The distributions are chosen here, not by .gitignore. Hatchling otherwise filters by the
+# VCS ignore file, and discards it whole when its patterns match the project root's absolute
+# path, which the top-level allowlist there (`/*`) does. `only-include` below names the
+# roots, and `exclude` the clutter that can appear inside them.
+ignore-vcs = true
+exclude = [".DS_Store", ".coverage", ".ipynb_checkpoints/", ".jupyter/", ".tox/", "__pycache__/"]
+
 [tool.hatch.build.targets.sdist]
-# .gitignore is always present in the sdist and cannot be excluded: hatchling uses VCS
-# ignore files to select what to include, and ships the file so that a build from the
-# sdist selects the same set. An `exclude` entry for it is a no-op -- verified against
-# the published 0.2.1 sdist, which contains it despite having had one.
-include = ["src/", "tests/", "examples/", "README.md", "CHANGELOG.md"]
+# .gitignore is in the sdist anyway: hatchling force-includes it, whatever the settings
+# (hatchling 1.32.4, `SdistBuilder.get_default_build_data`), and `exclude` cannot remove a
+# forced file -- verified against the published 0.2.1 sdist. It is written to say nothing
+# the public repository does not.
+only-include = ["src", "tests", "examples", "README.md", "CHANGELOG.md"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/yapss"]
