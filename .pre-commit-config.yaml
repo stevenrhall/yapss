@@ -5,18 +5,19 @@ repos:
       - id: black
         args: [ "--check", "--target-version", "py311" ]
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.16.1
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.7
     hooks:
-      - id: ruff
+      # `ruff` is the hook's legacy alias for `ruff-check`, which runs the same command.
+      - id: ruff-check
         # pre-commit appends the staged filenames to these args, so the effective scope is
         # src/yapss *plus any staged file not excluded below* -- tools/ included. `tox -e
         # ruff` lints the same set (src/yapss and tools) so the two cannot disagree.
         args: [ "src/yapss" ]
         exclude: "^(tests|docs|examples|utils)/"
 
-  - repo: https://github.com/timothycrosley/isort
-    rev: 8.0.1
+  - repo: https://github.com/PyCQA/isort
+    rev: 9.0.1
     hooks:
       - id: isort
         args: [ "--check-only" ]
