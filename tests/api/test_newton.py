@@ -24,7 +24,10 @@ def problem():
 
 
 def test_it_agrees_with_the_released_api(problem):
-    assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-8)
+    # Not to the digits RELEASED was recorded with: `setup` leaves one polynomial to fit a
+    # corner (see the example's docstring), and where Ipopt stops on that is roundoff. CI's
+    # platforms spread over 1.50335226-1.50335256, about 1e-7 either side of the macOS value.
+    assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-6)
 
 
 @pytest.mark.parametrize("method", ["auto", "central-difference", "central-difference-full"])
