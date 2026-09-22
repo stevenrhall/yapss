@@ -207,9 +207,9 @@ def own_annotations(cls: type, scope: dict[str, Any]) -> dict[str, Any]:
     """Return the annotations `cls` declares itself, resolved to the objects they name.
 
     They are read from the finished class, not its namespace, which is the one place Python 3.11
-    through 3.14 agree: 3.14 evaluates annotations lazily and puts ``__annotate_func__`` in the
-    namespace in place of ``__annotations__``. Only the class's own are read, so what a
-    declaration left out can be told from what it said.
+    through 3.15 agree: from 3.14, Python evaluates annotations lazily and puts
+    ``__annotate_func__`` in the namespace in place of ``__annotations__``. Only the class's
+    own are read, so what a declaration left out can be told from what it said.
 
     A module that begins ``from __future__ import annotations`` gives strings. They are resolved
     against the module and against `scope`, the namespace the class statement ran in, so a

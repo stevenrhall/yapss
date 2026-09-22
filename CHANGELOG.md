@@ -69,6 +69,8 @@ below give the details.
 
 ### Added
 
+- Python 3.15 is supported with pip. Conda installs stay at Python 3.11 through 3.14 until
+  conda-forge builds CasADi for 3.15.
 - `solution.status`, a `yapss.IpoptStatus`, and `solution.converged`, true for Ipopt
   statuses 0, 1, and 6. `IpoptStatus` is an `IntEnum` naming Ipopt's return codes, with
   Ipopt's description of each as `.message`, so `solution.status == 0` keeps working.
@@ -85,6 +87,10 @@ below give the details.
   (my_problem.py, line 12).` The exception itself is unchanged. Under the `"auto"`
   derivative method, a `TypeError` from a function that cannot take a symbolic input, such as
   `math.sin`, carries a second note pointing to `yapss.math`.
+- CasADi 3.8.1 is allowed (`casadi>=3.6.0,<=3.8.1`) and is what pip installs. Its wheels
+  install on every supported Python, including 3.14 on Linux aarch64, which with CasADi 3.7.2
+  had no pip install. CasADi 3.8.0 remains excluded: its Linux aarch64 wheel fails to import
+  on older systems.
 - Assigning a value with a dimension to `arg.objective`, even a single-element array, raises
   `TypeError` at the assignment. It used to fail later, inside the derivative method, with a
   message naming neither the objective nor the line (`only 0-dimensional arrays can be
@@ -329,9 +335,8 @@ below give the details.
   since 0.2.0. Assigning `problem.ipopt_source` raises `AttributeError` with a message
   saying the line can be deleted. A `YAPSS_IPOPT_SOURCE` still set has no effect, and
   the first solve in a process warns that it can be unset.
-- Python 3.10 is no longer supported; YAPSS requires Python `>=3.11,<3.15`. Python 3.10
-  reaches end of life in October 2026. Python 3.15 is not yet supported, because the
-  CasADi versions YAPSS allows publish no wheels for it.
+- Python 3.10 is no longer supported; YAPSS requires Python `>=3.11,<3.16`. Python 3.10
+  reaches end of life in October 2026.
 
 ### Fixed
 

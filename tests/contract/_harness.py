@@ -44,7 +44,8 @@ def _site(error: BaseException) -> str:
     """Return the line of YAPSS that raised `error`, as ``module.py:line``.
 
     The deepest frame inside the package, so that a message raised by a helper is recorded
-    where it is written rather than where it was called from.
+    where it is written rather than where it was called from. The path is written with forward
+    slashes on every platform, so that a catalogue built on Windows names the same sites.
     """
     frames = [
         frame
@@ -54,7 +55,7 @@ def _site(error: BaseException) -> str:
     if not frames:
         return ""
     frame = frames[-1]
-    return f"{Path(frame.filename).relative_to(_PACKAGE)}:{frame.lineno}"
+    return f"{Path(frame.filename).relative_to(_PACKAGE).as_posix()}:{frame.lineno}"
 
 
 def _front(path: str) -> str:
