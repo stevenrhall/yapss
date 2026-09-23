@@ -51,6 +51,8 @@ from typing import (
 
 import numpy as np
 
+from yapss.math.wrapper import SXArray
+
 from .kinds import MISSING, Kind, is_sequence
 
 if TYPE_CHECKING:
@@ -1130,6 +1132,20 @@ class Maker:
         return obj
 
 
+def symbolic_view(block: Any) -> Any:
+    """Return an object-dtype array as an `SXArray`, and anything else unchanged.
+
+    A block of symbols is an object-dtype array, and numpy has no loop for it but the object
+    loop, which reports a stale floating-point flag as a spurious `RuntimeWarning: invalid
+    value encountered in divide` (numpy issue 21416) whenever a large constant is involved.
+    `SXArray` implements `__array_ufunc__` and routes every ufunc through the `yapss.math`
+    table instead, so that loop never runs. 0.2.3 made that fix for the released front end
+    (its changelog removed the Delta III note that described the warning); anything here that
+    builds a block has to keep the view, or the warning comes back.
+    """
+    return block.view(SXArray) if block.dtype == object else block
+
+
 def _stack(values: list[Any]) -> Any:
     """Return `values` as an array, stacking rows that are arrays.
 
@@ -1143,8 +1159,8 @@ def _stack(values: list[Any]) -> Any:
     if isinstance(first, np.ndarray) and first.ndim > 0:
         shape = first.shape
         if all(isinstance(v, np.ndarray) and v.shape == shape for v in values):
-            return np.array(values)
-        return np.stack(np.broadcast_arrays(*values))
+            return symbolic_view(np.array(values))
+        return symbolic_view(np.stack(np.broadcast_arrays(*values)))
     if any(isinstance(v, np.ndarray) and v.ndim > 0 for v in values):
-        return np.stack(np.broadcast_arrays(*values))
-    return np.asarray(values)
+        return symbolic_view(np.stack(np.broadcast_arrays(*values)))
+    return symbolic_view(np.asarray(values))
