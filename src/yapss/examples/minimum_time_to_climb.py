@@ -65,6 +65,7 @@ class Climb(yapss.Phase):
 
     state: State
     control: Control
+    time: yapss.Independent
 
 
 class Phases(yapss.Phases):

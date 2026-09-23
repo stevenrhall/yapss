@@ -105,6 +105,7 @@ class Loop(yapss.Phase):
     state: State
     control: Control
     path: Path
+    time: yapss.Independent
 
 
 class Phases(yapss.Phases):

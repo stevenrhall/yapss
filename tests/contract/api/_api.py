@@ -104,6 +104,7 @@ class Shape(yapss.Phase):
     control: Control
     path: Path
     integral: Integral
+    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -169,6 +170,7 @@ class SlidePhase(yapss.Phase):
     control: Angle
     path: Speed
     integral: Effort
+    time: yapss.Independent
 
 
 class OnePhase(yapss.Phases):

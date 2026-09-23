@@ -88,6 +88,7 @@ class Arc(yapss.Phase):
 
     state: State
     control: Control
+    time: yapss.Independent
 
 
 class Singular(yapss.Phase):
@@ -96,6 +97,7 @@ class Singular(yapss.Phase):
     state: State
     control: Control
     path: SingularArc
+    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -188,7 +190,10 @@ def setup() -> yapss.Problem:
     for name in Discrete._fields:
         getattr(problem.discrete, name).bounds = (0.0, 0.0)
 
-    for ph in phases:
+    # Over the handles rather than over `phases`: iterating the container yields a phase of
+    # unknown shape, which has no `time` -- the name of the independent variable is the shape's.
+    # A tuple of the handles keeps both shapes, and both of them name it `time`.
+    for ph in (boost, singular, coast):
         k = ph.index
         ph.time.guess = (15.0 * k, 15.0 * (k + 1))
         ph.state.h.guess = (6000 * k, 6000 * (k + 1))

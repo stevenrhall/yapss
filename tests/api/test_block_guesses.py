@@ -25,6 +25,7 @@ def build(row_guess):
     class Only(yapss.Phase):
         state: Pair
         control: Rate
+        time: yapss.Independent
 
     class Phases(yapss.Phases):
         only: Only

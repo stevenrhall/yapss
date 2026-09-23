@@ -70,6 +70,7 @@ def test_a_declaration_is_refused_in_the_wrong_role() -> None:
         class Wrong(yapss.Phase):
             state: State
             control: State  # type: ignore[assignment]
+            time: yapss.Independent
 
 
 def test_a_swapped_annotation_is_named() -> None:
@@ -78,6 +79,7 @@ def test_a_swapped_annotation_is_named() -> None:
 
         class Swapped(yapss.Phase):
             state: Control  # type: ignore[assignment]
+            time: yapss.Independent
 
 
 def test_a_swapped_argument_is_named() -> None:
@@ -113,6 +115,7 @@ def test_the_message_names_the_phase_the_parameter_collided_in() -> None:
     class Early(yapss.Phase):
         state: State
         control: Control
+        time: yapss.Independent
 
     class TwoPhases(yapss.Phases):
         early: Early
@@ -210,6 +213,7 @@ def test_a_problem_with_no_objective_is_incomplete() -> None:
     class Only(yapss.Phase):
         state: State
         control: Control
+        time: yapss.Independent
 
     class OnlyPhase(yapss.Phases):
         only: Only
@@ -252,6 +256,7 @@ def test_declared_discrete_constraints_need_a_callback() -> None:
     class Only(yapss.Phase):
         state: State
         control: Control
+        time: yapss.Independent
 
     class OnlyPhase(yapss.Phases):
         only: Only
@@ -364,6 +369,7 @@ def test_a_phase_takes_role_declarations() -> None:
 
         class Wrong(yapss.Phase):
             state: object  # type: ignore[assignment]
+            time: yapss.Independent
 
 
 def test_a_phase_has_a_state() -> None:
@@ -372,6 +378,7 @@ def test_a_phase_has_a_state() -> None:
 
         class Bare(yapss.Phase):
             control: Control
+            time: yapss.Independent
 
 
 def test_a_phase_has_one_namespace() -> None:
@@ -385,6 +392,7 @@ def test_a_phase_has_one_namespace() -> None:
         class Clash(yapss.Phase):
             state: State
             control: Same
+            time: yapss.Independent
 
 
 def test_the_independent_variable_shares_that_namespace() -> None:
@@ -395,6 +403,19 @@ def test_the_independent_variable_shares_that_namespace() -> None:
             state: State
             control: Control
             x: yapss.Independent
+
+
+def test_a_phase_names_its_independent_variable() -> None:
+    """It is not defaulted to ``time``: which name fits is the user's problem's to say.
+
+    A phase always has exactly one, so nothing is saved by guessing at its name, and a shape
+    that names it is a shape a reader -- and a type checker -- can see whole.
+    """
+    with raises(TypeError, "does not name its independent variable", at="class Untimed"):
+
+        class Untimed(yapss.Phase):
+            state: State
+            control: Control
 
 
 def test_a_phase_takes_one_independent_variable() -> None:
@@ -425,6 +446,7 @@ def test_a_misspelled_role_is_refused_with_a_suggestion() -> None:
         class Typo(yapss.Phase):
             state: State
             controls: Control
+            time: yapss.Independent
 
 
 def test_a_role_under_an_unrelated_name_is_named() -> None:
@@ -434,6 +456,7 @@ def test_a_role_under_an_unrelated_name_is_named() -> None:
         class Odd(yapss.Phase):
             state: State
             thrust: Control
+            time: yapss.Independent
 
 
 def test_anything_else_annotated_on_a_phase_is_refused() -> None:
@@ -443,6 +466,7 @@ def test_anything_else_annotated_on_a_phase_is_refused() -> None:
         class Odd(yapss.Phase):
             state: State
             r: float
+            time: yapss.Independent
 
 
 def test_a_phase_is_annotated_not_assigned() -> None:
@@ -458,6 +482,7 @@ def test_a_phase_s_shape_may_not_be_inherited_from() -> None:
 
     class Shape(yapss.Phase):
         state: State
+        time: yapss.Independent
 
     with raises(TypeError, "cannot inherit from Shape", at="class Child"):
 

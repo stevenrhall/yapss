@@ -24,6 +24,7 @@ class Control(yapss.Control):
 class Only(yapss.Phase):
     state: State
     control: Control
+    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -36,7 +37,12 @@ def made(role, *names):
 
 
 def shape(**annotations):
-    """Return a phase's shape with the given annotations, as a class body would declare it."""
+    """Return a phase's shape with the given annotations, as a class body would declare it.
+
+    A shape names its independent variable, so `time` is supplied unless the caller names one.
+    """
+    if not any(value is yapss.Independent for value in annotations.values()):
+        annotations["time"] = yapss.Independent
     return type("Shape", (yapss.Phase,), {"__annotations__": annotations})
 
 
@@ -49,8 +55,8 @@ def test_a_state_and_a_control_may_not_share_a_name():
 
 
 def test_a_state_may_not_be_called_time():
-    with pytest.raises(ValueError, match=r"its state Made declares 'time'.*called 'time' by"):
-        shape(state=made(yapss.State, "time"))
+    with pytest.raises(ValueError, match=r"its state Made declares 'time'.*which you named"):
+        shape(state=made(yapss.State, "time"), time=yapss.Independent)
 
 
 def test_a_state_may_not_share_the_independent_variable_s_name():

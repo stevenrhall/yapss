@@ -166,9 +166,6 @@ def declared_role(
     raise TypeError(msg)
 
 
-DEFAULT_INDEPENDENT = "time"
-"""What a phase's independent variable is called when the phase does not name it."""
-
 _ROLES: dict[str, type[Vector]] = {
     "state": State,
     "control": Control,
@@ -273,14 +270,10 @@ def _check_namespace(
         raise ValueError(msg)
     for role, declaration in (("state", state), ("control", control)):
         if independent in declaration._fields:
-            whose = (
-                "the phase's independent variable, which you named"
-                if independent != DEFAULT_INDEPENDENT
-                else "the phase's independent variable, which is called 'time' by default"
-            )
             msg = (
                 f"{owner}: its {role} {declaration.__name__} declares {independent!r}, and that "
-                f"is also {whose}. They are one namespace, so their names must differ; rename "
+                f"is also the phase's independent variable, which you named. They are one "
+                f"namespace, so their names must differ; rename "
                 f"the {role}, or name the independent variable something else with "
                 f"'<name>: yapss.Independent'."
             )
@@ -594,11 +587,9 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         mesh: Mesh
         register: PhaseRegistry
 
-        # `time` is declared even for a phase that renamed its independent variable, which
-        # makes `ph.time` pass the checker there and fail at runtime, with the right name.
-        # The other way -- a reader for any name -- would blind the checker to every
-        # misspelling on a phase, and a phase that renames it declares the new name anyway.
-        time: Independent
+        # No `time` here: every shape annotates its own independent variable, so the name a
+        # checker sees is the name that phase has. Declaring `time` on the base would make
+        # `ph.time` resolve on a phase that runs over a radius, and fail only at runtime.
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Read the shape from the subclass's annotations, refusing what is not one."""
@@ -636,7 +627,19 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
             names = ", ".join(repr(name) for name in independent)
             msg = f"{owner}: a phase has one independent variable, but {names} are annotated so"
             raise TypeError(msg)
-        name = independent[0] if independent else DEFAULT_INDEPENDENT
+        if not independent:
+            # A phase always has an independent variable, so nothing is saved by defaulting
+            # its name: the choice between 'time', 't' and 's' is the user's problem's, not
+            # YAPSS's preference. Defaulting it also cost a type-checker hole -- `time` had to
+            # be declared on this class for `ph.time` to resolve, which made `ph.time` check
+            # on a phase that runs over a radius and fail only at runtime.
+            msg = (
+                f"The class declaration for {owner} does not name its independent variable. "
+                f"Write 'time: yapss.Independent' if you want to name the independent "
+                f"variable 'time'."
+            )
+            raise TypeError(msg)
+        name = independent[0]
         if name in _RESERVED:
             msg = (
                 f"{owner}.{name} names the independent variable, but '{name}' is already a "

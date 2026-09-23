@@ -43,6 +43,7 @@ class Slide(yapss.Phase):
 
     state: State
     control: Control
+    time: yapss.Independent
 
 
 class Phases(yapss.Phases):

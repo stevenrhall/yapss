@@ -41,6 +41,7 @@ def problem():
     class SlidePhase(yapss.Phase):
         state: slide_class
         control: angle_class
+        time: yapss.Independent
 
     class Phases(yapss.Phases):
         slide: SlidePhase

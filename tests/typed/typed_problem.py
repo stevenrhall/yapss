@@ -65,6 +65,7 @@ class Slide(yapss.Phase):
     control: Control
     path: Path
     integral: Integral
+    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -189,6 +190,23 @@ def over_radius(arg: yapss.ContinuousArg[Radius], out: yapss.ContinuousOut[Radiu
     out.dynamics.y = arg.r
 
 
+class NosePhases(yapss.Phases):
+    """One phase, which runs over a radius."""
+
+    nose: Nose
+
+
+def independent_mistakes(problem: yapss.Problem[NosePhases]) -> None:
+    """A phase has the independent variable it named, and no other.
+
+    `time` is not defaulted, so nothing declares it here, and reaching for it is the ordinary
+    misspelling every other line in `mistakes` is. While `time` was supplied by the base class
+    this line checked, and failed only when it ran.
+    """
+    problem.phases.nose.time  # type: ignore[attr-defined]
+    problem.phases.nose.r.guess = (0.0, 1.0)
+
+
 def mistakes(
     problem: yapss.Problem[Phases, Discrete, Parameter],
     arg: yapss.ContinuousArg[State, Control, Parameter],
@@ -263,3 +281,4 @@ def swapped() -> None:
 
     class Swapped(yapss.Phase):
         state: Control  # type: ignore[assignment]
+        time: yapss.Independent

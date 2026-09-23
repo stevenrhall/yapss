@@ -103,6 +103,17 @@ The *shape* of the optimal problem is defined by the dimensions of all the equat
 Problem Instantiation
 ---------------------
 
+.. note::
+
+   **Reading the attribute paths in this guide.** A path such as
+   :samp:`{problem}.phases.{flight}.state.{h}.bounds` mixes two kinds of name. The upright
+   names -- ``phases``, ``state``, ``bounds`` -- are YAPSS's, and are typed exactly as they
+   appear. The *italic* names are yours: the variable you assigned the problem to, the phase
+   you declared, the field you named. Only the italic parts differ from one program to the
+   next, and a path is as short as the variable you start it from --
+   :samp:`{ph}.state.{h}.bounds` says the same thing once
+   :samp:`{ph} = {problem}.phases.{flight}` has been written.
+
 Given a formulation of the problem as described above, the problem can be implemented in YAPSS
 and solved. To do so, we need to define the shape of the problem, meaning a  description of the
 decision variables* and the *constraint functions*. Decision variables are the discrete
@@ -177,16 +188,18 @@ helpful.
 Once the vector definitions are complete, the phases of the problem can be defined, in two
 steps. First, the shape of a phase is a subclass of `yapss.Phase`, whose annotations say which
 vector class plays each role. A ``state`` is required; ``control``, ``path``, and ``integral``
-are optional, and a phase that omits one has none of it. This problem has no path constraints
-or integrals:
+are optional, and a phase that omits one has none of it. One more annotation, of type
+`yapss.Independent`, names the phase's independent variable. This problem has no path
+constraints or integrals, and runs over time:
 
 .. doctest:: example
 
     >>> class Flight(yapss.Phase):
-    ...     """The shape of the flight: the rocket's state, and its thrust."""
+    ...     """The shape of the flight: the rocket's state, its thrust, and time."""
     ...
     ...     state: RocketState
     ...     control: Thrust
+    ...     time: yapss.Independent
 
 Then the phases themselves are named in a subclass of `yapss.Phases`, each annotated with its
 shape. This problem has only one:
@@ -202,9 +215,11 @@ A shape is not a phase, so two phases may share one: in the three-phase version 
 problem, the boost and coast arcs are both annotated with one shape, and only the singular arc
 between them, which adds a path constraint, has its own.
 
-Each phase's independent variable is called ``time`` unless its shape names it otherwise, with
-one more annotation of type `yapss.Independent`. A phase that runs over a radius declares
-``r: yapss.Independent``, and its extent is then set as ``ph.r.initial`` and ``ph.r.final``.
+The independent variable is named like everything else about a phase, and YAPSS does not
+choose the name: ``time`` is what most problems call it, but a phase that runs over a radius
+declares ``r: yapss.Independent``, and its extent is then set as :samp:`{ph}.{r}.initial` and
+:samp:`{ph}.{r}.final`. A shape that names none is refused, because a phase has one whether or
+not it is written down, and a shape a reader cannot see whole is worth less than a line saved.
 
 Then instantiate the problem, by providing the name of the problem and the phase information:
 

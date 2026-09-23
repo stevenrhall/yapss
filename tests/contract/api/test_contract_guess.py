@@ -121,6 +121,7 @@ def test_a_phase_without_a_time_guess_is_incomplete() -> None:
     class Only(yapss.Phase):
         state: State
         control: Control
+        time: yapss.Independent
 
     class OnePhase(yapss.Phases):
         only: Only

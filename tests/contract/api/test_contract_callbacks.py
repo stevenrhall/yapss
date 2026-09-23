@@ -305,6 +305,7 @@ def test_a_problem_may_have_no_discrete_constraints() -> None:
     class Only(yapss.Phase):
         state: _Two
         control: _One
+        time: yapss.Independent
 
     class Bare(yapss.Phases):
         only: Only

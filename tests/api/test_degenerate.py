@@ -25,6 +25,7 @@ def test_a_phase_that_declares_nothing_still_has_its_own_times():
 
     class P(yapss.Phase):
         state: yapss.State
+        time: yapss.Independent
 
     class Phases(yapss.Phases):
         p: P
@@ -58,6 +59,7 @@ def test_the_endpoints_alone_make_an_optimization_problem():
 
     class Interval(yapss.Phase):
         state: yapss.State
+        time: yapss.Independent
 
     class Phases(yapss.Phases):
         interval: Interval
