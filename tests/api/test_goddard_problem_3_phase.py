@@ -88,9 +88,16 @@ def test_one_callback_serves_two_phases(problem):
     assert problem.phases.singular._continuous is not problem.phases.boost._continuous
 
 
-def test_registering_a_second_callback_is_refused(problem):
-    with pytest.raises(ValueError, match="pass replace=True"):
-        problem.phases.boost.register.continuous(lambda arg, out: out)
+def test_registering_a_second_callback_replaces(problem):
+    """And leaves the other phases alone, which is what sharing one callback rests on."""
+    shared = problem.phases.coast._continuous
+
+    def other(arg, out):
+        return out
+
+    problem.phases.boost.register.continuous(other)
+    assert problem.phases.boost._continuous is other
+    assert problem.phases.coast._continuous is shared
 
 
 def test_an_unbounded_discrete_group_is_refused():

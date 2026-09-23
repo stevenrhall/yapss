@@ -141,7 +141,7 @@ def setup2(y_max: float = 1.0) -> yapss.Problem:
     problem = setup(y_max)
     ph = problem.phases.nose
 
-    @problem.register.objective(replace=True)
+    @problem.register.objective
     def objective(arg):
         """Return the drag of the curve plus the drag of the flat tip."""
         return arg[ph].integral.drag + 4 * arg[ph].initial.r**2

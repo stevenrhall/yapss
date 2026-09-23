@@ -178,26 +178,31 @@ def test_a_callback_must_be_callable() -> None:
         p.register.objective(3)  # type: ignore[arg-type]
 
 
-def test_registering_twice_is_refused_unless_replacement_is_asked_for() -> None:
-    """Two callbacks for one job is a mistake; replacing one is said out loud."""
+def test_registering_twice_replaces() -> None:
+    """Registering is setting a value, and every other setting in this API takes a second one.
+
+    Refused until 2026-09-23, which made the notebook's basic gesture -- edit a cell, run it
+    again -- an error, and made re-solving one problem against a different objective an error
+    too. Whether a second registration was meant cannot be seen from here, only inferred.
+    """
     p = problem()
 
     @p.register.objective
     def objective(arg):
         return 0.0
 
-    with raises(ValueError, "already has the objective callback", "replace=True", at="register"):
+    @p.register.objective
+    def other(arg):
+        return 1.0
 
-        @p.register.objective
-        def other(arg):
-            return 1.0
+    assert p._objective_function is other
 
 
-def test_replace_true_replaces_the_callback() -> None:
-    """The escape hatch works, which is what makes the refusal above a reasonable one."""
+def test_a_replaced_callback_is_the_one_that_solves() -> None:
+    """Not just stored: the second registration is what the solve runs."""
     p = solvable()
 
-    @p.register.objective(replace=True)
+    @p.register.objective
     def objective(arg):
         return arg[p.phases.slide].final.time
 
@@ -552,8 +557,8 @@ def test_a_phase_callback_must_be_callable() -> None:
         p.phases.first.register.continuous(3)
 
 
-def test_a_phase_callback_is_registered_once() -> None:
-    """Two continuous callbacks for one phase is a mistake; replacing is said out loud."""
+def test_a_phase_callback_registered_twice_replaces() -> None:
+    """A phase's callback is a setting like the problem's; see `test_registering_twice_replaces`."""
     p = problem()
     ph = p.phases.first
 
@@ -561,8 +566,8 @@ def test_a_phase_callback_is_registered_once() -> None:
     def continuous(arg, out):
         return out
 
-    with raises(ValueError, "already has the continuous callback", "replace=True", at="register"):
+    @ph.register.continuous
+    def other(arg, out):
+        return out
 
-        @ph.register.continuous
-        def other(arg, out):
-            return out
+    assert ph._continuous is other

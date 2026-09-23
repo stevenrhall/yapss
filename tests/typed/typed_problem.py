@@ -105,7 +105,7 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
         out.discrete.landing = arg[ph].final.x
 
     # the decorator form taking options, which strict mode reports if it returns `Any`
-    @problem.register.objective(replace=True)
+    @problem.register.objective
     def objective_again(arg: yapss.EndpointArg[Parameter]) -> Any:
         return arg[ph].final.time + 0.0 * arg[ph].integral.distance
 

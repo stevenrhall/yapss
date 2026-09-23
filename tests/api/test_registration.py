@@ -30,13 +30,32 @@ def test_a_callback_can_be_registered_by_calling(problem, phase):
     def replacement(arg, out):
         return out
 
-    phase.register.continuous(replacement, replace=True)
+    phase.register.continuous(replacement)
     assert phase._continuous is replacement
 
 
-def test_a_second_callback_is_refused_unless_replacing(phase):
-    with pytest.raises(ValueError, match="already has the continuous callback"):
-        phase.register.continuous(lambda arg, out: out)
+def test_registering_again_replaces(problem, phase):
+    """Registering is setting a value, and setting twice is what every other setting allows.
+
+    It is also the notebook's basic gesture -- edit the cell, run it again -- and the way one
+    problem is re-solved against a different objective.
+    """
+
+    def first(arg):
+        return 0.0
+
+    def second(arg):
+        return 1.0
+
+    problem.register.objective(first)
+    problem.register.objective(second)
+    assert problem._objective_function is second
+
+    def continuous(arg, out):
+        return out
+
+    phase.register.continuous(continuous)
+    assert phase._continuous is continuous
 
 
 def test_a_registration_is_not_assigned(problem, phase):

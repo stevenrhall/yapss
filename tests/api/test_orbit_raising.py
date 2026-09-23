@@ -54,7 +54,7 @@ def test_the_callback_is_given_the_time_at_every_point(problem):
         out.path.unit_thrust = u_r**2 + u_theta**2
         return out
 
-    problem.phases.raise_.register.continuous(spy, replace=True)
+    problem.phases.raise_.register.continuous(spy)
     problem.derivatives.method = "central-difference"
     assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-6)
     # every point of the phase, not one at a time, and spanning it
@@ -72,7 +72,7 @@ def test_the_time_is_read_only_in_the_callback(problem):
         seen["writeable"] = np.asarray(arg.time).flags.writeable
         return original(arg, out)
 
-    problem.phases.raise_.register.continuous(spy, replace=True)
+    problem.phases.raise_.register.continuous(spy)
     problem.derivatives.method = "central-difference"
     problem.solve()
     assert seen["writeable"] is False

@@ -236,14 +236,10 @@ class ProblemRegistry(Registry):
         self._problem = problem
 
     @overload
-    def objective(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    def objective(self, function: CallbackT, /) -> CallbackT: ...
     @overload
-    def objective(
-        self, function: None = None, /, *, replace: bool = False
-    ) -> Callable[[CallbackT], CallbackT]: ...
-    def objective(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
+    def objective(self, function: None = None, /) -> Callable[[CallbackT], CallbackT]: ...
+    def objective(self, function: Callable[..., Any] | None = None, /) -> Any:
         """Register the objective callback, as a decorator or as a call.
 
         The callback takes the endpoint argument and *returns* the objective, which is one
@@ -252,41 +248,35 @@ class ProblemRegistry(Registry):
         Parameters
         ----------
         function : callable, optional
-            The callback. Omit it to use the result as a decorator.
-        replace : bool, default False
-            Replace a callback already registered.
+            The callback. Omit it to use the result as a decorator. Registering a second one
+            replaces the first, as setting any other value twice does.
 
         Returns
         -------
         Any
             The callback, or a decorator that registers one.
         """
-        return self._problem._register("objective", function, replace=replace)
+        return self._problem._register("objective", function)
 
     @overload
-    def discrete(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    def discrete(self, function: CallbackT, /) -> CallbackT: ...
     @overload
-    def discrete(
-        self, function: None = None, /, *, replace: bool = False
-    ) -> Callable[[CallbackT], CallbackT]: ...
-    def discrete(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
+    def discrete(self, function: None = None, /) -> Callable[[CallbackT], CallbackT]: ...
+    def discrete(self, function: Callable[..., Any] | None = None, /) -> Any:
         """Register the discrete constraint callback, as a decorator or as a call.
 
         Parameters
         ----------
         function : callable, optional
-            The callback. Omit it to use the result as a decorator.
-        replace : bool, default False
-            Replace a callback already registered.
+            The callback. Omit it to use the result as a decorator. Registering a second one
+            replaces the first, as setting any other value twice does.
 
         Returns
         -------
         Any
             The callback, or a decorator that registers one.
         """
-        return self._problem._register("discrete", function, replace=replace)
+        return self._problem._register("discrete", function)
 
 
 class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
@@ -464,21 +454,19 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
 
     # -- registration -------------------------------------------------------------------------
 
-    def _register(self, which: str, function: Callable[..., Any] | None, *, replace: bool) -> Any:
+    def _register(self, which: str, function: Callable[..., Any] | None) -> Any:
+        # Registering is setting a value, and the last one wins, as it does for every other
+        # setting. Refusing a second registration would make the registry the one setter in
+        # the API that refuses to be set twice -- and it would refuse the two things users
+        # actually do: re-run a notebook cell after editing the callback, and re-solve one
+        # problem with a different objective. Whether a second registration was meant can
+        # only be inferred, never seen from here, so nothing is raised or warned about.
         attribute = f"_{which}_function"
 
         def register(callback: Callable[..., Any]) -> Callable[..., Any]:
             if not is_callable(callback):
                 msg = f"the {which} callback must be callable; got {callback!r}"
                 raise TypeError(msg)
-            current = getattr(self, attribute)
-            if current is not None and not replace:
-                existing = getattr(current, "__qualname__", repr(current))
-                msg = (
-                    f"the problem already has the {which} callback '{existing}'; pass "
-                    f"replace=True to replace it"
-                )
-                raise ValueError(msg)
             object.__setattr__(self, attribute, callback)
             return callback
 

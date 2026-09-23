@@ -86,7 +86,7 @@ def test_the_callback_reads_the_independent_variable_by_name(problem):
         out.integrand.drag = 8 * arg.r / (1 + yp**2)
         return out
 
-    problem.phases.nose.register.continuous(spy, replace=True)
+    problem.phases.nose.register.continuous(spy)
     problem.derivatives.method = "central-difference"
     problem.solve()
     assert seen["r"][0] > 1

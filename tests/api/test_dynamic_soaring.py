@@ -83,7 +83,7 @@ def test_the_parameter_reaches_the_continuous_callback(solved):
 
     spied = setup()
     spied.ipopt_options.print_level = 0
-    spied.phases.loop.register.continuous(spy, replace=True)
+    spied.phases.loop.register.continuous(spy)
     spied.derivatives.method = "central-difference"
     solution = spied.solve()
     assert seen["beta"] == pytest.approx(solution.parameter.beta, rel=1e-6)

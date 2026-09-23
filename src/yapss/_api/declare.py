@@ -500,7 +500,8 @@ class PhaseRegistry(Registry):
         self._phase = phase
         self._label = f"{phase._label} callbacks"
 
-    def _register(self, which: str, function: Callable[..., Any] | None, *, replace: bool) -> Any:
+    def _register(self, which: str, function: Callable[..., Any] | None) -> Any:
+        # See `Problem._register`: registering is setting a value, and the last one wins.
         phase = self._phase
         attribute = f"_{which}"
 
@@ -508,45 +509,30 @@ class PhaseRegistry(Registry):
             if not is_callable(callback):
                 msg = f"{phase._label} {which} callback must be callable; got {callback!r}"
                 raise TypeError(msg)
-            current = getattr(phase, attribute)
-            if current is not None and not replace:
-                existing = getattr(current, "__qualname__", repr(current))
-                msg = (
-                    f"{phase._label} already has the {which} callback '{existing}'; pass "
-                    f"replace=True to replace it"
-                )
-                raise ValueError(msg)
             object.__setattr__(phase, attribute, callback)
             return callback
 
         return register if function is None else register(function)
 
     @overload
-    def continuous(self, function: CallbackT, /, *, replace: bool = False) -> CallbackT: ...
+    def continuous(self, function: CallbackT, /) -> CallbackT: ...
     @overload
-    def continuous(
-        self, function: None = None, /, *, replace: bool = False
-    ) -> Callable[[CallbackT], CallbackT]: ...
-    def continuous(
-        self, function: Callable[..., Any] | None = None, /, *, replace: bool = False
-    ) -> Any:
+    def continuous(self, function: None = None, /) -> Callable[[CallbackT], CallbackT]: ...
+    def continuous(self, function: Callable[..., Any] | None = None, /) -> Any:
         """Register the phase's continuous callback, as a decorator or as a call.
 
         Parameters
         ----------
         function : callable, optional
-            The callback. Omit it to use the result as a decorator, as in
-            ``@ph.register.continuous(replace=True)``.
-        replace : bool, default False
-            Replace a callback already registered on this phase. Registering a second callback
-            without it is refused, since it is nearly always a mistake.
+            The callback. Omit it to use the result as a decorator. Registering a second one
+            replaces the first, as setting any other value twice does.
 
         Returns
         -------
         Any
             The callback, or a decorator that registers one.
         """
-        return self._register("continuous", function, replace=replace)
+        return self._register("continuous", function)
 
 
 class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
