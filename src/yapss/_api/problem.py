@@ -190,6 +190,42 @@ def _check_parameters(parameter: type[Vector], phases: Any) -> None:
             raise ValueError(msg)
 
 
+def _check_decision_variables(phases: Any, parameter: type[Vector]) -> None:
+    """Refuse a problem in no variables at all, which is the one combination with no meaning.
+
+    Every count in this API may be zero, and the transcription holds at the bottom of each
+    range on its own: a problem may declare no phases, and a phase that declares nothing still
+    contributes its own initial and final time. The one combination that has no meaning is all
+    of them at once -- with neither a phase nor a parameter the nonlinear program has no
+    variables, and that is refused because *Ipopt* does not keep the principle, not because
+    YAPSS cannot state the problem.
+
+    Refused here rather than in `validate` because it is decidable here and incurable after: a
+    declaration is a class, so neither count can change once the problem is built, and the line
+    that has to be fixed is the one that called `Problem`. Leaving it to `validate` also had it
+    reported as incompleteness, which it is not -- nothing is missing from a constant objective
+    over no variables; there is simply nothing to choose.
+
+    The test is a proxy for the fact. What is wrong is that there are no decision variables;
+    what is *checked* is that nothing was declared that would make one, and the two sides of
+    that are counted differently on purpose. A phase counts by existing, because it contributes
+    its initial and final time whatever else it declares, and a fixed time is still a variable,
+    bounded above and below by the same number. Parameters count by *rows*, not by fields: a
+    block field may have no rows, so a declaration can be non-empty and contribute nothing.
+
+    Should fixed variables ever be eliminated instead, this check stays right and an
+    equivalence written into the message would have become a lie -- so the message states the
+    fact and then advises, rather than explaining how the check works. `mseipopt` refuses an
+    empty NLP as well, which is the backstop if the two ever come apart.
+    """
+    if not phases and not parameter._nrows:
+        msg = (
+            "the problem has no decision variables, so there is nothing to choose:\n"
+            "Ipopt requires at least one variable, so declare a phase or a parameter"
+        )
+        raise ValueError(msg)
+
+
 class ProblemRegistry(Registry):
     """The problem's callbacks. Reached as ``problem.register``."""
 
@@ -388,6 +424,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
 
         self._hold("phases", phases())
         _check_parameters(parameter, self.phases)
+        _check_decision_variables(self.phases, parameter)
         self._hold("objective", ObjectiveAspects())
         self._hold("derivatives", Derivatives())
         self._hold("ipopt_options", IpoptOptions())

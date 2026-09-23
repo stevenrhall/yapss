@@ -95,20 +95,10 @@ def test_a_parameter_of_no_rows_is_not_a_variable():
     class Design(yapss.Parameter):
         a = yapss.vector(0)
 
-    class Phases(yapss.Phases):
-        pass
-
-    problem = yapss.Problem("a parameter of no rows", phases=Phases, parameter=Design)
-
-    @problem.register.objective
-    def objective(arg):
-        return 0.0
-
     assert Design._fields == ("a",)
     assert Design._nrows == 0
-    problem.ipopt_options.print_level = 0
     with pytest.raises(ValueError, match="no decision variables"):
-        problem.solve()
+        yapss.Problem("a parameter of no rows", parameter=Design)
 
 
 def test_a_problem_of_parameters_alone_solves():
@@ -132,26 +122,15 @@ def test_a_problem_of_parameters_alone_solves():
     assert problem.solve().objective == pytest.approx(0.0, abs=1e-12)
 
 
-@pytest.mark.parametrize("method", METHODS)
-def test_a_problem_with_no_variables_is_refused_the_same_way(method):
+def test_a_problem_with_no_variables_is_refused_at_construction():
     """Neither a phase nor a parameter leaves nothing to solve for.
 
-    The message must come from `validate`, before any derivative setup: under ``"auto"`` the
-    objective would otherwise trace to a constant and fail inside CasADi, naming a C++ header
-    and a type the user never wrote.
+    Refused on the line that builds the problem, because that is the line to fix: a
+    declaration is a class, so no later statement can add a phase or a parameter row. Waiting
+    for `solve` would also have let ``"auto"`` trace a constant objective and fail inside
+    CasADi, naming a C++ header and a type the user never wrote.
     """
-
-    class Phases(yapss.Phases):
-        pass
-
-    problem = yapss.Problem("nothing at all", phases=Phases)
-
-    @problem.register.objective
-    def objective(arg):
-        return 0.0
-
-    problem.derivatives.method = method
-    problem.ipopt_options.print_level = 0
     with pytest.raises(ValueError, match="no decision variables") as info:
-        problem.solve()
+        yapss.Problem("nothing at all")
     assert "declare a phase or a parameter" in str(info.value)
+    assert "incomplete" not in str(info.value)

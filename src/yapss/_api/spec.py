@@ -118,38 +118,17 @@ def validate_problem(problem: Problem[Any, Any, Any]) -> None:
             for what in ("state", "control"):
                 aspect = aspects_of(getattr(phase, what)).guess
                 complaints.extend(_uncovered(aspect, independent.guess, f"{label} {what} guess"))
-    if not problem.phases and not problem._parameter_class._nrows:
-        # Every count in this API may be zero, and the transcription holds at the bottom
-        # of each range on its own: a problem may declare no phases, and a phase that declares
-        # nothing still contributes its own initial and final time. The one combination that
-        # has no meaning is all of them at once -- with neither a phase nor a parameter the
-        # nonlinear program has no variables, which is not a problem but the absence of one.
-        # Caught here so that every derivative method gives the same answer: the "auto" method
-        # would otherwise trace a constant objective and fail inside CasADi, naming a C++
-        # header, and the others would reach Ipopt before anything refused them.
-        #
-        # The test is a proxy for the fact. What is wrong is that there are no decision
-        # variables; what is *checked* is that nothing was declared that would make one, and
-        # the two sides of that are counted differently on purpose. A phase counts by
-        # existing, because it contributes its initial and final time whatever else it
-        # declares, and a fixed time is still a variable, bounded above and below by the same
-        # number. Parameters count by *rows*, not by fields: a block field may have no rows,
-        # so a declaration can be non-empty and contribute nothing.
-        #
-        # Should fixed variables ever be eliminated instead, this check stays right and an
-        # equivalence written into the message would have become a lie -- so the message
-        # states the fact and then advises, rather than explaining the proxy. `mseipopt`
-        # refuses an empty NLP as well, which is the backstop if the two ever come apart.
-        complaints.append(
-            "the problem has no decision variables, so there is nothing to choose:\n"
-            "  Ipopt requires at least one variable, so declare a phase or a parameter"
-        )
     if problem._objective_function is None:
         complaints.append("the problem has no objective callback")
     if problem._discrete_class._fields and problem._discrete_function is None:
         complaints.append("discrete constraints are declared but there is no discrete callback")
     complaints.extend(_unbounded(aspects_of(problem.discrete).bounds, "discrete constraint"))
     if complaints:
+        # Numbered once there is more than one, because several complaints of the same shape
+        # read as one paragraph otherwise, and the count is the first thing a reader wants.
+        # A complaint is one line, so the numbering is the only structure needed.
+        if len(complaints) > 1:
+            complaints = [f"({i}) {complaint}" for i, complaint in enumerate(complaints, 1)]
         msg = "the problem is incomplete:\n  " + "\n  ".join(complaints)
         raise ValueError(msg)
 

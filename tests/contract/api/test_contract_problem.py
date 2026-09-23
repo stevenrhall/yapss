@@ -41,6 +41,18 @@ def test_parameter_must_be_a_parameter_declaration() -> None:
         yapss.Problem("p", phases=Phases, parameter=object)  # type: ignore[arg-type]
 
 
+def test_a_problem_with_no_decision_variables_is_refused() -> None:
+    """Every count may be zero, but not all of them at once: that is the absence of a problem.
+
+    Refused where the problem is built, not where it is solved: the counts come from classes
+    and no later statement can change them, so the line that called `Problem` is the line to
+    fix. It is not incompleteness -- nothing is missing from a constant objective over no
+    variables -- so it is not reported as one.
+    """
+    with raises(ValueError, "no decision variables", "declare a phase", at="yapss.Problem("):
+        yapss.Problem("p")
+
+
 def test_a_declaration_is_refused_in_the_wrong_role() -> None:
     """A state annotated as a phase's control is refused where it was annotated.
 
@@ -281,22 +293,6 @@ def test_phases_may_be_omitted_entirely() -> None:
     p.validate()
 
 
-def test_a_problem_with_no_decision_variables_is_refused() -> None:
-    """Every count may be zero, but not all of them at once: that is the absence of a problem."""
-
-    class NoPhases(yapss.Phases):
-        pass
-
-    p = yapss.Problem("p", phases=NoPhases)
-
-    @p.register.objective
-    def objective(arg):
-        return 0.0
-
-    with raises(ValueError, "no decision variables", "declare a phase", at="validate"):
-        p.validate()
-
-
 def test_the_complaints_are_reported_together() -> None:
     """One message lists everything incomplete, so a user fixes them in one pass."""
     p = problem()
@@ -304,8 +300,23 @@ def test_the_complaints_are_reported_together() -> None:
         p.validate()
     message = str(info.value)
     assert message.count("\n") >= 2, message
+    assert "(1) " in message and "(2) " in message, message
     assert "no objective callback" in message
     assert "phase 'first' has no continuous callback" in message
+
+
+def test_one_complaint_is_not_numbered() -> None:
+    """The numbering is there to separate complaints, so one of them does not get a '(1)'."""
+
+    class Design(yapss.Parameter):
+        a = yapss.scalar()
+
+    p = yapss.Problem("p", parameter=Design)
+    with pytest.raises(ValueError) as info:
+        p.validate()
+    message = str(info.value)
+    assert message.endswith("the problem has no objective callback"), message
+    assert "(1)" not in message
 
 
 # ------------------------------------------------------------ declaring vectors and phases
