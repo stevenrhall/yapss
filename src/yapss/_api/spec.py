@@ -90,7 +90,7 @@ class ProblemSpec:
     objective_function: Callable[..., Any]
     objective_scale: float
     sense: Sense
-    method: Method
+    spectral_method: Method
     derivative_method: DerivativeMethod
     derivative_order: Order
     ipopt_options: dict[str, Any]
@@ -231,7 +231,7 @@ def snapshot(problem: Problem[Any, Any, Any]) -> ProblemSpec:
         objective_function=objective,
         objective_scale=problem.objective.scale,
         sense=problem.objective.sense,
-        method=problem.method,
+        spectral_method=problem.spectral_method,
         derivative_method=problem.derivatives.method,
         derivative_order=problem.derivatives.order,
         ipopt_options=dict(problem.ipopt_options.get_options()),

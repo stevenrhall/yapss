@@ -480,7 +480,7 @@ def to_transcription_spec(spec: ProblemSpec_) -> ProblemSpec:
         functions=functions,
         auxdata=None,
         sense=spec.sense,
-        spectral_method=spec.method,
+        spectral_method=spec.spectral_method,
         derivative_method=spec.derivative_method,
         derivative_order=spec.derivative_order,
         ipopt_options=dict(spec.ipopt_options),

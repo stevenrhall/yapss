@@ -143,7 +143,7 @@ def setup() -> yapss.Problem:
     ph.control.u_r.guess = (0.0, 1.0)
     ph.control.u_theta.guess = (1.0, 0.0)
 
-    problem.method = "lgl"
+    problem.spectral_method = "lgl"
     problem.ipopt_options.print_level = 3
     return problem
 

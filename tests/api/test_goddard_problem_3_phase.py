@@ -39,7 +39,7 @@ def test_every_derivative_method_agrees(problem, method):
 
 @pytest.mark.parametrize("method", ["lgl", "lgr", "lg"])
 def test_every_spectral_method_agrees(problem, method):
-    problem.method = method
+    problem.spectral_method = method
     assert problem.solve().objective == pytest.approx(FINAL_ALTITUDE, rel=1e-8)
 
 

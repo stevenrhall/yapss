@@ -25,7 +25,7 @@ def solved(request):
     constraint, an integral, a parameter and a discrete constraint -- on three segments, so that
     LG's continuity rows, LGL's zero modes and LGL's doubled segment boundaries all appear."""
     problem = declared_in_a_function()
-    problem.method = request.param
+    problem.spectral_method = request.param
     problem.phases.run.mesh = yapss.Mesh.uniform(segments=3, points=4)
     solution = problem.solve()
     return request.param, problem, solution, solution[problem.phases.run]

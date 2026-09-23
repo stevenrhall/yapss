@@ -201,7 +201,7 @@ def setup() -> yapss.Problem:
         ph.state.m.guess = (3 - 2 / 3 * k, 3 - 2 / 3 * (k + 1))
         ph.control.thrust.guess = (Tm * (2 - k) / 2, Tm * (2 - k) / 2)
 
-    problem.method = "lgl"
+    problem.spectral_method = "lgl"
     problem.derivatives.method = "auto"
     problem.derivatives.order = "second"
     problem.ipopt_options.max_iter = 500

@@ -56,7 +56,7 @@ D_co = TypeVar("D_co", bound=Discrete, default=Any, covariant=True)
 PR_co = TypeVar("PR_co", bound=Parameter, default=Any, covariant=True)
 """The class declaring the problem's parameters."""
 
-METHODS = ("lgl", "lgr", "lg")
+SPECTRAL_METHODS = ("lgl", "lgr", "lg")
 DERIVATIVE_METHODS = ("auto", "central-difference", "central-difference-full")
 
 _NO_USER_METHOD = (
@@ -313,7 +313,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         "ipopt_options",
         "register",
     )
-    _settable = ("method", "catch_keyboard_interrupt")
+    _settable = ("spectral_method", "catch_keyboard_interrupt")
 
     if TYPE_CHECKING:
         # The three parameters are the classes the problem was declared with, so a type
@@ -330,7 +330,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         derivatives: Derivatives
         ipopt_options: IpoptOptions
         register: ProblemRegistry
-        method: Literal["lgl", "lgr", "lg"]
+        spectral_method: Literal["lgl", "lgr", "lg"]
         catch_keyboard_interrupt: bool
 
     # One overload per combination of the three keywords, all of them optional. A keyword left
@@ -428,7 +428,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         self._hold("objective", ObjectiveAspects())
         self._hold("derivatives", Derivatives())
         self._hold("ipopt_options", IpoptOptions())
-        self._hold("method", "lgl")
+        self._hold("spectral_method", "lgl")
         self._hold("catch_keyboard_interrupt", CATCH_KEYBOARD_INTERRUPT)
 
         discrete_aspects = DiscreteAspects()
@@ -455,8 +455,8 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         return self._name
 
     def _check(self, name: str, value: Any) -> Any:
-        if name == "method":
-            return _one_of(value, METHODS, "problem.method")
+        if name == "spectral_method":
+            return _one_of(value, SPECTRAL_METHODS, "problem.spectral_method")
         if not isinstance(value, bool):
             msg = f"problem.catch_keyboard_interrupt must be True or False; got {value!r}"
             raise TypeError(msg)

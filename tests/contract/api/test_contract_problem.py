@@ -137,8 +137,8 @@ def test_catch_keyboard_interrupt_is_a_flag() -> None:
 def test_the_spectral_method_is_one_of_three() -> None:
     """A misspelled method is refused at the assignment, listing what is allowed."""
     p = problem()
-    with raises(ValueError, "must be one of", "lgl", at="p.method"):
-        p.method = "radau"  # type: ignore[assignment]
+    with raises(ValueError, "must be one of", "lgl", at="p.spectral_method"):
+        p.spectral_method = "radau"  # type: ignore[assignment]
 
 
 def test_the_sense_is_minimize_or_maximize() -> None:

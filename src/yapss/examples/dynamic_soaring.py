@@ -230,7 +230,7 @@ def setup() -> yapss.Problem:
     # A dense mesh, to capture where the lift coefficient meets its limit and the derivatives
     # of the solution are discontinuous.
     ph.mesh = yapss.Mesh.uniform(segments=50, points=6)
-    problem.method = "lgl"
+    problem.spectral_method = "lgl"
 
     problem.ipopt_options.max_iter = 500
     problem.ipopt_options.print_level = 3

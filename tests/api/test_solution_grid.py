@@ -103,7 +103,7 @@ def test_a_zero_duration_phase_is_filled_with_nan():
 def goddard(request):
     problem = goddard_problem_3_phase.setup()
     problem.ipopt_options.print_level = 0
-    problem.method = request.param
+    problem.spectral_method = request.param
     return problem, problem.solve()
 
 
@@ -131,9 +131,9 @@ def test_the_filled_points_are_where_the_method_has_none(goddard):
     problem, solution = goddard
     ps = solution["boost"]
     missing = ps.time[~ps.collocated]
-    if problem.method == "lgl":
+    if problem.spectral_method == "lgl":
         assert missing.size == 0
-    elif problem.method == "lgr":
+    elif problem.spectral_method == "lgr":
         assert missing == pytest.approx([ps.time[-1]])
     else:
         fractions = np.array(ps.mesh.fractions)
@@ -156,7 +156,7 @@ def test_the_fill_is_close_to_its_neighbours_on_a_smooth_arc(goddard):
 def test_the_mask_and_the_fill_pickle():
     problem = orbit_raising.setup()
     problem.ipopt_options.print_level = 0
-    problem.method = "lgr"
+    problem.spectral_method = "lgr"
     solution = problem.solve()
     copy = pickle.loads(pickle.dumps(solution))
     ps, ps_copy = solution[problem.phases.raise_], copy[problem.phases.raise_]

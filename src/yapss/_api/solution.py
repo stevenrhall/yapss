@@ -1066,7 +1066,7 @@ class Solution(Generic[D_co, PR_co]):
         What Ipopt reported.
     name : str
         The name of the problem this is a solution to.
-    method : str
+    spectral_method : str
         The spectral method it was solved with: ``"lgl"``, ``"lgr"`` or ``"lg"``.
     parameter, discrete : Vector
         The problem-level values, named by the classes the problem declared.
@@ -1081,12 +1081,12 @@ class Solution(Generic[D_co, PR_co]):
         "_phases",
         "converged",
         "discrete",
-        "method",
         "multiplier",
         "name",
         "nlp",
         "objective",
         "parameter",
+        "spectral_method",
         "status",
     )
 
@@ -1095,7 +1095,7 @@ class Solution(Generic[D_co, PR_co]):
         converged: bool
         status: IpoptStatus
         name: str
-        method: str
+        spectral_method: str
         parameter: PR_co
         discrete: D_co
         multiplier: ProblemMultiplier[D_co, PR_co]
@@ -1121,7 +1121,7 @@ class Solution(Generic[D_co, PR_co]):
                     PhaseSolution._from(
                         phase,
                         record.phase[phase.index],
-                        spec.method,
+                        spec.spectral_method,
                         _phase_nlp(
                             phase,
                             dv.phase[phase.index],
@@ -1160,7 +1160,7 @@ class Solution(Generic[D_co, PR_co]):
                 "converged": record.converged,
                 "status": record.status,
                 "name": spec.name,
-                "method": spec.method,
+                "spectral_method": spec.spectral_method,
                 "parameter": _vector(spec.parameter, record.parameter, "parameter"),
                 "discrete": _vector(spec.discrete, record.discrete, "discrete"),
                 "multiplier": ProblemMultiplier(

@@ -72,7 +72,7 @@ def test_the_integrand_is_restored(local):
 def test_the_solution_names_its_problem_and_method(goddard):
     problem, solution, _ = goddard
     assert solution.name == problem.name
-    assert solution.method == problem.method
+    assert solution.spectral_method == problem.spectral_method
 
 
 def test_the_state_bound_multipliers_are_owed_and_say_so(goddard):

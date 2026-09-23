@@ -346,7 +346,7 @@ def setup() -> yapss.Problem:
 
     for stage in stages:
         stage.mesh = yapss.Mesh.uniform(segments=5, points=5)
-    problem.method = "lgl"
+    problem.spectral_method = "lgl"
     problem.derivatives.method = "auto"
     problem.derivatives.order = "second"
     problem.ipopt_options.max_iter = 1000
