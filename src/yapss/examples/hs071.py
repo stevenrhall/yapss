@@ -36,10 +36,6 @@ class Discrete(yapss.Discrete):
     """The sum of their squares, exactly 40."""
 
 
-class Phases(yapss.Phases):
-    """None. The problem has no trajectory, so it has no phases."""
-
-
 def setup() -> yapss.Problem:
     """Set up the HS071 problem.
 
@@ -48,7 +44,7 @@ def setup() -> yapss.Problem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("HS071", phases=Phases, parameter=Parameter, discrete=Discrete)
+    problem = yapss.Problem("HS071", parameter=Parameter, discrete=Discrete)
 
     @problem.register.objective
     def objective(arg):

@@ -33,10 +33,6 @@ class Parameter(yapss.Parameter):
     """Vertical coordinate."""
 
 
-class Phases(yapss.Phases):
-    """None. Nothing here evolves in time, so there is no phase."""
-
-
 def rosenbrock(x: Any, y: Any) -> Any:
     """Return the Rosenbrock function at `(x, y)`.
 
@@ -61,7 +57,7 @@ def setup() -> yapss.Problem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("Rosenbrock", phases=Phases, parameter=Parameter)
+    problem = yapss.Problem("Rosenbrock", parameter=Parameter)
 
     @problem.register.objective
     def objective(arg):

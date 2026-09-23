@@ -3,15 +3,15 @@
 HS071 is here for the degenerate case rather than for the mathematics. Spec 1.1 says zero is a
 count -- no phases, no states, no fields, no rows -- because nothing about the transcription
 changes shape at the bottom of any of those ranges, so nothing in the interface refuses them.
-Until this example there was one exception, and it was an error message rather than a
-limitation: `Phases` refused to declare none.
+Two exceptions have been retired since: `Phases` refused to declare none, and `phases=`
+was a required keyword, so a problem with no phases had to hand over an empty class.
 """
 
 import numpy as np
 import pytest
 
 import yapss
-from yapss.examples.hs071 import Discrete, Parameter, Phases, main, setup
+from yapss.examples.hs071 import Discrete, Parameter, main, setup
 
 RELEASED = 17.014017140224134
 """What the same problem gives through the released API, to the last bit."""
@@ -24,10 +24,10 @@ def problem():
     return problem
 
 
-def test_a_phases_class_may_declare_none():
+def test_a_problem_may_have_no_phases(problem):
     """The case the spec's 'zero is a count' principle covers, and the one that was refused."""
-    assert list(Phases()) == []
-    assert Phases._declared == {}
+    assert list(problem.phases) == []
+    assert list(yapss.Phases()) == []
 
 
 def test_it_agrees_with_the_released_api(problem):

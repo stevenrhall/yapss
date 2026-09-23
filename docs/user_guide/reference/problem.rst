@@ -225,9 +225,10 @@ followed by three keyword arguments:
 
 - `name` (positional): The name of the optimal control problem, which may be used in messages
   and printed output.
-- `phases`: The phases of the problem, defined as a subclass of `yapss.Phases`. This keyword is required,
-  but the subclass can have zero phases, just as a list can have no elements. An optimal control
-  problem with zero phases reduces to a parameter optimization problem.
+- `phases`: The phases of the problem, defined as a subclass of `yapss.Phases`. This keyword is
+  optional, and defaults to `yapss.Phases` itself, which declares no phases. Zero phases is a
+  count like any other: a problem with none reduces to a parameter optimization problem, and is
+  written by leaving the keyword out.
 - `discrete`: The discrete constraints of the problem, defined as a subclass of
   `yapss.Discrete`. (Path constraints belong to a phase, and are declared there.) This keyword is
   optional, and defaults to `yapss.Discrete` itself, which declares no fields.
@@ -255,7 +256,7 @@ problem using YAPSS:
 ``Problem`` Class Reference
 ---------------------------
 
-.. autoclass:: yapss.Problem(name, *, phases, discrete=Empty, parameter=Empty)
+.. autoclass:: yapss.Problem(name, *, phases=Empty, discrete=Empty, parameter=Empty)
    :members:
    :no-special-members:
    :no-undoc-members:

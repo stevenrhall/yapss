@@ -260,8 +260,8 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
     ----------
     name : str
         A name for the problem, used in messages and printed output.
-    phases : type[Phases]
-        The class declaring the problem's phases.
+    phases : type[Phases], optional
+        The class declaring the problem's phases; none, if omitted.
     discrete : type[Discrete], optional
         The class naming the problem's discrete constraint groups; none, if omitted.
     parameter : type[Parameter], optional
@@ -297,9 +297,10 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         method: Literal["lgl", "lgr", "lg"]
         catch_keyboard_interrupt: bool
 
-    # One overload per combination of the two optional keywords. A keyword left out pins its
-    # parameter to the role, which declares no fields -- not to the class default, `Any`, which
-    # is for the bare annotation.
+    # One overload per combination of the three keywords, all of them optional. A keyword left
+    # out pins its parameter to the role, which declares no fields -- not to the class default,
+    # `Any`, which is for the bare annotation. Every count may be zero, phases included; a
+    # problem with nothing to choose at all is refused by `validate`, not here.
     @overload
     def __init__(
         self: Problem[PH_co, D_co, PR_co],
@@ -333,13 +334,35 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         self: Problem[PH_co, Discrete, Parameter], name: str, *, phases: type[PH_co]
     ) -> None: ...
 
+    @overload
+    def __init__(
+        self: Problem[Phases, D_co, PR_co],
+        name: str,
+        *,
+        discrete: type[D_co],
+        parameter: type[PR_co],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Problem[Phases, D_co, Parameter], name: str, *, discrete: type[D_co]
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Problem[Phases, Discrete, PR_co], name: str, *, parameter: type[PR_co]
+    ) -> None: ...
+
+    @overload
+    def __init__(self: Problem[Phases, Discrete, Parameter], name: str) -> None: ...
+
     def __init__(
         self,
         name: str,
         *,
-        phases: type[PH_co],
         # See `_api.declare.phase`: the defaults are declared on the type parameters, and a
         # checker measures the default value against the parameter type regardless.
+        phases: type[PH_co] = Phases,  # type: ignore[assignment]
         discrete: type[D_co] = Discrete,  # type: ignore[assignment]
         parameter: type[PR_co] = Parameter,  # type: ignore[assignment]
     ) -> None:

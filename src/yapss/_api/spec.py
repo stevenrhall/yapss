@@ -140,7 +140,10 @@ def validate_problem(problem: Problem[Any, Any, Any]) -> None:
         # equivalence written into the message would have become a lie -- so the message
         # states the fact and then advises, rather than explaining the proxy. `mseipopt`
         # refuses an empty NLP as well, which is the backstop if the two ever come apart.
-        complaints.append("the problem has no decision variables: declare a phase, or parameters")
+        complaints.append(
+            "the problem has no decision variables, so there is nothing to choose:\n"
+            "  Ipopt requires at least one variable, so declare a phase or a parameter"
+        )
     if problem._objective_function is None:
         complaints.append("the problem has no objective callback")
     if problem._discrete_class._fields and problem._discrete_function is None:

@@ -154,4 +154,4 @@ def test_a_problem_with_no_variables_is_refused_the_same_way(method):
     problem.ipopt_options.print_level = 0
     with pytest.raises(ValueError, match="no decision variables") as info:
         problem.solve()
-    assert "declare a phase, or parameters" in str(info.value)
+    assert "declare a phase or a parameter" in str(info.value)

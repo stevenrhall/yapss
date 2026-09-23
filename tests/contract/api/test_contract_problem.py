@@ -264,6 +264,23 @@ def test_declared_discrete_constraints_need_a_callback() -> None:
         p.validate()
 
 
+def test_phases_may_be_omitted_entirely() -> None:
+    """Zero is a count: a problem with no phases declares none, rather than an empty class."""
+
+    class Parameters(yapss.Parameter):
+        x = yapss.scalar()
+
+    p = yapss.Problem("p", parameter=Parameters)
+    assert list(p.phases) == []
+
+    @p.register.objective
+    def objective(arg):
+        return arg.parameter.x**2
+
+    p.parameter.x.guess = 1.0
+    p.validate()
+
+
 def test_a_problem_with_no_decision_variables_is_refused() -> None:
     """Every count may be zero, but not all of them at once: that is the absence of a problem."""
 
