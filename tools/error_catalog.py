@@ -46,7 +46,6 @@ API_AREAS = {
     "bounds": "Bounds",
     "guess": "Initial Guess",
     "derivatives": "Derivatives",
-    "user_derivatives": "User-Defined Derivatives",
     "scaling": "Scaling",
     "mesh_structure": "Mesh Structure",
     "ipopt_options": "Ipopt Options",

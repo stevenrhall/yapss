@@ -135,7 +135,17 @@ class ParameterAspects(Container):
 
 
 class Derivatives(Container):
-    """How derivatives are computed."""
+    """How derivatives are computed.
+
+    Attributes
+    ----------
+    method : {"auto", "central-difference", "central-difference-full"}
+        How derivatives are computed: automatic differentiation with CasADi (the default), or
+        central differences, with or without sparsity detection.
+    order : {"first", "second"}
+        The order of derivatives Ipopt is given. Under ``"first"``, Ipopt approximates the
+        Hessian of the Lagrangian itself. The default is ``"second"``.
+    """
 
     _settable = ("method", "order")
 
