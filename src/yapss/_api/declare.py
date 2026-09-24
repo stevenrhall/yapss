@@ -385,6 +385,20 @@ class Phases:
         handles: dict[str, AnyPhase] = object.__getattribute__(self, "_handles")
         return handles
 
+    def _example(self) -> str:
+        """Return a setting written the way a phase's are, for a message.
+
+        A phase is not a field of `phases`: it is reached by name and set up through its own
+        fields, so the example has to go two levels deeper than a vector's would.
+        """
+        for phase in self:
+            declaration = type(phase)._declaration
+            if declaration is None:  # pragma: no cover - a phase always has its shape
+                break
+            field = declaration.state._fields[0] if declaration.state._fields else "<field>"
+            return f"{phase.name}.state.{field}.bounds"
+        return "<phase>.state.<field>.bounds"
+
     def __iter__(self) -> Iterator[AnyPhase]:
         """Iterate over the phases, in declaration order."""
         return iter(self._all().values())

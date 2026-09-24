@@ -23,6 +23,40 @@ def test_name_must_be_a_string() -> None:
         yapss.Problem(42, phases=Phases)  # type: ignore[arg-type]
 
 
+def test_the_name_may_be_changed() -> None:
+    """A name is a value the user means, so it is theirs to set, like any other setting.
+
+    It is read at each solve, so a problem re-solved as a sweep gives each solution the name
+    it carried when that solve ran -- which is how a solution says which variant it is.
+    """
+    p = solvable()
+    p.name = "renamed"
+    assert p.name == "renamed"
+    assert repr(p).startswith("<Problem 'renamed'")
+    assert p.solve().name == "renamed"
+
+
+def test_the_name_is_a_string_wherever_it_is_set() -> None:
+    """The same refusal on assignment as in the constructor, in the same words."""
+    p = problem()
+    with raises(TypeError, "the problem name must be a string", at="p.name"):
+        p.name = 42  # type: ignore[assignment]
+
+
+def test_a_declaration_cannot_be_replaced() -> None:
+    """The shape is said once: `phases=`, `discrete=` and `parameter=` fix it at construction.
+
+    A name is a value; a declaration is a shape, and replacing one would silently discard every
+    bound, guess and scale already set under it. The message points at what *is* settable, and
+    for phases that is two levels down -- a phase is not a field of `phases`.
+    """
+    p = solvable()
+    with raises(AttributeError, "phases cannot be replaced", "phases.slide.state.x.bounds"):
+        p.phases = None  # type: ignore[assignment]
+    with raises(AttributeError, "parameter cannot be replaced"):
+        p.parameter = None  # type: ignore[assignment]
+
+
 def test_phases_must_be_a_phases_subclass() -> None:
     """`phases=` takes the class, not an instance of it and not a list."""
     with raises(TypeError, "class Phases(yapss.Phases)", at="yapss.Problem("):

@@ -239,7 +239,9 @@ The `yapss.Problem` constructor takes the problem name as its only positional ar
 followed by three keyword arguments:
 
 - `name` (positional): The name of the optimal control problem, which may be used in messages
-  and printed output.
+  and printed output, and which the solution carries. It is a setting like any other, so it can
+  be changed later with ``problem.name = ...``; each solve records the name the problem had
+  when it ran.
 - `phases`: The phases of the problem, defined as a subclass of `yapss.Phases`. This keyword is
   optional, and defaults to `yapss.Phases` itself, which declares no phases. Zero phases is a
   count like any other: a problem with none reduces to a parameter optimization problem, and is

@@ -157,6 +157,13 @@ class Derivatives(Container):
         return _one_of(value, ORDERS, "derivatives.order")
 
 
+def _check_name(name: object) -> None:
+    """Refuse a name that is not a string, in the constructor and on assignment alike."""
+    if not is_string(name):
+        msg = f"the problem name must be a string; got {name!r}"
+        raise TypeError(msg)
+
+
 def _check_parameters(parameter: type[Vector], phases: Any) -> None:
     """Refuse a parameter whose name is also a variable of some phase.
 
@@ -303,7 +310,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         "ipopt_options",
         "register",
     )
-    _settable = ("spectral_method", "catch_keyboard_interrupt")
+    _settable = ("name", "spectral_method", "catch_keyboard_interrupt")
 
     if TYPE_CHECKING:
         # The three parameters are the classes the problem was declared with, so a type
@@ -320,6 +327,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         derivatives: Derivatives
         ipopt_options: IpoptOptions
         register: ProblemRegistry
+        name: str
         spectral_method: Literal["lgl", "lgr", "lg"]
         catch_keyboard_interrupt: bool
 
@@ -392,9 +400,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         discrete: type[D_co] = Discrete,  # type: ignore[assignment]
         parameter: type[PR_co] = Parameter,  # type: ignore[assignment]
     ) -> None:
-        if not is_string(name):
-            msg = f"the problem name must be a string; got {name!r}"
-            raise TypeError(msg)
+        _check_name(name)
         if not is_subclass(phases, Phases):
             msg = (
                 "Problem(phases=) takes a phase declaration, written as "
@@ -405,7 +411,6 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         declared_role(discrete, "Problem", "discrete", roles)
         declared_role(parameter, "Problem", "parameter", roles)
 
-        self._name = name
         self._label = "problem"
         self._objective_function: Callable[..., Any] | None = None
         self._discrete_function: Callable[..., Any] | None = None
@@ -418,6 +423,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         self._hold("objective", ObjectiveAspects())
         self._hold("derivatives", Derivatives())
         self._hold("ipopt_options", IpoptOptions())
+        self._hold("name", name)
         self._hold("spectral_method", "lgl")
         self._hold("catch_keyboard_interrupt", CATCH_KEYBOARD_INTERRUPT)
 
@@ -439,12 +445,14 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         self._hold("parameter", Fields(parameter_aspects, parameter, parameter_aspects._label))
         self._hold("register", ProblemRegistry(self))
 
-    @property
-    def name(self) -> str:
-        """str: The problem's name."""
-        return self._name
-
     def _check(self, name: str, value: Any) -> Any:
+        if name == "name":
+            # A name is a value the user means, not something YAPSS computes from the rest, so
+            # it is theirs to change -- and a sweep that re-solves one problem wants to say
+            # which variant each solution came from. `snapshot` reads it at each solve, so the
+            # solutions of one problem carry the names it had when each was solved.
+            _check_name(value)
+            return value
         if name == "spectral_method":
             return _one_of(value, SPECTRAL_METHODS, "problem.spectral_method")
         if not isinstance(value, bool):
@@ -498,8 +506,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         IpoptConvergenceWarning
             If Ipopt reported a status other than 0 (optimal), 1 (acceptable level) or
             6 (feasible point for a square problem). A `Solution` is returned for every
-            status; an unconverged solve is valid input that deserves attention rather than
-            a contract violation, which is the rule of CLAUDE.md's conventions.
+            status; an unconverged solve is valid input that deserves attention.
         """
         self.validate()
         solution, record = solve_problem(snapshot(self))
@@ -513,4 +520,4 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
     def __repr__(self) -> str:
         """Return a short representation naming the problem and its phases."""
         names = ", ".join(phase.name for phase in self.phases)
-        return f"<Problem {self._name!r} phases=({names})>"
+        return f"<Problem {self.name!r} phases=({names})>"
