@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from warnings import warn
 
-from .exceptions import YapssDeprecationWarning, YapssWarning
+from .exceptions import YapssDeprecationWarning, YapssWarning, user_stacklevel
 
 # ANSI escape codes for colors
 RED = "\033[31m"
@@ -39,7 +39,7 @@ if level:
             f"Invalid logging level: '{level}'. \n"
             f"    Valid levels are: DEBUG, INFO, WARNING, ERROR, CRITICAL."
         )
-        warn(msg, YapssWarning, stacklevel=2)
+        warn(msg, YapssWarning, stacklevel=user_stacklevel())
         _package_logger.setLevel(logging.WARNING)
 
 else:
@@ -111,6 +111,5 @@ def warn_if_ipopt_source_env_set() -> None:
         "YAPSS 0.3.0, which always uses the Ipopt library that CasADi loads, after "
         "verifying it. It can be unset.",
         YapssDeprecationWarning,
-        # warn_if_ipopt_source_env_set -> solver.solve -> Problem.solve -> the user's call
-        stacklevel=4,
+        stacklevel=user_stacklevel(),
     )

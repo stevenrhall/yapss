@@ -27,7 +27,55 @@ and error classes.
 
 from __future__ import annotations
 
-__all__ = ["REMOVED_NAMES", "YapssDeprecationWarning", "YapssError", "YapssWarning"]
+import os
+import sys
+from pathlib import Path
+
+__all__ = [
+    "REMOVED_NAMES",
+    "YapssDeprecationWarning",
+    "YapssError",
+    "YapssWarning",
+    "user_stacklevel",
+]
+
+# The package directory, and the one directory inside it that holds user code rather than
+# YAPSS's own: the examples are scripts a user runs, and a warning they cause belongs there.
+# `absolute`, not `resolve`: a frame records the path the module was imported by, symlinks
+# and all, so resolving this one could stop it matching.
+_PACKAGE = str(Path(__file__).absolute().parent.parent) + os.sep
+_EXAMPLES = _PACKAGE + "examples" + os.sep
+
+
+def user_stacklevel() -> int:
+    """Return the `stacklevel` that points a warning at the first frame outside YAPSS.
+
+    Call it in the argument list of the `warnings.warn` it is for, so that the frame it starts
+    from is the one issuing the warning::
+
+        warnings.warn(msg, YapssWarning, stacklevel=user_stacklevel())
+
+    Frames in the package are skipped, except the examples, and so are Python's frozen
+    import frames, so a warning issued while `yapss` is being imported points at the user's
+    ``import yapss``. The import frames are passed over without being counted, because
+    `warnings.warn` skips them itself when it counts.
+    """
+    # When Python 3.11 support is retired, this can be replaced by the `skip_file_prefixes`
+    # argument of `warnings.warn` (3.12+), given every directory of the package except
+    # `examples` as the prefixes, so that the examples still count as user code.
+    frame = sys._getframe(1)
+    level = 1
+    while (caller := frame.f_back) is not None:
+        filename = frame.f_code.co_filename
+        if "importlib" in filename and "_bootstrap" in filename:
+            frame = caller
+            continue
+        if not filename.startswith(_PACKAGE) or filename.startswith(_EXAMPLES):
+            break
+        frame = caller
+        level += 1
+    return level
+
 
 # Public names removed in 0.3.0, each with what replaced it. Accessing one through `yapss` or
 # `yapss.math` raises AttributeError with this message, rather than Python's bare "has no

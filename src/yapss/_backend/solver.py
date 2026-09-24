@@ -24,6 +24,7 @@ from .auto import make_auto_functions
 from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variable_bounds
 from .central_difference import make_cd_functions
 from .config import get_conda_prefix, warn_if_ipopt_source_env_set
+from .exceptions import user_stacklevel
 from .guess import make_initial_guess_nlp
 from .ipopt_options import IpoptOptionSettingWarning, explain_refusal
 from .ipopt_status import status_or_raise
@@ -173,9 +174,7 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
             msg, is_error = explain_refusal(name, value, str(e))
             if is_error:
                 raise ValueError(msg) from e
-            # stacklevel 3: warn -> solver.solve -> Problem.solve -> the user's call,
-            # as warn_if_not_converged does
-            warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=3)
+            warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=user_stacklevel())
 
     if "timing_statistics" not in problem.ipopt_options:
         with contextlib.suppress(ValueError, TypeError):
