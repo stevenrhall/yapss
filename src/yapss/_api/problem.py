@@ -501,12 +501,26 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         Solution
             The solution, holding every quantity under the names the problem declared.
 
+        Raises
+        ------
+        ValueError
+            If the problem is incomplete (see `validate`), or if Ipopt stopped without an
+            iterate because of the problem or its callbacks: too few degrees of freedom
+            (status -10), inconsistent bounds (-11), a refused option (-12), or a NaN or
+            Inf from a callback (-13).
+        MemoryError
+            If Ipopt ran out of memory (-102).
+        RuntimeError
+            For a failure inside Ipopt (-100, -101, -199), or a status this version of
+            YAPSS does not recognize.
+
         Warns
         -----
         IpoptConvergenceWarning
-            If Ipopt reported a status other than 0 (optimal), 1 (acceptable level) or
-            6 (feasible point for a square problem). A `Solution` is returned for every
-            status; an unconverged solve is valid input that deserves attention.
+            If Ipopt stopped at an iterate but reported a status other than 0 (optimal),
+            1 (acceptable level) or 6 (feasible point for a square problem). A `Solution`
+            is returned for each of these; an unconverged solve is valid input that
+            deserves attention.
         """
         self.validate()
         solution, record = solve_problem(snapshot(self))
