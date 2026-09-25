@@ -11,7 +11,9 @@ porting it.
 
 The message is kept indefinitely. It guards the one boundary old code crosses, not a single
 name, and old notebooks outlive their software. It names the installed version, so it stays
-true in every later release, and its links are versioned, so later releases cannot break them.
+true in every later release. Its link to the old API's documentation is versioned, so later
+releases cannot break it; its link for porting is the documentation's front door, which always
+shows the newest release and whatever guidance for upgrading it has.
 
 """
 
@@ -24,10 +26,8 @@ __all__ = ["OLD_ROOT_NAMES", "old_api_message"]
 OLD_API_DOCS = "https://yapss.readthedocs.io/en/v0.3.0/"
 """The documentation of the last release of the old API."""
 
-# The upgrade page is gated on worklist item 10 and not yet written; this is the address it will
-# have, and the release checklist confirms that every printed URL resolves before publication.
-UPGRADE_GUIDE = "https://yapss.readthedocs.io/en/v0.4.0/upgrading.html"
-"""The page that shows each old spelling beside its 0.4 replacement."""
+CURRENT_DOCS = "https://yapss.readthedocs.io/"
+"""The documentation of the newest release: the address redirects to Read the Docs' `stable`."""
 
 OLD_ROOT_NAMES = frozenset(
     {
@@ -79,7 +79,5 @@ def old_api_message(what: str) -> str:
         f"\n"
         f"Its documentation is at {OLD_API_DOCS}\n"
         f"\n"
-        f"To port the code, start at {UPGRADE_GUIDE}. It is worth doing: everything is "
-        f"declared by name, so your editor completes and checks it, and most mistakes are "
-        f"reported at the line that made them."
+        f"To port the code, see the documentation for the current release at {CURRENT_DOCS}"
     )

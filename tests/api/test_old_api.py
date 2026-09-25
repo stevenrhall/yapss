@@ -13,14 +13,15 @@ import pytest
 
 import yapss
 from yapss._api import old_api
-from yapss._api.old_api import OLD_API_DOCS, OLD_ROOT_NAMES, UPGRADE_GUIDE
+from yapss._api.old_api import CURRENT_DOCS, OLD_API_DOCS, OLD_ROOT_NAMES
 
 
 def assert_is_the_old_api_message(message: str, what: str) -> None:
     assert message.startswith(f"{what} is the API of YAPSS 0.3 and earlier")
     assert 'install "yapss<0.4"' in message
     assert OLD_API_DOCS in message
-    assert UPGRADE_GUIDE in message
+    # the current documentation's address is a prefix of the old one's, so match its sentence
+    assert f"documentation for the current release at {CURRENT_DOCS}" in message
 
 
 def test_an_old_problem_call_is_recognized():
