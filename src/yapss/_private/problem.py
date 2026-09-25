@@ -802,25 +802,24 @@ class UserFunctions(Protected):
     discrete_hessian: Callback[DiscreteHessianFunction] = Callback()
 
 
-# The point above which `LargeSegmentWarning` suggests splitting a segment. It is a
-# judgement, not a cliff: nothing fails at 26 points. The figure is set well above
-# published practice and well below where the cost becomes painful.
+# The count above which `LargeSegmentWarning` suggests splitting a segment. It is advice, not a
+# limit: the mesh is valid, and a single global segment is a legitimate choice.
 #
-# Published hp-adaptive methods cap the degree per interval far lower: the method is
-# parameterized as hp-Method(Nmin, Nmax) with "a user-specified upper limit Nmax >= 2 ...
-# to prevent the polynomial degree from growing unreasonably large", and GPOPS-II's
-# examples use ph-(4, 10) -- a maximum of 10 (Darby, Hager and Rao, "An hp-adaptive
-# pseudospectral method for solving optimal control problems", Optimal Control
-# Applications and Methods 32, 2011; Patterson and Rao, "GPOPS-II", ACM TOMS 41, 2014).
-# Conditioning is the milder constraint: the first-derivative differentiation matrix
-# conditions as O(N^2), so N = 100 costs about four digits, which double precision
-# absorbs.
+# Published hp-adaptive methods cap the degree per interval near here, as an efficiency setting:
+# GPOPS-II defaults to at most 10 points per interval, and Patterson, Hager and Rao ("A ph mesh
+# refinement method for optimal control", Optimal Control Applications and Methods 36, 2015) find a
+# maximum of 14 or 16 generally performs well.
 #
-# What bites in YAPSS is the mesh setup. `quadrature.py` computes the nodes with mpmath,
-# memoized per (method, count), and the cost grows quadratically: measured on an M-series
-# Mac, LGL takes 0.02 s at 10 points, 0.03 s at 15, 0.08 s at 25, 0.32 s at 50, 1.2 s at
-# 100, and 21 s at 400.
-LARGE_SEGMENT_THRESHOLD = 15
+# Accuracy is not what a large segment costs in YAPSS: the quadrature is computed in high precision
+# and rounded once, so its differentiation matrix stays accurate at a hundred points. What it costs
+# is size and, on harder problems, convergence. A segment's differentiation matrix is dense, so the
+# block of the Jacobian that couples its defects to its states grows as the square of its points.
+# Measured on the Delta III example at 200 and 300 points per phase, segments of up to 15 points
+# converged in 25-42 iterations; 20 points took up to 782; 25 points ended once in an error in the
+# step computation and once only at an acceptable level; and 50 points or more hit the iteration
+# limit short of the optimum. The brachistochrone converged in about 20 iterations at every segment
+# size up to 300, so the effect depends on the problem, which is why this warns rather than refuses.
+LARGE_SEGMENT_THRESHOLD = 20
 
 # A fraction sequence is rescaled to sum to exactly 1, so that the segment boundaries are
 # exact. Only rounding error is absorbed silently: seven sevenths sum to 0.9999999999999998,
@@ -837,14 +836,14 @@ class LargeSegmentWarning(YapssWarning):
     """A mesh segment has more collocation points than it probably should.
 
     The collocation points of a segment are the roots of a polynomial of that degree, so a
-    segment with many points is a high-order fit over the whole segment. Published
-    hp-adaptive methods raise the degree only to about 10 per interval before splitting the
-    interval instead, and YAPSS computes the quadrature rule for a segment in high-precision
-    arithmetic, at a cost that grows quadratically with the count. More, shorter segments
-    are usually both more accurate and faster to set up.
+    segment with many points is one high-order fit over the whole segment. On harder problems
+    a large segment can slow Ipopt's convergence sharply or prevent it, and its quadrature
+    takes longer to compute; published hp-adaptive methods raise the degree only to about 10
+    to 16 per interval before splitting it. More, shorter segments are usually faster and
+    more robust.
 
-    This is advice, not a limit: nothing fails above the threshold, and a deliberate
-    single-segment (global) method is a legitimate thing to want. Silence it with
+    This is advice, not a limit: the mesh is valid, and a deliberate single-segment (global)
+    method is a legitimate thing to want. Silence it with
     ``warnings.simplefilter("ignore", yapss.LargeSegmentWarning)``.
     """
 
@@ -896,12 +895,12 @@ class MeshPhase(Protected):
         for i, n in enumerate(points):
             if n > LARGE_SEGMENT_THRESHOLD:
                 msg = (
-                    f"{label}[{i}] is {n}, above the {LARGE_SEGMENT_THRESHOLD} points above "
-                    f"which a segment is usually better split. A segment is fitted by a "
-                    f"single polynomial of that degree, and its quadrature rule costs more "
-                    f"to compute the larger it is; hp-adaptive methods raise the degree only "
-                    f"to about 10 before splitting instead. Nothing fails above this, so "
-                    f"filter yapss.LargeSegmentWarning if the mesh is deliberate."
+                    f"{label}[{i}] is {n}, more than the {LARGE_SEGMENT_THRESHOLD} above which "
+                    f"a segment is usually better split into several. On harder problems a "
+                    f"large segment can slow Ipopt's convergence sharply or prevent it; 15 or "
+                    f"fewer per segment is usually fastest. The mesh is valid, so filter "
+                    f"yapss.LargeSegmentWarning to silence this warning if the mesh is "
+                    f"deliberate."
                 )
                 warnings.warn(msg, LargeSegmentWarning, stacklevel=3)
         set_private(self, "_collocation_points", points)
