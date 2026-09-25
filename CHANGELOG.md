@@ -54,8 +54,6 @@ below give the details.
   of a guess raises when the solve starts.
 - **Counts are integers:** `ns=0`, not `ns=None`; `collocation_points = [4]`, not `[4.0]`. Mesh
   fractions must sum to 1 within 1e-8, no longer 0.01.
-- **Ipopt options are checked:** a value outside Ipopt's documented range, or a name close to a
-  real option, raises.
 - **A misspelled attribute raises**, including on `problem.guess` and on `arg.phase[p]` in
   objective and discrete callbacks, where 0.2.x stored it and ignored it.
 - **A solve that ends without a solution raises** (Ipopt statuses -10 to -13 and internal
@@ -199,27 +197,19 @@ below give the details.
   part: bounds, guess, scale, mesh, and callbacks.
 - `Problem` has a `repr` naming the problem and its counts, rather than
   `<yapss._backend.problem.Problem object at 0x...>`.
-- An Ipopt option that Ipopt refuses is now diagnosed rather than merely reported. Ipopt says
-  only that it refused an option, so YAPSS compares the value with what Ipopt's own
-  documentation records for it (a generated table, scraped from a pinned Ipopt release and
-  carrying the ranges of the numeric options and the allowed settings of the string ones). A
-  value outside the documented range or set raises `ValueError` naming the option and the range
-  --- `max_iter = -1`, `mu_strategy = "adaptiv"` --- where before it warned and the solve
-  continued with Ipopt's default. A value *within* the documented range still warns, because
-  the likeliest cause is a build that does not provide the option, such as
-  `linear_solver = "ma27"` without HSL. Neither verdict is stated as certain: both messages
-  name the Ipopt release being quoted, note that the loaded library may differ, and send you to
-  Ipopt's console output.
+- An Ipopt option that Ipopt refuses still warns, and the solve still continues with Ipopt's
+  default, but the message now says so plainly and sends you to Ipopt's console output for the
+  exact cause. It suggests the likely option for a name close to a documented one (`max_iters`
+  → `max_iter`), and for a documented option says this build might not provide it or might not
+  accept the value. Which options exist, and which values they take, depends on the Ipopt
+  build, so only Ipopt judges them; the documented options (a generated table, scraped from a
+  pinned Ipopt release) give the kind of each option and the hint, never a verdict.
 - `problem.ipopt_options.output_file` and `file_print_level` are now listed among the
   documented options, so an IDE suggests them. Ipopt's documentation says they work only when
   read from an `ipopt.opt` file, which is not true of the interface YAPSS uses; they are the
   way to keep Ipopt's own log when `print_level` is 0.
-- Ipopt option *names* are checked at the assignment. A name close to a real option is a
-  misspelling and raises `AttributeError` naming the likely intent (`max_iters` → `max_iter`).
-  A name nothing like a known one warns and is passed to Ipopt anyway, since the pip wheel's
-  Ipopt and conda-forge's are different builds and one may have options the other does not.
-  A NaN for a Number option raises `ValueError`. And the names of
-  the container's own methods, `reset` and `get_options`, can no longer be assigned: doing so
+- A NaN for a Number option raises `ValueError` at the assignment. And the names of the
+  container's own methods, `reset` and `get_options`, can no longer be assigned: doing so
   shadowed the method, so a later `reset()` failed with an int not being callable.
 - Mesh settings are checked where they are set. `mesh.phase[p].collocation_points` accepts
   NumPy integers and anything else `operator.index` accepts, and refuses a float --- `4.0`
@@ -826,7 +816,7 @@ The deprecations scheduled for 0.3.0 are unchanged and still warn.
   is emitted before a potential crash; `DeprecationWarning` is suppressed by default
   outside `__main__`. Removing any line setting the `ipopt_source` attribute and removing
   the `YAPSS_IPOPT_SOURCE` environment variable eliminates the warning and will avoid an
-  `AttributeError` in 0.2.0.
+  `AttributeError` in 0.3.0.
 
 ### Fixed
 

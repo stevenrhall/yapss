@@ -1,13 +1,16 @@
 """What YAPSS passes to Ipopt, what it refuses to pass, and what it only warns about.
 
-Two rules divide this page. An option YAPSS sets itself is refused, because letting a user set
-it would make YAPSS's own choice silently ineffective. An option YAPSS does not recognize is
-*warned* about and passed on anyway, because the user's Ipopt build may have options the
-documented release does not -- valid input with an outcome worth mentioning, which is the line
-between raising and warning everywhere in YAPSS.
+Two rules divide this page. What is wrong on every build is refused where it is written: an
+option YAPSS sets itself, because letting a user set it would make YAPSS's own choice silently
+ineffective. Everything else is Ipopt's to judge, because which options exist and which values
+they take depend on the build: an option is passed on, and if Ipopt refuses it, the solve warns
+and continues with Ipopt's default -- valid input with an outcome worth mentioning, which is the
+line between raising and warning everywhere in YAPSS.
 """
 
 from __future__ import annotations
+
+import warnings
 
 import yapss
 
@@ -48,18 +51,47 @@ def test_the_objective_scaling_factor_points_at_the_scale() -> None:
         p.ipopt_options.obj_scaling_factor = 2.0
 
 
-# ------------------------------------------------------- options YAPSS does not recognize
+# ------------------------------------------------------------ options Ipopt judges itself
 
 
-def test_an_unknown_option_warns_and_is_passed_on() -> None:
-    """Valid input whose outcome deserves attention: warned about, not refused."""
+def test_an_unknown_option_is_passed_on_without_comment() -> None:
+    """Which options exist is Ipopt's to judge, so nothing is said where one is written."""
     p = problem()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", yapss.IpoptOptionSettingWarning)
+        p.ipopt_options.no_such_option = 1
+        p.ipopt_options.max_iters = 1
+
+
+def test_an_option_ipopt_refuses_warns_at_the_solve() -> None:
+    """Valid input whose outcome deserves attention: warned about, and the solve continues."""
+    p = solvable()
+    p.ipopt_options.no_such_option = 1
     with warns(
         yapss.IpoptOptionSettingWarning,
-        "is not among the options documented",
-        at="ipopt_options",
+        "Ipopt refused option 'no_such_option'",
+        "continues with Ipopt's default",
+        at="p.solve",
     ):
-        p.ipopt_options.no_such_option = 1
+        solution = p.solve()
+    assert solution.converged
+
+
+def test_a_misspelled_option_is_named_at_the_solve() -> None:
+    """The table cannot decide, but it can suggest: a near miss gets its likely intent."""
+    p = solvable()
+    p.ipopt_options.max_iters = 50
+    with warns(yapss.IpoptOptionSettingWarning, "Did you mean 'max_iter'", at="p.solve"):
+        p.solve()
+
+
+def test_a_value_ipopt_refuses_warns_at_the_solve() -> None:
+    """A value is Ipopt's to judge too: its refusal warns, and the solve uses the default."""
+    p = solvable()
+    p.ipopt_options.max_iter = -1
+    with warns(yapss.IpoptOptionSettingWarning, "Ipopt refused option 'max_iter'", at="p.solve"):
+        solution = p.solve()
+    assert solution.converged
 
 
 def test_a_documented_option_is_set_without_comment() -> None:

@@ -12,27 +12,23 @@ from __future__ import annotations
 
 import difflib
 import math
-import warnings
 from numbers import Integral, Real
 from typing import TYPE_CHECKING, Any
 
 from .exceptions import YapssWarning
-from .ipopt_option_specs import IPOPT_DOC_VERSION, IPOPT_OPTION_SPECS, IpoptOptionSpec
+from .ipopt_option_specs import IPOPT_OPTION_SPECS
 
 __all__ = ["IpoptOptionSettingWarning", "IpoptOptions"]
 
 
 class IpoptOptionSettingWarning(YapssWarning):
-    """YAPSS could not vouch for an Ipopt option, or Ipopt refused one.
+    """Ipopt refused an option.
 
-    Issued in two places, for the same underlying reason: the set of options depends on the
-    Ipopt build, and YAPSS checks names against one documented release. At assignment, for a
-    name that release does not list, which is passed to Ipopt anyway since another build may
-    have it. At the start of a solve, for an option Ipopt itself refused whose value is
-    within what the documentation allows, which usually means this build does not provide it.
-
-    A value *outside* the documented range is not this: it is wrong on every build, and
-    raises `ValueError` instead.
+    Issued at the start of a solve, when Ipopt refuses an option the problem set: the option is
+    not applied, and the solve continues with Ipopt's default. Which options exist, and which
+    values they take, depends on the Ipopt build, so only Ipopt can judge them. YAPSS refuses at
+    the assignment only what is wrong on every build: an option YAPSS sets itself, or a value
+    of the wrong kind.
     """
 
 
@@ -180,29 +176,6 @@ class IpoptOptions:
                     f"assigned. Ipopt has no option of that name either."
                 )
                 raise AttributeError(msg)
-            if name not in IPOPT_OPTION_SPECS:
-                # A name YAPSS's table does not have is one of two very different things, and
-                # how close it is to a known name separates them. A near miss is a misspelling:
-                # refuse it. A far miss may be an option some Ipopt build has and this table,
-                # scraped from one release, does not -- the pip wheel's Ipopt and conda-forge's
-                # are different builds of different versions -- so pass it on to Ipopt, which
-                # is the only authority on what it accepts, but say that YAPSS did not
-                # recognize it.
-                near = difflib.get_close_matches(name, IPOPT_OPTION_SPECS, n=1, cutoff=0.8)
-                if near:
-                    msg = (
-                        f"'{name}' is not an Ipopt option. Did you mean '{near[0]}'? YAPSS "
-                        f"checks names against the options documented for Ipopt "
-                        f"{IPOPT_DOC_VERSION}."
-                    )
-                    raise AttributeError(msg)
-                msg = (
-                    f"'{name}' is not among the options documented for Ipopt "
-                    f"{IPOPT_DOC_VERSION}, which is what YAPSS checks against. It is being "
-                    f"passed to Ipopt anyway, since your build may have options that release "
-                    f"does not; Ipopt will report it at the start of the solve if it disagrees."
-                )
-                warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=2)
             if value is None:
                 if hasattr(self, name):
                     delattr(self, name)
@@ -542,83 +515,21 @@ class IpoptOptions:
     wsmp_write_matrix_iteration: int | None
 
 
-def _range_text(spec: IpoptOptionSpec) -> str:
-    """Spell a numeric option's documented range as Ipopt writes it."""
-    low, high = spec.get("low"), spec.get("high")
-    parts = []
-    if isinstance(low, (int, float)):
-        parts.append(f"{low:g} {'<=' if spec['low_inclusive'] else '<'}")
-    parts.append("value")
-    if isinstance(high, (int, float)):
-        parts.append(f"{'<=' if spec['high_inclusive'] else '<'} {high:g}")
-    return " ".join(parts)
+def refusal_message(name: str, value: str | int | float) -> str:
+    """Return the warning for an option Ipopt refused.
 
-
-def _documented_as_valid(spec: IpoptOptionSpec, value: str | int | float) -> bool:
-    """Whether ``value`` is within what Ipopt documents for this option."""
-    if spec["kind"] == "str":
-        allowed = spec.get("values")
-        return not isinstance(allowed, tuple) or value in allowed
-    number = float(value)
-    if not math.isfinite(number):
-        return False
-    low, high = spec.get("low"), spec.get("high")
-    if isinstance(low, (int, float)) and (
-        number < low or (number == low and not spec["low_inclusive"])
-    ):
-        return False
-    return not (
-        isinstance(high, (int, float))
-        and (number > high or (number == high and not spec["high_inclusive"]))
-    )
-
-
-def explain_refusal(name: str, value: str | int | float, detail: str) -> tuple[str, bool]:
-    """Explain an option Ipopt refused, and say whether it is an error.
-
-    Ipopt reports only that it refused the option, not why, so YAPSS compares the value
-    with what Ipopt's own documentation records for that option (see
-    `ipopt_option_specs`). Three cases, and none of them is stated as certain --- the
-    table describes one Ipopt release and the library actually loaded may be another, so
-    every message sends the user to Ipopt's own output.
-
-    Returns
-    -------
-    tuple[str, bool]
-        The message, and True if it should be raised rather than warned.
+    Ipopt says only that it refused the option; its console output says why. The table of
+    documented options adds one hint where it can: a name close to a documented one may be a
+    misspelling, and a documented option may not be provided by this build or may not take the
+    value. The table describes one Ipopt release, so the hint never decides anything.
     """
-    tail = (
-        f"YAPSS is quoting Ipopt {IPOPT_DOC_VERSION} and the build in use may be a different "
-        f"release, so check Ipopt's own console output above before concluding anything."
-    )
-    spec = IPOPT_OPTION_SPECS.get(name)
-    if spec is None:
-        # `__setattr__` refuses an undocumented name, so this is reached only by a value
-        # written into the instance dictionary directly, bypassing it
+    if name in IPOPT_OPTION_SPECS:
+        hint = "This Ipopt build might not provide it, or might not accept that value. "
+    else:
         near = difflib.get_close_matches(name, IPOPT_OPTION_SPECS, n=1, cutoff=0.8)
-        suggestion = f" Did you mean '{near[0]}'?" if near else ""
-        msg = (
-            f"Ipopt refused option '{name}' with value {value!r} ({detail}). No option of "
-            f"that name is documented "
-            f"for Ipopt {IPOPT_DOC_VERSION}.{suggestion} It may be a misspelling, or an "
-            f"option from another Ipopt release. The option was not applied and the solve "
-            f"proceeds with Ipopt's default. {tail}"
-        )
-        return msg, False
-    if not _documented_as_valid(spec, value):
-        values = spec.get("values")
-        allowed = f"one of {', '.join(values)}" if isinstance(values, tuple) else _range_text(spec)
-        msg = (
-            f"Ipopt refused option '{name}' with value {value!r} ({detail}). Ipopt "
-            f"{IPOPT_DOC_VERSION} documents this option as taking {allowed}, so the value "
-            f"appears to be out of range. {tail}"
-        )
-        return msg, True
-    msg = (
-        f"Ipopt refused option '{name}' with value {value!r} ({detail}), although Ipopt "
-        f"{IPOPT_DOC_VERSION} documents both the option and that value. The likeliest reason "
-        f"is that this Ipopt build does not provide it -- a linear solver that was not linked "
-        f"in, for example. The option was not applied and the solve proceeds with Ipopt's "
-        f"default. {tail}"
+        hint = f"Did you mean '{near[0]}'? " if near else ""
+    return (
+        f"Ipopt refused option '{name}' with value {value!r}. {hint}The option was not "
+        f"applied, and the solve continues with Ipopt's default. Check Ipopt's console output "
+        f"above for the exact cause."
     )
-    return msg, False
