@@ -113,7 +113,6 @@ def setup() -> yapss.Problem:
         out.integrand.area = (y * tx - x * ty) / 2
         out.integrand.x_moment = x
         out.integrand.y_moment = y
-        return out
 
     @problem.register.objective
     def objective(arg):
@@ -126,7 +125,6 @@ def setup() -> yapss.Problem:
         end = arg[ph]
         out.discrete.closure_x = end.final.x - end.initial.x
         out.discrete.closure_y = end.final.y - end.initial.y
-        return out
 
     problem.objective.sense = "maximize"
 

@@ -238,6 +238,29 @@ def mistakes(
     problem.ipopt_options.hessian_approximation = "exact"  # type: ignore[attr-defined]
 
 
+def registration_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -> None:
+    """A continuous or discrete callback fills `out` and returns nothing; one annotated to
+    return something is reported, by the decorator and by the call alike."""
+    ph = problem.phases.slide
+
+    def returns_out(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State, Path, Integral]
+    ) -> yapss.ContinuousOut[State, Path, Integral]:
+        return out
+
+    def returns_rows(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> float:
+        return 0.0
+
+    ph.register.continuous(returns_out)  # type: ignore[type-var]
+    problem.register.discrete(returns_rows)  # type: ignore[type-var]
+
+    @ph.register.continuous  # type: ignore[type-var]
+    def decorated(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State, Path, Integral]
+    ) -> yapss.ContinuousOut[State, Path, Integral]:
+        return out
+
+
 def solution_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -> None:
     """Each line is a mistake in reading a solution that the checker must report."""
     solution = problem.solve()

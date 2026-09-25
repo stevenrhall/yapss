@@ -71,7 +71,6 @@ def setup() -> yapss.Problem:
         out.dynamics.x = v * cos(u)
         out.dynamics.y = v * sin(u)
         out.dynamics.v = g0 * sin(u)
-        return out
 
     @problem.register.objective
     def objective(arg):

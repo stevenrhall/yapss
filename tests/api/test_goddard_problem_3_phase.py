@@ -93,7 +93,7 @@ def test_registering_a_second_callback_replaces(problem):
     shared = problem.phases.coast._continuous
 
     def other(arg, out):
-        return out
+        pass
 
     problem.phases.boost.register.continuous(other)
     assert problem.phases.boost._continuous is other

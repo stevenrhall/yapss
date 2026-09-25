@@ -133,7 +133,6 @@ def test_a_phase_without_a_time_guess_is_incomplete() -> None:
     def continuous(arg, out):
         out.dynamics.x = 0.0
         out.dynamics.y = [0.0, 0.0]
-        return out
 
     @p.register.objective
     def objective(arg):
@@ -161,7 +160,6 @@ def test_the_independent_variable_is_named_in_the_complaint() -> None:
     def continuous(arg, out):
         out.dynamics.x = 0.0
         out.dynamics.y = [0.0, 0.0]
-        return out
 
     @p.register.objective
     def objective(arg):

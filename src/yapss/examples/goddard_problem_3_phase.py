@@ -137,7 +137,6 @@ def setup() -> yapss.Problem:
     def powered(arg, out):
         """Compute the dynamics of a phase with no path constraint."""
         rocket(arg, out.dynamics)
-        return out
 
     coast.register.continuous(powered)
 
@@ -147,7 +146,6 @@ def setup() -> yapss.Problem:
         rocket(arg, out.dynamics)
         h, v, m = arg.state.h, arg.state.v, arg.state.m
         out.path.switching = m * g - (1 + v / c) * drag(h, v)
-        return out
 
     @problem.register.objective
     def objective(arg):
@@ -166,7 +164,6 @@ def setup() -> yapss.Problem:
         out.discrete.singular_coast_v = e.initial.v - s.final.v
         out.discrete.singular_coast_m = e.initial.m - s.final.m
         out.discrete.singular_coast_time = e.initial.time - s.final.time
-        return out
 
     problem.objective.sense = "maximize"
 

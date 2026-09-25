@@ -92,7 +92,6 @@ def setup() -> yapss.Problem:
         out.dynamics.h = v
         out.dynamics.v = (thrust - sigma * v**2 * exp(-h / h0)) / m - g
         out.dynamics.m = -thrust / c
-        return out
 
     @problem.register.objective
     def objective(arg):

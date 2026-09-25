@@ -58,7 +58,6 @@ def setup() -> yapss.Problem:
         x = arg.parameter.x
         out.discrete.product = x[0] * x[1] * x[2] * x[3]
         out.discrete.sum_of_squares = x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + x[3] ** 2
-        return out
 
     problem.parameter.x.bounds[:] = (1.0, 5.0)
     problem.parameter.x.guess[:] = [1.0, 5.0, 5.0, 1.0]

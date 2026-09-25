@@ -103,7 +103,6 @@ def setup() -> yapss.Problem:
         out.dynamics.v_r = v_theta**2 / r - mu / r**2 + a * u_r
         out.dynamics.v_theta = -(v_r * v_theta) / r + a * u_theta
         out.path.unit_thrust = u_r**2 + u_theta**2
-        return out
 
     @problem.register.objective
     def objective(arg):
@@ -115,7 +114,6 @@ def setup() -> yapss.Problem:
         """Require the final orbit to be circular."""
         final = arg[ph].final
         out.discrete.circular = final.v_theta - sqrt(mu / final.r)
-        return out
 
     problem.objective.sense = "maximize"
 

@@ -42,8 +42,8 @@ from typing import TYPE_CHECKING, Any, Generic, TypeAlias, cast, overload
 from typing_extensions import TypeVar
 
 from .containers import (
-    CallbackT,
     Container,
+    FillerT,
     HasRegistry,
     Registry,
     is_callable,
@@ -529,9 +529,9 @@ class PhaseRegistry(Registry):
         return register if function is None else register(function)
 
     @overload
-    def continuous(self, function: CallbackT, /) -> CallbackT: ...
+    def continuous(self, function: FillerT, /) -> FillerT: ...
     @overload
-    def continuous(self, function: None = None, /) -> Callable[[CallbackT], CallbackT]: ...
+    def continuous(self, function: None = None, /) -> Callable[[FillerT], FillerT]: ...
     def continuous(self, function: Callable[..., Any] | None = None, /) -> Any:
         """Register the phase's continuous callback, as a decorator or as a call.
 

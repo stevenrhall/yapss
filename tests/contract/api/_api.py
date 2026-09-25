@@ -197,7 +197,6 @@ def solvable(method: str = "auto") -> Any:
         out.dynamics.v = G0 * sin(theta)
         out.path.speed = v
         out.integrand.effort = theta**2
-        return out
 
     @problem.register.objective
     def objective(arg):
@@ -208,7 +207,6 @@ def solvable(method: str = "auto") -> Any:
     def discrete(arg, out):
         """Report the final depth, which is constrained."""
         out.discrete.drop = arg[ph].final.y
-        return out
 
     ph.time.initial = (0.0, 0.0)
     ph.state.x.initial = (0.0, 0.0)

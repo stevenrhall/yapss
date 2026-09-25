@@ -84,7 +84,6 @@ def test_the_callback_reads_the_independent_variable_by_name(problem):
         out.dynamics.y = yp
         out.dynamics.yp = arg.control.u
         out.integrand.drag = 8 * arg.r / (1 + yp**2)
-        return out
 
     problem.phases.nose.register.continuous(spy)
     problem.derivatives.method = "central-difference"

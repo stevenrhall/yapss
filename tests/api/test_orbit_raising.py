@@ -52,7 +52,6 @@ def test_the_callback_is_given_the_time_at_every_point(problem):
         out.dynamics.v_r = v_theta**2 / r - 1.0 / r**2 + a * u_r
         out.dynamics.v_theta = -(v_r * v_theta) / r + a * u_theta
         out.path.unit_thrust = u_r**2 + u_theta**2
-        return out
 
     problem.phases.raise_.register.continuous(spy)
     problem.derivatives.method = "central-difference"

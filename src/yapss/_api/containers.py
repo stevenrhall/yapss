@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 __all__ = [
     "CallbackT",
     "Container",
+    "FillerT",
     "HasRegistry",
     "Registry",
     "is_callable",
@@ -31,6 +32,12 @@ __all__ = [
 CallbackT = TypeVar("CallbackT", bound="Callable[..., Any]")
 """A callback being registered, which a registration returns unchanged -- so a decorated
 function keeps its own type, annotations and all, rather than becoming `Any`."""
+
+FillerT = TypeVar("FillerT", bound="Callable[..., None]")
+"""A callback that fills its `out` and returns nothing: the continuous and discrete callbacks.
+
+An annotated one that returns anything is reported, as the run-time check refuses it; an
+unannotated one returns `Any` to a checker and passes, as it should."""
 
 
 def is_string(value: object) -> bool:

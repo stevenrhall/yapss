@@ -109,7 +109,6 @@ def setup() -> yapss.Problem:
         out.dynamics.v = (thrust * cos(alpha) - D) / mass - g0 * sin(gamma)
         out.dynamics.gamma = (thrust * sin(alpha) + L - mass * g0 * cos(gamma)) / (mass * v)
         out.dynamics.mass = -thrust / (g0 * Isp)
-        return out
 
     @problem.register.objective
     def objective(arg):

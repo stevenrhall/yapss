@@ -24,6 +24,7 @@ from .compile import solve_problem
 from .containers import (
     CallbackT,
     Container,
+    FillerT,
     HasRegistry,
     Registry,
     is_callable,
@@ -278,9 +279,9 @@ class ProblemRegistry(Registry):
         return self._problem._register("objective", function)
 
     @overload
-    def discrete(self, function: CallbackT, /) -> CallbackT: ...
+    def discrete(self, function: FillerT, /) -> FillerT: ...
     @overload
-    def discrete(self, function: None = None, /) -> Callable[[CallbackT], CallbackT]: ...
+    def discrete(self, function: None = None, /) -> Callable[[FillerT], FillerT]: ...
     def discrete(self, function: Callable[..., Any] | None = None, /) -> Any:
         """Register the discrete constraint callback, as a decorator or as a call.
 

@@ -28,7 +28,7 @@ def test_the_registry_holds_exactly_the_callbacks(problem, phase):
 
 def test_a_callback_can_be_registered_by_calling(problem, phase):
     def replacement(arg, out):
-        return out
+        pass
 
     phase.register.continuous(replacement)
     assert phase._continuous is replacement
@@ -52,7 +52,7 @@ def test_registering_again_replaces(problem, phase):
     assert problem._objective_function is second
 
     def continuous(arg, out):
-        return out
+        pass
 
     phase.register.continuous(continuous)
     assert phase._continuous is continuous

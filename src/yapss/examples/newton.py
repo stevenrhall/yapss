@@ -96,7 +96,6 @@ def setup(y_max: float = 1.0) -> yapss.Problem:
         out.dynamics.y = yp
         out.dynamics.yp = u
         out.integrand.drag = 8 * r / (1 + yp**2)
-        return out
 
     @problem.register.objective
     def objective(arg):

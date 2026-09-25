@@ -202,7 +202,7 @@ def test_the_discrete_settings_object_is_not_a_decorator() -> None:
 
         @p.discrete
         def discrete(arg, out):
-            return out
+            pass
 
 
 def test_a_callback_must_be_callable() -> None:
@@ -264,7 +264,6 @@ def test_a_problem_with_no_objective_is_incomplete() -> None:
     def continuous(arg, out):
         out.dynamics.x = 0.0
         out.dynamics.y = [0.0, 0.0]
-        return out
 
     ph.time.guess = (0.0, 1.0)
     with raises(ValueError, "the problem is incomplete", "no objective callback", at="validate"):
@@ -307,7 +306,6 @@ def test_declared_discrete_constraints_need_a_callback() -> None:
     def continuous(arg, out):
         out.dynamics.x = 0.0
         out.dynamics.y = [0.0, 0.0]
-        return out
 
     @p.register.objective
     def objective(arg):
@@ -598,10 +596,10 @@ def test_a_phase_callback_registered_twice_replaces() -> None:
 
     @ph.register.continuous
     def continuous(arg, out):
-        return out
+        pass
 
     @ph.register.continuous
     def other(arg, out):
-        return out
+        pass
 
     assert ph._continuous is other

@@ -61,7 +61,6 @@ def problem():
         out.dynamics.y = v * sin(u)
         out.dynamics.v = G0 * sin(u)
         out.dynamics.spare = []
-        return out
 
     @problem.register.objective
     def minimum_time(arg):

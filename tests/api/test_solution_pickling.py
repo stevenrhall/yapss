@@ -56,7 +56,6 @@ def declared_in_a_function():
         out.dynamics.y = arg.parameter.k * arg.control.u
         out.path.size = arg.control.u
         out.integrand.effort = arg.control.u**2
-        return out
 
     @problem.register.objective
     def objective(arg):
@@ -65,7 +64,6 @@ def declared_in_a_function():
     @problem.register.discrete
     def discrete(arg, out):
         out.discrete.end = arg[ph].final.y
-        return out
 
     ph.s.initial = (0.0, 0.0)
     ph.s.final = (1.0, 1.0)

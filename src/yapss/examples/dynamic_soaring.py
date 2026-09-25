@@ -156,7 +156,6 @@ def setup() -> yapss.Problem:
         ) / (mass * v)
         out.dynamics.psi = (lift * sin(phi) - mass * wind_dot * cos_psi) / (mass * v * cos_gamma)
         out.path.load_factor = (0.5 * rho0 * area / weight) * cl * v**2
-        return out
 
     @problem.register.objective
     def objective(arg):
@@ -170,7 +169,6 @@ def setup() -> yapss.Problem:
         out.discrete.v_periodic = end.final.v - end.initial.v
         out.discrete.gamma_periodic = end.final.gamma - end.initial.gamma
         out.discrete.psi_periodic = end.final.psi - end.initial.psi
-        return out
 
     # ------------------------------------------------------------------- setup
 

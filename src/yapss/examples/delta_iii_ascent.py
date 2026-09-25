@@ -210,7 +210,6 @@ def make_dynamics(thrust, mass_flow):
         out.dynamics.m = mass_flow
         out.path.unit_thrust = mag(u_vec)
         out.path.radius = mag(r_vec)
-        return out
 
     return continuous
 
@@ -335,7 +334,6 @@ def setup() -> yapss.Problem:
         out.discrete.inclination = i
         out.discrete.raan = Omega
         out.discrete.argument_of_perigee = omega
-        return out
 
     problem.objective.sense = "maximize"
     problem.objective.scale = m_total

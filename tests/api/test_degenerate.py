@@ -35,7 +35,7 @@ def test_a_phase_that_declares_nothing_still_has_its_own_times():
 
     @ph.register.continuous
     def dynamics(arg, out):
-        return out
+        pass
 
     @problem.register.objective
     def objective(arg):
@@ -69,7 +69,7 @@ def test_the_endpoints_alone_make_an_optimization_problem():
 
     @ph.register.continuous
     def nothing_happens(arg, out):
-        return out
+        pass
 
     @problem.register.objective
     def objective(arg):

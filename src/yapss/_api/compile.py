@@ -57,20 +57,23 @@ def _npoints(time: Any) -> int | None:
         return None
 
 
-def _check_return(result: Any, expected: Any, callback: Callable[..., Any], what: str) -> None:
-    """Refuse anything but the output object or None.
+def _check_return(result: Any, out: Any, callback: Callable[..., Any], what: str) -> None:
+    """Refuse anything but None: a callback fills `out` and ends.
 
-    A callback that fills `out` and simply ends is correct, because the handler reads `out`
-    either way; what is refused is a *different* value, which is nearly always the 0.3.0 habit
-    of returning the rows.
+    One form, so that there is one to teach and one to annotate (`-> None`). Returning `out`
+    itself is refused with its own message, since it is harmless and the fix is to delete a
+    line; any other value is nearly always the 0.3.0 habit of returning the rows.
     """
-    if result is None or result is expected:
+    if result is None:
         return
     name = getattr(callback, "__qualname__", repr(callback))
-    msg = (
-        f"the {what}, '{name}', returned {result!r}. Fill 'out' and either return it or "
-        f"return nothing."
-    )
+    if result is out:
+        msg = (
+            f"the {what}, '{name}', returned 'out'. A callback fills 'out' and returns "
+            f"nothing: delete the return."
+        )
+    else:
+        msg = f"the {what}, '{name}', returned {result!r}. Fill 'out' and return nothing."
     raise TypeError(msg)
 
 

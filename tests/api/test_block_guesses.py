@@ -36,7 +36,6 @@ def build(row_guess):
     @ph.register.continuous
     def dynamics(arg, out):
         out.dynamics.r = [arg.control.u, arg.control.u]
-        return out
 
     @problem.register.objective
     def objective(arg):
