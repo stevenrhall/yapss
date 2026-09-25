@@ -11,7 +11,7 @@ import math
 
 import pytest
 
-from ._api import problem, raises, solvable
+from ._api import not_yet, problem, raises, solvable
 
 # ------------------------------------------------------------------ a scale is a number
 
@@ -130,3 +130,19 @@ def test_a_block_field_is_scaled_row_by_row() -> None:
     ph = problem().phases.first
     ph.state.y.scale[:] = 2.0
     assert list(ph.state.y.scale) == [2.0, 2.0]
+
+
+@not_yet(
+    "item 19",
+    "a block field's scale rows read back as a tuple, so `[:] *= 3` repeats them instead",
+)
+def test_a_block_fields_scales_can_be_multiplied_in_place() -> None:
+    """Scaling every row up at once is arithmetic on numbers, and reads as it would on an array.
+
+    Today the rows read back as a tuple, so ``*= 3`` repeats it, and the write reports that
+    two rows were given six values.
+    """
+    ph = problem().phases.first
+    ph.state.y.scale[:] = 2.0
+    ph.state.y.scale[:] *= 3
+    assert list(ph.state.y.scale) == [6.0, 6.0]
