@@ -14,7 +14,7 @@ import difflib
 import math
 import warnings
 from numbers import Integral, Real
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .exceptions import YapssWarning
 from .ipopt_option_specs import IPOPT_DOC_VERSION, IPOPT_OPTION_SPECS, IpoptOptionSpec
@@ -151,58 +151,63 @@ class IpoptOptions:
         """Initialize an IpoptOptions instance."""
         self.reset()
 
-    def __setattr__(self, name: str, value: str | float | None) -> None:
-        """Set an option value, or delete the option if value is None.
+    # Hidden from type checkers, so that the annotations below are what they check: a
+    # visible __setattr__ makes them accept every attribute name, and a misspelled option
+    # would pass.
+    if not TYPE_CHECKING:
 
-        Raises
-        ------
-        ValueError
-            If the option is one YAPSS manages itself.
-        TypeError
-            If the value is not of the option's kind (Integer, Number, or String).
-        """
-        if name in RESERVED_IPOPT_OPTIONS:
-            msg = (
-                f"'{name}' is managed by YAPSS and cannot be set directly. "
-                f"{RESERVED_IPOPT_OPTIONS[name]}"
-            )
-            raise ValueError(msg)
-        if name in _CONTAINER_METHODS:
-            # options are stored as instance attributes, so this would shadow the method
-            # and `reset()` would then fail with an int not being callable
-            msg = (
-                f"'{name}' is a method of ipopt_options, not an Ipopt option, and cannot be "
-                f"assigned. Ipopt has no option of that name either."
-            )
-            raise AttributeError(msg)
-        if name not in IPOPT_OPTION_SPECS:
-            # A name YAPSS's table does not have is one of two very different things, and
-            # how close it is to a known name separates them. A near miss is a misspelling:
-            # refuse it. A far miss may be an option some Ipopt build has and this table,
-            # scraped from one release, does not -- the pip wheel's Ipopt and conda-forge's
-            # are different builds of different versions -- so pass it on to Ipopt, which
-            # is the only authority on what it accepts, but say that YAPSS did not
-            # recognize it.
-            near = difflib.get_close_matches(name, IPOPT_OPTION_SPECS, n=1, cutoff=0.8)
-            if near:
+        def __setattr__(self, name: str, value: str | float | None) -> None:
+            """Set an option value, or delete the option if value is None.
+
+            Raises
+            ------
+            ValueError
+                If the option is one YAPSS manages itself.
+            TypeError
+                If the value is not of the option's kind (Integer, Number, or String).
+            """
+            if name in RESERVED_IPOPT_OPTIONS:
                 msg = (
-                    f"'{name}' is not an Ipopt option. Did you mean '{near[0]}'? YAPSS "
-                    f"checks names against the options documented for Ipopt "
-                    f"{IPOPT_DOC_VERSION}."
+                    f"'{name}' is managed by YAPSS and cannot be set directly. "
+                    f"{RESERVED_IPOPT_OPTIONS[name]}"
+                )
+                raise ValueError(msg)
+            if name in _CONTAINER_METHODS:
+                # options are stored as instance attributes, so this would shadow the method
+                # and `reset()` would then fail with an int not being callable
+                msg = (
+                    f"'{name}' is a method of ipopt_options, not an Ipopt option, and cannot be "
+                    f"assigned. Ipopt has no option of that name either."
                 )
                 raise AttributeError(msg)
-            msg = (
-                f"'{name}' is not among the options documented for Ipopt "
-                f"{IPOPT_DOC_VERSION}, which is what YAPSS checks against. It is being "
-                f"passed to Ipopt anyway, since your build may have options that release "
-                f"does not; Ipopt will report it at the start of the solve if it disagrees."
-            )
-            warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=2)
-        if value is None:
-            if hasattr(self, name):
-                delattr(self, name)
-        else:
-            super().__setattr__(name, _coerce_option(name, value))
+            if name not in IPOPT_OPTION_SPECS:
+                # A name YAPSS's table does not have is one of two very different things, and
+                # how close it is to a known name separates them. A near miss is a misspelling:
+                # refuse it. A far miss may be an option some Ipopt build has and this table,
+                # scraped from one release, does not -- the pip wheel's Ipopt and conda-forge's
+                # are different builds of different versions -- so pass it on to Ipopt, which
+                # is the only authority on what it accepts, but say that YAPSS did not
+                # recognize it.
+                near = difflib.get_close_matches(name, IPOPT_OPTION_SPECS, n=1, cutoff=0.8)
+                if near:
+                    msg = (
+                        f"'{name}' is not an Ipopt option. Did you mean '{near[0]}'? YAPSS "
+                        f"checks names against the options documented for Ipopt "
+                        f"{IPOPT_DOC_VERSION}."
+                    )
+                    raise AttributeError(msg)
+                msg = (
+                    f"'{name}' is not among the options documented for Ipopt "
+                    f"{IPOPT_DOC_VERSION}, which is what YAPSS checks against. It is being "
+                    f"passed to Ipopt anyway, since your build may have options that release "
+                    f"does not; Ipopt will report it at the start of the solve if it disagrees."
+                )
+                warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=2)
+            if value is None:
+                if hasattr(self, name):
+                    delattr(self, name)
+            else:
+                super().__setattr__(name, _coerce_option(name, value))
 
     def reset(self) -> None:
         """Reset all options to their default values."""
@@ -225,318 +230,318 @@ class IpoptOptions:
     # casadi wheel bundles, has no such option and refuses it ("It is not a valid option").
     # It arrived later, so a conda build may well have it; setting it is allowed and warns.
     # file_append: str
-    accept_after_max_steps: int
-    accept_every_trial_step: str
-    acceptable_compl_inf_tol: float
-    acceptable_constr_viol_tol: float
-    acceptable_dual_inf_tol: float
-    acceptable_iter: int
-    acceptable_obj_change_tol: float
-    acceptable_tol: float
-    adaptive_mu_globalization: str
-    adaptive_mu_kkt_norm_type: str
-    adaptive_mu_kkterror_red_fact: float
-    adaptive_mu_kkterror_red_iters: int
-    adaptive_mu_monotone_init_factor: float
-    adaptive_mu_restore_previous_iterate: str
-    alpha_for_y: str
-    alpha_for_y_tol: float
-    alpha_min_frac: float
-    alpha_red_factor: float
-    barrier_tol_factor: float
-    bound_frac: float
-    bound_mult_init_method: str
-    bound_mult_init_val: float
-    bound_mult_reset_threshold: float
-    bound_push: float
-    bound_relax_factor: float
-    check_derivatives_for_naninf: str
-    compl_inf_tol: float
-    constr_mult_init_max: float
-    constr_mult_reset_threshold: float
-    constr_viol_tol: float
-    constraint_violation_norm_type: str
-    corrector_compl_avrg_red_fact: float
-    corrector_type: str
-    delta: float
-    dependency_detection_with_rhs: str
-    dependency_detector: str
-    derivative_test: str
-    derivative_test_first_index: int
-    derivative_test_perturbation: float
-    derivative_test_print_all: str
-    derivative_test_tol: float
-    diverging_iterates_tol: float
-    dual_inf_tol: float
-    eta_phi: float
-    evaluate_orig_obj_at_resto_trial: str
-    expect_infeasible_problem: str
-    expect_infeasible_problem_ctol: float
-    expect_infeasible_problem_ytol: float
-    fast_step_computation: str
-    file_print_level: int
-    filter_margin_fact: float
-    filter_max_margin: float
-    filter_reset_trigger: int
-    findiff_perturbation: float
-    first_hessian_perturbation: float
-    fixed_mu_oracle: str
-    fixed_variable_treatment: str
-    gamma_phi: float
-    gamma_theta: float
-    grad_f_constant: str
-    gradient_approximation: str
-    hessian_approximation: str
-    hessian_approximation_space: str
-    hessian_constant: str
-    honor_original_bounds: str
-    hsllib: str
-    inf_pr_output: str
-    jac_c_constant: str
-    jac_d_constant: str
-    jacobian_approximation: str
-    jacobian_regularization_exponent: float
-    jacobian_regularization_value: float
-    kappa_d: float
-    kappa_sigma: float
-    kappa_soc: float
-    least_square_init_duals: str
-    least_square_init_primal: str
-    limited_memory_aug_solver: str
-    limited_memory_init_val: float
-    limited_memory_init_val_max: float
-    limited_memory_init_val_min: float
-    limited_memory_initialization: str
-    limited_memory_max_history: int
-    limited_memory_max_skipping: int
-    limited_memory_special_for_resto: str
-    limited_memory_update_type: str
-    line_search_method: str
-    linear_scaling_on_demand: str
-    linear_solver: str
-    linear_system_scaling: str
-    ma27_ignore_singularity: str
-    ma27_la_init_factor: float
-    ma27_liw_init_factor: float
-    ma27_meminc_factor: float
-    ma27_pivtol: float
-    ma27_pivtolmax: float
-    ma27_print_level: int
-    ma27_skip_inertia_check: str
-    ma28_pivtol: float
-    ma57_automatic_scaling: str
-    ma57_block_size: int
-    ma57_node_amalgamation: int
-    ma57_pivot_order: int
-    ma57_pivtol: float
-    ma57_pivtolmax: float
-    ma57_pre_alloc: float
-    ma57_print_level: int
-    ma57_small_pivot_flag: int
-    ma77_buffer_lpage: int
-    ma77_buffer_npage: int
-    ma77_file_size: int
-    ma77_maxstore: int
-    ma77_nemin: int
-    ma77_order: str
-    ma77_print_level: int
-    ma77_small: float
-    ma77_static: float
-    ma77_u: float
-    ma77_umax: float
-    ma86_nemin: int
-    ma86_order: str
-    ma86_print_level: int
-    ma86_scaling: str
-    ma86_small: float
-    ma86_static: float
-    ma86_u: float
-    ma86_umax: float
-    ma97_nemin: int
-    ma97_order: str
-    ma97_print_level: int
-    ma97_scaling1: str
-    ma97_scaling2: str
-    ma97_scaling3: str
-    ma97_scaling: str
-    ma97_small: float
-    ma97_solve_blas3: str
-    ma97_switch1: str
-    ma97_switch2: str
-    ma97_switch3: str
-    ma97_u: float
-    ma97_umax: float
-    max_cpu_time: float
-    max_filter_resets: int
-    max_hessian_perturbation: float
-    max_iter: int
-    max_refinement_steps: int
-    max_resto_iter: int
-    max_soc: int
-    max_soft_resto_iters: int
-    max_wall_time: float
-    mehrotra_algorithm: str
-    min_hessian_perturbation: float
-    min_refinement_steps: int
-    mu_allow_fast_monotone_decrease: str
-    mu_init: float
-    mu_linear_decrease_factor: float
-    mu_max: float
-    mu_max_fact: float
-    mu_min: float
-    mu_oracle: str
-    mu_strategy: str
-    mu_superlinear_decrease_power: float
-    mu_target: float
-    mumps_dep_tol: float
-    mumps_mem_percent: int
-    mumps_mpi_communicator: int
-    mumps_permuting_scaling: int
-    mumps_pivot_order: int
-    mumps_pivtol: float
-    mumps_pivtolmax: float
-    mumps_print_level: int
-    mumps_scaling: int
-    neg_curv_test_reg: str
-    neg_curv_test_tol: float
-    nlp_lower_bound_inf: float
-    nlp_scaling_constr_target_gradient: float
-    nlp_scaling_max_gradient: float
-    nlp_scaling_method: str
-    nlp_scaling_min_value: float
-    nlp_scaling_obj_target_gradient: float
-    nlp_upper_bound_inf: float
-    nu_inc: float
-    nu_init: float
-    num_linear_variables: int
-    obj_max_inc: float
-    obj_scaling_factor: float
-    option_file_name: str
-    output_file: str
-    pardiso_iter_coarse_size: int
-    pardiso_iter_dropping_factor: float
-    pardiso_iter_dropping_schur: float
-    pardiso_iter_inverse_norm_factor: float
-    pardiso_iter_max_levels: int
-    pardiso_iter_max_row_fill: int
-    pardiso_iter_relative_tol: float
-    pardiso_iterative: str
-    pardiso_matching_strategy: str
-    pardiso_max_droptol_corrections: int
-    pardiso_max_iter: int
-    pardiso_max_iterative_refinement_steps: int
-    pardiso_msglvl: int
-    pardiso_order: str
-    pardiso_redo_symbolic_fact_only_if_inertia_wrong: str
-    pardiso_repeated_perturbation_means_singular: str
-    pardiso_skip_inertia_check: str
-    pardisolib: str
-    pardisomkl_matching_strategy: str
-    pardisomkl_max_iterative_refinement_steps: int
-    pardisomkl_msglvl: int
-    pardisomkl_order: str
-    pardisomkl_redo_symbolic_fact_only_if_inertia_wrong: str
-    pardisomkl_repeated_perturbation_means_singular: str
-    pardisomkl_skip_inertia_check: str
-    perturb_always_cd: str
-    perturb_dec_fact: float
-    perturb_inc_fact: float
-    perturb_inc_fact_first: float
-    point_perturbation_radius: float
-    print_advanced_options: str
-    print_frequency_iter: int
-    print_frequency_time: float
-    print_info_string: str
-    print_level: int
-    print_options_documentation: str
-    print_options_mode: str
-    print_timing_statistics: str
-    print_user_options: str
-    quality_function_balancing_term: str
-    quality_function_centrality: str
-    quality_function_max_section_steps: int
-    quality_function_norm_type: str
-    quality_function_section_qf_tol: float
-    quality_function_section_sigma_tol: float
-    recalc_y: str
-    recalc_y_feas_tol: float
-    replace_bounds: str
-    required_infeasibility_reduction: float
-    residual_improvement_factor: float
-    residual_ratio_max: float
-    residual_ratio_singular: float
-    resto_failure_feasibility_threshold: float
-    resto_penalty_parameter: float
-    resto_proximity_weight: float
-    rho: float
-    s_max: float
-    s_phi: float
-    s_theta: float
-    sb: str
-    sigma_max: float
-    sigma_min: float
-    skip_corr_if_neg_curv: str
-    skip_corr_in_monotone_mode: str
-    skip_finalize_solution_call: str
-    slack_bound_frac: float
-    slack_bound_push: float
-    slack_move: float
-    soc_method: int
-    soft_resto_pderror_reduction_factor: float
-    spral_cpu_block_size: int
-    spral_gpu_perf_coeff: float
-    spral_ignore_numa: str
-    spral_max_load_inbalance: float
-    spral_min_gpu_work: float
-    spral_nemin: int
-    spral_order: str
-    spral_pivot_method: str
-    spral_print_level: int
-    spral_scaling: str
-    spral_scaling_1: str
-    spral_scaling_2: str
-    spral_scaling_3: str
-    spral_small: float
-    spral_small_subtree_threshold: float
-    spral_switch_1: str
-    spral_switch_2: str
-    spral_switch_3: str
-    spral_u: float
-    spral_umax: float
-    spral_use_gpu: str
-    start_with_resto: str
-    tau_min: float
-    theta_max_fact: float
-    theta_min_fact: float
-    timing_statistics: str
-    tiny_step_tol: float
-    tiny_step_y_tol: float
-    tol: float
-    warm_start_bound_frac: float
-    warm_start_bound_push: float
-    warm_start_entire_iterate: str
-    warm_start_init_point: str
-    warm_start_mult_bound_push: float
-    warm_start_mult_init_max: float
-    warm_start_same_structure: str
-    warm_start_slack_bound_frac: float
-    warm_start_slack_bound_push: float
-    warm_start_target_mu: float
-    watchdog_shortened_iter_trigger: int
-    watchdog_trial_iter_max: int
-    wsmp_inexact_droptol: float
-    wsmp_inexact_fillin_limit: float
-    wsmp_max_iter: int
-    wsmp_no_pivoting: str
-    wsmp_num_threads: int
-    wsmp_ordering_option2: int
-    wsmp_ordering_option: int
-    wsmp_pivtol: float
-    wsmp_pivtolmax: float
-    wsmp_scaling: int
-    wsmp_singularity_threshold: float
-    wsmp_skip_inertia_check: str
-    wsmp_write_matrix_iteration: int
+    accept_after_max_steps: int | None
+    accept_every_trial_step: str | None
+    acceptable_compl_inf_tol: float | None
+    acceptable_constr_viol_tol: float | None
+    acceptable_dual_inf_tol: float | None
+    acceptable_iter: int | None
+    acceptable_obj_change_tol: float | None
+    acceptable_tol: float | None
+    adaptive_mu_globalization: str | None
+    adaptive_mu_kkt_norm_type: str | None
+    adaptive_mu_kkterror_red_fact: float | None
+    adaptive_mu_kkterror_red_iters: int | None
+    adaptive_mu_monotone_init_factor: float | None
+    adaptive_mu_restore_previous_iterate: str | None
+    alpha_for_y: str | None
+    alpha_for_y_tol: float | None
+    alpha_min_frac: float | None
+    alpha_red_factor: float | None
+    barrier_tol_factor: float | None
+    bound_frac: float | None
+    bound_mult_init_method: str | None
+    bound_mult_init_val: float | None
+    bound_mult_reset_threshold: float | None
+    bound_push: float | None
+    bound_relax_factor: float | None
+    check_derivatives_for_naninf: str | None
+    compl_inf_tol: float | None
+    constr_mult_init_max: float | None
+    constr_mult_reset_threshold: float | None
+    constr_viol_tol: float | None
+    constraint_violation_norm_type: str | None
+    corrector_compl_avrg_red_fact: float | None
+    corrector_type: str | None
+    delta: float | None
+    dependency_detection_with_rhs: str | None
+    dependency_detector: str | None
+    derivative_test: str | None
+    derivative_test_first_index: int | None
+    derivative_test_perturbation: float | None
+    derivative_test_print_all: str | None
+    derivative_test_tol: float | None
+    diverging_iterates_tol: float | None
+    dual_inf_tol: float | None
+    eta_phi: float | None
+    evaluate_orig_obj_at_resto_trial: str | None
+    expect_infeasible_problem: str | None
+    expect_infeasible_problem_ctol: float | None
+    expect_infeasible_problem_ytol: float | None
+    fast_step_computation: str | None
+    file_print_level: int | None
+    filter_margin_fact: float | None
+    filter_max_margin: float | None
+    filter_reset_trigger: int | None
+    findiff_perturbation: float | None
+    first_hessian_perturbation: float | None
+    fixed_mu_oracle: str | None
+    fixed_variable_treatment: str | None
+    gamma_phi: float | None
+    gamma_theta: float | None
+    grad_f_constant: str | None
+    gradient_approximation: str | None
+    hessian_approximation: str | None
+    hessian_approximation_space: str | None
+    hessian_constant: str | None
+    honor_original_bounds: str | None
+    hsllib: str | None
+    inf_pr_output: str | None
+    jac_c_constant: str | None
+    jac_d_constant: str | None
+    jacobian_approximation: str | None
+    jacobian_regularization_exponent: float | None
+    jacobian_regularization_value: float | None
+    kappa_d: float | None
+    kappa_sigma: float | None
+    kappa_soc: float | None
+    least_square_init_duals: str | None
+    least_square_init_primal: str | None
+    limited_memory_aug_solver: str | None
+    limited_memory_init_val: float | None
+    limited_memory_init_val_max: float | None
+    limited_memory_init_val_min: float | None
+    limited_memory_initialization: str | None
+    limited_memory_max_history: int | None
+    limited_memory_max_skipping: int | None
+    limited_memory_special_for_resto: str | None
+    limited_memory_update_type: str | None
+    line_search_method: str | None
+    linear_scaling_on_demand: str | None
+    linear_solver: str | None
+    linear_system_scaling: str | None
+    ma27_ignore_singularity: str | None
+    ma27_la_init_factor: float | None
+    ma27_liw_init_factor: float | None
+    ma27_meminc_factor: float | None
+    ma27_pivtol: float | None
+    ma27_pivtolmax: float | None
+    ma27_print_level: int | None
+    ma27_skip_inertia_check: str | None
+    ma28_pivtol: float | None
+    ma57_automatic_scaling: str | None
+    ma57_block_size: int | None
+    ma57_node_amalgamation: int | None
+    ma57_pivot_order: int | None
+    ma57_pivtol: float | None
+    ma57_pivtolmax: float | None
+    ma57_pre_alloc: float | None
+    ma57_print_level: int | None
+    ma57_small_pivot_flag: int | None
+    ma77_buffer_lpage: int | None
+    ma77_buffer_npage: int | None
+    ma77_file_size: int | None
+    ma77_maxstore: int | None
+    ma77_nemin: int | None
+    ma77_order: str | None
+    ma77_print_level: int | None
+    ma77_small: float | None
+    ma77_static: float | None
+    ma77_u: float | None
+    ma77_umax: float | None
+    ma86_nemin: int | None
+    ma86_order: str | None
+    ma86_print_level: int | None
+    ma86_scaling: str | None
+    ma86_small: float | None
+    ma86_static: float | None
+    ma86_u: float | None
+    ma86_umax: float | None
+    ma97_nemin: int | None
+    ma97_order: str | None
+    ma97_print_level: int | None
+    ma97_scaling1: str | None
+    ma97_scaling2: str | None
+    ma97_scaling3: str | None
+    ma97_scaling: str | None
+    ma97_small: float | None
+    ma97_solve_blas3: str | None
+    ma97_switch1: str | None
+    ma97_switch2: str | None
+    ma97_switch3: str | None
+    ma97_u: float | None
+    ma97_umax: float | None
+    max_cpu_time: float | None
+    max_filter_resets: int | None
+    max_hessian_perturbation: float | None
+    max_iter: int | None
+    max_refinement_steps: int | None
+    max_resto_iter: int | None
+    max_soc: int | None
+    max_soft_resto_iters: int | None
+    max_wall_time: float | None
+    mehrotra_algorithm: str | None
+    min_hessian_perturbation: float | None
+    min_refinement_steps: int | None
+    mu_allow_fast_monotone_decrease: str | None
+    mu_init: float | None
+    mu_linear_decrease_factor: float | None
+    mu_max: float | None
+    mu_max_fact: float | None
+    mu_min: float | None
+    mu_oracle: str | None
+    mu_strategy: str | None
+    mu_superlinear_decrease_power: float | None
+    mu_target: float | None
+    mumps_dep_tol: float | None
+    mumps_mem_percent: int | None
+    mumps_mpi_communicator: int | None
+    mumps_permuting_scaling: int | None
+    mumps_pivot_order: int | None
+    mumps_pivtol: float | None
+    mumps_pivtolmax: float | None
+    mumps_print_level: int | None
+    mumps_scaling: int | None
+    neg_curv_test_reg: str | None
+    neg_curv_test_tol: float | None
+    nlp_lower_bound_inf: float | None
+    nlp_scaling_constr_target_gradient: float | None
+    nlp_scaling_max_gradient: float | None
+    nlp_scaling_method: str | None
+    nlp_scaling_min_value: float | None
+    nlp_scaling_obj_target_gradient: float | None
+    nlp_upper_bound_inf: float | None
+    nu_inc: float | None
+    nu_init: float | None
+    num_linear_variables: int | None
+    obj_max_inc: float | None
+    obj_scaling_factor: float | None
+    option_file_name: str | None
+    output_file: str | None
+    pardiso_iter_coarse_size: int | None
+    pardiso_iter_dropping_factor: float | None
+    pardiso_iter_dropping_schur: float | None
+    pardiso_iter_inverse_norm_factor: float | None
+    pardiso_iter_max_levels: int | None
+    pardiso_iter_max_row_fill: int | None
+    pardiso_iter_relative_tol: float | None
+    pardiso_iterative: str | None
+    pardiso_matching_strategy: str | None
+    pardiso_max_droptol_corrections: int | None
+    pardiso_max_iter: int | None
+    pardiso_max_iterative_refinement_steps: int | None
+    pardiso_msglvl: int | None
+    pardiso_order: str | None
+    pardiso_redo_symbolic_fact_only_if_inertia_wrong: str | None
+    pardiso_repeated_perturbation_means_singular: str | None
+    pardiso_skip_inertia_check: str | None
+    pardisolib: str | None
+    pardisomkl_matching_strategy: str | None
+    pardisomkl_max_iterative_refinement_steps: int | None
+    pardisomkl_msglvl: int | None
+    pardisomkl_order: str | None
+    pardisomkl_redo_symbolic_fact_only_if_inertia_wrong: str | None
+    pardisomkl_repeated_perturbation_means_singular: str | None
+    pardisomkl_skip_inertia_check: str | None
+    perturb_always_cd: str | None
+    perturb_dec_fact: float | None
+    perturb_inc_fact: float | None
+    perturb_inc_fact_first: float | None
+    point_perturbation_radius: float | None
+    print_advanced_options: str | None
+    print_frequency_iter: int | None
+    print_frequency_time: float | None
+    print_info_string: str | None
+    print_level: int | None
+    print_options_documentation: str | None
+    print_options_mode: str | None
+    print_timing_statistics: str | None
+    print_user_options: str | None
+    quality_function_balancing_term: str | None
+    quality_function_centrality: str | None
+    quality_function_max_section_steps: int | None
+    quality_function_norm_type: str | None
+    quality_function_section_qf_tol: float | None
+    quality_function_section_sigma_tol: float | None
+    recalc_y: str | None
+    recalc_y_feas_tol: float | None
+    replace_bounds: str | None
+    required_infeasibility_reduction: float | None
+    residual_improvement_factor: float | None
+    residual_ratio_max: float | None
+    residual_ratio_singular: float | None
+    resto_failure_feasibility_threshold: float | None
+    resto_penalty_parameter: float | None
+    resto_proximity_weight: float | None
+    rho: float | None
+    s_max: float | None
+    s_phi: float | None
+    s_theta: float | None
+    sb: str | None
+    sigma_max: float | None
+    sigma_min: float | None
+    skip_corr_if_neg_curv: str | None
+    skip_corr_in_monotone_mode: str | None
+    skip_finalize_solution_call: str | None
+    slack_bound_frac: float | None
+    slack_bound_push: float | None
+    slack_move: float | None
+    soc_method: int | None
+    soft_resto_pderror_reduction_factor: float | None
+    spral_cpu_block_size: int | None
+    spral_gpu_perf_coeff: float | None
+    spral_ignore_numa: str | None
+    spral_max_load_inbalance: float | None
+    spral_min_gpu_work: float | None
+    spral_nemin: int | None
+    spral_order: str | None
+    spral_pivot_method: str | None
+    spral_print_level: int | None
+    spral_scaling: str | None
+    spral_scaling_1: str | None
+    spral_scaling_2: str | None
+    spral_scaling_3: str | None
+    spral_small: float | None
+    spral_small_subtree_threshold: float | None
+    spral_switch_1: str | None
+    spral_switch_2: str | None
+    spral_switch_3: str | None
+    spral_u: float | None
+    spral_umax: float | None
+    spral_use_gpu: str | None
+    start_with_resto: str | None
+    tau_min: float | None
+    theta_max_fact: float | None
+    theta_min_fact: float | None
+    timing_statistics: str | None
+    tiny_step_tol: float | None
+    tiny_step_y_tol: float | None
+    tol: float | None
+    warm_start_bound_frac: float | None
+    warm_start_bound_push: float | None
+    warm_start_entire_iterate: str | None
+    warm_start_init_point: str | None
+    warm_start_mult_bound_push: float | None
+    warm_start_mult_init_max: float | None
+    warm_start_same_structure: str | None
+    warm_start_slack_bound_frac: float | None
+    warm_start_slack_bound_push: float | None
+    warm_start_target_mu: float | None
+    watchdog_shortened_iter_trigger: int | None
+    watchdog_trial_iter_max: int | None
+    wsmp_inexact_droptol: float | None
+    wsmp_inexact_fillin_limit: float | None
+    wsmp_max_iter: int | None
+    wsmp_no_pivoting: str | None
+    wsmp_num_threads: int | None
+    wsmp_ordering_option2: int | None
+    wsmp_ordering_option: int | None
+    wsmp_pivtol: float | None
+    wsmp_pivtolmax: float | None
+    wsmp_scaling: int | None
+    wsmp_singularity_threshold: float | None
+    wsmp_skip_inertia_check: str | None
+    wsmp_write_matrix_iteration: int | None
 
 
 def _range_text(spec: IpoptOptionSpec) -> str:

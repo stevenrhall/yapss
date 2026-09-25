@@ -129,6 +129,7 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
     problem.parameter.g.guess = 32.174
 
     problem.ipopt_options.print_level = 0
+    problem.ipopt_options.max_iter = None  # None deletes an option: Ipopt's default
     return problem
 
 
@@ -232,6 +233,8 @@ def mistakes(
     endpoint[ph].integral.distanse  # type: ignore[attr-defined]
     endpoint["slide"]  # type: ignore[index]
     discrete.discrete.landin = 0.0  # type: ignore[attr-defined]
+    problem.ipopt_options.max_iters = 5000  # type: ignore[attr-defined]
+    problem.ipopt_options.max_iter = "5000"  # type: ignore[assignment]
 
 
 def solution_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -> None:
