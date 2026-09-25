@@ -21,6 +21,7 @@ from casadi import SX
 from yapss.math.wrapper import SXW, sx_array
 
 # package imports
+from .exceptions import in_yapss
 from .layout import problem_layout
 from .outputs import Output, OutputArray
 from .types_ import Protected, set_private
@@ -117,8 +118,8 @@ def require_keys(arg: Any, structure: Any, *, per_phase: bool = False) -> None:
     set_private(arg, "_expected_keys", groups)
 
 
-def callback_location(function: Callable[..., Any]) -> str:
-    """Name a callback and, when it has one, the file and line of its ``def``.
+def _name_and_code(function: Callable[..., Any]) -> tuple[str, Any]:
+    """Return a callback's name and the code object of its ``def``, if it has one.
 
     A callable object is named by its class, at the ``def`` of its ``__call__``: its ``repr``
     carries a memory address, which names nothing a user can find.
@@ -128,7 +129,30 @@ def callback_location(function: Callable[..., Any]) -> str:
     if name is None:
         name = type(function).__qualname__
         code = getattr(type(function).__call__, "__code__", None)
+    return name, code
+
+
+def callback_location(function: Callable[..., Any]) -> str:
+    """Name a callback and, when it has one, the file and line of its ``def``."""
+    name, code = _name_and_code(function)
     return name if code is None else f"{name} ({code.co_filename}, line {code.co_firstlineno})"
+
+
+def note_callback_error(exc: BaseException, note: str, *, symbolic: bool) -> None:
+    """Add the notes a user reads under an exception their callback raised.
+
+    `note` names the callback and its ``def``, since the traceback alone does not say which of
+    the user's functions YAPSS was calling. When the call was the symbolic trace of the
+    ``"auto"`` method and the error is the kind a float-only function raises on a symbol, a
+    second note points to `yapss.math`.
+    """
+    exc.add_note(note)
+    if (
+        symbolic
+        and isinstance(exc, (TypeError, NotImplementedError))
+        and "yapss.math" not in str(exc)
+    ):
+        exc.add_note(_SYMBOLIC_HINT)
 
 
 _SYMBOLIC_HINT = (
@@ -153,26 +177,22 @@ def call_callback(function: Any, arg: Any) -> None:
     every call (E7b), checked after the call.
 
     An exception raised by the callback propagates unchanged -- same object, message, and
-    traceback -- with a note naming the callback and the line of its ``def``, since the
-    traceback alone does not say which of the user's functions YAPSS was calling. When the
-    call was the symbolic trace of the ``"auto"`` method and the error is the kind a
-    float-only function raises on a symbol, a second note points to `yapss.math`.
+    traceback -- with the notes of `note_callback_error`. A function of YAPSS's own gets none:
+    central difference wraps the user's callbacks, and the 0.4 front end's adapters call them,
+    so the note belongs to the user's function further in, which the adapter notes itself.
     """
     arg._reset()
     try:
         result = function(arg)
     except Exception as exc:
-        # YAPSS's own derivative functions pass through here too (central difference wraps
-        # the user's callbacks); the note is for the user's function, which is innermost
-        if getattr(function, "__module__", "").startswith("yapss._backend"):
+        _, code = _name_and_code(function)
+        if code is not None and in_yapss(code.co_filename):
             raise
-        exc.add_note(f"Raised in functions.{arg._callback} = {callback_location(function)}.")
-        if (
-            arg._dtype is np.object_
-            and isinstance(exc, (TypeError, NotImplementedError))
-            and "yapss.math" not in str(exc)
-        ):
-            exc.add_note(_SYMBOLIC_HINT)
+        note_callback_error(
+            exc,
+            f"Raised in functions.{arg._callback} = {callback_location(function)}.",
+            symbolic=arg._dtype is np.object_,
+        )
         raise
     if arg._expected_keys is not None:
         _check_keys(arg)

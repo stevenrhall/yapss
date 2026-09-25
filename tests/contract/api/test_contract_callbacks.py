@@ -242,18 +242,9 @@ def test_an_exception_inside_a_callback_says_which_callback() -> None:
         p.solve()
 
 
-@not_yet(
-    "message",
-    "a note naming a callback names the bridge's generated function, not the user's",
-)
 def test_the_note_names_the_callback_the_user_wrote() -> None:
-    """A user reads the note to find their own `def`, so that is what it must name.
-
-    Today it reads ``Raised in functions.continuous = _make_continuous.<locals>.continuous``,
-    which is the wrapper the front end builds for the transcription, followed by a path into
-    YAPSS. Neither half is the user's. The name is available -- it is the function they
-    registered -- and the phase it belongs to is too.
-    """
+    """A user reads the note to find their own `def`, so that is what it must name, with the
+    phase it was registered on -- never the adapter the front end calls it through."""
     p = solvable()
 
     def my_dynamics(arg, out):

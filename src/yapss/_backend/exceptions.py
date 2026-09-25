@@ -36,15 +36,28 @@ __all__ = [
     "YapssDeprecationWarning",
     "YapssError",
     "YapssWarning",
+    "in_yapss",
     "user_stacklevel",
 ]
 
 # The package directory, and the one directory inside it that holds user code rather than
-# YAPSS's own: the examples are scripts a user runs, and a warning they cause belongs there.
+# YAPSS's own: the examples are scripts a user runs, and a report they cause belongs there.
 # `absolute`, not `resolve`: a frame records the path the module was imported by, symlinks
 # and all, so resolving this one could stop it matching.
 _PACKAGE = str(Path(__file__).absolute().parent.parent) + os.sep
 _EXAMPLES = _PACKAGE + "examples" + os.sep
+
+
+def in_yapss(filename: str) -> bool:
+    """Return whether `filename` is YAPSS's own code: in the package, and not an example.
+
+    The one line between YAPSS and its user, for everything that reports to the user: a
+    warning points at the first frame outside it, and an exception from a callback is noted
+    with the first function outside it. Stated as the whole package less the examples, so
+    that code moved, renamed or added inside the package is on the right side without a list
+    to keep up to date.
+    """
+    return filename.startswith(_PACKAGE) and not filename.startswith(_EXAMPLES)
 
 
 def user_stacklevel() -> int:
@@ -70,7 +83,7 @@ def user_stacklevel() -> int:
         if "importlib" in filename and "_bootstrap" in filename:
             frame = caller
             continue
-        if not filename.startswith(_PACKAGE) or filename.startswith(_EXAMPLES):
+        if not in_yapss(filename):
             break
         frame = caller
         level += 1

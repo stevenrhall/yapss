@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from yapss._backend.callbacks import UserFunctions
+from yapss._backend.input_args import callback_location, note_callback_error
 from yapss._backend.solver import solve
 from yapss._backend.spec import PhaseSpec, ProblemSpec, frozen_array
 
@@ -71,6 +72,25 @@ def _check_return(result: Any, expected: Any, callback: Callable[..., Any], what
         f"return nothing."
     )
     raise TypeError(msg)
+
+
+def _call(callback: Callable[..., Any], what: str, arg: Any, *args: Any) -> Any:
+    """Call the user's callback, noting an exception it raises with the callback's name.
+
+    The note is the one `call_callback` gives a callback it calls directly. It cannot give it
+    here: it calls this module's adapter, which calls the user's function, and only the adapter
+    knows which phase's callback that was. `arg` is the transcription's argument, which says
+    whether this is the symbolic trace.
+    """
+    try:
+        return callback(*args)
+    except Exception as exc:
+        note_callback_error(
+            exc,
+            f"Raised in the {what}: {callback_location(callback)}.",
+            symbolic=arg._dtype is np.object_,
+        )
+        raise
 
 
 def _check_complete(output: Any, callback: Callable[..., Any], what: str) -> None:
@@ -158,7 +178,7 @@ def _make_continuous(spec: ProblemSpec_) -> Callable[[Any], None]:
             data = arg.phase[index]
             new_arg = maker.arg(data, arg.parameter)
             out = ContinuousOut(maker.dynamics.make(), maker.path.make(), maker.integrand.make())
-            result = maker.callback(new_arg, out)
+            result = _call(maker.callback, maker.what, arg, new_arg, out)
             _check_return(result, out, maker.callback, maker.what)
             _check_complete(out, maker.callback, maker.what)
             # The rows go into the array the assembly reads. They do not go through the
@@ -291,7 +311,7 @@ def _make_objective(spec: ProblemSpec_, makers: _EndpointMakers) -> Callable[[An
     callback = spec.objective_function
 
     def objective(arg: Any) -> None:
-        value = callback(makers.arg(arg))
+        value = _call(callback, "objective callback", arg, makers.arg(arg))
         if value is None:
             name = getattr(callback, "__qualname__", repr(callback))
             msg = f"the objective callback '{name}' returned nothing; it must return the objective"
@@ -309,7 +329,7 @@ def _make_discrete(
 
     def discrete(arg: Any) -> None:
         out = DiscreteOut(discrete_maker.make())
-        result = callback(makers.arg(arg), out)
+        result = _call(callback, "discrete callback", arg, makers.arg(arg), out)
         _check_return(result, out, callback, "discrete callback")
         _check_complete(out, callback, "discrete callback")
         buffer = arg.output_storage()
