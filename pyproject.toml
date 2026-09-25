@@ -326,6 +326,16 @@ known_third_party = ["numpy", "scipy", "matplotlib", "casadi", "pytest"]
 known_first_party = ["yapss"]
 atomic = true
 
+# ======================================= nbwipers =======================================
+
+# Read by `make clean-notebooks`, which cleans, and by the pre-commit hook, which checks, so
+# the two agree on what a clean notebook is. Outputs and execution counts are stripped by
+# default; the kernel and language metadata are stripped too, because they record whichever
+# environment last ran the notebook and change with it. Cell ids are kept: nbformat 4.5
+# requires them, and a new id is a real change, not churn.
+[tool.nbwipers]
+extra-keys = ["metadata.kernelspec", "metadata.language_info"]
+
 # ======================================== pytest ========================================
 
 [tool.pytest.ini_options]

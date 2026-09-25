@@ -24,6 +24,18 @@ repos:
 
   - repo: local
     hooks:
+      # Checks rather than cleans, like the black and isort hooks: a notebook with outputs,
+      # execution counts, or kernel metadata fails the commit, and `make clean-notebooks`
+      # fixes it. Both read [tool.nbwipers] in pyproject.toml, and both run the nbwipers the
+      # dev environment installs.
+      - id: nbwipers
+        name: nbwipers (notebooks are clean)
+        entry: nbwipers check
+        language: system
+        types: [jupyter]
+
+  - repo: local
+    hooks:
       - id: mypy
         name: mypy (via tox -e mypy)
         # Calls the CI environment rather than reproducing it. A mirrors-mypy hook
