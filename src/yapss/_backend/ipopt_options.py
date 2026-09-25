@@ -113,7 +113,7 @@ def _coerce_option(name: str, value: Any) -> str | int | float:
         msg = f"Ipopt String option '{name}' takes a str, {got}."
         raise TypeError(msg)
     # a name the table does not have: the kind is unknown, so accept any of the three and
-    # let Ipopt judge. `__setattr__` has already warned that YAPSS does not recognize it.
+    # let Ipopt judge; if it refuses the option, the solve warns.
     if isinstance(value, Integral):
         return int(value)
     if isinstance(value, Real):
@@ -201,7 +201,8 @@ class IpoptOptions:
     # reads back the log Ipopt wrote, so they are listed here like any other option.
     # file_append is left out for an unrelated reason -- Ipopt 3.14.11, which the pinned
     # casadi wheel bundles, has no such option and refuses it ("It is not a valid option").
-    # It arrived later, so a conda build may well have it; setting it is allowed and warns.
+    # It arrived later, so a conda build may well have it; setting it is allowed, and the
+    # solve warns if the build refuses it.
     # file_append: str
     # The options YAPSS sets itself (RESERVED_IPOPT_OPTIONS) are deliberately not annotated,
     # so that a type checker reports an attempt to set one, as __setattr__ does at run time.
@@ -334,10 +335,10 @@ class IpoptOptions:
     ma97_nemin: int | None
     ma97_order: str | None
     ma97_print_level: int | None
+    ma97_scaling: str | None
     ma97_scaling1: str | None
     ma97_scaling2: str | None
     ma97_scaling3: str | None
-    ma97_scaling: str | None
     ma97_small: float | None
     ma97_solve_blas3: str | None
     ma97_switch1: str | None
@@ -505,8 +506,8 @@ class IpoptOptions:
     wsmp_max_iter: int | None
     wsmp_no_pivoting: str | None
     wsmp_num_threads: int | None
-    wsmp_ordering_option2: int | None
     wsmp_ordering_option: int | None
+    wsmp_ordering_option2: int | None
     wsmp_pivtol: float | None
     wsmp_pivtolmax: float | None
     wsmp_scaling: int | None
