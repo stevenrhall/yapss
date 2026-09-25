@@ -222,9 +222,9 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
     problem.discrete.v_periodic.scale = 200.0
     problem.discrete.gamma_periodic.scale = 200.0
     problem.discrete.psi_periodic.scale = 200.0
-    for name, value in (("x", 1000.0), ("y", 1000.0), ("h", 1000.0), ("v", 200.0)):
-        field = getattr(ph.state, name)
-        field.scale = field.defect_scale = value
+    for field in (ph.state.x, ph.state.y, ph.state.h):
+        field.scale = field.defect_scale = 1000.0
+    ph.state.v.scale = ph.state.v.defect_scale = 200.0
     ph.state.gamma.scale = ph.state.gamma.defect_scale = 1.0
     ph.state.psi.scale = ph.state.psi.defect_scale = 6.0
     ph.path.load_factor.scale = 7.0

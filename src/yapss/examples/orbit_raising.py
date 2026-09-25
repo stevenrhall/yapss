@@ -163,8 +163,13 @@ def plot_solution(problem: yapss.Problem[Phases, Discrete], solution: yapss.Solu
     time = ps.time
 
     plt.figure()
-    for name, label in (("r", "$r(t)$"), ("v_r", "$v_r(t)$"), ("v_theta", r"$v_\theta(t)$")):
-        plt.plot(time, getattr(ps.state, name), label=label)
+    state = ps.state
+    for values, label in (
+        (state.r, "$r(t)$"),
+        (state.v_r, "$v_r(t)$"),
+        (state.v_theta, r"$v_\theta(t)$"),
+    ):
+        plt.plot(time, values, label=label)
     plt.xlabel("Time")
     plt.ylabel("States")
     plt.xlim(time[0], time[-1])

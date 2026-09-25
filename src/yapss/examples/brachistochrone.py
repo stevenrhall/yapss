@@ -128,8 +128,8 @@ def plot_solution(problem: yapss.Problem[Phases], solution: yapss.Solution) -> N
     plt.tight_layout()
 
     plt.figure()
-    for name, label in (("x", "$x(t)$"), ("y", "$y(t)$"), ("v", "$v(t)$")):
-        plt.plot(time, getattr(ps.state, name), linewidth=2, label=label)
+    for values, label in ((ps.state.x, "$x(t)$"), (ps.state.y, "$y(t)$"), (ps.state.v, "$v(t)$")):
+        plt.plot(time, values, linewidth=2, label=label)
     plt.xlabel("Time, $t$ (s)")
     plt.ylabel("States")
     plt.xlim((time[0], time[-1]))
@@ -146,8 +146,13 @@ def plot_solution(problem: yapss.Problem[Phases], solution: yapss.Solution) -> N
     plt.tight_layout()
 
     plt.figure()
-    for name, label in (("x", r"$p_x(t)$"), ("y", r"$p_y(t)$"), ("v", r"$p_v(t)$")):
-        plt.plot(time, getattr(ps.costate, name), linewidth=2, label=label)
+    costate = ps.costate
+    for values, label in (
+        (costate.x, r"$p_x(t)$"),
+        (costate.y, r"$p_y(t)$"),
+        (costate.v, r"$p_v(t)$"),
+    ):
+        plt.plot(time, values, linewidth=2, label=label)
     plt.xlabel("Time, $t$ (s)")
     plt.ylabel("Costates")
     plt.xlim((time[0], time[-1]))
