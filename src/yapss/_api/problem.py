@@ -309,6 +309,34 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         The class naming the problem's discrete constraint groups; none, if omitted.
     parameter : type[Parameter], optional
         The class naming the problem's parameters; none, if omitted.
+
+    Attributes
+    ----------
+    name : str
+        The problem's name. It may be changed; each solve records the name in force.
+    phases
+        The phases, by the names the ``phases`` class declared: ``problem.phases.<name>``.
+    objective
+        The objective's ``sense`` (``"minimize"``, the default, or ``"maximize"``) and ``scale``
+        (positive, default 1.0).
+    discrete, parameter
+        The discrete constraints and parameters, by the names their classes declared, each
+        with its settings: ``problem.discrete.<name>.bounds``, ``problem.parameter.<name>.guess``.
+    derivatives
+        How derivatives are computed: ``method`` and ``order``.
+    ipopt_options
+        Options passed to Ipopt, set by name: ``problem.ipopt_options.max_iter = 500``.
+    register
+        Where the objective and discrete callbacks are registered:
+        ``@problem.register.objective``.
+    spectral_method : {"lgl", "lgr", "lg"}
+        The collocation points used in every phase. Default ``"lgl"``.
+    catch_keyboard_interrupt : bool
+        Whether Ctrl-C during a solve stops Ipopt at its next iterate and returns that iterate
+        as a `Solution`, with status 5 and an `IpoptConvergenceWarning`, so that a long or
+        stalled solve can be stopped and inspected rather than lost. Default True. With False,
+        Ctrl-C raises `KeyboardInterrupt` as usual. Takes effect only when solving on the main
+        thread, the only thread Python lets install a signal handler.
     """
 
     _held = (

@@ -48,12 +48,12 @@ DEFAULT_IPOPT_OPTIONS = {
 
 RESERVED_IPOPT_OPTIONS = {
     "nlp_scaling_method": (
-        "YAPSS always solves with nlp_scaling_method='user-scaling'; "
-        "set 'problem.sense' and 'problem.scale.objective' instead."
+        "YAPSS always solves with nlp_scaling_method='user-scaling', using the scales set on "
+        "the problem's variables, constraints and objective; set those instead."
     ),
     "obj_scaling_factor": (
-        "YAPSS manages objective scaling internally; set 'problem.sense' (sign) and "
-        "'problem.scale.objective' (magnitude) instead."
+        "YAPSS manages objective scaling itself; set 'problem.objective.sense' (sign) and "
+        "'problem.objective.scale' (magnitude) instead."
     ),
     "hessian_approximation": (
         "YAPSS chooses this based on 'problem.derivatives.order'; set that instead."
@@ -230,6 +230,8 @@ class IpoptOptions:
     # casadi wheel bundles, has no such option and refuses it ("It is not a valid option").
     # It arrived later, so a conda build may well have it; setting it is allowed and warns.
     # file_append: str
+    # The options YAPSS sets itself (RESERVED_IPOPT_OPTIONS) are deliberately not annotated,
+    # so that a type checker reports an attempt to set one, as __setattr__ does at run time.
     accept_after_max_steps: int | None
     accept_every_trial_step: str | None
     acceptable_compl_inf_tol: float | None
@@ -291,7 +293,6 @@ class IpoptOptions:
     gamma_theta: float | None
     grad_f_constant: str | None
     gradient_approximation: str | None
-    hessian_approximation: str | None
     hessian_approximation_space: str | None
     hessian_constant: str | None
     honor_original_bounds: str | None
@@ -407,7 +408,6 @@ class IpoptOptions:
     nlp_lower_bound_inf: float | None
     nlp_scaling_constr_target_gradient: float | None
     nlp_scaling_max_gradient: float | None
-    nlp_scaling_method: str | None
     nlp_scaling_min_value: float | None
     nlp_scaling_obj_target_gradient: float | None
     nlp_upper_bound_inf: float | None
@@ -415,7 +415,6 @@ class IpoptOptions:
     nu_init: float | None
     num_linear_variables: int | None
     obj_max_inc: float | None
-    obj_scaling_factor: float | None
     option_file_name: str | None
     output_file: str | None
     pardiso_iter_coarse_size: int | None
@@ -520,7 +519,6 @@ class IpoptOptions:
     warm_start_bound_frac: float | None
     warm_start_bound_push: float | None
     warm_start_entire_iterate: str | None
-    warm_start_init_point: str | None
     warm_start_mult_bound_push: float | None
     warm_start_mult_init_max: float | None
     warm_start_same_structure: str | None

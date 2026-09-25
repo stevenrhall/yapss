@@ -83,9 +83,9 @@ def user_stacklevel() -> int:
 # says why it fails. Remove the notices in 0.4.0 or after 2027-09, whichever is later.
 REMOVED_NAMES = {
     "MirroredHessianPairWarning": (
-        "MirroredHessianPairWarning was removed in 0.3.0. Setting both orders of one Hessian "
-        "variable pair, which it warned about, now raises ValueError. A warnings filter "
-        "naming it can be deleted."
+        "MirroredHessianPairWarning was removed in 0.3.0. It warned about hand-written "
+        "Hessian entries, which YAPSS 0.4 does not have, so there is nothing left for it to "
+        "report. A warnings filter naming it can be deleted."
     ),
     "UnsupportedMathFunctionWarning": (
         "UnsupportedMathFunctionWarning was removed in 0.3.0. yapss.math.nextafter, signbit, "
@@ -125,13 +125,13 @@ class LargeSegmentWarning(YapssWarning):
     """A mesh segment has more collocation points than it probably should.
 
     The collocation points of a segment are the roots of a polynomial of that degree, so a
-    segment with many points is a high-order fit over the whole segment. Published
-    hp-adaptive methods raise the degree only to about 10 per interval before splitting the
-    interval instead, and YAPSS computes the quadrature rule for a segment in high-precision
-    arithmetic, at a cost that grows quadratically with the count. More, shorter segments
-    are usually both more accurate and faster to set up.
+    segment with many points is one high-order fit over the whole segment. On harder problems
+    a large segment can slow Ipopt's convergence sharply or prevent it, and its quadrature
+    takes longer to compute; published hp-adaptive methods raise the degree only to about 10
+    to 16 per interval before splitting it. More, shorter segments are usually faster and
+    more robust.
 
-    This is advice, not a limit: nothing fails above the threshold, and a deliberate
-    single-segment (global) method is a legitimate thing to want. Silence it with
+    This is advice, not a limit: the mesh is valid, and a deliberate single-segment (global)
+    method is a legitimate thing to want. Silence it with
     ``warnings.simplefilter("ignore", yapss.LargeSegmentWarning)``.
     """

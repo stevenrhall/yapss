@@ -235,6 +235,7 @@ def mistakes(
     discrete.discrete.landin = 0.0  # type: ignore[attr-defined]
     problem.ipopt_options.max_iters = 5000  # type: ignore[attr-defined]
     problem.ipopt_options.max_iter = "5000"  # type: ignore[assignment]
+    problem.ipopt_options.hessian_approximation = "exact"  # type: ignore[attr-defined]
 
 
 def solution_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -> None:

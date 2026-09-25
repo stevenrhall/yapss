@@ -154,8 +154,8 @@ def test_diagnosis_distinguishes_equal_from_different_values():
     assert "triangles" not in str(info.value)
 
 
-def test_the_removed_warning_says_what_replaced_it():
-    with pytest.raises(AttributeError, match="removed in 0.3.0.*now raises ValueError"):
+def test_the_removed_warning_says_what_to_do():
+    with pytest.raises(AttributeError, match="removed in 0.3.0.*can be deleted"):
         _ = yapss.MirroredHessianPairWarning
 
 

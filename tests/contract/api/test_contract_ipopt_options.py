@@ -31,14 +31,20 @@ def test_an_option_yapss_manages_is_refused() -> None:
 def test_the_scaling_options_are_managed_too() -> None:
     """YAPSS always solves with user-scaling, so these are its own to set."""
     p = problem()
-    with raises(ValueError, "is managed by YAPSS", at="ipopt_options"):
+    with raises(ValueError, "is managed by YAPSS", "scales set on", at="ipopt_options"):
         p.ipopt_options.nlp_scaling_method = "gradient-based"
 
 
 def test_the_objective_scaling_factor_points_at_the_scale() -> None:
-    """The message names `problem.scale.objective`, which is the supported way to say it."""
+    """The message names the objective's sense and scale, which are the supported way."""
     p = problem()
-    with raises(ValueError, "is managed by YAPSS", at="ipopt_options"):
+    with raises(
+        ValueError,
+        "is managed by YAPSS",
+        "problem.objective.sense",
+        "problem.objective.scale",
+        at="ipopt_options",
+    ):
         p.ipopt_options.obj_scaling_factor = 2.0
 
 

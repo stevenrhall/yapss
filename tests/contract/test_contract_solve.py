@@ -228,12 +228,15 @@ def test_option_of_the_wrong_kind_raises_at_the_assignment(value):
 @pytest.mark.parametrize(
     ("name", "knob"),
     [
-        ("obj_scaling_factor", "problem.scale.objective"),
-        ("nlp_scaling_method", "problem.scale"),
+        ("obj_scaling_factor", "problem.objective.scale"),
+        ("nlp_scaling_method", "scales set on"),
         ("hessian_approximation", "problem.derivatives.order"),
     ],
 )
 def test_option_managed_by_yapss_raises_at_the_assignment_naming_the_knob(name, knob):
+    """The table of managed options is shared with the 0.4.0 front end, and on this branch its
+    messages name 0.4.0's settings: 0.3.0's own wording lives on `release/v0.3.0`.
+    """
     ocp = callback_problem()
     with raises(ValueError, name, knob, at="setattr"):
         setattr(ocp.ipopt_options, name, "yes" if name != "obj_scaling_factor" else 2.0)
