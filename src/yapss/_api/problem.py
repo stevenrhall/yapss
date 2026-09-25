@@ -11,6 +11,7 @@ afterwards never alters what an earlier solution recorded.
 
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any, Generic, Literal, overload
 
 # See `_api.declare`: PEP 696 defaults, which `typing.TypeVar` cannot carry below 3.13.
@@ -32,6 +33,7 @@ from .containers import (
 from .declare import Phases, declared_role
 from .fields import Fields
 from .kinds import Bounds, ScalarGuess, Scale
+from .old_api import old_api_message
 from .spec import snapshot, validate_problem
 from .vector import Discrete, Parameter, Vector
 
@@ -369,6 +371,17 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         spectral_method: Literal["lgl", "lgr", "lg"]
         catch_keyboard_interrupt: bool
 
+    # Hidden from type checkers, so the overloads below remain the signature they check. Python
+    # passes the constructor's arguments to __new__ before __init__, so code written for YAPSS
+    # 0.3 or earlier -- whose Problem required `nx` in every release -- is recognized here and
+    # told what happened, rather than being refused as an unexpected keyword.
+    if not TYPE_CHECKING:
+
+        def __new__(cls, *args: Any, **kwargs: Any) -> Problem[Any, Any, Any]:  # noqa: ARG004
+            if "nx" in kwargs:
+                raise TypeError(old_api_message("Problem(name=..., nx=...)"))
+            return super().__new__(cls)
+
     # One overload per combination of the three keywords, all of them optional. A keyword left
     # out pins its parameter to the role, which declares no fields -- not to the class default,
     # `Any`, which is for the bare annotation. Every count may be zero, phases included; a
@@ -573,3 +586,12 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         """Return a short representation naming the problem and its phases."""
         names = ", ".join(phase.name for phase in self.phases)
         return f"<Problem {self.name!r} phases=({names})>"
+
+
+# The hidden __new__ takes any arguments, and inspect.signature consults a user-defined __new__
+# before __init__, so without this the signature a notebook's help or `help()` shows would be
+# `(*args, **kwargs)`. Restore __init__'s, which is the constructor's true signature.
+if not TYPE_CHECKING:
+    _init = inspect.signature(Problem.__init__)
+    Problem.__signature__ = _init.replace(parameters=list(_init.parameters.values())[1:])
+    del _init

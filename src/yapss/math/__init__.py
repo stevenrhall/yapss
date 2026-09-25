@@ -261,7 +261,9 @@ globals()["UnsupportedMathFunctionError"] = functions.UnsupportedMathFunctionErr
 if not _typing.TYPE_CHECKING:
 
     def __getattr__(name: str) -> object:
+        # ImportError, not AttributeError: `from yapss.math import X` replaces an AttributeError
+        # from here with a generic "cannot import name" and keeps nothing of the message
         if name in _REMOVED_NAMES:
-            raise AttributeError(_REMOVED_NAMES[name])
+            raise ImportError(_REMOVED_NAMES[name])
         msg = f"module 'yapss.math' has no attribute {name!r}"
         raise AttributeError(msg)

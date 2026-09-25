@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from ._api.args import ContinuousArg, ContinuousOut, DiscreteOut, EndpointArg
 from ._api.declare import Independent, Phase, Phases
 from ._api.mesh import Mesh
+from ._api.old_api import OLD_ROOT_NAMES, old_api_message
 from ._api.problem import Problem
 from ._api.sampled import interp
 from ._api.solution import PhaseSolution, Solution
@@ -68,7 +69,11 @@ except PackageNotFoundError:
 if not TYPE_CHECKING:
 
     def __getattr__(name: str) -> object:
+        # ImportError, not AttributeError: `from yapss import X` replaces an AttributeError
+        # from here with a generic "cannot import name" and keeps nothing of the message
         if name in REMOVED_NAMES:
-            raise AttributeError(REMOVED_NAMES[name])
+            raise ImportError(REMOVED_NAMES[name])
+        if name in OLD_ROOT_NAMES:
+            raise ImportError(old_api_message(f"yapss.{name}"))
         msg = f"module 'yapss' has no attribute {name!r}"
         raise AttributeError(msg)

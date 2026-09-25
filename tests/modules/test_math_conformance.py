@@ -285,5 +285,5 @@ def test_unsupported_error_is_a_type_error():
 
 @pytest.mark.parametrize("module", [yapss, math], ids=["yapss", "yapss.math"])
 def test_the_removed_warning_says_what_replaced_it(module):
-    with pytest.raises(AttributeError, match="removed in 0.3.0.*now raise"):
+    with pytest.raises(ImportError, match="removed in 0.3.0.*now raise"):
         _ = module.UnsupportedMathFunctionWarning

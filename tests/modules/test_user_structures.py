@@ -155,7 +155,7 @@ def test_diagnosis_distinguishes_equal_from_different_values():
 
 
 def test_the_removed_warning_says_what_to_do():
-    with pytest.raises(AttributeError, match="removed in 0.3.0.*can be deleted"):
+    with pytest.raises(ImportError, match="removed in 0.3.0.*can be deleted"):
         _ = yapss.MirroredHessianPairWarning
 
 
