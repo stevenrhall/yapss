@@ -219,8 +219,9 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
     # Scaling, which this problem needs: the states run over four orders of magnitude.
     problem.objective.scale = 0.1
     problem.parameter.beta.scale = 0.1
-    for name in Discrete._fields:
-        getattr(problem.discrete, name).scale = 200.0
+    problem.discrete.v_periodic.scale = 200.0
+    problem.discrete.gamma_periodic.scale = 200.0
+    problem.discrete.psi_periodic.scale = 200.0
     for name, value in (("x", 1000.0), ("y", 1000.0), ("h", 1000.0), ("v", 200.0)):
         field = getattr(ph.state, name)
         field.scale = field.defect_scale = value

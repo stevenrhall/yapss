@@ -189,8 +189,14 @@ def setup() -> yapss.Problem[Phases, Discrete]:
     coast.control.thrust.bounds = (0.0, 0.0)
 
     singular.path.switching.bounds = (0.0, 0.0)
-    for name in Discrete._fields:
-        getattr(problem.discrete, name).bounds = (0.0, 0.0)
+    problem.discrete.boost_singular_h.bounds = (0.0, 0.0)
+    problem.discrete.boost_singular_v.bounds = (0.0, 0.0)
+    problem.discrete.boost_singular_m.bounds = (0.0, 0.0)
+    problem.discrete.boost_singular_time.bounds = (0.0, 0.0)
+    problem.discrete.singular_coast_h.bounds = (0.0, 0.0)
+    problem.discrete.singular_coast_v.bounds = (0.0, 0.0)
+    problem.discrete.singular_coast_m.bounds = (0.0, 0.0)
+    problem.discrete.singular_coast_time.bounds = (0.0, 0.0)
 
     # Over the handles rather than over `phases`: iterating the container yields a phase of
     # unknown shape, which has no `time` -- the name of the independent variable is the shape's.
