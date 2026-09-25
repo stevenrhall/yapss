@@ -10,6 +10,8 @@ guess are set. `brachistochrone.py` is the same problem with docstrings and comm
 
 __all__ = ["main", "plot_solution", "setup"]
 
+from typing import Any
+
 import matplotlib.pyplot as plt
 from numpy import pi
 
@@ -50,7 +52,7 @@ class Phases(yapss.Phases):
     slide: Slide
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[Phases]:
     """Set up the brachistochrone problem.
 
     Returns
@@ -62,7 +64,9 @@ def setup() -> yapss.Problem:
     ph = problem.phases.slide
 
     @ph.register.continuous
-    def continuous(arg, out):
+    def continuous(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State]
+    ) -> None:
         """Compute the bead's dynamics."""
         v, u = arg.state.v, arg.control.u
         out.dynamics.x = v * cos(u)
@@ -70,7 +74,7 @@ def setup() -> yapss.Problem:
         out.dynamics.v = G0 * sin(u)
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg) -> Any:
         """Return the time taken, which is the objective."""
         return arg[ph].final.time
 
@@ -93,7 +97,7 @@ def setup() -> yapss.Problem:
     return problem
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+def plot_solution(problem: yapss.Problem[Phases], solution: yapss.Solution) -> None:
     """Plot the path the bead takes.
 
     Parameters

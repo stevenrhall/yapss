@@ -120,12 +120,21 @@ nitpick_ignore = [
     # documentation covers the redesigned API.
     ("py:class", "yapss._api.problem.Problem"),
     ("py:class", "yapss._api.solution.Solution"),
+    # Likewise the base classes a problem with no phases or no discrete constraints is typed
+    # with, `yapss.Problem[yapss.Phases, yapss.Discrete, Parameter]`, as hs071 and rosenbrock are.
+    ("py:class", "yapss._api.declare.Phases"),
+    ("py:class", "yapss._api.vector.Discrete"),
     # The type parameters of `Problem`, which `Problem.solve`'s return annotation,
     # `Solution[D_co, PR_co]`, carries into its signature. Type variables have no page to
     # resolve against; typing.rst says what they are in prose.
     ("py:class", "D_co"),
     ("py:class", "PR_co"),
 ]
+
+# The example scripts are annotated, so `setup` and `plot_solution` name the script's own
+# declaration classes -- `yapss.Problem[Phases, Discrete]` -- which the example pages show in
+# the listed source rather than documenting one by one.
+nitpick_ignore_regex = [("py:class", r"yapss\.examples\.\w+\.\w+")]
 
 # options for HTML output
 html_title = f"YAPSS {release}"

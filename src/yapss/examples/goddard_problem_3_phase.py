@@ -11,6 +11,9 @@ Each arc is a phase, and the phases are joined by continuity constraints on time
 
 __all__ = ["main", "plot_solution", "setup"]
 
+from collections.abc import Callable
+from typing import Any
+
 import matplotlib.pyplot as plt
 
 import yapss
@@ -108,12 +111,12 @@ class Phases(yapss.Phases):
     coast: Arc
 
 
-def drag(h, v):
+def drag(h: Any, v: Any) -> Any:
     """Return the drag on the rocket at altitude `h` and speed `v`."""
     return sigma * v**2 * exp(-h / h0)
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[Phases, Discrete]:
     """Set up the Goddard rocket problem.
 
     Returns
@@ -125,7 +128,7 @@ def setup() -> yapss.Problem:
     phases = problem.phases
     boost, singular, coast = phases.boost, phases.singular, phases.coast
 
-    def rocket(arg, xdot):
+    def rocket(arg: yapss.ContinuousArg[State, Control], xdot: State) -> None:
         """Fill in the rocket's dynamics, which are the same in every phase."""
         h, v, m = arg.state.h, arg.state.v, arg.state.m
         thrust = arg.control.thrust
@@ -134,26 +137,28 @@ def setup() -> yapss.Problem:
         xdot.m = -thrust / c
 
     @boost.register.continuous
-    def powered(arg, out):
+    def powered(arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State]) -> None:
         """Compute the dynamics of a phase with no path constraint."""
         rocket(arg, out.dynamics)
 
     coast.register.continuous(powered)
 
     @singular.register.continuous
-    def singular_arc(arg, out):
+    def singular_arc(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State, SingularArc]
+    ) -> None:
         """Compute the dynamics, and the switching function that must vanish."""
         rocket(arg, out.dynamics)
         h, v, m = arg.state.h, arg.state.v, arg.state.m
         out.path.switching = m * g - (1 + v / c) * drag(h, v)
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg) -> Any:
         """Return the altitude reached, which is to be made as large as possible."""
         return arg[coast].final.h
 
     @problem.register.discrete
-    def discrete(arg, out):
+    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require time and state to be continuous where the phases meet."""
         b, s, e = arg[boost], arg[singular], arg[coast]
         out.discrete.boost_singular_h = s.initial.h - b.final.h
@@ -206,7 +211,11 @@ def setup() -> yapss.Problem:
     return problem
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+Panel = tuple[str, Callable[[yapss.PhaseSolution], Any]]
+"""A plot of one quantity: its axis label, and how to read it from a phase's solution."""
+
+
+def plot_solution(problem: yapss.Problem[Phases, Discrete], solution: yapss.Solution) -> None:
     """Plot the thrust, the state histories and the Hamiltonian of every phase.
 
     Parameters
@@ -216,7 +225,7 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
     solution : yapss.Solution
         The solution to plot.
     """
-    panels = (
+    panels: tuple[Panel, ...] = (
         ("Thrust, $T$ (lbf)", lambda ps: ps.control.thrust),
         ("Altitude, $h$ (ft)", lambda ps: ps.state.h),
         ("Velocity, $v$ (ft/s)", lambda ps: ps.state.v),

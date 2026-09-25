@@ -11,6 +11,7 @@ independent variable.
 __all__ = ["main", "plot_solution", "setup"]
 
 from math import pi
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -80,7 +81,7 @@ class Phases(yapss.Phases):
     raise_: Transfer
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[Phases, Discrete]:
     """Set up the orbit raising problem.
 
     Returns
@@ -92,7 +93,9 @@ def setup() -> yapss.Problem:
     ph = problem.phases.raise_
 
     @ph.register.continuous
-    def continuous(arg, out):
+    def continuous(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State, Path]
+    ) -> None:
         """Compute the vehicle's dynamics and the magnitude of its steering vector."""
         r, v_r, v_theta = arg.state.r, arg.state.v_r, arg.state.v_theta
         u_r, u_theta = arg.control.u_r, arg.control.u_theta
@@ -105,12 +108,12 @@ def setup() -> yapss.Problem:
         out.path.unit_thrust = u_r**2 + u_theta**2
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg) -> Any:
         """Return the final radius, which is to be made as large as possible."""
         return arg[ph].final.r
 
     @problem.register.discrete
-    def discrete(arg, out):
+    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require the final orbit to be circular."""
         final = arg[ph].final
         out.discrete.circular = final.v_theta - sqrt(mu / final.r)
@@ -146,7 +149,7 @@ def setup() -> yapss.Problem:
     return problem
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+def plot_solution(problem: yapss.Problem[Phases, Discrete], solution: yapss.Solution) -> None:
     """Plot the states, the controls, the steering angle, the orbit, and the Hamiltonian.
 
     Parameters

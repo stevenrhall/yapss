@@ -49,7 +49,7 @@ def rosenbrock(x: Any, y: Any) -> Any:
     return 100 * (y - x**2) ** 2 + (1 - x) ** 2
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[yapss.Phases, yapss.Discrete, Parameter]:
     """Set up the Rosenbrock minimization problem.
 
     Returns
@@ -60,7 +60,7 @@ def setup() -> yapss.Problem:
     problem = yapss.Problem("Rosenbrock", parameter=Parameter)
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg[Parameter]) -> Any:
         """Return the Rosenbrock function at the chosen point."""
         return rosenbrock(arg.parameter.x, arg.parameter.y)
 

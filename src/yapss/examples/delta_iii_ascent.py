@@ -18,8 +18,12 @@ the same problem to the last bit and any difference in the answer is the API's.
 
 __all__ = ["main", "plot_solution", "setup"]
 
+from collections.abc import Callable, Sequence
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 
 import yapss
 from yapss.math import arccos, cos, exp, pi, sin, sqrt
@@ -179,10 +183,19 @@ class Phases(yapss.Phases):
     stage_3: Stage
 
 
-def make_dynamics(thrust, mass_flow):
+Vector3 = NDArray[Any] | Sequence[Any]
+"""A 3-vector: a vector field's value, or a list of its components."""
+
+Continuous = Callable[[yapss.ContinuousArg[State, Control], yapss.ContinuousOut[State, Path]], None]
+"""The type of a stage's continuous callback."""
+
+
+def make_dynamics(thrust: float, mass_flow: float) -> Continuous:
     """Return the continuous callback of a stage with the given thrust and mass flow."""
 
-    def continuous(arg, out):
+    def continuous(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State, Path]
+    ) -> None:
         """Compute the vehicle's dynamics and the constraints that hold along the way.
 
         The arithmetic is grouped exactly as the released version of this example groups it, so
@@ -214,26 +227,28 @@ def make_dynamics(thrust, mass_flow):
     return continuous
 
 
-def cross(x1, x2):
+def cross(x1: Vector3, x2: Vector3) -> list[Any]:
     """Return the cross product of two 3-vectors."""
-    x3 = [0, 0, 0]
+    x3: list[Any] = [0, 0, 0]
     x3[0] = x1[1] * x2[2] - x1[2] * x2[1]
     x3[1] = x1[2] * x2[0] - x1[0] * x2[2]
     x3[2] = x1[0] * x2[1] - x1[1] * x2[0]
     return x3
 
 
-def mag(x):
+def mag(x: Vector3) -> Any:
     """Return the magnitude of a vector, kept away from zero so its derivative exists."""
     return (sum(xi**2 for xi in x) + 1e-100) ** 0.5
 
 
-def dot(x1, x2):
+def dot(x1: Vector3, x2: Vector3) -> Any:
     """Return the dot product of two 3-vectors."""
     return sum(x1[i] * x2[i] for i in range(3))
 
 
-def oe_to_rv(a, e, i, Omega, omega, nu, mu_):  # noqa: PLR0913, PLR0917 -- the six elements
+def oe_to_rv(  # noqa: PLR0913, PLR0917 -- the six elements
+    a: float, e: float, i: float, Omega: float, omega: float, nu: float, mu_: float
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Convert classical orbital elements to inertial position and velocity.
 
     Parameters
@@ -279,7 +294,7 @@ def oe_to_rv(a, e, i, Omega, omega, nu, mu_):  # noqa: PLR0913, PLR0917 -- the s
     return R @ r_vec, R @ v_vec
 
 
-def orbital_elements(r_vec, v_vec):
+def orbital_elements(r_vec: Vector3, v_vec: Vector3) -> tuple[Any, ...]:
     """Return five of the six classical orbital elements of the given state."""
     r, v = mag(r_vec), mag(v_vec)
     h_vec = cross(r_vec, v_vec)
@@ -298,7 +313,7 @@ def orbital_elements(r_vec, v_vec):
     )
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[Phases, Discrete]:
     """Set up the Delta III ascent problem.
 
     Returns
@@ -307,18 +322,19 @@ def setup() -> yapss.Problem:
         The problem.
     """
     problem = yapss.Problem("Delta III ascent", phases=Phases, discrete=Discrete)
-    stages = list(problem.phases)
+    phases = problem.phases
+    stages = [phases.stage_0, phases.stage_1, phases.stage_2, phases.stage_3]
 
     for stage, thrust, mass_flow in zip(stages, THRUST, MASS_FLOW, strict=True):
         stage.register.continuous(make_dynamics(thrust, mass_flow))
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg) -> Any:
         """Return the mass delivered to orbit, which is to be made as large as possible."""
         return arg[stages[LAST]].final.m
 
     @problem.register.discrete
-    def discrete(arg, out):
+    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Join the stages, and require the final state to be on the target orbit."""
         s0, s1, s2, s3 = (arg[stage] for stage in stages)
         out.discrete.stage_0_1_position = s1.initial.r - s0.final.r
@@ -352,7 +368,7 @@ def setup() -> yapss.Problem:
     return problem
 
 
-def _set_bounds(problem, stages):
+def _set_bounds(problem: yapss.Problem[Phases, Discrete], stages: list[Stage]) -> None:
     """Set the bounds on every stage, and the bounds the constraints must meet."""
     launch = [R_e * cos(psi_l), 0.0, R_e * sin(psi_l)]
     launch_velocity = [0.0, R_e * omega_e * cos(psi_l), 0.0]
@@ -398,7 +414,7 @@ def _set_bounds(problem, stages):
     problem.discrete.argument_of_perigee.bounds = (omega_f, omega_f)
 
 
-def _set_scales(problem, stages):
+def _set_scales(problem: yapss.Problem[Phases, Discrete], stages: list[Stage]) -> None:
     """Condition the problem: say how large each quantity typically is."""
     for stage in stages:
         stage.state.r.scale[:] = length_scale
@@ -420,7 +436,7 @@ def _set_scales(problem, stages):
     problem.discrete.semi_major_axis.scale = length_scale
 
 
-def _set_guess(stages):
+def _set_guess(stages: list[Stage]) -> None:
     """Guess a continuous climb from the launch site to the target orbit."""
     final_position, final_velocity = oe_to_rv(a_f, e_f, i_f, Omega_f, omega_f, 0.0, mu)
     final_position = np.asarray(final_position, dtype=float)
@@ -463,7 +479,7 @@ def _set_guess(stages):
         stage.control.u.guess[:] = yapss.interp(time, np.tile([[0.0], [1.0], [0.0]], (1, 9)))
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+def plot_solution(problem: yapss.Problem[Phases, Discrete], solution: yapss.Solution) -> None:
     r"""Plot the ascent: altitude, position, velocity, mass, steering, and the Hamiltonian.
 
     Every quantity spans four phases, so each panel is a loop over them. The mass is the one
@@ -476,11 +492,18 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
     solution : yapss.Solution
         The solution to plot.
     """
-    stages = list(problem.phases)
+    phases = problem.phases
+    stages = [phases.stage_0, phases.stage_1, phases.stage_2, phases.stage_3]
     color = ("darkblue", "maroon", "darkorange")
     tf = solution[stages[LAST]].final.time
 
-    def panel(series, ylabel, ylim=None, legend=None, colors=(0,)):
+    def panel(
+        series: Callable[[yapss.PhaseSolution[State, Control, Path]], list[Any]],
+        ylabel: str,
+        ylim: tuple[float, float] | None = None,
+        legend: list[str] | None = None,
+        colors: tuple[int, ...] = (0,),
+    ) -> None:
         """Plot one or more series over every stage."""
         plt.figure()
         for stage in stages:
@@ -497,14 +520,14 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
         plt.grid()
         plt.tight_layout()
 
-    def magnitude(vector):
+    def magnitude(vector: Vector3) -> Any:
         """Return the Euclidean norm of a block field's three rows."""
         return np.sqrt(sum(vector[i] ** 2 for i in range(3)))
 
     panel(
         lambda ps: [(magnitude(ps.state.r) - R_e) / 1000],
         r"Altitude, $h$ (km)",
-        ylim=[0, 250],
+        ylim=(0, 250),
     )
     panel(
         lambda ps: [ps.state.r[i] / 1e6 for i in range(3)],
@@ -516,7 +539,7 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
     panel(
         lambda ps: [magnitude(ps.state.v)],
         r"Magnitude of inertial velocity, $v(t)$ (m/s)",
-        ylim=[0, 12000],
+        ylim=(0, 12000),
     )
     panel(
         lambda ps: [ps.state.v[i] for i in range(3)],
@@ -524,11 +547,11 @@ def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
         legend=[r"$v_{1}(t)$", r"$v_{2}(t)$", r"$v_{3}(t)$"],
         colors=(0, 1, 2),
     )
-    panel(lambda ps: [ps.state.m / 1000], r"Vehicle mass, $m$ (1000 kg)", ylim=[0, 300])
+    panel(lambda ps: [ps.state.m / 1000], r"Vehicle mass, $m$ (1000 kg)", ylim=(0, 300))
     panel(
         lambda ps: [ps.control.u[i] for i in range(3)],
         r"Components of thrust direction, $u(t)$",
-        ylim=[-0.8, 1.1],
+        ylim=(-0.8, 1.1),
         legend=[r"$u_{1}(t)$", r"$u_{2}(t)$", r"$u_{3}(t)$"],
         colors=(0, 1, 2),
     )

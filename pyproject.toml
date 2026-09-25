@@ -193,18 +193,6 @@ disallow_untyped_calls = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-# The examples are written the way a user would write them: with no typing syntax at all.
-# That is the point -- typing is opt-in, and the runtime checks are complete without it --
-# so requiring annotations here would test the opposite of what the examples are for. The
-# package itself (yapss._api.*) is checked as strictly as the rest of src, and so is the
-# 0.3.0 corpus under yapss._legacy.examples, which was written with annotations.
-module = "yapss.examples.*"
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-disallow_untyped_calls = false
-disallow_untyped_decorators = false
-
-[[tool.mypy.overrides]]
 module = [
     "casadi",
     "scipy.*",

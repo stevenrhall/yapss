@@ -10,6 +10,8 @@ slope angle of the path, and the objective is the time taken.
 __all__ = ["main", "plot_solution", "setup"]
 
 # third party imports
+from typing import Any
+
 import matplotlib.pyplot as plt
 from numpy import pi
 
@@ -52,7 +54,7 @@ class Phases(yapss.Phases):
     slide: Slide
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[Phases]:
     """Set up the brachistochrone problem.
 
     Returns
@@ -65,7 +67,9 @@ def setup() -> yapss.Problem:
     phase = problem.phases.slide
 
     @phase.register.continuous
-    def continuous(arg, out):
+    def continuous(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State]
+    ) -> None:
         """Compute the bead's dynamics."""
         v, u = arg.state.v, arg.control.u
         out.dynamics.x = v * cos(u)
@@ -73,7 +77,7 @@ def setup() -> yapss.Problem:
         out.dynamics.v = g0 * sin(u)
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg) -> Any:
         """Return the time taken, which is the objective."""
         return arg[phase].final.time
 
@@ -100,7 +104,7 @@ def setup() -> yapss.Problem:
     return problem
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+def plot_solution(problem: yapss.Problem[Phases], solution: yapss.Solution) -> None:
     """Plot the trajectory, the states, the control, the costate, and the Hamiltonian.
 
     Parameters

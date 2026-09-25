@@ -14,6 +14,8 @@ refused it would be refusing arithmetic it can already do.
 
 __all__ = ["main", "print_solution", "setup"]
 
+from typing import Any
+
 import yapss
 
 OPTIMUM = 17.01401714
@@ -36,7 +38,7 @@ class Discrete(yapss.Discrete):
     """The sum of their squares, exactly 40."""
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[yapss.Phases, Discrete, Parameter]:
     """Set up the HS071 problem.
 
     Returns
@@ -47,13 +49,13 @@ def setup() -> yapss.Problem:
     problem = yapss.Problem("HS071", parameter=Parameter, discrete=Discrete)
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg[Parameter]) -> Any:
         """Return the objective."""
         x = arg.parameter.x
         return x[0] * x[3] * (x[0] + x[1] + x[2]) + x[2]
 
     @problem.register.discrete
-    def discrete(arg, out):
+    def discrete(arg: yapss.EndpointArg[Parameter], out: yapss.DiscreteOut[Discrete]) -> None:
         """Compute the two constraints."""
         x = arg.parameter.x
         out.discrete.product = x[0] * x[1] * x[2] * x[3]

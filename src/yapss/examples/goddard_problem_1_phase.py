@@ -18,6 +18,8 @@ is what says it, which is what the other example does.
 
 __all__ = ["main", "plot_solution", "setup"]
 
+from typing import Any
+
 import matplotlib.pyplot as plt
 
 import yapss
@@ -73,7 +75,7 @@ class Phases(yapss.Phases):
     flight: Flight
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[Phases]:
     """Set up the one-phase Goddard rocket problem.
 
     Returns
@@ -85,7 +87,9 @@ def setup() -> yapss.Problem:
     ph = problem.phases.flight
 
     @ph.register.continuous
-    def continuous(arg, out):
+    def continuous(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State]
+    ) -> None:
         """Compute the rocket's dynamics."""
         h, v, m = arg.state.h, arg.state.v, arg.state.m
         thrust = arg.control.thrust
@@ -94,7 +98,7 @@ def setup() -> yapss.Problem:
         out.dynamics.m = -thrust / c
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg) -> Any:
         """Return the altitude reached, which is to be made as large as possible."""
         return arg[ph].final.h
 
@@ -126,7 +130,7 @@ def setup() -> yapss.Problem:
     return problem
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+def plot_solution(problem: yapss.Problem[Phases], solution: yapss.Solution) -> None:
     """Plot the trajectory, the thrust programme, and the Hamiltonian.
 
     Parameters

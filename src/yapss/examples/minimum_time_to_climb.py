@@ -18,6 +18,8 @@ difference in the answer is the API's and not a slip in transcribing the physics
 
 __all__ = ["main", "plot_solution", "setup"]
 
+from typing import Any
+
 import matplotlib.pyplot as plt
 from numpy import pi
 
@@ -74,7 +76,7 @@ class Phases(yapss.Phases):
     climb: Climb
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[Phases]:
     """Set up the minimum time to climb problem.
 
     Returns
@@ -86,7 +88,9 @@ def setup() -> yapss.Problem:
     ph = problem.phases.climb
 
     @ph.register.continuous
-    def continuous(arg, out):
+    def continuous(
+        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State]
+    ) -> None:
         """Compute the aircraft's dynamics, looking the model up in tables."""
         h, v = arg.state.h, arg.state.v
         gamma, mass = arg.state.gamma, arg.state.mass
@@ -111,7 +115,7 @@ def setup() -> yapss.Problem:
         out.dynamics.mass = -thrust / (g0 * Isp)
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg) -> Any:
         """Return the time taken to climb."""
         return arg[ph].final.time
 
@@ -158,7 +162,7 @@ def setup() -> yapss.Problem:
     return problem
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+def plot_solution(problem: yapss.Problem[Phases], solution: yapss.Solution) -> None:
     r"""Plot the climb: the trajectory, the four states, the control, and the Hamiltonian.
 
     Parameters

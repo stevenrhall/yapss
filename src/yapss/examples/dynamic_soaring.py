@@ -21,6 +21,8 @@ and the derivatives are discontinuous where it does.
 
 __all__ = ["main", "plot_solution", "setup"]
 
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
@@ -114,7 +116,7 @@ class Phases(yapss.Phases):
     loop: Loop
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
     """Set up the dynamic soaring problem.
 
     Returns
@@ -128,7 +130,9 @@ def setup() -> yapss.Problem:
     ph = problem.phases.loop
 
     @ph.register.continuous
-    def continuous(arg, out):
+    def continuous(
+        arg: yapss.ContinuousArg[State, Control, Parameter], out: yapss.ContinuousOut[State, Path]
+    ) -> None:
         """Compute the flight dynamics in a wind that grows with altitude."""
         h, v = arg.state.h, arg.state.v
         gamma, psi = arg.state.gamma, arg.state.psi
@@ -158,12 +162,12 @@ def setup() -> yapss.Problem:
         out.path.load_factor = (0.5 * rho0 * area / weight) * cl * v**2
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg[Parameter]) -> Any:
         """Return the wind gradient, which is what is to be made as small as possible."""
         return arg.parameter.beta
 
     @problem.register.discrete
-    def discrete(arg, out):
+    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require the flight to come back to the state it started in, one turn later."""
         end = arg[ph]
         out.discrete.v_periodic = end.final.v - end.initial.v
@@ -235,7 +239,9 @@ def setup() -> yapss.Problem:
     return problem
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+def plot_solution(
+    problem: yapss.Problem[Phases, Discrete, Parameter], solution: yapss.Solution
+) -> None:
     """Plot the circuit in three dimensions, and the quantities along it.
 
     Parameters

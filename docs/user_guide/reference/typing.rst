@@ -1,9 +1,11 @@
 Type Annotations
 ================
 
-Typing is optional in YAPSS. Nothing requires an annotation, the examples use none, and every
-check YAPSS makes at run time is made without one. But a program that is annotated should be
-able to pass ``mypy --strict``, and this page says how.
+Typing is optional in YAPSS. Nothing requires an annotation, the example notebooks use none,
+and every check YAPSS makes at run time is made without one. But a program that is annotated
+should be able to pass ``mypy --strict``, and this page says how. The :doc:`example scripts
+<../scripts/index>` are annotated in full, and each passes ``mypy --strict``: they are the
+larger illustration of what this page describes.
 
 What is checked without annotations
 -----------------------------------

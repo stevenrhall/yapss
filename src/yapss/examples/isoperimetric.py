@@ -17,6 +17,7 @@ not say otherwise.
 __all__ = ["main", "plot_solution", "setup"]
 
 import math
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -91,7 +92,7 @@ class Phases(yapss.Phases):
     curve: Curve
 
 
-def setup() -> yapss.Problem:
+def setup() -> yapss.Problem[Phases, Discrete]:
     """Set up the isoperimetric problem.
 
     Returns
@@ -103,7 +104,10 @@ def setup() -> yapss.Problem:
     ph = problem.phases.curve
 
     @ph.register.continuous
-    def continuous(arg, out):
+    def continuous(
+        arg: yapss.ContinuousArg[State, Control],
+        out: yapss.ContinuousOut[State, Path, Integral],
+    ) -> None:
         """Move along the curve, accumulating the area and the moments."""
         x, y = arg.state.x, arg.state.y
         tx, ty = arg.control.tx, arg.control.ty
@@ -115,12 +119,12 @@ def setup() -> yapss.Problem:
         out.integrand.y_moment = y
 
     @problem.register.objective
-    def objective(arg):
+    def objective(arg: yapss.EndpointArg) -> Any:
         """Return the area enclosed, which is to be made as large as possible."""
         return arg[ph].integral.area
 
     @problem.register.discrete
-    def discrete(arg, out):
+    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require the curve to return to where it started."""
         end = arg[ph]
         out.discrete.closure_x = end.final.x - end.initial.x
@@ -157,7 +161,7 @@ def setup() -> yapss.Problem:
     return problem
 
 
-def plot_solution(problem: yapss.Problem, solution: yapss.Solution) -> None:
+def plot_solution(problem: yapss.Problem[Phases, Discrete], solution: yapss.Solution) -> None:
     """Plot the curve found and the Hamiltonian along it.
 
     The collocation points are shown as dots, with a cubic spline through them.
