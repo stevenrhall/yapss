@@ -12,8 +12,11 @@ where a fraction list and a points list had to be kept the same length by hand.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Any
+
+from yapss._backend.exceptions import LargeSegmentWarning, user_stacklevel
 
 __all__ = ["Mesh"]
 
@@ -22,6 +25,26 @@ MIN_POINTS = 2
 
 FRACTION_TOLERANCE = 1e-9
 """How far the segment fractions may stray from summing to 1."""
+
+# The count above which `LargeSegmentWarning` suggests splitting a segment. It is advice, not a
+# limit: the mesh is valid, and a single global segment is a legitimate choice.
+#
+# Published hp-adaptive methods cap the degree per interval near here, as an efficiency setting:
+# GPOPS-II defaults to at most 10 points per interval, and Patterson, Hager and Rao ("A ph mesh
+# refinement method for optimal control", Optimal Control Applications and Methods 36, 2015) find a
+# maximum of 14 or 16 generally performs well.
+#
+# Accuracy is not what a large segment costs in YAPSS: the quadrature is computed in high precision
+# and rounded once, so its differentiation matrix stays accurate at a hundred points. What it costs
+# is size and, on harder problems, convergence. A segment's differentiation matrix is dense, so the
+# block of the Jacobian that couples its defects to its states grows as the square of its points.
+# Measured on the Delta III example at 200 and 300 points per phase, segments of up to 15 points
+# converged in 25-42 iterations; 20 points took up to 782; 25 points ended once in an error in the
+# step computation and once only at an acceptable level; and 50 points or more hit the iteration
+# limit short of the optimum. The brachistochrone converged in about 20 iterations at every segment
+# size up to 300, so the effect depends on the problem, which is why this warns rather than refuses.
+LARGE_SEGMENT_THRESHOLD = 20
+"""The most collocation points a segment may have without a `LargeSegmentWarning`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +62,24 @@ class Mesh:
     def __init__(self, segments: Any) -> None:
         checked = tuple(self._check(segments))
         object.__setattr__(self, "segments", checked)
+        large = [
+            index for index, (_, points) in enumerate(checked) if points > LARGE_SEGMENT_THRESHOLD
+        ]
+        if large:
+            most = max(checked[index][1] for index in large)
+            which = (
+                f"Mesh segment {large[0]} has {most}"
+                if len(large) == 1
+                else f"{len(large)} mesh segments have up to {most}"
+            )
+            msg = (
+                f"{which} collocation points, more than the {LARGE_SEGMENT_THRESHOLD} above "
+                f"which a segment is usually better split into several. On harder problems a "
+                f"large segment can slow Ipopt's convergence sharply or prevent it; 15 or "
+                f"fewer per segment is usually fastest. The mesh is valid, so filter "
+                f"yapss.LargeSegmentWarning to silence this warning if the mesh is deliberate."
+            )
+            warnings.warn(msg, LargeSegmentWarning, stacklevel=user_stacklevel())
 
     @staticmethod
     def _check(segments: Any) -> list[tuple[float, int]]:

@@ -14,7 +14,7 @@ import pytest
 
 import yapss
 
-from ._api import not_yet, solvable, warns
+from ._api import solvable, warns
 
 # ----------------------------------------------------------------- the categories exist
 
@@ -78,17 +78,8 @@ def test_a_converged_solve_says_nothing() -> None:
 # ------------------------------------------------------------------- a segment too large
 
 
-@not_yet(
-    "gap",
-    "LargeSegmentWarning is raised by the 0.3.0 front end only; the new mesh never warns",
-)
 def test_a_very_large_segment_warns() -> None:
-    """A segment of many points is valid input whose cost deserves a mention.
-
-    The category is exported, documented on the warnings page, and unreachable through this
-    front end: the check lives in `_legacy/problem.py`, and `_api/mesh.py` has nothing like
-    it. A user who writes `Mesh([(1.0, 60)])` is told nothing.
-    """
+    """A segment of many points is valid input whose cost deserves a mention."""
     problem = solvable()
     with warns(yapss.LargeSegmentWarning, "usually better split", at="ph.mesh"):
         ph = problem.phases.slide

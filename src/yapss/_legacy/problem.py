@@ -777,7 +777,7 @@ class Derivatives(Protected):
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-LARGE_SEGMENT_THRESHOLD = 15
+LARGE_SEGMENT_THRESHOLD = 20
 
 # A fraction sequence is rescaled to sum to exactly 1, so that the segment boundaries are
 # exact. Only rounding error is absorbed silently: seven sevenths sum to 0.9999999999999998,

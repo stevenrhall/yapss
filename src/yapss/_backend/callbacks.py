@@ -120,23 +120,3 @@ class UserFunctions(Protected):
     discrete: Callback[DiscreteFunction] = Callback()
     discrete_jacobian: Callback[DiscreteJacobianFunction] = Callback()
     discrete_hessian: Callback[DiscreteHessianFunction] = Callback()
-
-
-# The point above which `LargeSegmentWarning` suggests splitting a segment. It is a
-# judgement, not a cliff: nothing fails at 26 points. The figure is set well above
-# published practice and well below where the cost becomes painful.
-#
-# Published hp-adaptive methods cap the degree per interval far lower: the method is
-# parameterized as hp-Method(Nmin, Nmax) with "a user-specified upper limit Nmax >= 2 ...
-# to prevent the polynomial degree from growing unreasonably large", and GPOPS-II's
-# examples use ph-(4, 10) -- a maximum of 10 (Darby, Hager and Rao, "An hp-adaptive
-# pseudospectral method for solving optimal control problems", Optimal Control
-# Applications and Methods 32, 2011; Patterson and Rao, "GPOPS-II", ACM TOMS 41, 2014).
-# Conditioning is the milder constraint: the first-derivative differentiation matrix
-# conditions as O(N^2), so N = 100 costs about four digits, which double precision
-# absorbs.
-#
-# What bites in YAPSS is the mesh setup. `quadrature.py` computes the nodes with mpmath,
-# memoized per (method, count), and the cost grows quadratically: measured on an M-series
-# Mac, LGL takes 0.02 s at 10 points, 0.03 s at 15, 0.08 s at 25, 0.32 s at 50, 1.2 s at
-# 100, and 21 s at 400.
