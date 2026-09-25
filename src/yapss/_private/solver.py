@@ -25,7 +25,7 @@ from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variabl
 from .central_difference import make_cd_functions
 from .config import get_conda_prefix, warn_if_ipopt_source_env_set
 from .guess import make_initial_guess_nlp
-from .ipopt_options import IpoptOptionSettingWarning, explain_refusal
+from .ipopt_options import IpoptOptionSettingWarning, refusal_message
 from .ipopt_status import status_or_raise
 from .mesh import Mesh
 from .mseipopt import bare_np, initialize_ipopt
@@ -141,17 +141,16 @@ def solve(problem: yapss.Problem) -> Solution:
     for name, value in problem.ipopt_options.get_options().items():
         try:
             ipopt_problem.add_option(name, value)
-        except (ValueError, TypeError) as e:
-            # Ipopt says only that it refused the option, so compare the value with what
-            # Ipopt's own documentation records for it: a value outside the documented
-            # range is the user's mistake, a value inside it means the build most likely
-            # lacks the option. Neither verdict is stated as certain (E5).
-            msg, is_error = explain_refusal(name, value, str(e))
-            if is_error:
-                raise ValueError(msg) from e
-            # stacklevel 3: warn -> solver.solve -> Problem.solve -> the user's call,
-            # as warn_if_not_converged does
-            warnings.warn(msg, category=IpoptOptionSettingWarning, stacklevel=3)
+        except (ValueError, TypeError):
+            # Only Ipopt knows which options this build has and which values they take, so a
+            # refusal warns and the solve continues with Ipopt's default; see
+            # IpoptOptionSettingWarning. stacklevel 3: warn -> solver.solve -> Problem.solve ->
+            # the user's call, as warn_if_not_converged does.
+            warnings.warn(
+                refusal_message(name, value),
+                category=IpoptOptionSettingWarning,
+                stacklevel=3,
+            )
 
     if "timing_statistics" not in problem.ipopt_options.get_options():
         with contextlib.suppress(ValueError, TypeError):

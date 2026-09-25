@@ -15,7 +15,7 @@ The hierarchy
     UserWarning
      └── yapss.YapssWarning
           ├── yapss.IpoptConvergenceWarning      Ipopt did not report a converged solution
-          ├── yapss.IpoptOptionSettingWarning    Ipopt refused an option value
+          ├── yapss.IpoptOptionSettingWarning    Ipopt refused an option
           ├── yapss.LargeSegmentWarning          a mesh segment has very many points
           └── yapss.YapssDeprecationWarning      (also a FutureWarning)
 
