@@ -46,9 +46,9 @@ __all__ = [
 class IpoptConvergenceWarning(YapssWarning):
     """Ipopt did not report a converged solution.
 
-    A `Solution` is returned whatever Ipopt reports, so an unconverged run yields a
-    plausible-looking trajectory that satisfies nothing in particular. This warning
-    exists so that outcome is not silent.
+    When Ipopt stops at an iterate without converging, the `Solution` is still returned, so
+    an unconverged run yields a plausible-looking trajectory that satisfies nothing in
+    particular. This warning exists so that outcome is not silent.
 
     Public, so it can be filtered or escalated::
 

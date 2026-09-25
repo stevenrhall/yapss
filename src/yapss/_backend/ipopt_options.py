@@ -25,7 +25,7 @@ __all__ = ["IpoptOptionSettingWarning", "IpoptOptions"]
 class IpoptOptionSettingWarning(YapssWarning):
     """YAPSS could not vouch for an Ipopt option, or Ipopt refused one.
 
-    Raised in two places, for the same underlying reason: the set of options depends on the
+    Issued in two places, for the same underlying reason: the set of options depends on the
     Ipopt build, and YAPSS checks names against one documented release. At assignment, for a
     name that release does not list, which is passed to Ipopt anyway since another build may
     have it. At the start of a solve, for an option Ipopt itself refused whose value is
