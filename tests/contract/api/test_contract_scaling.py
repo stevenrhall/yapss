@@ -7,6 +7,10 @@ reason a scale must be positive, and why flipping a sign is `problem.objective.s
 
 from __future__ import annotations
 
+import math
+
+import pytest
+
 from ._api import problem, raises, solvable
 
 # ------------------------------------------------------------------ a scale is a number
@@ -43,6 +47,31 @@ def test_a_scale_may_not_be_negative() -> None:
         at="x.scale",
     ):
         ph.state.x.scale = -1.0
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf])
+def test_a_scale_must_be_finite(value: float) -> None:
+    """Refused where it is written, rather than by the solver, which names no field."""
+    ph = problem().phases.first
+    with raises(ValueError, "state scale 'x'", "must be a finite number", at="x.scale"):
+        ph.state.x.scale = value
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf])
+def test_a_scale_must_be_finite_in_every_row(value: float) -> None:
+    """A block field's rows are each a scale, checked as one."""
+    ph = problem().phases.first
+    with raises(ValueError, "must be a finite number", at="y.scale"):
+        ph.state.y.scale[1] = value
+
+
+def test_the_objective_and_time_scales_must_be_finite_too() -> None:
+    """They are set on their own containers, and go through the same check."""
+    p = problem()
+    with raises(ValueError, "must be a finite number", at="objective.scale"):
+        p.objective.scale = math.nan
+    with raises(ValueError, "must be a finite number", at="time.scale"):
+        p.phases.first.time.scale = math.inf
 
 
 def test_the_objective_scale_is_positive_too() -> None:

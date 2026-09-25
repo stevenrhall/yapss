@@ -436,6 +436,12 @@ class Scale(Kind):
             msg = f"{label} '{name}': a scale is a positive number; got {value!r}"
             raise TypeError(msg)
         scaled = float(value)
+        if not math.isfinite(scaled):
+            msg = (
+                f"{label} '{name}': a scale must be a finite number; got {scaled}. It says how "
+                f"large the quantity typically is, and the solver divides by it."
+            )
+            raise ValueError(msg)
         if scaled <= 0:
             msg = (
                 f"{label} '{name}': a scale must be positive; got {scaled}. A scale conditions "
