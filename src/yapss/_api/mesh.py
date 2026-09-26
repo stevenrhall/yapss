@@ -12,11 +12,15 @@ where a fraction list and a points list had to be kept the same length by hand.
 
 from __future__ import annotations
 
+import math
 import warnings
 from dataclasses import dataclass
+from numbers import Integral
 from typing import Any
 
 from yapss._backend.exceptions import LargeSegmentWarning, user_stacklevel
+
+from .kinds import is_bool, is_real
 
 __all__ = ["Mesh"]
 
@@ -98,16 +102,23 @@ class Mesh:
             except (TypeError, ValueError):
                 msg = f"Mesh segment {index} is not a (fraction, points) pair; got {pair!r}"
                 raise TypeError(msg) from None
-            if not isinstance(points, int) or isinstance(points, bool):
+            if not _is_count(points):
                 msg = f"Mesh segment {index}: collocation points must be an integer; got {points!r}"
                 raise TypeError(msg)
+            points = int(points)
             if points < MIN_POINTS:
                 msg = (
                     f"Mesh segment {index}: a segment needs at least {MIN_POINTS} collocation "
                     f"points; got {points}"
                 )
                 raise ValueError(msg)
+            if not is_real(fraction):
+                msg = f"Mesh segment {index}: the fraction must be a number; got {fraction!r}"
+                raise TypeError(msg)
             fraction = float(fraction)
+            if not math.isfinite(fraction):
+                msg = f"Mesh segment {index}: the fraction must be finite; got {fraction}"
+                raise ValueError(msg)
             if fraction <= 0:
                 msg = f"Mesh segment {index}: the fraction must be positive; got {fraction}"
                 raise ValueError(msg)
@@ -134,8 +145,12 @@ class Mesh:
         Mesh
             The mesh.
         """
-        if not isinstance(segments, int) or isinstance(segments, bool) or segments < 1:
-            msg = f"Mesh.uniform(segments=) must be a positive integer; got {segments!r}"
+        if not _is_count(segments):
+            msg = f"Mesh.uniform(segments=) must be an integer; got {segments!r}"
+            raise TypeError(msg)
+        segments = int(segments)
+        if segments < 1:
+            msg = f"Mesh.uniform(segments=) must be at least 1; got {segments}"
             raise ValueError(msg)
         return cls([(1.0 / segments, points)] * segments)
 
@@ -148,3 +163,12 @@ class Mesh:
     def collocation_points(self) -> tuple[int, ...]:
         """Return the collocation points in each segment."""
         return tuple(points for _, points in self.segments)
+
+
+def _is_count(value: object) -> bool:
+    """Report whether `value` is an integer of any kind, a NumPy integer included.
+
+    A boolean is excluded: Python counts it as an integer, and here it is nearly always a
+    mistake.
+    """
+    return isinstance(value, Integral) and not is_bool(value)

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import numpy as np
+import pytest
+
 import yapss
 
 from ._api import problem, raises
@@ -75,3 +78,33 @@ def test_the_fractions_sum_to_one() -> None:
     """They divide the phase, so they account for all of it, and the message does the sum."""
     with raises(ValueError, "must sum to 1", at="yapss.Mesh"):
         yapss.Mesh([(0.25, 4), (0.25, 4)])
+
+
+# ------------------------------------------------------------ what a mesh is made of
+
+
+@pytest.mark.parametrize("fraction", [np.nan, np.inf])
+def test_a_fraction_is_finite(fraction: float) -> None:
+    """A NaN fraction passed the sum check, which no comparison with NaN can fail."""
+    with raises(ValueError, "Mesh segment 0", "must be finite", at="yapss.Mesh"):
+        yapss.Mesh([(fraction, 4), (1.0, 4)])
+
+
+@pytest.mark.parametrize("fraction", ["1.0", True])
+def test_a_fraction_is_a_number(fraction: object) -> None:
+    """A string or a boolean is refused rather than converted by float()."""
+    with raises(TypeError, "Mesh segment 0", "must be a number", at="yapss.Mesh"):
+        yapss.Mesh([(fraction, 4)])
+
+
+def test_a_numpy_integer_is_a_count() -> None:
+    """Integers from NumPy are integers, for a segment's points and for Mesh.uniform."""
+    assert yapss.Mesh([(1.0, np.int64(4))]).collocation_points == (4,)
+    assert yapss.Mesh.uniform(segments=np.int64(3), points=np.int64(4)).fractions[0] == 1 / 3
+
+
+@pytest.mark.parametrize("segments", [2.0, "3", True])
+def test_uniform_segments_of_the_wrong_type_are_a_type_error(segments: object) -> None:
+    """The same kind of mistake is the same kind of error in Mesh and in Mesh.uniform."""
+    with raises(TypeError, "Mesh.uniform(segments=) must be an integer", at="uniform"):
+        yapss.Mesh.uniform(segments=segments)  # type: ignore[arg-type]
