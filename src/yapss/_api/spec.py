@@ -114,6 +114,8 @@ def validate_problem(problem: Problem[Any, Any, Any]) -> None:
             name = phase._independent
             complaints.append(f"{label} has no {name} guess; set 'ph.{name}.guess = (start, end)'")
         complaints.extend(_unbounded(aspects_of(phase.path).bounds, f"{label} path"))
+        complaints.extend(_disjoint(aspects_of(phase.state), f"{label} state"))
+        complaints.extend(_backward(independent, label, phase._independent))
         if independent.guess is not None:
             for what in ("state", "control"):
                 aspect = aspects_of(getattr(phase, what)).guess
@@ -129,7 +131,7 @@ def validate_problem(problem: Problem[Any, Any, Any]) -> None:
         # A complaint is one line, so the numbering is the only structure needed.
         if len(complaints) > 1:
             complaints = [f"({i}) {complaint}" for i, complaint in enumerate(complaints, 1)]
-        msg = "the problem is incomplete:\n  " + "\n  ".join(complaints)
+        msg = "the problem is not ready to solve:\n  " + "\n  ".join(complaints)
         raise ValueError(msg)
 
 
@@ -151,6 +153,44 @@ def _uncovered(guess: Vector, time_guess: tuple[float, float], label: str) -> li
                 complaints.append(complaint)
                 break
     return complaints
+
+
+def _disjoint(state: Any, label: str) -> list[str]:
+    """Return a complaint for every state row whose initial or final bound misses its bound.
+
+    Each is valid alone, so neither assignment could refuse it; together they leave no value
+    the state can take at that end, which the solver would report against its own vector.
+    """
+    complaints = []
+    for name in state.bounds._fields:
+        path = state.bounds._elements(name)
+        for which in ("initial", "final"):
+            ends = getattr(state, which)._elements(name)
+            for row, ((low, high), (end_low, end_high)) in enumerate(zip(path, ends, strict=True)):
+                if max(low, end_low) > min(high, end_high):
+                    where = f"{name}[{row}]" if len(path) > 1 else name
+                    complaints.append(
+                        f"{label} '{where}': its {which} bound ({end_low}, {end_high}) does not "
+                        f"overlap its bound ({low}, {high}), so no {which} value satisfies both"
+                    )
+    return complaints
+
+
+def _backward(independent: Any, label: str, name: str) -> list[str]:
+    """Return a complaint if the final bound lies wholly before the initial bound.
+
+    A phase's duration is at least zero, so the pair cannot both hold; the solver would run and
+    report the problem infeasible, which says nothing of why.
+    """
+    initial_low, _ = independent.initial
+    _, final_high = independent.final
+    if final_high < initial_low:
+        complaint = (
+            f"{label} {name}: its final bound {independent.final} lies wholly before its "
+            f"initial bound {independent.initial}, and a phase cannot run backward"
+        )
+        return [complaint]
+    return []
 
 
 def _unbounded(bounds: Vector, label: str) -> list[str]:

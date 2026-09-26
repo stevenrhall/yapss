@@ -153,7 +153,7 @@ def test_a_bound_is_stored_normalized(bounds, written, stored):
         (3.0, TypeError, "a bound is a pair, and 3.0 is one number"),
         (None, TypeError, "For no bound at either end, write"),
         (..., TypeError, "a bound is a \\(lower, upper\\) pair"),
-        ((2, ...), TypeError, "with ... is not implemented yet"),
+        ((2, ...), TypeError, "each side of a bound is a number or None"),
     ],
 )
 def test_a_bad_bound_is_refused_at_the_line(bounds, written, error, match):

@@ -69,7 +69,7 @@ def test_every_row_of_a_block_contributes_its_sample_times():
 def test_every_row_of_a_block_is_checked_for_coverage():
     # Samples that start halfway into the phase are refused, whichever row carries them.
     problem, ph = build(yapss.interp([0.5, 1.0], [0.0, 1.0]))
-    with pytest.raises(ValueError, match="incomplete"):
+    with pytest.raises(ValueError, match="not ready to solve"):
         problem.validate()
 
 

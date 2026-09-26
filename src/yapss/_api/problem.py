@@ -540,8 +540,10 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         Raises
         ------
         ValueError
-            If the problem is incomplete: a missing callback, a missing time guess, or a
-            constraint that was declared and never bounded.
+            If the problem is incomplete, or its settings contradict each other: a missing
+            callback, a missing time guess, a constraint that was declared and never bounded, a
+            state's initial or final bound that does not overlap its bound, or a final time
+            bound that lies wholly before the initial one.
         """
         validate_problem(self)
 
@@ -556,7 +558,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         Raises
         ------
         ValueError
-            If the problem is incomplete (see `validate`), or if Ipopt stopped without an
+            If the problem is not ready to solve (see `validate`), or if Ipopt stopped without an
             iterate because of the problem or its callbacks: too few degrees of freedom
             (status -10), inconsistent bounds (-11), a refused option (-12), or a NaN or
             Inf from a callback (-13).

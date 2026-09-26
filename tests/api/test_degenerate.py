@@ -135,4 +135,4 @@ def test_a_problem_with_no_variables_is_refused_at_construction():
     with pytest.raises(ValueError, match="no decision variables") as info:
         yapss.Problem("nothing at all")
     assert "declare a phase or a parameter" in str(info.value)
-    assert "incomplete" not in str(info.value)
+    assert "not ready to solve" not in str(info.value)

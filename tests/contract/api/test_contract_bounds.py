@@ -9,10 +9,11 @@ state what differs about them, not what they share with this.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 import yapss
 
-from ._api import State, not_yet, problem, proposed, raises
+from ._api import State, not_yet, problem, proposed, raises, solvable
 
 # ------------------------------------------------------------------- a bound is a pair
 
@@ -71,11 +72,33 @@ def test_one_side_may_be_left_open() -> None:
     assert ph.state.x.bounds == (0.0, np.inf)
 
 
-def test_leaving_one_side_unchanged_is_not_built_yet() -> None:
-    """`...` is designed and not built, and says so rather than doing something else."""
+def test_a_side_is_a_number_or_none() -> None:
+    """There is no third form: None leaves a side open, and anything else is refused."""
     ph = problem().phases.first
-    with raises(TypeError, "not implemented yet", "give both ends", at="x.bounds"):
+    with raises(TypeError, "each side of a bound is a number or None", at="x.bounds"):
         ph.state.x.bounds = (0.0, ...)
+
+
+@pytest.mark.parametrize("bound", [(np.nan, 1.0), (0.0, np.nan)])
+def test_a_side_cannot_be_nan(bound: tuple[float, float]) -> None:
+    """Refused where it is written, rather than by the solver, which names no field."""
+    ph = problem().phases.first
+    with raises(ValueError, "state bounds 'x'", "cannot be NaN", "write None", at="x.bounds"):
+        ph.state.x.bounds = bound
+
+
+def test_a_lower_bound_cannot_be_plus_infinity() -> None:
+    """It leaves nothing feasible; None is how a side is left open."""
+    ph = problem().phases.first
+    with raises(ValueError, "lower bound of +inf", "write None", at="x.bounds"):
+        ph.state.x.bounds = (np.inf, np.inf)
+
+
+def test_an_upper_bound_cannot_be_minus_infinity() -> None:
+    """The same on the other side, and for the time, whose bounds are bounds like any other."""
+    ph = problem().phases.first
+    with raises(ValueError, "upper bound of -inf", "write None", at="time.final"):
+        ph.time.final = (None, -np.inf)
 
 
 # -------------------------------------------------------- writing a field that has rows
@@ -261,3 +284,33 @@ def test_a_row_index_is_not_a_name() -> None:
     ph = problem().phases.first
     with raises(TypeError, "is read by row", "a whole number or a slice", at="ph.state.y.bounds["):
         _ = ph.state.y.bounds["a"]
+
+
+# ----------------------------------------------------- bounds that contradict each other
+
+
+def test_a_boundary_bound_must_overlap_the_bound() -> None:
+    """Each is valid alone; together they leave no initial value, and validate() says which."""
+    p = solvable()
+    ph = p.phases.slide
+    ph.state.v.bounds = (0.0, 1.0)
+    ph.state.v.initial = (5.0, 6.0)
+    with raises(
+        ValueError,
+        "not ready to solve",
+        "state 'v'",
+        "initial bound",
+        "does not overlap",
+        at="validate",
+    ):
+        p.validate()
+
+
+def test_the_final_time_cannot_lie_before_the_initial_time() -> None:
+    """A phase's duration is at least zero, so the solver could only report it infeasible."""
+    p = solvable()
+    p.phases.slide.time.final = (-1.0, -1.0)
+    with raises(
+        ValueError, "not ready to solve", "wholly before", "cannot run backward", at="validate"
+    ):
+        p.validate()

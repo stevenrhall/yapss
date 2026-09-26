@@ -266,7 +266,9 @@ def test_a_problem_with_no_objective_is_incomplete() -> None:
         out.dynamics.y = [0.0, 0.0]
 
     ph.time.guess = (0.0, 1.0)
-    with raises(ValueError, "the problem is incomplete", "no objective callback", at="validate"):
+    with raises(
+        ValueError, "the problem is not ready to solve", "no objective callback", at="validate"
+    ):
         p.validate()
 
 

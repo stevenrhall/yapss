@@ -166,7 +166,7 @@ MISSING: Any = object()
 
 
 class Bounds(Kind):
-    """A bound: a ``(lower, upper)`` pair, whose sides may be a number, None, or `...`.
+    """A bound: a ``(lower, upper)`` pair, whose sides are each a number or None.
 
     A bare number is *not* a bound. An interval is a pair, and a field has rows, so a number
     standing for a bound would collide with a row count -- a two-row field given ``[0.0, 1.0]``
@@ -221,6 +221,20 @@ class Bounds(Kind):
         lower, upper = (
             cls._side(side, index=i, label=label, name=name) for i, side in enumerate(pair)
         )
+        # Refused here rather than by the solver, which reports them against its own vector
+        # and so names no field: an infinite side on the wrong end leaves nothing feasible.
+        if lower == math.inf:
+            msg = (
+                f"{label} '{name}': a lower bound of +inf leaves nothing feasible; for no lower "
+                f"bound, write None."
+            )
+            raise ValueError(msg)
+        if upper == -math.inf:
+            msg = (
+                f"{label} '{name}': an upper bound of -inf leaves nothing feasible; for no upper "
+                f"bound, write None."
+            )
+            raise ValueError(msg)
         if lower > upper:
             msg = f"{label} '{name}': lower {lower} > upper {upper}"
             raise ValueError(msg)
@@ -234,13 +248,14 @@ class Bounds(Kind):
         if side is None:
             return -math.inf if index == 0 else math.inf
         if is_real(side):
-            return float(side)
-        if side is Ellipsis:
-            msg = (
-                f"{label} '{name}': leaving one side of a bound unchanged with ... is not "
-                f"implemented yet; give both ends."
-            )
-            raise TypeError(msg)
+            value = float(side)
+            if math.isnan(value):
+                msg = (
+                    f"{label} '{name}': a side of a bound cannot be NaN; for no bound on that "
+                    f"side, write None."
+                )
+                raise ValueError(msg)
+            return value
         msg = f"{label} '{name}': each side of a bound is a number or None; got {side!r}"
         raise TypeError(msg)
 
