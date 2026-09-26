@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ._api import not_yet, raises, solvable
+from ._api import raises, solvable
 
 
 def solution():
@@ -125,20 +125,59 @@ def test_the_arrays_of_a_solution_are_read_only() -> None:
         ps.state.x = np.zeros(3)
 
 
-@not_yet("gap", "a solution's arrays are writeable, so the record can be edited in place")
-def test_a_solution_cannot_be_edited_in_place() -> None:
-    """Protecting the attribute is not enough while the array it returns is writeable.
+def _arrays(obj: object, path: str, found: dict[str, np.ndarray], depth: int = 0) -> None:
+    """Collect every array reachable from `obj` by public names, keyed by its path."""
+    if isinstance(obj, np.ndarray):
+        found[path] = obj
+        return
+    if depth > 5:  # noqa: PLR2004 -- deeper than any solution tree
+        return
+    for name in dir(obj):
+        if name.startswith("_"):
+            continue
+        try:
+            value = getattr(obj, name)
+        except Exception:  # noqa: BLE001, S112 -- a name that cannot be read is not walked
+            continue
+        if isinstance(value, np.ndarray) or type(value).__module__.startswith("yapss"):
+            _arrays(value, f"{path}.{name}", found, depth + 1)
 
-    `ps.state.v = x` is refused, but `ps.state.v[:] = -99.0` succeeds and changes the record:
-    afterwards the solution reports a trajectory nobody solved for, with no sign that anything
-    happened. The rows are built as `ReadOnlyRows` -- "rows the user reads but never writes" --
-    and the ndarray beneath them has `writeable` set. `_backend/spec.py::frozen_array` is the
-    technique the rest of the codebase uses for this.
+
+def test_a_solutions_arrays_are_the_users_and_share_nothing_else() -> None:
+    """Spec 8: a solution's arrays are ordinary writable arrays, and two of them share storage
+    only when they are the same quantity.
+
+    Writable, because once the solve has returned nothing depends on these numbers; sharing
+    nothing else, because a write for a plot must not change what a neighbouring quantity
+    reports. The costate and the multiplier of the dynamics are one quantity under two names.
     """
     problem, result = solution()
+    found: dict[str, np.ndarray] = {}
+    _arrays(result, "solution", found)
+    _arrays(result[problem.phases.slide], "ps", found)
+    assert len(found) > 20
+    assert all(array.flags.writeable for array in found.values())
+    same_quantity = {("costate", "multiplier.dynamics")}
+    items = list(found.items())
+    shared = [
+        (a, b)
+        for i, (a, x) in enumerate(items)
+        for b, y in items[i + 1 :]
+        if x is not y
+        and np.shares_memory(x, y)
+        and not any(p in a and q in b or q in a and p in b for p, q in same_quantity)
+    ]
+    assert not shared, shared
+
+
+def test_an_edit_to_a_solution_array_is_kept() -> None:
+    """Spec 8: an array handed out on every read is the one the solution holds, not a copy, so
+    an edit made through one read is what the next read returns -- it does not land in a
+    temporary and do nothing."""
+    problem, result = solution()
     ps = result[problem.phases.slide]
-    with raises(ValueError, "read-only", at="ps.state.v[:]"):
-        ps.state.v[:] = -99.0
+    ps.state.v[0] = -99.0
+    assert ps.state.v[0] == -99.0
 
 
 def test_the_0_3_0_name_nlp_info_points_to_nlp() -> None:
