@@ -309,3 +309,29 @@ def test_the_row_count_of_samples_is_checked_where_they_are_assigned() -> None:
     ph = problem().phases.first
     with raises(ValueError, "have 3 rows", "field's 2", at="y.guess[:]"):
         ph.state.y.guess[:] = yapss.interp([0.0, 1.0], np.zeros((3, 2)))
+
+
+# ------------------------------------------------------------------ a guess is finite
+
+
+@pytest.mark.parametrize("pair", [(0.0, np.nan), (np.inf, 0.0), (0.0, -np.inf)])
+def test_a_pair_guess_is_finite(pair: tuple[float, float]) -> None:
+    """Accepted, it would reach the callbacks or Ipopt, and be reported as the callbacks' fault."""
+    ph = solvable().phases.slide
+    with raises(ValueError, "control guess 'theta'", "must be finite", at="theta.guess"):
+        ph.control.theta.guess = pair
+
+
+def test_a_one_number_guess_is_finite() -> None:
+    """Integrals and parameters are guessed as one number, held to the same rule."""
+    ph = solvable().phases.slide
+    with raises(ValueError, "integral guess 'effort'", "must be finite", at="effort.guess"):
+        ph.integral.effort.guess = np.inf
+
+
+@pytest.mark.parametrize("guess", [(0.0, np.inf), (0.0, np.nan), (-np.inf, 1.0)])
+def test_the_time_guess_is_finite(guess: tuple[float, float]) -> None:
+    """Refused for what it is, not for the order its ends happen to compare in."""
+    ph = solvable().phases.slide
+    with raises(ValueError, "time guess", "must be finite", at="time.guess"):
+        ph.time.guess = guess

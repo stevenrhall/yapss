@@ -32,6 +32,7 @@ The shape fixes what every aspect of a phase contains, so ``ph.state.x.bounds``,
 from __future__ import annotations
 
 import inspect
+import math
 import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, TypeAlias, cast, overload
@@ -504,6 +505,9 @@ class Independent(Container):
                 msg = f"{self._label} guess: t0 and tf are numbers; got {side!r}"
                 raise TypeError(msg)
         t0, tf = (float(side) for side in value)
+        if not (math.isfinite(t0) and math.isfinite(tf)):
+            msg = f"{self._label} guess: t0 and tf must be finite; got ({t0}, {tf})"
+            raise ValueError(msg)
         if not t0 < tf:
             msg = f"{self._label} guess: t0 {t0} is not less than tf {tf}"
             raise ValueError(msg)

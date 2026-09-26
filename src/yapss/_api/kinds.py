@@ -315,7 +315,11 @@ class Guess(Kind):
             if not is_real(side):
                 msg = f"{label} '{name}': a (first, last) guess takes two numbers; got {side!r}"
                 raise TypeError(msg)
-        return ("linear", float(first), float(last))
+        first, last = float(first), float(last)
+        if not (math.isfinite(first) and math.isfinite(last)):
+            msg = f"{label} '{name}': a guess must be finite; got ({first}, {last})"
+            raise ValueError(msg)
+        return ("linear", first, last)
 
 
 class Rows(Kind):
@@ -413,7 +417,11 @@ class ScalarGuess(Kind):
         if is_bool(value):
             raise TypeError(_bool_message(label, name))
         if is_real(value):
-            return float(value)
+            number = float(value)
+            if not math.isfinite(number):
+                msg = f"{label} '{name}': a guess must be finite; got {number}"
+                raise ValueError(msg)
+            return number
         if isinstance(value, tuple):
             msg = (
                 f"{label} '{name}': this is guessed as one number, not a trajectory; "
