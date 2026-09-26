@@ -8,6 +8,11 @@ holds a value is set through a validator; anything else is refused with a sugges
 the whole protection mechanism, and it is deliberately smaller than 0.3.0's, which had to
 guard writable arrays as well.
 
+Names that start with an underscore are left writable, and deletable, by design. By Python's
+convention they are private by agreement, and the protection is aimed at the mistakes users
+make -- a misspelled setting, a value of the wrong kind -- not at deliberately reaching past
+it, which ``object.__setattr__`` would do anyway.
+
 """
 
 from __future__ import annotations
