@@ -141,9 +141,14 @@ def _logical_xor(x: SX, y: SX) -> SX:
     return ca.logic_and(ca.logic_or(x, y), ca.logic_not(ca.logic_and(x, y)))
 
 
-def _clip(x: SX, lo: SX, hi: SX) -> SX:
-    # numpy's clip is min(max(x, lo), hi), so lo > hi yields hi; same here
-    return ca.fmin(ca.fmax(x, lo), hi)
+def _clip(x: SX, lo: SX | None, hi: SX | None) -> SX:
+    # numpy's clip is min(max(x, lo), hi), so lo > hi yields hi; same here. A bound of None
+    # is no bound, as in numpy.
+    if lo is not None:
+        x = ca.fmax(x, lo)
+    if hi is not None:
+        x = ca.fmin(x, hi)
+    return x
 
 
 def _where(condition: SX, x: SX, y: SX) -> SX:
@@ -544,6 +549,16 @@ class SXW(NDArrayOperatorsMixin):
     def __trunc__(self) -> SXW:
         """Return the argument truncated toward zero."""
         return SXW(_trunc(self._value))
+
+    def clip(self, a_min: Any = None, a_max: Any = None, out: Any = None, **kwargs: Any) -> Any:
+        """Return ``yapss.math.clip(self, a_min, a_max)``, for ``numpy.clip``.
+
+        ``numpy.clip`` calls the method of its first argument when it has one; without it,
+        numpy clips through its object loop, which compares, and a symbol has no truth value.
+        """
+        if out is not None:
+            kwargs["out"] = out
+        return apply_ufunc("clip", self, a_min, a_max, **kwargs)
 
     def __round__(self, ndigits: int | None = None) -> SXW:
         """Round half to even, as the builtin does; refuse `ndigits`.
