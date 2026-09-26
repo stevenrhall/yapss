@@ -8,6 +8,7 @@ guessed extent, which is what lets a sampled guess carry no times of its own to 
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 import yapss
 
@@ -252,3 +253,41 @@ def test_a_parameter_is_guessed_as_one_number() -> None:
         at="parameter.s.guess",
     ):
         p.parameter.s.guess = (0.0, 1.0)
+
+
+# ------------------------------------------------------------- what interp() accepts
+
+
+def test_interp_keeps_its_own_copy() -> None:
+    """Changing the caller's arrays afterwards cannot change a guess that was already checked."""
+    t = np.array([0.0, 1.0])
+    v = np.array([0.0, 5.0])
+    guess = yapss.interp(t, v)
+    t[1] = -1.0
+    v[1] = np.nan
+    assert list(guess.time) == [0.0, 1.0]
+    assert list(guess.values) == [0.0, 5.0]
+
+
+@pytest.mark.parametrize("values", [["1", "2"], [True, False], [0.0, None], np.array([1 + 1j, 2])])
+def test_interp_takes_real_numbers_only(values: object) -> None:
+    """Converting would turn "2", True and None into numbers, and drop an imaginary part."""
+    with raises(TypeError, "interp(values=) takes real numbers", at="interp"):
+        yapss.interp([0.0, 1.0], values)
+
+
+@pytest.mark.parametrize(
+    ("time", "values", "bad"),
+    [
+        ([0.0, 1.0], [0.0, np.nan], "values[1] is nan"),
+        ([0.0, 1.0], [0.0, np.inf], "values[1] is inf"),
+        ([0.0, 1.0, np.inf], [0.0, 1.0, 5.0], "time[2] is inf"),
+        ([0.0, np.nan, 1.0], [0.0, 1.0, 5.0], "time[1] is nan"),
+        ([0.0, 1.0], [[0.0, 1.0], [2.0, np.nan]], "values[1, 1] is nan"),
+    ],
+)
+def test_interp_samples_are_finite(time: list[float], values: object, bad: str) -> None:
+    """A NaN or infinite sample is refused where it is given, naming the first bad sample."""
+    what = bad.split("[")[0]
+    with raises(ValueError, f"interp({what}=) must be finite", bad, at="interp"):
+        yapss.interp(time, values)

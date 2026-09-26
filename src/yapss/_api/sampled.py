@@ -90,8 +90,8 @@ def interp(time: Any, values: Any, /) -> Interp:
     Interp
         The guess, to be assigned to a guess aspect.
     """
-    time_array = np.asarray(time, dtype=float)
-    value_array = np.asarray(values, dtype=float)
+    time_array = _samples(time, "time")
+    value_array = _samples(values, "values")
     if time_array.ndim != 1 or time_array.size < 2:  # noqa: PLR2004
         msg = f"interp(time=) must be at least two increasing times; got {time!r}"
         raise ValueError(msg)
@@ -110,6 +110,30 @@ def interp(time: Any, values: Any, /) -> Interp:
         )
         raise ValueError(msg)
     return Interp(time_array, value_array)
+
+
+def _samples(given: Any, what: str) -> Any:
+    """Return `given` as a new, read-only float array, refusing what is not real and finite.
+
+    A copy, because an array the caller keeps could be changed after it was checked -- times
+    that were increasing when given need not stay so. The type is checked before converting:
+    ``np.asarray(..., dtype=float)`` would turn "2", True and None into 2.0, 1.0 and NaN, and
+    drop the imaginary part of a complex number.
+    """
+    array = np.array(given)
+    if array.dtype.kind not in "iuf":
+        msg = f"interp({what}=) takes real numbers; got {given!r}"
+        raise TypeError(msg)
+    array = array.astype(float)
+    bad = np.argwhere(~np.isfinite(array))
+    if bad.size:
+        # the first bad sample, by index: the whole argument could be thousands of numbers
+        first = tuple(int(i) for i in bad[0])
+        where = ", ".join(str(i) for i in first)
+        msg = f"interp({what}=) must be finite; {what}[{where}] is {array[first]}"
+        raise ValueError(msg)
+    array.flags.writeable = False
+    return array
 
 
 def coverage_complaint(
