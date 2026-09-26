@@ -1233,7 +1233,11 @@ class Solution(Generic[D_co, PR_co]):
             if name.startswith("_"):
                 raise AttributeError(name)
             names = tuple(n for n in self.__slots__ if not n.startswith("_"))
-            msg = f"the solution has no '{name}'.{suggest(name, names)}"
+            if name == "nlp_info":
+                # the 0.3.0 name, which a script being ported reaches for
+                msg = "the solution has no 'nlp_info'; what 0.3.0 called nlp_info is 'nlp'."
+            else:
+                msg = f"the solution has no '{name}'.{suggest(name, names)}"
             raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:

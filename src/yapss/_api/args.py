@@ -102,9 +102,21 @@ class _Frozen:
             raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment."""
+        """Refuse every assignment, saying why: an input, the objective, or no such name."""
         del value
-        msg = f"{type(self).__name__}.{name} is an input and cannot be assigned"
+        kind = type(self).__name__
+        if hasattr(self, name):
+            msg = f"{kind}.{name} is an input and cannot be assigned"
+        elif name == "objective":
+            # 0.3.0 wrote `arg.objective = ...`; the 0.4 objective callback returns it
+            msg = (
+                "the objective is returned from the objective callback, not assigned: 'return ...'"
+            )
+        else:
+            names = getattr(self, "_names", None) or tuple(
+                n for n in self.__slots__ if not n.startswith("_")
+            )
+            msg = f"{kind} has no '{name}'.{suggest(name, names)}"
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:

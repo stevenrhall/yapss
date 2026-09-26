@@ -612,3 +612,16 @@ def test_the_objective_is_one_number(returned: str) -> None:
     p.register.objective(values[returned])
     with raises(TypeError, "objective callback", "must return one number", at="solve"):
         p.solve()
+
+
+def test_the_objective_is_returned_not_assigned() -> None:
+    """0.3.0 wrote arg.objective = ...; the message says what 0.4 does instead."""
+    p = solvable()
+    ph = p.phases.slide
+
+    def assigns(arg):
+        arg.objective = arg[ph].final.time
+
+    p.register.objective(assigns)
+    with raises(AttributeError, "returned from the objective callback", at="arg.objective"):
+        p.solve()

@@ -139,3 +139,12 @@ def test_a_solution_cannot_be_edited_in_place() -> None:
     ps = result[problem.phases.slide]
     with raises(ValueError, "read-only", at="ps.state.v[:]"):
         ps.state.v[:] = -99.0
+
+
+def test_the_0_3_0_name_nlp_info_points_to_nlp() -> None:
+    """The name a script being ported reaches for is answered with the new one."""
+    p = solvable()
+    p.ipopt_options.print_level = 0
+    solution = p.solve()
+    with raises(AttributeError, "'nlp'", at="nlp_info"):
+        _ = solution.nlp_info  # type: ignore[attr-defined]
