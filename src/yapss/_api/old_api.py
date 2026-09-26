@@ -34,7 +34,6 @@ OLD_ROOT_NAMES = frozenset(
         "ObjectiveArg",
         "ObjectiveGradientArg",
         "ObjectiveHessianArg",
-        "DiscreteArg",
         "DiscreteJacobianArg",
         "DiscreteHessianArg",
         "ContinuousJacobianArg",

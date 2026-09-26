@@ -108,12 +108,12 @@ def setup() -> yapss.Problem[Phases, Discrete]:
         out.path.unit_thrust = u_r**2 + u_theta**2
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg) -> Any:
+    def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the final radius, which is to be made as large as possible."""
         return arg[ph].final.r
 
     @problem.register.discrete
-    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
+    def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require the final orbit to be circular."""
         final = arg[ph].final
         out.discrete.circular = final.v_theta - sqrt(mu / final.r)

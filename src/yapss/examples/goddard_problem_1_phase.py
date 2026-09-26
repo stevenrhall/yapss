@@ -98,7 +98,7 @@ def setup() -> yapss.Problem[Phases]:
         out.dynamics.m = -thrust / c
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg) -> Any:
+    def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the altitude reached, which is to be made as large as possible."""
         return arg[ph].final.h
 

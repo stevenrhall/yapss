@@ -162,12 +162,12 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
         out.path.load_factor = (0.5 * rho0 * area / weight) * cl * v**2
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg[Parameter]) -> Any:
+    def objective(arg: yapss.DiscreteArg[Parameter]) -> Any:
         """Return the wind gradient, which is what is to be made as small as possible."""
         return arg.parameter.beta
 
     @problem.register.discrete
-    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
+    def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require the flight to come back to the state it started in, one turn later."""
         end = arg[ph]
         out.discrete.v_periodic = end.final.v - end.initial.v

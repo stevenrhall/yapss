@@ -42,7 +42,7 @@ the callback can see:
     What a continuous callback fills: ``out.dynamics`` is typed as the phase's state class,
     ``out.path`` as its path constraints, and ``out.integrand`` as its integrals.
 
-``yapss.EndpointArg[Parameter]``
+``yapss.DiscreteArg[Parameter]``
     What the objective and discrete callbacks read. ``arg[ph]`` is typed from the phase handle
     itself, so ``arg[ph].integral`` has that phase's integrals.
 

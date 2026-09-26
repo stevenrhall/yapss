@@ -49,13 +49,13 @@ def setup() -> yapss.Problem[yapss.Phases, Discrete, Parameter]:
     problem = yapss.Problem("HS071", parameter=Parameter, discrete=Discrete)
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg[Parameter]) -> Any:
+    def objective(arg: yapss.DiscreteArg[Parameter]) -> Any:
         """Return the objective."""
         x = arg.parameter.x
         return x[0] * x[3] * (x[0] + x[1] + x[2]) + x[2]
 
     @problem.register.discrete
-    def discrete(arg: yapss.EndpointArg[Parameter], out: yapss.DiscreteOut[Discrete]) -> None:
+    def discrete(arg: yapss.DiscreteArg[Parameter], out: yapss.DiscreteOut[Discrete]) -> None:
         """Compute the two constraints."""
         x = arg.parameter.x
         out.discrete.product = x[0] * x[1] * x[2] * x[3]

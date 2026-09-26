@@ -30,9 +30,9 @@ from yapss.math.wrapper import SXW
 from .args import (
     ContinuousArg,
     ContinuousOut,
+    DiscreteArg,
     DiscreteOut,
     Endpoint,
-    EndpointArg,
     EndpointValues,
     phase_arg_class,
 )
@@ -253,7 +253,7 @@ class _EndpointMakers:
     )
 
     def __init__(self, spec: ProblemSpec_) -> None:
-        self._built: dict[int, tuple[Any, EndpointArg]] = {}
+        self._built: dict[int, tuple[Any, DiscreteArg]] = {}
         self.indices = {phase.handle: phase.index for phase in spec.phases}
         self.initial_state = {}
         self.final_state = {}
@@ -287,7 +287,7 @@ class _EndpointMakers:
             self.integral[handle].over(data.integral),
         )
 
-    def arg(self, arg: Any) -> EndpointArg:
+    def arg(self, arg: Any) -> DiscreteArg:
         """Return the endpoint argument for `arg`, building it once per argument object.
 
         The transcription builds one argument object per factory and writes new values into the
@@ -298,7 +298,7 @@ class _EndpointMakers:
         cached = self._built.get(id(arg))
         if cached is None or cached[0] is not arg:
             endpoints = _Endpoints(self, arg)
-            built = EndpointArg(endpoints, self.parameter.over(arg.parameter))
+            built = DiscreteArg(endpoints, self.parameter.over(arg.parameter))
             self._built[id(arg)] = (arg, built)
             return built
         return cached[1]

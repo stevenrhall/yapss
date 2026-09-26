@@ -97,16 +97,16 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
         out.integrand.distance = arg.state.v
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg[Parameter]) -> Any:
+    def objective(arg: yapss.DiscreteArg[Parameter]) -> Any:
         return arg[ph].final.time
 
     @problem.register.discrete
-    def discrete(arg: yapss.EndpointArg[Parameter], out: yapss.DiscreteOut[Discrete]) -> None:
+    def discrete(arg: yapss.DiscreteArg[Parameter], out: yapss.DiscreteOut[Discrete]) -> None:
         out.discrete.landing = arg[ph].final.x
 
     # the decorator form taking options, which strict mode reports if it returns `Any`
     @problem.register.objective
-    def objective_again(arg: yapss.EndpointArg[Parameter]) -> Any:
+    def objective_again(arg: yapss.DiscreteArg[Parameter]) -> Any:
         return arg[ph].final.time + 0.0 * arg[ph].integral.distance
 
     ph.time.initial = (0.0, 0.0)
@@ -212,7 +212,7 @@ def mistakes(
     problem: yapss.Problem[Phases, Discrete, Parameter],
     arg: yapss.ContinuousArg[State, Control, Parameter],
     out: yapss.ContinuousOut[State, Path, Integral],
-    endpoint: yapss.EndpointArg[Parameter],
+    endpoint: yapss.DiscreteArg[Parameter],
     discrete: yapss.DiscreteOut[Discrete],
 ) -> None:
     """Each line is a mistake the checker must report, asserted by its ignore."""
@@ -248,7 +248,7 @@ def registration_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -
     ) -> yapss.ContinuousOut[State, Path, Integral]:
         return out
 
-    def returns_rows(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> float:
+    def returns_rows(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> float:
         return 0.0
 
     ph.register.continuous(returns_out)  # type: ignore[type-var]

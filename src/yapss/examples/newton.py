@@ -101,7 +101,7 @@ def setup(y_max: float = 1.0) -> yapss.Problem[Phases]:
         out.integrand.drag = 8 * r / (1 + yp**2)
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg) -> Any:
+    def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the drag, which is the objective."""
         return arg[ph].integral.drag
 
@@ -144,7 +144,7 @@ def setup2(y_max: float = 1.0) -> yapss.Problem[Phases]:
     ph = problem.phases.nose
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg) -> Any:
+    def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the drag of the curve plus the drag of the flat tip."""
         return arg[ph].integral.drag + 4 * arg[ph].initial.r**2
 

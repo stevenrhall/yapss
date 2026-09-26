@@ -43,9 +43,9 @@ if TYPE_CHECKING:
 __all__ = [
     "ContinuousArg",
     "ContinuousOut",
+    "DiscreteArg",
     "DiscreteOut",
     "Endpoint",
-    "EndpointArg",
     "EndpointValues",
     "Endpoints",
 ]
@@ -250,7 +250,7 @@ class ContinuousOut(_Frozen, Generic[S_co, P_co, I_co]):
 
 
 class Endpoints(Protocol):
-    """How `EndpointArg` reaches one phase's endpoint values: by its handle."""
+    """How `DiscreteArg` reaches one phase's endpoint values: by its handle."""
 
     def __getitem__(self, handle: Any) -> Endpoint:
         """Return the endpoint values of `handle`."""
@@ -315,7 +315,7 @@ class EndpointValues(_Frozen):
 class Endpoint(_Frozen, Generic[I_co]):
     """The endpoint values of one phase, as an endpoint callback sees them.
 
-    Typed by the phase's integral declaration, which `EndpointArg` reads from the handle's
+    Typed by the phase's integral declaration, which `DiscreteArg` reads from the handle's
     shape. ``initial`` and ``final`` are not typed: each holds the state's fields *and* the
     independent variable, one namespace at run time, and a type that is one class plus one more
     name is an intersection, which Python's typing cannot write. Typing them as the state would
@@ -347,11 +347,14 @@ class Endpoint(_Frozen, Generic[I_co]):
         object.__setattr__(self, "integral", integral)
 
 
-class EndpointArg(_Frozen, Generic[PR_co]):
-    """What the objective and discrete callbacks are given: every phase's endpoints.
+class DiscreteArg(_Frozen, Generic[PR_co]):
+    """What the objective and discrete callbacks are given: what is evaluated once, not over time.
+
+    That is every phase's endpoints and integrals, and the problem's parameters -- the discrete
+    side of the problem, as `ContinuousArg` is the continuous side.
 
     A phase's endpoints are reached by indexing with its handle, ``arg[phases.coast]``.
-    Annotated ``yapss.EndpointArg[Parameter]``, a type checker follows ``arg.parameter``; what
+    Annotated ``yapss.DiscreteArg[Parameter]``, a type checker follows ``arg.parameter``; what
     ``arg[ph]`` holds is typed from the handle itself, so it needs no parameter of its own.
     """
 

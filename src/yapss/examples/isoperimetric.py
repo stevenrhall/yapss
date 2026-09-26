@@ -119,12 +119,12 @@ def setup() -> yapss.Problem[Phases, Discrete]:
         out.integrand.y_moment = y
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg) -> Any:
+    def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the area enclosed, which is to be made as large as possible."""
         return arg[ph].integral.area
 
     @problem.register.discrete
-    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
+    def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require the curve to return to where it started."""
         end = arg[ph]
         out.discrete.closure_x = end.final.x - end.initial.x

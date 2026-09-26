@@ -329,12 +329,12 @@ def setup() -> yapss.Problem[Phases, Discrete]:
         stage.register.continuous(make_dynamics(thrust, mass_flow))
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg) -> Any:
+    def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the mass delivered to orbit, which is to be made as large as possible."""
         return arg[stages[LAST]].final.m
 
     @problem.register.discrete
-    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
+    def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Join the stages, and require the final state to be on the target orbit."""
         s0, s1, s2, s3 = (arg[stage] for stage in stages)
         out.discrete.stage_0_1_position = s1.initial.r - s0.final.r

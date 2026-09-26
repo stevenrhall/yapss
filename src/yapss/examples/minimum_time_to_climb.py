@@ -115,7 +115,7 @@ def setup() -> yapss.Problem[Phases]:
         out.dynamics.mass = -thrust / (g0 * Isp)
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg) -> Any:
+    def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the time taken to climb."""
         return arg[ph].final.time
 

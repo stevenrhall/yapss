@@ -74,7 +74,7 @@ def setup() -> yapss.Problem[Phases]:
         out.dynamics.v = G0 * sin(u)
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg) -> Any:
+    def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the time taken, which is the objective."""
         return arg[ph].final.time
 

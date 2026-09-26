@@ -60,7 +60,7 @@ def setup() -> yapss.Problem[yapss.Phases, yapss.Discrete, Parameter]:
     problem = yapss.Problem("Rosenbrock", parameter=Parameter)
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg[Parameter]) -> Any:
+    def objective(arg: yapss.DiscreteArg[Parameter]) -> Any:
         """Return the Rosenbrock function at the chosen point."""
         return rosenbrock(arg.parameter.x, arg.parameter.y)
 

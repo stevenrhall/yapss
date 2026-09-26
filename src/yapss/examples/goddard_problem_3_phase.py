@@ -153,12 +153,12 @@ def setup() -> yapss.Problem[Phases, Discrete]:
         out.path.switching = m * g - (1 + v / c) * drag(h, v)
 
     @problem.register.objective
-    def objective(arg: yapss.EndpointArg) -> Any:
+    def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the altitude reached, which is to be made as large as possible."""
         return arg[coast].final.h
 
     @problem.register.discrete
-    def discrete(arg: yapss.EndpointArg, out: yapss.DiscreteOut[Discrete]) -> None:
+    def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require time and state to be continuous where the phases meet."""
         b, s, e = arg[boost], arg[singular], arg[coast]
         out.discrete.boost_singular_h = s.initial.h - b.final.h
