@@ -309,7 +309,7 @@ CASES = {
     "square of a scalar": lambda xf, tf, s: ym.square(tf),
     "reciprocal of a scalar": lambda xf, tf, s: ym.reciprocal(tf),
     "negative of a scalar": lambda xf, tf, s: ym.negative(tf),
-    "norm": lambda xf, tf, s: ym.linalg.norm(xf),
+    "norm": lambda xf, tf, s: np.linalg.norm(xf),
     "mask times array": lambda xf, tf, s: (xf > 0) * xf,
 }
 
@@ -324,7 +324,7 @@ def test_callback_body_agrees_between_paths(label):
 
 def test_reductions_of_an_sxarray_are_scalars():
     """np.sum / mean / norm of an SXArray give an SXW, not a 0-d SXArray."""
-    for value in (ym.sum(A), A.sum(), ym.mean(A), ym.linalg.norm(A), ym.dot(A, A), A @ A):
+    for value in (ym.sum(A), A.sum(), np.mean(A), np.linalg.norm(A), np.dot(A, A), A @ A):
         assert type(value) is SXW, type(value)
 
 
