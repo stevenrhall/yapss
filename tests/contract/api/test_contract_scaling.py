@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from ._api import not_yet, problem, raises, solvable
@@ -132,20 +133,46 @@ def test_a_block_field_is_scaled_row_by_row() -> None:
     assert list(ph.state.y.scale) == [2.0, 2.0]
 
 
-@not_yet(
-    "item 19",
-    "a block field's scale rows read back as a tuple, so `[:] *= 3` repeats them instead",
-)
 def test_a_block_fields_scales_can_be_multiplied_in_place() -> None:
-    """Scaling every row up at once is arithmetic on numbers, and reads as it would on an array.
-
-    Today the rows read back as a tuple, so ``*= 3`` repeats it, and the write reports that
-    two rows were given six values.
-    """
+    """Scaling every row up at once is arithmetic on numbers, and reads as it would on an array
+    (spec 4.7): the rows read back as numbers, and the product is assigned back through [:]."""
     ph = problem().phases.first
     ph.state.y.scale[:] = 2.0
     ph.state.y.scale[:] *= 3
     assert list(ph.state.y.scale) == [6.0, 6.0]
+    ph.state.y.scale[:] = ph.state.y.scale[:] / 2
+    assert list(ph.state.y.scale) == [3.0, 3.0]
+
+
+def test_an_array_of_numbers_gives_one_scale_per_row() -> None:
+    """A scale is one number, so a 1-D array can only be one per row, as NumPy reads it."""
+    ph = problem().phases.first
+    ph.state.y.scale[:] = np.array([2.0, 5.0])
+    assert list(ph.state.y.scale) == [2.0, 5.0]
+
+
+def test_what_comes_back_in_through_an_in_place_operator_is_checked() -> None:
+    """The product is an assignment like any other, so it cannot store a scale that is not
+    positive."""
+    ph = problem().phases.first
+    with raises(ValueError, "must be positive", at="*= -1"):
+        ph.state.y.scale[:] *= -1
+
+
+def test_a_write_into_scale_rows_read_back_is_refused() -> None:
+    """The rows read back are a copy; a write into one would be lost, so it is refused, and the
+    message names the assignment that changes the setting."""
+    ph = problem().phases.first
+    rows = ph.state.y.scale[:]
+    with raises(ValueError, "a copy", "'y.scale[0] = ...'", at="rows[0]"):
+        rows[0] = 5.0
+
+
+def test_a_bounds_rows_still_read_as_bounds() -> None:
+    """Only a number-valued setting reads back as an array: a bound is a pair."""
+    ph = problem().phases.first
+    ph.state.y.bounds[:] = (0.0, 1.0)
+    assert ph.state.y.bounds[:] == ((0.0, 1.0), (0.0, 1.0))
 
 
 def test_the_objective_scale_message_points_to_sense() -> None:

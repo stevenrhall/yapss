@@ -110,6 +110,9 @@ class Kind:
         single value covering every row.
     read_only : bool
         True when the user may not write at all.
+    numeric : bool
+        True when an element is one number, so that a block field's rows read back through a
+        slice as an array of numbers, and a 1-D array assigns one number per row.
     default : Any
         The value a field takes when it is never assigned, or `MISSING` when reading an
         unassigned field is an error.
@@ -120,6 +123,7 @@ class Kind:
     positional: bool = False
     slice_read: bool = False
     read_only: bool = False
+    numeric: bool = False
     default: Any = None
 
     @classmethod
@@ -453,6 +457,7 @@ class Scale(Kind):
 
     by_row = False
     per_row = True
+    numeric = True
     default = 1.0
 
     @classmethod

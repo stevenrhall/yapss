@@ -265,6 +265,63 @@ def _show_slice(index: slice) -> str:
     return ":".join(parts[:2] if index.step is None else parts)
 
 
+def _inplace(ufunc: np.ufunc) -> Any:
+    """Return an in-place operator that computes a new array instead of writing in place."""
+
+    def operator(self: NumberRows, other: Any) -> Any:
+        return ufunc(self.view(np.ndarray), other)
+
+    return operator
+
+
+class NumberRows(np.ndarray[Any, np.dtype[np.float64]]):
+    """The rows of a number-valued setting, such as a scale, read back through a slice.
+
+    Arithmetic on them is NumPy's and gives an ordinary array. An in-place operator does too,
+    rather than writing in place, so ``scale[:] *= 2`` works: Python computes the product and
+    assigns it back through ``[:]``, where it is checked like any other assignment. The rows are
+    a copy of what is stored, so a write into them would be lost; it is refused, naming the
+    assignment to make instead.
+    """
+
+    _target: str
+
+    def __new__(cls, rows: Any, target: str) -> NumberRows:
+        obj = np.array(rows, dtype=float).view(cls)
+        obj._target = target
+        obj.flags.writeable = False
+        return obj
+
+    def __array_finalize__(self, obj: Any) -> None:
+        self._target = getattr(obj, "_target", "")
+
+    def __array_wrap__(  # NumPy's signature, not ours to choose
+        self, array: Any, context: Any = None, return_scalar: bool = False  # noqa: FBT001, FBT002
+    ) -> Any:
+        """Return what is computed from the rows as an ordinary array, or a number."""
+        del context
+        plain = array.view(np.ndarray)
+        return plain[()] if return_scalar else plain
+
+    def __setitem__(self, index: Any, value: Any) -> None:
+        """Refuse a write into the copy, naming the assignment that changes the setting."""
+        del value
+        where = _show_slice(index) if isinstance(index, slice) else repr(index)
+        msg = (
+            f"these rows of '{self._target}' are a copy, so a write into them would be lost; "
+            f"assign to the setting instead: '{self._target}[{where}] = ...'"
+        )
+        raise ValueError(msg)
+
+    __iadd__ = _inplace(np.add)
+    __isub__ = _inplace(np.subtract)
+    __imul__ = _inplace(np.multiply)
+    __itruediv__ = _inplace(np.true_divide)
+    __ifloordiv__ = _inplace(np.floor_divide)
+    __imod__ = _inplace(np.remainder)
+    __ipow__ = _inplace(np.power)
+
+
 class BlockRows(Sequence[Any]):
     """The rows of a block field, addressed by index or by slice.
 
@@ -275,7 +332,8 @@ class BlockRows(Sequence[Any]):
     one value or many was meant.
 
     Reading behaves as the sequence of stored elements it is, so ``bounds.r[1]`` is row 1's
-    bound and ``len(bounds.r)`` is the number of rows.
+    bound and ``len(bounds.r)`` is the number of rows. A slice of a number-valued setting, such
+    as a scale, reads as `NumberRows`, so that arithmetic on it is NumPy's.
     """
 
     __slots__ = ("_name", "_owner", "_rows")
@@ -293,7 +351,7 @@ class BlockRows(Sequence[Any]):
         speaking of the tuple the rows happen to be stored in.
         """
         try:
-            return self._rows[index]
+            rows = self._rows[index]
         except IndexError:
             msg = (
                 f"{self._owner._label} '{self._name}'[{index!r}] is out of range for "
@@ -306,6 +364,11 @@ class BlockRows(Sequence[Any]):
                 f"slice; got {index!r}"
             )
             raise TypeError(msg) from None
+        owner = self._owner
+        if isinstance(index, slice) and owner._kind_or_raise().numeric:
+            aspect = owner._aspect
+            return NumberRows(rows, f"{self._name}.{aspect}" if aspect else self._name)
+        return rows
 
     def __setitem__(self, index: int | slice, value: Any) -> None:
         """Assign to the rows `index` covers. See the class docstring."""
@@ -825,6 +888,9 @@ class Vector:
 
         if isinstance(index, slice):
             rows = list(range(*index.indices(count)))
+            if kind.numeric and isinstance(value, np.ndarray) and value.ndim == 1:
+                # one number per row, as NumPy reads it: an element here is never an array
+                value = value.tolist()
             if kind.is_element(value):
                 self._check_sample_rows(value, name, covered=len(rows), whole=len(rows) == count)
                 values = [value] * len(rows)
