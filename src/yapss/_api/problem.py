@@ -75,10 +75,15 @@ CATCH_KEYBOARD_INTERRUPT = True
 
 
 def _one_of(value: Any, allowed: tuple[str, ...], label: str) -> str:
+    # A string first: `in` compares elementwise, so a numpy array holding one allowed name
+    # passes the membership test, and its str() -- "['maximize']" -- matches nothing later.
+    if not isinstance(value, str):
+        msg = f"{label} is a string, one of {', '.join(allowed)}; got {value!r}"
+        raise TypeError(msg)
     if value not in allowed:
         msg = f"{label} must be one of {', '.join(allowed)}; got {value!r}"
         raise ValueError(msg)
-    return str(value)
+    return value
 
 
 class ObjectiveAspects(Container):

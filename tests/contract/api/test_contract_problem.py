@@ -8,6 +8,7 @@ put into that shape belongs to the page for that aspect.
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 import yapss
@@ -180,6 +181,29 @@ def test_the_sense_is_minimize_or_maximize() -> None:
     p = problem()
     with raises(ValueError, "must be one of", "maximize", at="sense"):
         p.objective.sense = "smallest"  # type: ignore[assignment]
+
+
+@pytest.mark.parametrize(
+    ("owner", "setting", "valid"),
+    [
+        ("problem", "spectral_method", "lg"),
+        ("objective", "sense", "maximize"),
+        ("derivatives", "method", "central-difference"),
+        ("derivatives", "order", "first"),
+    ],
+)
+def test_a_choice_is_a_string_not_an_array_holding_one(
+    owner: str, setting: str, valid: str
+) -> None:
+    """An array of one allowed name passes a membership test, so the type is checked first.
+
+    Stored, its string form -- "['maximize']" -- would match nothing downstream, and a sense
+    that matches nothing is not "maximize": the solve would minimize without a word.
+    """
+    p = problem()
+    target = p if owner == "problem" else getattr(p, owner)
+    with raises(TypeError, f"{setting} is a string", "got array", at="setattr"):
+        setattr(target, setting, np.array([valid]))
 
 
 # --------------------------------------------------------------- registering callbacks
