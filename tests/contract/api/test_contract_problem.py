@@ -639,3 +639,19 @@ def test_the_name_is_not_blank(name: str) -> None:
     p = problem()
     with raises(ValueError, "must not be blank", at="p.name"):
         p.name = name
+
+
+def test_a_callback_of_the_wrong_arity_is_refused_where_it_is_registered() -> None:
+    """The solve would otherwise fail inside YAPSS's call, in Python's own words."""
+    p = problem()
+    with raises(TypeError, "continuous callback for phase 'first'", "(arg, out)", at="register"):
+        p.phases.first.register.continuous(lambda arg: None)
+    with raises(TypeError, "objective callback", "(arg)", at="register"):
+        p.register.objective(lambda arg, out: 0.0)
+
+
+def test_a_callback_may_take_extra_parameters_with_defaults() -> None:
+    """Only what YAPSS passes has to be accepted; a defaulted extra is the user's business."""
+    p = problem()
+    p.phases.first.register.continuous(lambda arg, out, gain=1.0: None)
+    p.register.objective(lambda arg, scale=1.0: 0.0)

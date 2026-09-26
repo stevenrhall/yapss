@@ -47,6 +47,7 @@ from .containers import (
     FillerT,
     HasRegistry,
     Registry,
+    check_arity,
     is_callable,
     is_subclass,
     suggest,
@@ -532,6 +533,7 @@ class PhaseRegistry(Registry):
             if not is_callable(callback):
                 msg = f"{phase._label} {which} callback must be callable; got {callback!r}"
                 raise TypeError(msg)
+            check_arity(callback, 2, f"{which} callback for {phase._label}")
             object.__setattr__(phase, attribute, callback)
             return callback
 

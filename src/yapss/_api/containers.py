@@ -13,6 +13,7 @@ guard writable arrays as well.
 from __future__ import annotations
 
 import difflib
+import inspect
 from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
@@ -75,6 +76,28 @@ def is_subclass(value: object, base: type) -> bool:
         True if `value` is such a class.
     """
     return isinstance(value, type) and issubclass(value, base)
+
+
+def check_arity(callback: Any, count: int, what: str) -> None:
+    """Refuse a callback that cannot be called with `count` positional arguments.
+
+    Checked where it is registered: the solve would otherwise fail inside YAPSS's call with
+    Python's own "takes 1 positional argument but 2 were given". A callable whose signature
+    cannot be read (some builtins) is let through, since nothing certain can be said of it.
+    """
+    try:
+        signature = inspect.signature(callback)
+    except (TypeError, ValueError):
+        return
+    try:
+        signature.bind(*(None,) * count)
+    except TypeError:
+        name = getattr(callback, "__qualname__", repr(callback))
+        form = "(arg)" if count == 1 else "(arg, out)"
+        msg = (
+            f"the {what} is called as {name}{form}, and its signature {signature} does not allow it"
+        )
+        raise TypeError(msg) from None
 
 
 def is_callable(value: object) -> bool:

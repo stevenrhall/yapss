@@ -27,6 +27,7 @@ from .containers import (
     FillerT,
     HasRegistry,
     Registry,
+    check_arity,
     is_callable,
     is_string,
     is_subclass,
@@ -539,6 +540,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
             if not is_callable(callback):
                 msg = f"the {which} callback must be callable; got {callback!r}"
                 raise TypeError(msg)
+            check_arity(callback, 1 if which == "objective" else 2, f"{which} callback")
             object.__setattr__(self, attribute, callback)
             return callback
 
