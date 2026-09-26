@@ -173,3 +173,14 @@ div.versionadded span.versionmodified {
     margin-top: 0;
     margin-bottom: 0;
 }
+
+/* In a :samp: path, the braced segments are the names the reader chose -- the variable
+   they assigned, the phase they declared, the field they named -- and the rest is YAPSS's
+   and is typed as it appears. Sphinx renders those segments as <em> inside <code
+   class="samp">, so the distinction is italic *and* color: color alone is lost in a
+   grayscale print and to a color-blind reader. Scoped to code.samp so ordinary literals
+   keep the treatment set above. */
+code.samp em {
+    color: #a0522d;
+    font-style: italic;
+}

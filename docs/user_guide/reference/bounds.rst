@@ -1,153 +1,100 @@
 Setting Bounds
 ==============
 
-After a problem has been instantiated, bounds on decision variables and constraints can be
-set using the ``bounds`` attribute of the problem object. The hierarchical structure of
-the ``Bounds`` class reflects the structure of the problem decision variables and
-constraints. In YAPSS, all bounds are initialized with default values *+inf* for upper
-bounds and *-inf* for lower bounds, except for phase durations, for which the lower bound
-defaults to zero.
+A bound is set on the quantity it bounds, as a ``(lower, upper)`` pair. Each side is a number, or
+``None`` for no bound on that side:
 
-Consider the HS071 problem example below, where bounds are defined for parameters and discrete
-constraints.
+.. doctest:: bounds
 
-.. doctest:: group1
+    >>> from yapss.examples.brachistochrone_minimal import setup
+    >>> problem = setup()
+    >>> ph = problem.phases.slide
+    >>> ph.state.v.bounds = (0.0, 10.0)      # an interval
+    >>> ph.state.y.bounds = (0.0, None)      # a floor, with no ceiling
+    >>> ph.state.x.initial = (0.0, 0.0)      # fixed: an interval whose ends agree
+    >>> ph.state.x.bounds
+    (0.0, 10.0)
 
-    >>> from yapss._legacy import Problem
-    >>>
-    >>> problem = Problem(name="HS071", nx=[], ns=4, nd=2)
-    >>> bounds = problem.bounds
-    >>> bounds.parameter.lower = [1.0, 1.0, 1.0, 1.0]
-    >>> bounds.parameter.upper = [5.0, 5.0, 5.0, 5.0]
-    >>> bounds.discrete.lower = 25.0, 40.0
-    >>> bounds.discrete.upper[1] = 40.0
+A fixed value is written as a pair whose ends agree; a bare number is not a bound. A field has
+rows, so a number standing for a bound would be indistinguishable from a row count, and the pair
+is what removes the doubt. An infinity on its own side means the same as ``None``.
 
-In this example, there are four decision variables (the four parameters), and two discrete
-constraints. Each parameter is bounded between 1 and 5. The first discrete constraint is bounded
-below by 25, without an upper limit, while the second discrete constraint is fixed at 40.
+Everything is unbounded until it is bounded, except the constraints: a declared path or discrete
+constraint must be given a bound, since an unbounded constraint constrains nothing.
 
-Additional bounds can be set for each phase in the problem, covering variables like initial and
-final time, duration, states, controls, integral values, and path constraints.
+Where bounds are set
+--------------------
 
-Except for the bounds on the initial time, final time, and duration of each phase, all the bounds
-are arrays, and their values are implemented as NumPy arrays. Bound values to be set can be
-addressed using either slicing or direct assignment. For instance, the following three lines are functionally
-equivalent:
+For a phase ``ph`` of a problem ``problem``:
 
-.. doctest:: group1
+-   ``ph.time.initial`` and ``ph.time.final``: the phase's initial and final times. A phase that
+    names its independent variable otherwise uses that name: ``ph.r.initial`` for a variable
+    ``r``.
+-   ``ph.state.x.bounds``: the state ``x`` throughout the phase; ``ph.state.x.initial`` and
+    ``ph.state.x.final``: its value at the phase's two ends.
+-   ``ph.control.u.bounds``: the control ``u``.
+-   ``ph.path.g.bounds``: the path constraint ``g``, which must be bounded.
+-   ``ph.integral.q.bounds``: the integral ``q``.
+-   ``problem.parameter.p.bounds``: the parameter ``p``.
+-   ``problem.discrete.d.bounds``: the discrete constraint ``d``, which must be bounded.
 
-    >>> bounds.parameter.lower[:] = [1.0, 1.0, 1.0, 1.0]
-    >>> bounds.parameter.lower = [1.0, 1.0, 1.0, 1.0]
-    >>> bounds.parameter.lower = 1.0, 1.0, 1.0, 1.0
+A phase's duration is at least zero; it has no bound of its own.
 
-
-List of Bounds
---------------
-
-The available bounds include:
-
-**Time Bounds**:
-
-- ``bounds.phase[p].initial_time.upper``, ``bounds.phase[p].initial_time.lower``
-- ``bounds.phase[p].final_time.upper``, ``bounds.phase[p].final_time.lower``
-- ``bounds.phase[p].duration.upper``, ``bounds.phase[p].duration.lower``
-
-To ensure feasibility, set these bounds with care. For example, each phase must satisfy:
-
-    ``final_time.upper`` - ``initial_time.lower`` ≥ ``duration.lower``
-
-and
-
-    ``final_time.lower`` - ``initial_time.upper`` ≤ ``duration.upper``
-
-``duration.lower`` defaults to ``0``, in which case the first condition reduces to
-``initial_time.lower`` ≤ ``final_time.upper``. Neither duration bound may be negative.
-
-No bound may be NaN, no lower bound may be ``+inf``, and no upper bound may be ``-inf``. Any
-of these raises ``ValueError`` where it is written, naming the bound (see
-`Input Validation`_ below).
-
-**State Bounds**:
-
-- ``bounds.phase[p].initial_state.upper``, ``bounds.phase[p].initial_state.lower``
-- ``bounds.phase[p].final_state.upper``, ``bounds.phase[p].final_state.lower``
-- ``bounds.phase[p].state.upper``, ``bounds.phase[p].state.lower``
-
-These bounds should be consistent within each phase. For example:
-
-    ``final_state.lower`` ≤ ``state.upper``
-
-**Control, Path, and Integral Bounds**:
-
-- ``bounds.phase[p].control.upper``, ``bounds.phase[p].control.lower``
-- ``bounds.phase[p].path.upper``, ``bounds.phase[p].path.lower``
-- ``bounds.phase[p].integral.upper``, ``bounds.phase[p].integral.lower``
-
-**Parameter and Discrete Constraint Bounds**:
-
-- ``bounds.parameter.upper``, ``bounds.parameter.lower``
-- ``bounds.discrete.upper``, ``bounds.discrete.lower``
+A field declared with ``yapss.vector(n)`` has one bound per row, set by row:
+``ph.state.r.bounds[:] = (-1e7, 1e7)`` gives every row the same bound,
+``ph.state.r.bounds[:] = [(0, 1), (2, 3), (4, 5)]`` one each, and
+``ph.state.r.bounds[0] = (0, 10)`` one row.
 
 Example
 -------
 
-Consider the dynamic soaring problem. It has six states, two controls, one path
-constraint, three discrete constraints, and a single parameter for wind shear rate. We
-initialize the bounds for this problem as follows:
+The `dynamic soaring problem <../notebooks/dynamic_soaring.ipynb>`_ has six states, two controls,
+one path constraint, three discrete constraints, and a single parameter for the wind shear rate.
+The circuit starts and ends at the origin, and the load factor is limited; the discrete
+constraints make the velocity, flight path angle and heading periodic, the heading after one full
+turn. The altitude's lower bound is the ground, and the solution comes down to it; the other state
+bounds are loose and inactive in the solution, there because loose box bounds on the variables
+can help Ipopt converge.
 
-.. doctest:: group2
+.. literalinclude:: ../../../src/yapss/examples/dynamic_soaring.py
+   :language: python
+   :start-after: # ------------------------------------------------------------------- setup
+   :end-before: # A circuit that is roughly
+   :dedent: 4
 
-    >>> from yapss._legacy import Problem
-    >>> import numpy as np
-    >>> problem = Problem(name="dynamic soaring", nx=[6], nu=[2], nh=[1], ns=1, nd=3)
+What is checked, and when
+-------------------------
 
-The initial time is set to zero, with an expected duration between 10 and 30 seconds:
+A bound that is wrong on its own raises where it is written, naming the field: a value that is
+not a pair, a side that is not a number or ``None``, a NaN, ``+inf`` as a lower bound or ``-inf``
+as an upper bound, a lower bound above the upper, or the wrong number of bounds for a block
+field's rows. A refused write leaves the bound as it was.
 
-.. doctest:: group2
+.. doctest:: bounds
+    :options: +NORMALIZE_WHITESPACE
 
-    >>> # The initial time is fixed to be 0. The final time will be between 10 and 30.
-    >>> bounds = problem.bounds.phase[0]
-    >>> bounds.initial_time.lower = bounds.initial_time.upper = 0
-    >>> bounds.final_time.lower = 10
-    >>> bounds.final_time.upper = 30
+    >>> ph.state.x.bounds = 5.0
+    Traceback (most recent call last):
+        ...
+    TypeError: phase 'slide' state bounds 'x': a bound is a pair, and 5.0 is one number. To fix
+    the value, write (5.0, 5.0); for an interval, write its two ends.
 
-The initial and final positions are set to zero, and there are bounds on the control
-variables (lift coefficient and bank angle) from the problem statement:
+Bounds that are each valid but contradict one another depend on more than one assignment, so
+they are reported by ``problem.validate()``, which ``problem.solve()`` runs before Ipopt starts:
+a state's initial or final bound that does not overlap its bound, a final time bound that lies
+wholly before the initial one, and a path or discrete constraint left unbounded. Because nothing
+is refused until then, bounds can be set in any order.
 
-.. doctest:: group2
+.. doctest:: bounds
+    :options: +NORMALIZE_WHITESPACE
 
-    >>> # The initial and final positions are at the origin
-    >>> bounds.initial_state.lower[:3] = bounds.initial_state.upper[:3] = 0, 0, 0
-    >>> bounds.final_state.lower[:3] = bounds.final_state.upper[:3] = 0, 0, 0
-    >>>
-    >>> # C_L <= 1.5. Set loose box bounds on bank angle.
-    >>> bounds.control.lower = 0, np.radians(-75)
-    >>> bounds.control.upper = 1.5, np.radians(75)
-    >>>
-    >>> # Limits on the normal load
-    >>> bounds.path.lower = (-2,)
-    >>> bounds.path.upper = (5,)
-
-There's also a discrete constraint that imposes a periodicity condition on the velocity,
-flight path angle, and heading angle:
-
-.. doctest:: group2
-
-    >>> # Discrete constraints
-    >>> problem.bounds.discrete.lower = problem.bounds.discrete.upper = 0, 0, np.radians(360)
-
-In addition, it's good practice to set loose box bounds on the decision variables, which
-can sometimes improve the performance of the Ipopt solver:
-
-.. doctest:: group2
-
-    >>> # Set loose box bounds on the state.
-    >>> # None of these should be active in the solution.
-    >>> bounds.state.lower = -1500, -1000, 0, 10, np.radians(-75), np.radians(-225)
-    >>> bounds.state.upper = +1500, +1000, 1000, 350, np.radians(75), np.radians(225)
-
-The remaining state bounds are set based on the problem requirements, as shown in this detailed
-example.
+    >>> ph.state.v.initial = (20.0, 20.0)
+    >>> problem.validate()
+    Traceback (most recent call last):
+        ...
+    ValueError: the problem is not ready to solve:
+      phase 'slide' state 'v': its initial bound (20.0, 20.0) does not overlap its bound
+      (0.0, 10.0), so no initial value satisfies both
 
 Special Considerations for State Bounds
 ---------------------------------------
@@ -157,36 +104,39 @@ Special Considerations for State Bounds
     This section applies only to problems where state bounds act as path constraints, and
     where accurate Lagrange multipliers are required.
 
-Broadly speaking, state constraints of the form
+Broadly speaking, a bound on a state, such as
 
-.. doctest:: group2
+.. code-block:: python
 
-    >>> problem.bounds.phase[0].state.lower[1] = -1000.0
-    >>> problem.bounds.phase[0].state.upper[1] = +1000.0
+    ph.state.v.bounds = (-1000.0, 1000.0)
 
 might be used in one of two ways:
 
-1.	As inactive bounds to aid solver convergence without constraining the final solution.
-2.	As path constraints, where bounds are expected to be active in the final solution.
+1.  As an inactive bound, to aid solver convergence without constraining the final solution.
+2.  As a path constraint, where the bound is expected to be active in the final solution.
 
-In the case where state bounds are intended to be path constraints, the user should instead
-use path constraints in the user-defined continuous function, as below:
+Where a state bound is meant to be a path constraint, declare it as one instead, and fill it in
+the continuous callback:
 
-.. doctest:: group2
+.. code-block:: python
 
-    >>> def continuous(arg):
-    ...     # Apply state[1] as a path constraint
-    ...     arg.phase[0].path[0] = arg.phase[0].state[1]
+    class Path(yapss.Path):
+        speed = yapss.scalar()
+
     ...
-    >>> problem.functions.continuous = continuous
-    >>> problem.bounds.phase[0].path.lower[0] = -1000.0
-    >>> problem.bounds.phase[0].path.upper[0] = +1000.0
+
+    @ph.register.continuous
+    def continuous(arg, out):
+        ...
+        out.path.speed = arg.state.v
+
+    ph.path.speed.bounds = (-1000.0, 1000.0)
 
 While both approaches yield the correct primal solution (decision variables), state bounds
-applied directly as path constraints may lead to incorrect Lagrange multipliers —
+applied directly as path constraints may lead to incorrect Lagrange multipliers ---
 particularly for initial and final states. In order to obtain accurate numerical results,
 path constraints should be applied and Lagrange multipliers calculated only at collocation
-points, not all interpolation points, to be consistent with pseudospectral integration
+points, not all interpolation points, to be consistent with the pseudospectral integration
 scheme. In addition, without additional logic, it's difficult to determine whether the
 Lagrange multipliers returned by the NLP solver should be associated with the endpoint
 state constraints or the state path constraint.
@@ -194,73 +144,3 @@ state constraints or the state path constraint.
 For these reasons, state bounds expected to be active should be implemented as true path
 constraints, as shown in the example above. Note that these considerations do *not* apply
 to constraints on control variables.
-
-The ``reset()`` Method
-----------------------
-
-To reset bounds, call the ``reset()`` method at any level in the ``Bounds`` hierarchy. For
-instance:
-
-.. doctest:: group2
-
-   >>> problem.bounds.reset()  # Resets all bounds
-
-or for a single phase:
-
-.. doctest:: group2
-
-   >>> problem.bounds.phase[0].reset()  # Resets bounds for phase 0
-
-Input Validation
-----------------
-
-Setting bounds correctly can be error-prone, so YAPSS helps reduce errors by validating
-bounds configurations in two steps.
-
-A value that is wrong on its own raises where it is written: the wrong shape, a value that
-is not a real number (a string, a bool, a complex number, ``None``), NaN, ``+inf`` as a
-lower bound or ``-inf`` as an upper bound, and a negative duration bound. This holds however
-the value is written -- a whole array, an element, a slice, an in-place operator such as
-``+=``, or ``fill`` -- and a refused write leaves the bound unchanged.
-
-Conflicts between bounds -- a lower bound above its upper bound, boundary-state bounds that do
-not overlap the state bounds, and infeasible time bounds -- are reported by ``validate()``,
-which ``problem.solve()`` runs before building the problem. They depend on more than one
-assignment, so the lower and upper bounds can be set in either order, as in
-``lower = upper = value``. For example, trying to assign a scalar instead of a sequence for
-path constraints raises an error immediately:
-
-.. doctest:: group2
-
-    >>> bounds.path.lower = -2
-    Traceback (most recent call last):
-        ...
-    ValueError: bounds.phase[0].path.lower must have length 1, got a scalar.
-
-and so does a NaN written into an element:
-
-.. doctest:: group2
-
-    >>> bounds.control.upper[1] = np.nan
-    Traceback (most recent call last):
-        ...
-    ValueError: bounds.phase[0].control.upper[1] is NaN.
-
-Conflicting control bounds are reported when the bounds are validated:
-
-.. doctest:: group2
-
-    >>> bounds.control.upper = 1.5, np.radians(0)
-    >>> bounds.control.lower = 0, np.radians(75)
-    >>> bounds.validate()
-    Traceback (most recent call last):
-        ...
-    ValueError: bounds.phase[0].control.lower[i] is greater than bounds.phase[0].control.upper[i] for indices i in [1]
-
-``Bounds`` Class Reference
---------------------------
-
-.. autoclass:: yapss._legacy.bounds.Bounds
-   :members:
-   :no-special-members:
-   :no-undoc-members:

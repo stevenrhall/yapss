@@ -12,18 +12,13 @@ What is checked without annotations
 
 A type checker reads the declarations -- the vector classes, the phase shapes, and the
 ``Phases`` class -- because they are class bodies, and that is enough to check nearly all of a
-problem's setup with no annotation written anywhere:
+problem's setup with no annotation written anywhere, the Ipopt options included. Each comment
+below is the message mypy prints for its line:
 
-.. code-block:: python
-
-    problem = yapss.Problem("Brachistochrone", phases=Phases)
-    ph = problem.phases.slide
-
-    ph.state.x.bounds = (0, 10)     # fine
-    ph.state.xx.bounds = (0, 10)    # "State" has no attribute "xx"
-    ph.state.x.bond = (0, 10)       # "ScalarField" has no attribute "bond"; maybe "bounds"?
-    ph.state.x.bounds = 5.0         # a bound is a pair, not a float
-    problem.phases.slid             # "Phases" has no attribute "slid"
+.. literalinclude:: ../../../tests/typed_messages/unannotated_setup.py
+   :language: python
+   :start-after: # -- shown on the page
+   :end-before: # -- end of what the page shows
 
 A shape that puts a vector in the wrong role is reported too, since `yapss.Phase` annotates
 each slot with its role: ``state: Control`` is an incompatible override.
@@ -129,9 +124,11 @@ These are the limits, stated so that a silent checker is not mistaken for a pass
 - Nothing checks that a callback's annotation matches the phase it is registered on. The
   classes named are what the checker uses; the runtime gives the callback the phase's own.
 
-In VS Code, completion and navigation work as they are, but misspellings are underlined only
+In VS Code, completion, hover and navigation work as they are, but mistakes are underlined only
 once Pylance's type checking is turned on: set ``python.analysis.typeCheckingMode`` to
-``"standard"``.
+``"basic"`` in the workspace settings. Every mistake in the first section is then reported --
+``Cannot access attribute "xx" for class "State"`` -- though without mypy's suggestion of the
+name that was meant.
 
 The file the examples on this page come from, ``tests/typed/typed_problem.py``, is checked in
 strict mode on every change to YAPSS, together with a list of mistakes each of which must be

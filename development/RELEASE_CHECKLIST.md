@@ -209,6 +209,16 @@ commands are not used.
       workflow's build, TestPyPI publication, installation, and smoke-test jobs
       succeed. Review the TestPyPI version, dependency constraints, wheel, and
       sdist.
+- [ ] Confirm that the tagged Read the Docs version `vX.Y.Z` is *active*, not
+      only built, and that every documentation URL YAPSS prints in a message
+      resolves against it, anchor included: the messages link to
+      `https://yapss.readthedocs.io/en/v{version}/...`, so a section renamed or
+      unbuilt at this version is a dead link in every copy of the release.
+- [ ] Never *deactivate* a release's version on Read the Docs: versioned links in
+      YAPSS's own messages (every release's docs, `v0.3.0` and `v0.4.0` in
+      particular) and in users' notebooks depend on them. If a release is yanked
+      on PyPI, *hide* its version instead, which keeps its URLs working but drops
+      it from the version menu and search -- the docs equivalent of a yank.
 - [ ] Approve the `pypi` deployment in the Actions UI to run the final job.
 - [ ] Confirm that the new version appears on pypi.org and that the production
       wheel and sdist SHA-256 values match the artifacts tested on TestPyPI.

@@ -5,7 +5,7 @@ How YAPSS Connects to Ipopt
 
     Most users can skip this page. YAPSS connects to Ipopt automatically, and there is
     nothing you need to configure. This page explains how, and answers the questions that
-    tends to raise.
+    tend to raise.
 
 YAPSS solves optimal control problems by converting them into nonlinear programs (NLPs)
 and solving them with `Ipopt <https://coin-or.github.io/Ipopt/>`_, a software package for
@@ -16,12 +16,6 @@ uses the Ipopt library that CasADi, a YAPSS dependency, already uses:
   inside the CasADi package.
 * **In a Conda environment**: conda-forge's Ipopt package, which conda-forge's CasADi links
   against.
-
-.. versionchanged:: 0.3.0
-
-    YAPSS uses the same interface in every environment. In a Conda environment it
-    previously used cyipopt instead. It calls the same Ipopt library there as before; only
-    the interface to it has changed.
 
 If CasADi already includes Ipopt, why not use CasADi's solver interface?
 ------------------------------------------------------------------------
@@ -62,11 +56,11 @@ The difficulty is then that CasADi doesn't have a direct interface to Ipopt itse
 ``nlpsol`` function is an abstraction that can be used to call Ipopt, but also many other
 solvers. With some effort, it's possible to use ``nlpsol`` with the YAPSS-generated callback
 functions, but features of Ipopt that YAPSS relies on are then no longer reachable. It
-scales the NLP through Ipopt's own scaling interface, using the scale factors given in
-``problem.scale``, rather than rescaling the problem itself; it installs an intermediate
-callback, which is what carries the user's own callback and makes interrupting a solve with
-Ctrl-C work; and it reports Ipopt's return status directly rather than a normalized subset
-of it. So ultimately, YAPSS needs to access Ipopt directly.
+scales the NLP through Ipopt's own scaling interface, using the scale factors the problem
+declares, rather than rescaling the problem itself; it installs an intermediate callback,
+which is what makes interrupting a solve with Ctrl-C work and records Ipopt's final
+convergence measures; and it reports Ipopt's return status directly rather than a
+normalized subset of it. So ultimately, YAPSS needs to access Ipopt directly.
 
 How YAPSS calls Ipopt
 ---------------------
@@ -86,56 +80,48 @@ header installed alongside it, and refuses to run if the two disagree --- for in
 Ipopt was built with 64-bit integer indices or in single precision. It also confirms that
 exactly one Ipopt library is loaded in the process, and runs a small test problem.
 
-Up to version 0.2.x, YAPSS used `cyipopt <https://github.com/mechmotum/cyipopt>`_, a Cython
-wrapper around Ipopt, in a Conda environment, where it installs with a single command. It
-was dropped in 0.3.0 so that there is one interface to maintain and test, and because some
-of its behavior had to be worked around: it discarded exceptions raised while computing the
-Hessian (see below).
+When Ipopt stops without a solution
+-----------------------------------
 
-Exception handling
-------------------
+For most statuses Ipopt stops at an iterate and reports it, and YAPSS returns a
+``Solution`` built from it, with an ``IpoptConvergenceWarning`` if the status is not a
+converged one. For the rest --- too few degrees of freedom (status ``-10``), inconsistent
+bounds (``-11``), an invalid option (``-12``), a NaN or Inf from a callback or derivative
+during the solve (``-13``), running out of memory (``-102``), and a failure inside Ipopt
+itself (``-100``, ``-101``, ``-199``) --- Ipopt has no constraint values or multipliers to
+report: it leaves the output arrays as they were passed in, or fills them with zeros. A
+solution built from those would look like one and be nothing of the kind, so ``solve()``
+raises instead, with Ipopt's own description of the status and, for most, what usually
+causes it.
 
-.. versionchanged:: 0.2.0
+Only one Ipopt per process
+--------------------------
 
-    Exceptions raised while Ipopt is calling into YAPSS are now preserved and re-raised
-    once ``solve()`` returns, instead of being lost. This applies whether the exception
-    comes from a user-supplied callback or from a function YAPSS constructs internally,
-    and to both interfaces YAPSS then used, though the two previously failed
-    differently. On the Conda/cyipopt path, an exception raised during a Hessian
-    evaluation was discarded silently: Ipopt kept iterating on stale Hessian values and
-    reported the run as unconverged, or even as successful, with nothing printed to
-    indicate that anything had gone wrong. On the pip path, every callback exception was
-    caught, its traceback printed to the console, and status ``-13`` ("Invalid number in
-    NLP function or derivative detected") returned to Ipopt -- a real but misleading
-    status, since nothing was actually numerically invalid. Either way, no exception
-    ever reached ``solve()``'s caller, and an apparently normal ``Solution`` came back
-    regardless. Exceptions now surface with their original traceback as a normal,
-    catchable Python error on both paths.
+Two independently built copies of Ipopt cannot safely share a process. Each brings its own
+OpenMP runtime, and the two can collide and crash the process part-way through a solve,
+with no Python error to say why.
 
-Why doesn't YAPSS use the cyipopt I installed?
-----------------------------------------------
+So when YAPSS first loads Ipopt, it checks that exactly one copy is loaded, and if there
+are more it raises ``RuntimeError`` naming every copy it found, rather than risk the crash.
+A second copy comes from another package that brings its own Ipopt into the process:
+usually cyipopt on a pip install, where it links an Ipopt of its own and CasADi's bundled
+Ipopt is a separate copy. Having such a package installed does no harm; importing it into
+the same process as a YAPSS solve is what matters. To use both, run them in separate
+processes --- separate scripts, or separate notebook kernels.
 
-YAPSS does not use cyipopt at all, and it makes certain that only one copy of Ipopt is
-loaded in the process.
+The check runs once, when YAPSS first loads Ipopt, so it catches a copy imported before
+YAPSS's first solve but not one imported after. The hazard is the same either way.
 
-Loading two independently built copies of Ipopt into one process is unsafe. Each copy
-brings its own OpenMP runtime, and the two can collide and crash the process part-way
-through a solve. In a pip environment, cyipopt links an Ipopt you installed on your system,
-and CasADi's bundled Ipopt is a second, separate copy.
+In a Conda environment, conda-forge's cyipopt and CasADi link the *same* Ipopt package, so
+there is only one copy, reached two ways, and nothing to refuse.
 
-Having cyipopt installed alongside YAPSS does no harm: it simply goes unused. Importing it
-into the same process as a YAPSS solve is another matter, because in a pip environment that
-loads the second copy. YAPSS checks when it first loads Ipopt, and if it finds another copy
-already loaded, it stops with an error naming both libraries rather than risk the crash. In a Conda environment, conda-forge's cyipopt and CasADi link the *same* installed
-Ipopt package, so there is only one copy, reached two ways.
-
-Why is CasADi required if I supply my own derivatives?
-------------------------------------------------------
+Why is CasADi required if I use central differences?
+----------------------------------------------------
 
 CasADi provides the automatic differentiation behind the default ``derivatives.method`` of
 ``"auto"``, so it is needed for that. But it is also how YAPSS finds the Ipopt library,
-which means YAPSS depends on CasADi even for problems that never use automatic
-differentiation --- with central differences.
+which means YAPSS depends on CasADi even for a problem solved by central differences, which
+never uses automatic differentiation.
 
 Can I choose which Ipopt library YAPSS uses?
 --------------------------------------------
@@ -161,22 +147,16 @@ The linear solver
 -----------------
 
 Ipopt spends most of its time in a sparse linear solver, so which one it uses matters more
-than any other setting. Different builds of Ipopt offer different solvers, and before
-version 0.2.0 YAPSS inherited whatever each build happened to prefer:
+than any other setting. Different builds of Ipopt offer different solvers, and each
+prefers its own:
 
 * **Conda**, every platform: MUMPS.
 * **pip, macOS**: MUMPS --- CasADi's bundled Ipopt has no other option there.
 * **pip, Windows and Linux**: SPRAL, because that build includes it and Ipopt selects it
   when it is present.
 
-.. versionchanged:: 0.2.0
-
-    On pip installs, YAPSS now selects MUMPS unless you have chosen a linear solver
-    yourself. Previously it accepted whatever the Ipopt build preferred, which was SPRAL
-    on Windows and Linux.
-
-As of version 0.2.0, YAPSS selects **MUMPS** on the pip path unless you have chosen a
-solver yourself, so every installation now behaves the same way.
+YAPSS selects **MUMPS** on the pip path unless you have chosen a solver yourself, so every
+installation behaves the same way.
 
 The reason is specific to how CasADi builds SPRAL. SPRAL is designed around shared-memory
 parallelism, and CasADi compiles it with OpenMP disabled --- a reasonable choice on their
@@ -245,11 +225,6 @@ MUMPS begins by computing a fill-reducing ordering, chosen through ``mumps_pivot
    * - 7
      - automatic
      - MUMPS decides, and selects METIS on larger problems.
-
-.. versionchanged:: 0.2.0
-
-    On macOS pip installs, YAPSS now sets ``mumps_pivot_order`` to QAMD unless you have
-    chosen an ordering yourself, to avoid a crash in CasADi's METIS library.
 
 On macOS, YAPSS sets ``mumps_pivot_order`` to ``6`` (QAMD) unless you have chosen an
 ordering yourself. This is not a performance adjustment. The METIS library in CasADi's

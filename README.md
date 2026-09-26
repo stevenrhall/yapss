@@ -68,7 +68,6 @@ Run the HS071 example, a small constrained optimization problem:
 YAPSS is installed correctly if the run finishes, and the output ends with
 
 ```text
-Objective value
 f(x*) = 1.701402e+01
 
 YAPSS solution is correct.

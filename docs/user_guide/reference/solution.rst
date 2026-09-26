@@ -1,7 +1,7 @@
 The Solution Object
 ===================
 
-The :class:`yapss._backend.solution.Solution` class stores the solution to an optimal control problem. An
+The :class:`yapss.Solution` class stores the solution to an optimal control problem. An
 instance of this class contains detailed information about the optimal decision variables,
 Lagrange multipliers, and additional data relevant to the problem.
 
@@ -11,86 +11,29 @@ arc and therefore requires a three-phase solution. You can solve this problem an
 
 .. doctest:: example
 
-   >>> from yapss._legacy.examples.goddard_problem_3_phase import setup
+   >>> from yapss.examples.goddard_problem_3_phase import setup
    >>> problem = setup()
    >>> problem.ipopt_options.print_level = 0  # Suppress output
    >>> problem.ipopt_options.sb = "yes"       # Silent mode
    >>> problem.ipopt_options.tol = 1e-8       # Set solver tolerance
    >>> solution = problem.solve()
    >>> solution
-   <yapss._backend.solution.Solution: 'Goddard Rocket Problem with Singular Arc'>
+   <Solution objective=18550.87... converged=True>
 
 Checking That the Solve Converged
 ---------------------------------
 
-``problem.solve()`` returns a :class:`~yapss._backend.solution.Solution` regardless of the status reported by
-Ipopt. A run that reaches its iteration limit or stops because the step size collapses still
-produces a full set of trajectories --- they simply do not satisfy any convergence criterion. Nothing about
-the returned object looks different.
+``problem.solve()`` returns a :class:`~yapss.Solution` whenever Ipopt stops at an iterate,
+whether or not it converged; the statuses at which it has none raise instead. A run that
+reaches its iteration limit or stops because the step size collapses still produces a full
+set of trajectories --- they simply do not satisfy any convergence criterion. Apart from
+``converged=False`` in its representation, nothing about the returned object looks different.
 
-Since version 0.2.0, YAPSS emits an :class:`~yapss.IpoptConvergenceWarning` when that
-happens, so the outcome is at least not silent. For example, forcing Ipopt to stop
-immediately by setting ``max_iter = 0`` reliably produces an unconverged solve, and the
-warning appears as soon as ``solve()`` returns:
-
-.. code-block:: pycon
-
-   >>> problem.ipopt_options.max_iter = 0
-   >>> solution = problem.solve()
-   IpoptConvergenceWarning: Ipopt did not converge. Status -1: "Maximum Number of Iterations
-   Exceeded." The returned solution does not satisfy Ipopt's convergence criteria and should
-   not be treated as an optimal trajectory. Check solution.status and the Ipopt output
-   before using these results.
-
-This illustration is not itself doctested, since the warning text goes to ``stderr``
-rather than ``stdout`` and capturing it would need the same ``warnings`` bookkeeping this
-example is trying to avoid. The behavior it depicts is covered by
-``tests/modules/test_convergence_warning.py``.
-
-Three Ipopt statuses are treated as success and do not warn: ``0`` (optimal solution
-found), ``1`` (solved to acceptable level), and ``6`` (feasible point found for a square
-problem). Status ``1`` is included deliberately. It is a normal outcome when tolerances are
-pushed hard --- the answer is routinely correct to far more digits than requested --- and
-warning on it would train users to disregard the warning, which would destroy its value for
-the cases that matter.
-
-The warning class is public, so it can be silenced or escalated in the usual way:
-
-.. code-block:: python
-
-    import warnings
-    import yapss
-
-    warnings.filterwarnings("ignore", category=yapss.IpoptConvergenceWarning)
-    warnings.filterwarnings("error", category=yapss.IpoptConvergenceWarning)
-
-Projects that run their test suites with ``-W error`` will newly see failures on
-unconverged solves.
-
-.. note::
-
-    **Every unconverged solve warns**, including repeated solves from the same line in a
-    loop. Python normally reports a repeated warning from one line only once, but that
-    deduplication does not carry over from one ``solve()`` to the next, so the ``"default"``
-    and ``"once"`` filter actions do not reduce the count. The ``"ignore"`` and ``"error"``
-    actions shown above work as usual. To act on only some failures, branch on the status
-    instead, as described below.
-
-What the warning does not tell you
-..................................
-
-**A cancelled solve carries no guarantee at all.** Interrupting with Ctrl-C stops Ipopt
-at whatever iterate it had reached, reported as status ``5``. The warning tells you it did
-not converge, and that is the only thing it tells you.
-
-**Branch on the status, not on the warning.** Warnings are for people reading output.
-Code that needs to know should test ``solution.converged``, or ``solution.status`` to tell
-the failure modes apart. Both are described under `Information from Ipopt Solver`_ below,
-and neither is affected by warning filters.
-
-**Only** ``Problem.solve()`` **warns.** The check is deliberately placed at the public
-boundary rather than inside the solver, so that the reported source location is your own
-call. Internal routines that solve repeatedly do not warn on each attempt.
+An unconverged solve also emits an :class:`~yapss.IpoptConvergenceWarning`, so the outcome is
+not silent. Code that needs to know should test ``solution.converged``, or ``solution.status``
+to tell the failure modes apart; both are described under `Information from Ipopt Solver`_
+below. :doc:`warnings` describes the warning, the statuses it does not cover, and the
+statuses that raise.
 
 Multiplier Coverage and Verification
 ------------------------------------
@@ -170,24 +113,16 @@ negating the objective directly.
 Representation of Solution Objects
 ----------------------------------
 
-The `repr()` output of a `Solution` object confirms that it is an instance of
-:class:`~yapss._backend.solution.Solution` and displays the problem name.
-
-The `str()` representation provides additional information, including the Ipopt status
-code and message (indicating the success of the optimization) and the objective value at
-the optimal solution:
+The `repr()` and `str()` of a `Solution` are the same: the objective value and whether the
+solve converged.
 
 .. doctest:: example
 
    >>> print(solution)
-   <yapss._backend.solution.Solution> object
-       Name: Goddard Rocket Problem with Singular Arc
-       Ipopt Status Code: 0
-       Status Message: Optimal Solution Found.
-       Objective Value: 18550.87...
+   <Solution objective=18550.87... converged=True>
 
-Structure of a :class:`~yapss._backend.solution.Solution` Instance
-------------------------------------------------------------------
+Structure of a :class:`~yapss.Solution` Instance
+------------------------------------------------
 
 The `Solution` object contains various attributes stored in a relatively flat structure, each representing a key element of the solution:
 
@@ -281,14 +216,8 @@ Two attributes summarize how the solve ended:
 -  **converged** (*bool*): Whether Ipopt reported a converged solution: status ``0``,
    ``1``, or ``6``.
 
-A solve returns a ``Solution`` only when Ipopt has an iterate to report. For the statuses
-where it has none, ``solve()`` raises instead of returning a solution made of placeholder
-values: ``ValueError`` for too few degrees of freedom (``-10``), inconsistent bounds
-(``-11``), an invalid option (``-12``), or a NaN or Inf returned by a callback or its
-derivative during the solve (``-13``); ``MemoryError`` when Ipopt runs out of memory
-(``-102``); and ``RuntimeError`` for a failure inside Ipopt itself. With status ``-13``,
-Ipopt reports the point it had reached but sets every constraint value and multiplier to
-zero, so a solution built from it would show costates and multipliers that are not.
+A solve returns a ``Solution`` only when Ipopt has an iterate to report; the statuses
+without one raise, as listed in :doc:`warnings`.
 
 The `nlp_info` attribute provides detailed information from the Ipopt solver, including:
 
@@ -309,7 +238,7 @@ Lagrange multipliers associated with variable bounds and constraints:
 ``Solution`` Class Reference
 ----------------------------
 
-.. autoclass:: yapss._backend.solution.Solution
+.. autoclass:: yapss.Solution()
     :members:
 
 ``IpoptStatus`` Class Reference
@@ -318,8 +247,3 @@ Lagrange multipliers associated with variable bounds and constraints:
 .. autoclass:: yapss.IpoptStatus
     :members: message, converged
     :undoc-members:
-
-``IpoptConvergenceWarning`` Class Reference
--------------------------------------------
-
-.. autoexception:: yapss.IpoptConvergenceWarning

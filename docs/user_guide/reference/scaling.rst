@@ -26,8 +26,9 @@ result in very slow convergence of the NLP solver, or even failure to converge.
 There are two ways to improve the conditioning of the NLP problem:
 
 1.  The problem can be scaled by hand, by using units that are more appropriate for the
-    problem. That is in fact what is done in the orbit raising problem, where the distance
-    is measured in astronomical units, and the angle in radians.
+    problem. That is in fact what is done in the orbit raising problem, which is written in
+    canonical units: the initial radius of the orbit is the unit of distance, and the
+    gravitational parameter is 1.
 
 2.  The problem can be scaled within the NLP solver. Ipopt has the option to provide
     scaling factors for the variables and constraints, which it then uses to scale the
@@ -103,93 +104,70 @@ of the sensitivity of the constraint to the variables.
 YAPSS Scaling
 -------------
 
-YAPSS provides scaling through the ``scale`` attribute of ``Problem`` instances. Every
-scale factor is a characteristic magnitude and must be finite and strictly positive; an
-assignment that is not raises ``ValueError`` and leaves the previous value in place. The
-attributes that can be set are:
+Every quantity the solver sees has a scale, set where the quantity is declared. A scale is a
+characteristic magnitude: one finite, positive number. An assignment that is not raises
+``TypeError`` or ``ValueError`` at the line that makes it, and leaves the previous value in
+place. Every scale is 1.0 until it is set, so a problem that is already well scaled needs none.
+For a phase ``ph`` of a problem ``problem``, the scales are:
 
--    ``scale.objective`` (`float`): Objective function scale. Must be strictly positive --
-     it conditions the objective's magnitude only. To maximize instead of minimize, set
-     ``problem.sense`` (see :doc:`callbacks`) rather than a negative scale.
--    ``scale.parameter`` (`Sequence[float]`): Parameter scale.
--    ``scale.discrete`` (`Sequence[float]`): Discrete constraint function scale.
+-   ``ph.state.x.scale``: the state ``x``.
+-   ``ph.state.x.defect_scale``: the collocation defects of the dynamics of ``x``.
+-   ``ph.control.u.scale``: the control ``u``.
+-   ``ph.time.scale``: the phase's initial and final times, and the constraint on its
+    duration. A phase that names its independent variable otherwise uses that name:
+    ``ph.r.scale`` for a variable ``r``.
+-   ``ph.path.g.scale``: the path constraint ``g``.
+-   ``ph.integral.q.scale``: the integral ``q``.
+-   ``problem.parameter.p.scale``: the parameter ``p``.
+-   ``problem.discrete.d.scale``: the discrete constraint ``d``.
+-   ``problem.objective.scale``: the objective. It conditions the objective's magnitude only;
+    to maximize rather than minimize, set ``problem.objective.sense`` rather than a negative
+    scale.
 
--    ``scale.phase[k].state`` (`Sequence[float]`): State variable scale for phase ``k``.
--    ``scale.phase[k].control`` (`Sequence[float]`): Control variable scale for phase ``k``.
--    ``scale.phase[k].time`` (`float`): Time variable scale for phase ``k``.
--    ``scale.phase[k].path`` (`Sequence[float]`): Path constraint function scale for phase ``k``.
--    ``scale.phase[k].dynamics`` (`Sequence[float]`): Dynamics constraint scale for phase ``k``.
--    ``scale.phase[k].integral`` (`Sequence[float]`): Integral scale for phase ``k``.
+Two of these need further explanation. First, the value of an integral over a phase is a
+decision variable in the YAPSS implementation, and the condition that this variable equals the
+integral of the integrand over the phase is a constraint. An integral's ``scale`` is the scale
+of both.
 
-Two of these attributes require further explanation. First, the value of an integral over
-a phase is actually a decision variable in the YAPSS implementation, and the condition
-that this decision variable is equal to the integral of the integrand function over the
-phase is a constraint. The ``scale.phase[k].integral`` attribute is the scale for both the
-decision variable and the constraint.
+Second, the state has two scales where every other quantity has one. Based on the discussion
+in the `Theory`_ section, one would expect the dynamics to be scaled by the state scale divided
+by the time scale. But YAPSS writes the dynamics as collocation defects,
 
-Second, based on the discussion in the `Theory`_ section, one would expect the dynamics
-constraint scale to be the state scale divided by the time scale. However, because of the
-way the dynamics is implemented, the dynamics scale should usually be set to the state
-scale.
+.. math::
 
-All the scales described are initialized to 1.0 (or an array of ones), so for problems
-that are nicely scaled, no scaling is necessary.
+    \frac{t_f - t_0}{2} f(x, u, p, t) - D x
 
-Note also that each of the array scales can be set elementwise, using a slice, or with an
-in-place operator such as ``*=``. A scale factor written that way is checked where it is
-written, like a whole assignment, and a refused write leaves the scale unchanged.
+where :math:`D` is the differentiation matrix on the normalized interval and is dimensionless,
+so a defect is in the units of the state. So ``defect_scale`` should usually be set to the same
+value as ``scale``.
+
+A field declared with ``yapss.vector(n)`` has one scale per row, set by row:
+``ph.state.r.scale[:] = 1000.0`` gives every row the same scale,
+``ph.state.r.scale[:] = [1000.0, 1000.0, 10.0]`` one each, and ``ph.state.r.scale[0] = 1000.0``
+one row. Each value is checked as a whole assignment is, and a refused write leaves every row
+unchanged.
 
 Example
 -------
 
 Consider for example the `dynamic soaring problem <../notebooks/dynamic_soaring.ipynb>`_,
 which is the problem to find a trajectory that allows a bird or glider to fly continuously
-using dynamic soaring, with the minimum possible wind speed gradient. The optimization for
-this problem performs quite poorly without proper scaling — it can fail to converge.
+using dynamic soaring, with the minimum possible wind speed gradient.
 
-The state variables are the three spatial positions of the glider, its velocity, its
-flight path angle, and its heading angle. The control variables are the lift coefficient
-and the bank angle. The one parameter is the wind speed gradient. There is one path
-constraint: the load factor is in the range :math:`[-2,5]`. There are three discrete
-constraints that impose periodicity of velocity, flight-path angle, and heading angle.
+The state variables are the three spatial positions of the glider, its velocity, its flight
+path angle, and its heading angle. The control variables are the lift coefficient and the bank
+angle. The one parameter is the wind speed gradient. There is one path constraint: the load
+factor is in the range :math:`[-2,5]`. There are three discrete constraints that impose
+periodicity of velocity, flight-path angle, and heading angle.
 
-The scales for each variable were set to be roughly the expected range of the variable,
-and the scales for the discrete constraints were set as discussed in the Theory section:
+The scale of each variable was set to roughly its expected range, and the scales of the
+discrete constraints as discussed in the `Theory`_ section; the controls are left at 1.0:
 
-.. testsetup:: group2
+.. literalinclude:: ../../../src/yapss/examples/dynamic_soaring.py
+   :language: python
+   :start-after: # Scaling, which this problem needs
+   :end-before: # A dense mesh
+   :dedent: 4
 
-   from yapss._legacy.examples.dynamic_soaring import setup
-
-   problem = setup()
-
-.. testcode:: group2
-
-   # scales for the problem
-   scale = problem.scale
-   scale.objective = 0.1
-   scale.parameter = [0.1]
-   scale.discrete = [200.0, 200.0, 200.0]
-
-   # scales for the first (and only) phase
-   phase = scale.phase[0]
-   phase.dynamics = phase.state = 1000.0, 1000.0, 1000.0, 200.0, 1.0, 6.0
-   phase.control = 1.0, 1.0
-   phase.time = 30.0
-   phase.path = [7.0]
-
-With these scales, the problem converges in a reasonable number of iterations (about
-32).
-
-The ``reset()`` Method
-----------------------
-
-To return scale factors to 1.0, call the ``reset()`` method of the scale object or of one of
-its phases:
-
-.. testcode:: group2
-
-   problem.scale.phase[0].reset()  # Resets the scales for phase 0
-   problem.scale.reset()  # Resets every scale factor
-
-The arrays are filled with ones in place, so an array read before the reset, such as
-``phase.state`` above, holds the ones too.
+With these scales the problem converges in about 30 iterations. With every scale left at 1.0 it
+still converges, to the same optimum, but takes about twice as many.

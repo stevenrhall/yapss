@@ -16,55 +16,41 @@ in the Ipopt documentation,
     to see how this is done) or by creating a ipopt.opt file in the directory you are
     executing Ipopt.
 
-Users can set Ipopt options by setting attributes of the ``ipopt_options`` attribute of
-instances of the ``Problem`` class. So for example, to set the print level of the Ipopt output, the
-user would set the ``ipopt_options`` attribute as follows:
+An option is set as an attribute of ``problem.ipopt_options``. For example, to set the print
+level of Ipopt's output:
 
 .. code-block:: python
 
     problem.ipopt_options.print_level = 5
 
-An attribute is used instead of a dictionary to allow for tab completion in an interactive
-environment such as the PyCharm IDE. For example, in the PyCharm IDE, typing
-``problem.ipopt_options.tol`` will show a list of available options including "tol" as part of
-the option name. (There are more than 30 such options!)
+Setting an option to ``None`` removes it, and Ipopt then uses its default.
+
+Options are attributes rather than dictionary keys so that an editor can complete their names
+and a type checker can check them. Every documented option is annotated with its kind, so a
+misspelled name such as ``max_iters`` is reported before the script runs, and so is a value of
+the wrong kind. Typing ``problem.ipopt_options.tol`` in an editor lists every option with "tol"
+in its name; there are 34.
 
 Each option is of one of Ipopt's three kinds, and the value is checked against the kind when it
 is assigned: an Integer option takes an ``int`` (a NumPy integer is accepted and converted), a
 Number option takes a ``float`` or an ``int``, and a String option takes a ``str``. A ``bool`` is
 refused everywhere, since no Ipopt option is boolean; the yes/no options take the strings
-``"yes"`` and ``"no"``. A value of the wrong kind raises ``TypeError`` at the assignment, as
-does a NaN for a Number option, since no comparison with NaN is true and Ipopt checks values
-against a range.
+``"yes"`` and ``"no"``. A value of the wrong kind raises ``TypeError`` at the assignment, and a
+NaN for a Number option raises ``ValueError``, since no comparison with NaN is true and Ipopt
+checks values against a range.
 
-YAPSS checks option *names* against a table generated from Ipopt's own documentation for one
-release. A name close to a known one is a misspelling and raises ``AttributeError`` where it
-is written, naming the likely intent --- ``max_iters`` suggests ``max_iter``. A name nothing
-like a known one may be an option that some other Ipopt build provides, since the pip wheel's
-Ipopt and conda-forge's are different builds of different versions, so it warns with
-:class:`~yapss.IpoptOptionSettingWarning` and is passed to Ipopt, which is the only authority
-on what it accepts.
-
-Ipopt itself validates every option when the problem is solved, and reports only that it
-refused one, not why. YAPSS compares the value with what Ipopt's own documentation records for
-that option and distinguishes two cases:
-
-- the value is **outside** the documented range or set of settings, which is a mistake in the
-  script: ``ValueError``, naming the option and the documented range;
-- the value is **within** it, so the option exists and the value is legal but this build does
-  not provide it: :class:`~yapss.IpoptOptionSettingWarning`, and the solve proceeds with
-  Ipopt's default.
-
-Neither verdict is stated as certain. The table YAPSS compares against describes one Ipopt
-release, and the library actually loaded may be another, so both messages name the release
-being quoted and send you to Ipopt's own console output. The warning can be silenced or turned
-into an error with :func:`warnings.filterwarnings`, as for
-:class:`~yapss.IpoptConvergenceWarning`.
-
-.. versionchanged:: 0.3.0
-
-    A value Ipopt refuses now raises when it is outside what Ipopt documents for that option;
-    before, every refusal was a warning and the solve continued with the default.
+Which options exist, and which values they take, depends on the Ipopt build: the pip wheel's
+Ipopt and conda-forge's are different builds of different versions. So YAPSS passes every
+option to Ipopt, which is the only authority on what it accepts and validates them when the
+problem is solved. If Ipopt refuses one, YAPSS warns with
+:class:`~yapss.IpoptOptionSettingWarning`: the option is not applied, and the solve continues
+with Ipopt's default. Ipopt reports only that it refused the option, and its console output says
+why; the warning adds a hint from a table generated from Ipopt's documentation for one release
+--- for a name close to a documented one, the likely intent (``max_iters`` suggests
+``max_iter``), and for a documented option, that this build might not provide it or might not
+accept the value. The warning can be silenced or turned into an error with
+:func:`warnings.filterwarnings`, as for :class:`~yapss.IpoptConvergenceWarning`; turned into an
+error, it stops the solve at the first refused option.
 
 Ipopt can write its own log to a file, which is the way to keep solver output when
 ``print_level`` is 0::
@@ -88,9 +74,10 @@ be sufficient. The most common options that users may want to change are:
 
 ``linear_solver``
     Linear solver used for step computations. Determines which linear algebra package is to be used
-    for the solution of the augmented linear system (for obtaining the search directions). The Ipopt
-    default is "ma27", but for most installations, the MA27 is not available, and Ipopt falls back
-    to the "mumps" solver. The available options are:
+    for the solution of the augmented linear system (for obtaining the search directions). Ipopt
+    documents "ma27" as the default, but MA27 is not in the Ipopt that comes with a pip install,
+    and there YAPSS selects "mumps" unless you choose a solver yourself;
+    :doc:`ipopt_backend` says which solver each build uses. The settings Ipopt documents are:
 
     - "ma27": use the Harwell routine MA27
     - "ma57": use the Harwell routine MA57
@@ -129,24 +116,41 @@ be sufficient. The most common options that users may want to change are:
 ``print_level``
     Output verbosity level. (``print_level``:math:`\ge` 0, default: 5)
 
-YAPSS otherwise tries not to be opinionated about Ipopt options, but makes two exceptions.
-First, the default value of ``mu_strategy`` is ``"adaptive"`` rather than Ipopt's own
-default of ``"monotone"``. The YAPSS test suite runs about 30% slower using the Ipopt
-default, and we have found that Ipopt sometimes fails to converge on difficult problems
-with the monotone strategy. Second, the default value of ``check_derivatives_for_naninf``
-is ``"yes"`` rather than ``"no"``. Without the check, Ipopt passes a NaN or infinite
-Jacobian or Hessian entry to its linear solver, which can crash the Python process; with
-it, Ipopt stops with status -13 ("Invalid number in NLP function or derivative
-detected"), and ``problem.solve()`` raises ``ValueError`` saying so. The check costs one pass
-over the derivative values per evaluation.
-Separately, ``problem.solve()`` raises ``ValueError`` before starting Ipopt if the
-objective, constraints, or their first derivatives are not finite at the initial guess,
-naming the quantities involved. Unlike the reserved options below, both are normal
-options and can still be set to any value through ``problem.ipopt_options``.
+YAPSS otherwise tries not to be opinionated about Ipopt options, but sets a few of its own.
+These are defaults: YAPSS's preference where Ipopt's own default suits these problems worse.
+Each applies only when you have not set that option yourself, and each can be set to any value
+through ``problem.ipopt_options``.
 
-The following options are reserved: YAPSS determines them from the problem configuration,
-and attempting to set them directly through ``ipopt_options`` raises a ``ValueError``
-immediately, rather than being silently overridden later.
+``mu_strategy``
+    ``"adaptive"`` rather than Ipopt's ``"monotone"``. Across the example problems both
+    strategies converge to the same optimum; adaptive takes far fewer iterations on some
+    (Newton's problem: 14 against 178) and more on others (Delta III: 75 against 21), and about
+    the same in total time. Setting ``mu_strategy = "monotone"`` is worth trying when a solve is
+    slow.
+
+``check_derivatives_for_naninf``
+    ``"yes"`` rather than ``"no"``. Without the check, Ipopt passes a NaN or infinite Jacobian
+    or Hessian entry to its linear solver, which can crash the Python process; with it, Ipopt
+    stops with status -13 ("Invalid number in NLP function or derivative detected"), and
+    ``problem.solve()`` raises ``ValueError`` saying so. The check costs one pass over the
+    derivative values per evaluation. Separately, ``problem.solve()`` raises ``ValueError``
+    before starting Ipopt if the objective, constraints, or their first derivatives are not
+    finite at the initial guess, naming the quantities involved.
+
+``timing_statistics``
+    ``"yes"`` rather than ``"no"``, so that Ipopt measures the time spent in its own components
+    and in evaluating the problem's functions; ``print_timing_statistics = "yes"`` prints the
+    measurements at the end of a solve.
+
+``linear_solver`` and ``mumps_pivot_order``
+    Outside a Conda environment only: MUMPS as the linear solver, and on macOS the QAMD
+    ordering, which avoids a crash in the ordering MUMPS would otherwise choose.
+    :doc:`ipopt_backend` explains both.
+
+The following options are reserved: YAPSS has its own setting for the same thing, or passes
+Ipopt its own value on every solve, so a value set here would conflict with YAPSS or be silently
+overridden. Setting one through ``ipopt_options`` raises ``ValueError`` at the assignment, naming
+the setting to use instead.
 
 ``hessian_approximation``
     Controlled by ``problem.derivatives.order``. When the derivative order is
@@ -161,20 +165,20 @@ immediately, rather than being silently overridden later.
 
 ``nlp_scaling_method``
     YAPSS supplies NLP scaling data through Ipopt's scaling interface and sets this
-    option to ``"user-scaling"``. Set scaling through ``problem.scale`` instead. This
-    restriction may be relaxed in a future YAPSS release.
+    option to ``"user-scaling"``. Set the scales on the problem's variables, constraints and
+    objective instead; :doc:`scaling` describes them.
 
 ``obj_scaling_factor``
-    YAPSS manages objective scaling internally. Set the sign through ``problem.sense``
-    and the magnitude through ``problem.scale.objective`` instead.
+    YAPSS manages objective scaling internally. Set the sign through
+    ``problem.objective.sense`` and the magnitude through ``problem.objective.scale`` instead.
 
 For example, trying to set ``hessian_approximation`` directly raises an error:
 
-.. doctest:: group1
-    :options: +IGNORE_EXCEPTION_DETAIL
+.. doctest:: reserved
+    :options: +NORMALIZE_WHITESPACE
 
-    >>> from yapss._legacy import Problem
-    >>> problem = Problem(name="Test", nx=[1])
+    >>> from yapss.examples.brachistochrone_minimal import setup
+    >>> problem = setup()
     >>> problem.ipopt_options.hessian_approximation = "exact"
     Traceback (most recent call last):
         ...

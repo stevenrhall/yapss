@@ -350,7 +350,7 @@ and traceback, and with a note naming the callback YAPSS was calling and the lin
 .. code-block:: pycon
 
    ValueError: math domain error
-   Raised in functions.continuous = continuous (my_problem.py, line 12).
+   Raised in the continuous callback for phase 'climb': continuous (my_problem.py, line 12).
 
 Under the ``"auto"`` derivative method each callback is first called with symbolic inputs. A
 function that needs a float, such as ``math.sin``, fails there with a ``TypeError``, and a second
@@ -363,7 +363,7 @@ When defining callback functions for the optimal control problem, you will often
 mathematical functions like ``sin``, ``arctan2``, and ``log``. The data type for these
 functions depends on the chosen differentiation method:
 
--  For **user-defined**, **central-difference**, and **central-difference-full**
+-  For **central-difference** and **central-difference-full**
    differentiation methods, data is passed as real NumPy arrays with elements of type
    ``np.float64``.
 
@@ -427,8 +427,8 @@ So each NumPy `ufunc` falls into exactly one of three categories:
     Listed below. Checked against NumPy on both paths by the package's test suite.
 
 **Unsupported**
-    Raises ``yapss.math.UnsupportedMathFunctionError`` on a symbolic value, and warns on a real
-    one until 0.3.0. See `Unsupported Functions`_.
+    Raises ``yapss.math.UnsupportedMathFunctionError`` on every argument. See `Unsupported
+    Functions`_.
 
 **Not applicable**
     Integer-domain functions (``gcd``, ``left_shift``) and multiple-output functions
@@ -607,48 +607,30 @@ the belief that half-to-even rounding could not be reproduced symbolically, is s
 They raise ``yapss.math.UnsupportedMathFunctionError``, a subclass of the built-in
 ``TypeError``, whatever the argument:
 
->>> from yapss.math import spacing
->>> spacing(1.0)
-Traceback (most recent call last):
-    ...
-yapss.math.wrapper.UnsupportedMathFunctionError: 'spacing' is not supported in YAPSS callback functions because it returns the distance to the adjacent floating-point value, which has no symbolic equivalent. Callback functions must give the same result under every derivative method. Use 'numpy.spacing' directly if you need it outside a callback.
+.. doctest::
+   :options: +NORMALIZE_WHITESPACE
+
+   >>> from yapss.math import spacing
+   >>> spacing(1.0)
+   Traceback (most recent call last):
+       ...
+   yapss.math.wrapper.UnsupportedMathFunctionError: 'spacing' is not supported in YAPSS
+   callback functions because it returns the distance to the adjacent floating-point value,
+   which has no symbolic equivalent. Callback functions must give the same result under every
+   derivative method. Use 'numpy.spacing' directly if you need it outside a callback.
 
 If one of these worked under central differences and failed under automatic differentiation, a
 formulation could come to depend on the differentiation method, which is exactly what
 ``yapss.math`` exists to prevent.
 
-.. versionchanged:: 0.3.0
-    A real argument raises, as a symbolic one already did. Through 0.2.x it emitted
-    ``UnsupportedMathFunctionWarning`` and evaluated as NumPy does.
+.. autoexception:: yapss.UnsupportedMathFunctionError
 
 If you have a reason to use one anyway (you shouldn't!), call it directly through ``numpy``.
 
 Continuous Argument Class Reference
 -----------------------------------
 
-Each of the three continuous callbacks receives its own argument class. All three carry the
-same inputs; each carries only the output its own callback assigns, so a Jacobian callback
-has no ``dynamics`` to write and the continuous callback has no ``jacobian``. Writing another
-callback's output raises ``AttributeError`` at the line.
-
-.. versionchanged:: 0.3.0
-
-    The three continuous callbacks used to share one argument carrying every output. A
-    derivative entry assigned from the continuous callback was silently ignored, and a
-    dynamics row assigned from the Jacobian callback overwrote the constraint values the
-    solver had already computed at that point, giving a wrong answer with no error.
-
 .. autoclass:: yapss._backend.input_args.ContinuousArg
-   :members:
-   :no-special-members:
-   :no-undoc-members:
-
-.. autoclass:: yapss._backend.input_args.ContinuousJacobianArg
-   :members:
-   :no-special-members:
-   :no-undoc-members:
-
-.. autoclass:: yapss._backend.input_args.ContinuousHessianArg
    :members:
    :no-special-members:
    :no-undoc-members:

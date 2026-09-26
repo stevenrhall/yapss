@@ -11,7 +11,7 @@ The ``derivatives.method`` Attribute
 The ``derivatives.method`` option can take on one of three values:
 
 *  "auto" (default), for automatic differentiation using the CasADi package. With this method,
-   YAPSS calls each callback function a single time, passing symbolic placeholders in place of
+   YAPSS calls each callback function once with symbolic placeholders in place of
    the problem variables it reads --- states, controls, times, integrals, and parameters --- and
    records the expressions the callback builds from them. A placeholder stands for any value the
    variable might take, so it cannot answer a yes-or-no question: a Python ``if``, ``and``,
@@ -21,7 +21,8 @@ The ``derivatives.method`` option can take on one of three values:
    discrete callback runs, but the sparsity of the derivatives is found by evaluating the
    callback at the initial guess, so a variable used only in a branch not taken there is
    treated as having no effect, and the solve can stall or converge to the wrong point; in the
-   continuous callback the same ``if`` raises ``ValueError``. Only
+   continuous callback the same ``if`` raises ``ValueError`` under either central-difference
+   method. In the objective and discrete callbacks, only
    ``"central-difference-full"``, which does not detect sparsity, differentiates an ``if``
    correctly, and even then not at the point where the branch switches.
 
@@ -75,10 +76,11 @@ is not an option. So the differentiation method chosen is "central-difference". 
 numerical differentiation is used, the derivative order is set to "second", as that turns
 out to be (a little bit) faster than using first-order derivatives.
 
-   >>> from yapss._legacy import Problem
-   >>> ocp = Problem(name="Bryson Minimum Time to Climb", nx=[4], nu=[1])
-   >>> ocp.derivatives.method = "central-difference"
-   >>> ocp.derivatives.order = "second"
+   >>> import yapss
+   >>> from yapss.examples.minimum_time_to_climb import Phases
+   >>> problem = yapss.Problem("Bryson minimum time to climb", phases=Phases)
+   >>> problem.derivatives.method = "central-difference"
+   >>> problem.derivatives.order = "second"
 
 
 ``Derivatives`` Class Reference
@@ -86,7 +88,7 @@ out to be (a little bit) faster than using first-order derivatives.
 
 Below is a complete reference of the ``Derivatives`` class attributes.
 
-.. autoclass:: yapss._legacy.problem.Derivatives
+.. autoclass:: yapss._api.problem.Derivatives
     :members:
     :no-special-members:
     :no-undoc-members:
