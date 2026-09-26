@@ -417,6 +417,9 @@ below give the details.
     are now read-only (see Changed).
   - The `Solution` docstring omitted `discrete` and `nlp_info.g`, and named
     `nlp_info.obj_val` as `objective`.
+- `yapss.math.float_power` is now NumPy's `float_power` on real arguments. It was an alias of
+  `power`, so `float_power(2, -1)` raised `ValueError` where NumPy returns 0.5, and
+  `float_power(2, 3)` returned the integer 8.
 
 ## [0.2.3] - 2026-09-13
 

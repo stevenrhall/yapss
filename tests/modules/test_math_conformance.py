@@ -8,10 +8,12 @@ derivative methods) or an SXW-wrapped casadi symbol (the ``"auto"`` method). A n
 disagrees between the two paths is the worst kind of bug in YAPSS -- the problem is
 transcribed differently depending on how derivatives are computed, and nothing raises.
 
-These tests hold that line two ways:
+These tests hold that line three ways:
 
 * ``test_agrees_with_numpy`` evaluates each exported ufunc symbolically and compares
   against numpy on floats.
+* ``test_real_path_is_numpy`` checks that each one, on real arguments, is exactly numpy's
+  function: the same values and dtype on floats and integers, or the same exception.
 * ``test_every_exported_name_is_classified`` fails if a name is added to
   ``yapss.math.__all__`` without deciding which category it belongs to, which is how the
   gaps below went unnoticed.
@@ -221,6 +223,44 @@ def test_agrees_with_numpy(name, kind, request):
         f"  args     = {[np.round(p, 4) for p in points]}\n"
         f"  expected = {np.round(expected, 6)}\n"
         f"  actual   = {np.round(actual, 6)}"
+    )
+
+
+def outcome(function, arguments):
+    """Return what `function` gives on `arguments`: an array, or the type of what it raises."""
+    try:
+        with np.errstate(all="ignore"):
+            return np.asarray(function(*arguments))
+    except Exception as exception:
+        return type(exception)
+
+
+# integers reach a callback from a user's own constants, and a function that is numpy's on
+# floats can still differ on them, in value or in dtype
+INTEGERS = np.array([-2, -1, 0, 1, 2, 3])
+
+
+@pytest.mark.parametrize("dtype", ["float", "int"])
+@pytest.mark.parametrize("name", elementwise_ufunc_names())
+def test_real_path_is_numpy(name, dtype):
+    """Check that ``yapss.math.<name>`` on real arguments gives exactly numpy's result."""
+    nin = getattr(getattr(np, name), "nin", 1)
+    if dtype == "float":
+        points = sample_points(name, nin)
+    else:
+        points = [INTEGERS, INTEGERS[::-1]][:nin]
+    expected = outcome(getattr(np, name), points)
+    actual = outcome(getattr(math, name), points)
+
+    if isinstance(expected, type):
+        assert actual is expected, f"numpy.{name} raises {expected.__name__}; got {actual}"
+        return
+    assert not isinstance(actual, type), f"yapss.math.{name} raised {actual.__name__}"
+    assert actual.dtype == expected.dtype, f"yapss.math.{name} returned {actual.dtype}"
+    assert np.array_equal(actual, expected, equal_nan=True), (
+        f"yapss.math.{name} disagrees with numpy on {points}:\n"
+        f"  expected = {expected}\n"
+        f"  actual   = {actual}"
     )
 
 
