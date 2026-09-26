@@ -146,3 +146,27 @@ def test_a_block_fields_scales_can_be_multiplied_in_place() -> None:
     ph.state.y.scale[:] = 2.0
     ph.state.y.scale[:] *= 3
     assert list(ph.state.y.scale) == [6.0, 6.0]
+
+
+def test_the_objective_scale_message_points_to_sense() -> None:
+    """A negative objective scale is almost always an attempt to maximize."""
+    p = problem()
+    with raises(ValueError, "problem.objective.sense", at="objective.scale"):
+        p.objective.scale = -1.0
+
+
+@pytest.mark.parametrize("value", ["2", 2 + 0j])
+def test_time_and_objective_scales_are_real_numbers(value: object) -> None:
+    """A string or a complex number is refused, on the scales set outside any field too."""
+    p = problem()
+    with raises(TypeError, "a scale is a positive number", at="time.scale"):
+        p.phases.first.time.scale = value  # type: ignore[assignment]
+    with raises(TypeError, "a scale is a positive number", at="objective.scale"):
+        p.objective.scale = value  # type: ignore[assignment]
+
+
+def test_a_misspelled_scale_setting_is_refused_with_a_suggestion() -> None:
+    """The objective's settings are checked like a field's."""
+    p = problem()
+    with raises(AttributeError, "'scal'", "Did you mean 'scale'", at="objective.scal"):
+        p.objective.scal = 2.0  # type: ignore[attr-defined]

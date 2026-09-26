@@ -335,3 +335,11 @@ def test_the_time_guess_is_finite(guess: tuple[float, float]) -> None:
     ph = solvable().phases.slide
     with raises(ValueError, "time guess", "must be finite", at="time.guess"):
         ph.time.guess = guess
+
+
+@pytest.mark.parametrize("guess", [(1.0, 0.0), (1.0, 1.0)])
+def test_the_time_guess_increases(guess: tuple[float, float]) -> None:
+    """The phase runs forward: t0 must be less than tf."""
+    ph = solvable().phases.slide
+    with raises(ValueError, "is not less than tf", at="time.guess"):
+        ph.time.guess = guess

@@ -625,3 +625,123 @@ def test_the_objective_is_returned_not_assigned() -> None:
     p.register.objective(assigns)
     with raises(AttributeError, "returned from the objective callback", at="arg.objective"):
         p.solve()
+
+
+# ------------------------------------------------------------ pinned by the 2026-09-25 audit
+
+
+@not_yet("freeze item 2", "a callback argument still reads and writes rows by position")
+@pytest.mark.parametrize("access", ["out.dynamics[:]", "out.path[0]", "arg.state[0]"])
+@pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")  # stopped after 1 iteration
+def test_a_callback_argument_has_no_positions(access: str) -> None:
+    """Spec 2.6: rows are reached by name, since a position is only the order a class body
+    happens to be written in, and reordering it would silently change what the code means."""
+    p = solvable()
+    p.ipopt_options.print_level = 0
+    p.ipopt_options.max_iter = 1
+
+    def positional(arg, out):
+        dynamics(arg, out)
+        if access == "out.dynamics[:]":
+            out.dynamics[:] = (arg.state.v, arg.state.v, arg.state.v)
+        elif access == "out.path[0]":
+            out.path[0] = arg.state.v
+        else:
+            _ = arg.state[0]
+
+    p.phases.slide.register.continuous(positional)
+    with pytest.raises(TypeError):
+        p.solve()
+
+
+def test_a_misspelled_discrete_output_is_suggested() -> None:
+    """The discrete callback's outputs are checked like the continuous ones."""
+    p = solvable()
+    ph = p.phases.slide
+
+    def misspelled(arg, out):
+        out.discrete.dropp = arg[ph].final.y
+
+    p.register.discrete(misspelled)
+    with raises(AttributeError, "'dropp'", "Did you mean 'drop'", at="out.discrete.dropp"):
+        p.solve()
+
+
+@pytest.mark.parametrize("method", ["auto", "central-difference"])
+def test_a_python_if_on_an_input_is_refused_under_every_method(method: str) -> None:
+    """Under "auto" it names yapss.math.where; numerically, the truth value is ambiguous."""
+    p = solvable(method)
+
+    def branches(arg, out):
+        dynamics(arg, out)
+        if arg.state.v > 1.0:
+            out.dynamics.x = 0.0
+
+    p.phases.slide.register.continuous(branches)
+    fragment = "yapss.math.where" if method == "auto" else "ambiguous"
+    with pytest.raises((TypeError, ValueError), match=fragment):
+        p.solve()
+
+
+def test_an_endpoint_input_cannot_be_written() -> None:
+    """The objective reads endpoints; it cannot change them."""
+    p = solvable()
+    ph = p.phases.slide
+
+    def writes(arg):
+        arg[ph].final.x = 0.0
+        return arg[ph].final.time
+
+    p.register.objective(writes)
+    with raises(AttributeError, "is an input", at="final.x"):
+        p.solve()
+
+
+def test_an_input_container_cannot_be_replaced() -> None:
+    """arg.state is the phase's state; the callback cannot swap it for another."""
+    p = solvable()
+
+    def replaces(arg, out):
+        arg.state = None
+        dynamics(arg, out)
+
+    p.phases.slide.register.continuous(replaces)
+    with raises(AttributeError, "cannot be assigned", at="arg.state"):
+        p.solve()
+
+
+def test_inputs_follow_the_point_they_are_read_at() -> None:
+    """Arguments are reused between calls, so each must read the current point, not a copy."""
+    p = solvable("central-difference")
+    p.ipopt_options.print_level = 0
+    ph = p.phases.slide
+    times: set[float] = set()
+    finals: set[float] = set()
+
+    def watch(arg, out):
+        times.update(float(t) for t in arg.time)
+        dynamics(arg, out)
+
+    def objective(arg):
+        finals.add(float(arg[ph].final.time))
+        return arg[ph].final.time
+
+    ph.register.continuous(watch)
+    p.register.objective(objective)
+    p.solve()
+    assert len(times) > 10
+    assert len(finals) > 1
+
+
+def test_an_explicit_zero_may_then_be_added_to() -> None:
+    """Assigning zero is an assignment, so an in-place update after it is too."""
+    p = solvable()
+    p.ipopt_options.print_level = 0
+
+    def accumulates(arg, out):
+        dynamics(arg, out)
+        out.integrand.effort = 0.0
+        out.integrand.effort += arg.control.theta**2
+
+    p.phases.slide.register.continuous(accumulates)
+    assert p.solve().converged

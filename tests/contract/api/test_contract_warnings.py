@@ -84,3 +84,9 @@ def test_a_very_large_segment_warns() -> None:
     with warns(yapss.LargeSegmentWarning, "usually better split", at="ph.mesh"):
         ph = problem.phases.slide
         ph.mesh = yapss.Mesh([(1.0, 60)])
+
+
+def test_the_unsupported_function_error_is_a_yapss_error_and_a_type_error() -> None:
+    """Caught as YAPSS's own, or as the built-in it specializes."""
+    assert issubclass(yapss.UnsupportedMathFunctionError, yapss.YapssError)
+    assert issubclass(yapss.UnsupportedMathFunctionError, TypeError)

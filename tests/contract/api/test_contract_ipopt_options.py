@@ -99,3 +99,18 @@ def test_a_documented_option_is_set_without_comment() -> None:
     p = solvable()
     p.ipopt_options.max_iter = 50
     assert p.solve().converged
+
+
+def test_an_option_set_to_none_is_removed() -> None:
+    """None removes an option, and Ipopt uses its default."""
+    p = solvable()
+    p.ipopt_options.max_iter = 50
+    p.ipopt_options.max_iter = None
+    assert "max_iter" not in p.ipopt_options.get_options()
+
+
+def test_a_container_method_is_not_an_option() -> None:
+    """Assigning reset or get_options would shadow the method, and Ipopt has no such option."""
+    p = solvable()
+    with raises(AttributeError, "is a method of ipopt_options", at="reset"):
+        p.ipopt_options.reset = 5  # type: ignore[method-assign, assignment]

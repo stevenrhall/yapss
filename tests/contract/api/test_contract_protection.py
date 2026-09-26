@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from ._api import problem, raises, solvable
+from yapss.math import cos, sin
+
+from ._api import G0, problem, raises, solvable
 
 
 def test_a_setting_that_does_not_exist_is_refused() -> None:
@@ -87,3 +89,84 @@ def test_a_solution_cannot_be_deleted_from(target: str) -> None:
     ps = sol[p.phases.slide]
     with raises(AttributeError, "a solution is read-only", "cannot be deleted", at="exec"):
         exec(f"del {target}", {"sol": sol, "ps": ps})  # noqa: S102
+
+
+# ---------------------------------------------------------------------- the whole tree
+
+
+def _reachable() -> list[object]:
+    """Every object of YAPSS's front end reachable from a problem, its solution, and the
+    arguments its callbacks are given, once each."""
+    p = solvable("central-difference")
+    p.ipopt_options.print_level = 0
+    ph = p.phases.slide
+    given: dict[str, tuple[object, ...]] = {}
+
+    @ph.register.continuous
+    def continuous(arg, out):
+        given.setdefault("continuous", (arg, out))
+        v, theta = arg.state.v, arg.control.theta
+        out.dynamics.x = v * cos(theta)
+        out.dynamics.y = v * sin(theta)
+        out.dynamics.v = G0 * sin(theta)
+        out.path.speed = v
+        out.integrand.effort = theta**2
+
+    @p.register.objective
+    def objective(arg):
+        given.setdefault("objective", (arg, arg[ph], arg[ph].initial, arg[ph].final))
+        return arg[ph].final.time + 1e-3 * arg[ph].integral.effort
+
+    @p.register.discrete
+    def discrete(arg, out):
+        given.setdefault("discrete", (arg, out))
+        out.discrete.drop = arg[ph].final.y
+
+    solution = p.solve()
+    assert set(given) == {"continuous", "objective", "discrete"}
+    seen: dict[int, object] = {}
+    todo: list[object] = [p, solution, solution[ph], ph.state.x]
+    todo += [obj for objects in given.values() for obj in objects]
+    while todo:
+        obj = todo.pop()
+        if id(obj) in seen or not type(obj).__module__.startswith("yapss._api"):
+            continue
+        seen[id(obj)] = obj
+        for name in dir(obj):
+            if name.startswith("_"):
+                continue
+            try:
+                value = getattr(obj, name)
+            except Exception:  # noqa: BLE001, S112 -- a name that cannot be read is not walked
+                continue
+            if not callable(value) or type(value).__module__.startswith("yapss._api"):
+                todo.append(value)
+    return list(seen.values())
+
+
+def test_every_reachable_object_refuses_an_undeclared_name_and_a_deletion() -> None:
+    """A walk rather than a list, so that a new class cannot miss the protection unnoticed.
+
+    Reached from a problem and its solution: every object whose class lives in YAPSS's front
+    end refuses assignment to a name it does not declare, and refuses deleting a public name.
+    """
+    objects = _reachable()
+    assert len(objects) > 20
+    failures = []
+    for obj in objects:
+        kind = type(obj).__qualname__
+        try:
+            obj.__setattr__("zz_not_declared", 1)
+        except (AttributeError, TypeError):
+            pass
+        else:
+            failures.append(f"{kind} accepted an undeclared name")
+        public = [n for n in dir(obj) if not n.startswith("_") and n != "zz_not_declared"]
+        for name in public[:1]:
+            try:
+                obj.__delattr__(name)
+            except (AttributeError, TypeError):
+                pass
+            else:
+                failures.append(f"{kind} allowed 'del {name}'")
+    assert not failures, "\n".join(failures)

@@ -8,6 +8,8 @@ put into that shape belongs to the page for that aspect.
 
 from __future__ import annotations
 
+import threading
+
 import numpy as np
 import pytest
 
@@ -685,3 +687,58 @@ def test_every_held_object_can_be_named_in_the_advice() -> None:
             assert "cannot be replaced" in advice
             assert "<" not in advice, advice
             todo.append(object.__getattribute__(owner, name))
+
+
+def test_maximizing_gives_the_negated_optimum_of_minimizing_the_negation() -> None:
+    """Sense flips what is optimized, not how: the two optima agree up to sign."""
+    minimize = solvable()
+    minimize.ipopt_options.print_level = 0
+    ph = minimize.phases.slide
+    minimize.register.objective(lambda arg: arg[ph].final.time)
+    maximize = solvable()
+    maximize.ipopt_options.print_level = 0
+    qh = maximize.phases.slide
+    maximize.register.objective(lambda arg: -arg[qh].final.time)
+    maximize.objective.sense = "maximize"
+    low, high = minimize.solve().objective, maximize.solve().objective
+    assert abs(low + high) < 1e-6 * abs(low)
+
+
+def test_a_problem_solves_from_a_worker_thread() -> None:
+    """Ctrl-C handling needs the main thread; solving elsewhere still works."""
+    results: list[float] = []
+
+    def run() -> None:
+        p = solvable()
+        p.ipopt_options.print_level = 0
+        results.append(p.solve().objective)
+
+    worker = threading.Thread(target=run)
+    worker.start()
+    worker.join()
+    assert len(results) == 1
+
+
+def test_too_few_degrees_of_freedom_raises() -> None:
+    """Ipopt stops without an iterate (status -10), so there is no solution to return."""
+
+    class K(yapss.Parameter):
+        k = yapss.scalar()
+
+    class Twice(yapss.Discrete):
+        a = yapss.scalar()
+        b = yapss.scalar()
+
+    p = yapss.Problem("overdetermined", parameter=K, discrete=Twice)
+
+    def discrete(arg, out):
+        out.discrete.a = arg.parameter.k
+        out.discrete.b = 2 * arg.parameter.k
+
+    p.register.objective(lambda arg: arg.parameter.k)
+    p.register.discrete(discrete)
+    p.discrete.a.bounds = (1.0, 1.0)
+    p.discrete.b.bounds = (3.0, 3.0)
+    p.ipopt_options.print_level = 0
+    with raises(ValueError, "Status -10", "too few degrees of freedom", at="solve"):
+        p.solve()

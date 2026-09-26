@@ -325,3 +325,36 @@ def test_the_final_time_cannot_lie_before_the_initial_time() -> None:
         ValueError, "not ready to solve", "wholly before", "cannot run backward", at="validate"
     ):
         p.validate()
+
+
+def test_a_final_boundary_bound_must_overlap_the_bound_too() -> None:
+    """The final bound is checked as the initial one is."""
+    p = solvable()
+    ph = p.phases.slide
+    ph.state.v.bounds = (0.0, 1.0)
+    ph.state.v.final = (5.0, 6.0)
+    with raises(ValueError, "state 'v'", "final bound", "does not overlap", at="validate"):
+        p.validate()
+
+
+def test_solve_runs_validate_first() -> None:
+    """A contradiction is reported by solve() as by validate(), before Ipopt starts."""
+    p = solvable()
+    p.phases.slide.state.v.bounds = (0.0, 1.0)
+    p.phases.slide.state.v.initial = (5.0, 6.0)
+    with raises(ValueError, "not ready to solve", "does not overlap", at="solve"):
+        p.solve()
+
+
+@pytest.mark.parametrize(
+    ("owner", "typo", "suggestion"),
+    [("x", "bouds", "bounds"), ("x", "gues", "guess"), ("time", "fnal", "final")],
+)
+def test_a_misspelled_setting_on_a_field_is_refused_with_a_suggestion(
+    owner: str, typo: str, suggestion: str
+) -> None:
+    """Field first, then setting: a misspelled setting names the one that was meant."""
+    ph = problem().phases.first
+    target = ph.time if owner == "time" else ph.state.x
+    with raises(AttributeError, f"'{typo}'", f"Did you mean '{suggestion}'", at="setattr"):
+        setattr(target, typo, (0.0, 1.0))
