@@ -102,26 +102,27 @@ def test_a_misspelled_field_names_the_vector() -> None:
         _ = ps.state.nope
 
 
-def test_a_solution_is_read_only() -> None:
-    """A record of what was solved cannot be edited into a record of something else."""
+def test_a_solutions_names_are_fixed() -> None:
+    """Each name is one solved quantity, so it cannot be rebound; the refusal says what can be
+    done instead, which is to edit the arrays in place."""
     _, result = solution()
-    with raises(AttributeError, "a solution is read-only", at="result.objective"):
+    with raises(AttributeError, "names are fixed", "edited in place", at="result.objective"):
         result.objective = 1.0
 
 
-def test_a_phase_solution_is_read_only() -> None:
+def test_a_phase_solutions_names_are_fixed() -> None:
     """The same for a phase's record."""
     problem, result = solution()
     ps = result[problem.phases.slide]
-    with raises(AttributeError, "a solution is read-only", at="ps.state"):
+    with raises(AttributeError, "names are fixed", "edited in place", at="ps.state"):
         ps.state = 1.0
 
 
-def test_the_arrays_of_a_solution_are_read_only() -> None:
-    """Down to the rows: the record is data, not a scratch space."""
+def test_a_solutions_fields_are_fixed() -> None:
+    """Down to the fields: a field names its array, and the array is edited, not replaced."""
     problem, result = solution()
     ps = result[problem.phases.slide]
-    with raises(AttributeError, "is read-only", at="ps.state.x"):
+    with raises(AttributeError, "'x' cannot be assigned", "names are fixed", at="ps.state.x"):
         ps.state.x = np.zeros(3)
 
 

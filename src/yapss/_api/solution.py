@@ -2,7 +2,7 @@
 
 The solution, read under the names the problem declared.
 
-Every quantity of a phase is a read-only vector with that phase's own field names, so a state is
+Every quantity of a phase is a vector with that phase's own field names, so a state is
 ``ps.state.h`` wherever it is reached, and a helper written against a callback's endpoint
 values also accepts a solution's.
 
@@ -107,15 +107,33 @@ def _declaration(shape: Shape) -> type[Vector]:
     return declaration
 
 
+_NAMES_FIXED = "a solution's names are fixed, and its arrays can be edited in place"
+"""Why a solution refuses to assign or delete a name, and what it allows instead (spec 8)."""
+
+
+class SolutionRows(ReadOnlyRows):
+    """A solution's rows.
+
+    Each name is one solved quantity, so it cannot be rebound; the array it holds is the
+    user's, and can be edited in place.
+    """
+
+    @classmethod
+    def refusal(cls, label: str, name: str | None, verb: str = "assigned") -> str:
+        """Return the message refusing to rebind `name`, or, for None, the rows by position."""
+        what = f"{label}'s rows" if name is None else f"{label} '{name}'"
+        return f"{what} cannot be {verb}; {_NAMES_FIXED}"
+
+
 def _rebuild_vector(shape: Shape, label: str, rows: Any) -> Any:
-    """Return a read-only solution vector of `shape` holding `rows`. Also what unpickling calls."""
-    obj = _declaration(shape)._new(ReadOnlyRows, label, None)
+    """Return a solution vector of `shape` holding `rows`. Also what unpickling calls."""
+    obj = _declaration(shape)._new(SolutionRows, label, None)
     obj._fill(rows)
     return obj
 
 
 def _vector(declaration: type[Vector], rows: Any, label: str) -> Any:
-    """Return a read-only vector with the fields of `declaration`, holding `rows`."""
+    """Return a solution vector with the fields of `declaration`, holding `rows`."""
     return _rebuild_vector(shape_of(declaration), label, rows)
 
 
@@ -236,7 +254,7 @@ def _endpoint(phase: PhaseSpec, rows: Any, independent: Any, label: str) -> Endp
 
 
 class _Record:
-    """Base of the groups a solution holds: named slots, read-only, pickled as their values."""
+    """Base of the groups a solution holds: named slots, fixed, pickled as their values."""
 
     __slots__: tuple[str, ...] = ()
     _label = "the solution"
@@ -274,14 +292,14 @@ class _Record:
             raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: a solution is a record of what was solved."""
+        """Refuse every assignment: each name is one solved quantity."""
         del value
-        msg = f"a solution is read-only; '{name}' cannot be assigned"
+        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
-        """Refuse every deletion: a solution is a record of what was solved."""
-        msg = f"a solution is read-only; '{name}' cannot be deleted"
+        """Refuse every deletion: each name is one solved quantity."""
+        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
 
@@ -1052,14 +1070,14 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: a solution is a record of what was solved."""
+        """Refuse every assignment: each name is one solved quantity."""
         del value
-        msg = f"a solution is read-only; '{name}' cannot be assigned"
+        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
-        """Refuse every deletion: a solution is a record of what was solved."""
-        msg = f"a solution is read-only; '{name}' cannot be deleted"
+        """Refuse every deletion: each name is one solved quantity."""
+        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
 
@@ -1241,14 +1259,14 @@ class Solution(Generic[D_co, PR_co]):
             raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: a solution is a record of what was solved."""
+        """Refuse every assignment: each name is one solved quantity."""
         del value
-        msg = f"a solution is read-only; '{name}' cannot be assigned"
+        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
-        """Refuse every deletion: a solution is a record of what was solved."""
-        msg = f"a solution is read-only; '{name}' cannot be deleted"
+        """Refuse every deletion: each name is one solved quantity."""
+        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __repr__(self) -> str:

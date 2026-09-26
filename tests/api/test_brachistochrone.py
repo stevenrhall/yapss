@@ -54,11 +54,11 @@ def test_the_solution_is_reached_by_name(problem):
     assert phase.state[:].shape == (3, len(phase.time))
 
 
-def test_a_solution_is_read_only(problem):
+def test_a_solutions_names_are_fixed(problem):
     solution = problem.solve()
-    with pytest.raises(AttributeError, match="read-only"):
+    with pytest.raises(AttributeError, match="names are fixed"):
         solution[problem.phases.slide].state.x = 1.0
-    with pytest.raises(AttributeError, match="read-only"):
+    with pytest.raises(AttributeError, match="names are fixed"):
         solution.objective = 1.0
 
 

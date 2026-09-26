@@ -123,6 +123,17 @@ class Kind:
     default: Any = None
 
     @classmethod
+    def refusal(cls, label: str, name: str | None, verb: str = "assigned") -> str:
+        """Return the message refusing a write to a read-only vector.
+
+        `name` is the field refused, or None for its rows by position; `verb` is "assigned" or
+        "deleted".
+        """
+        if name is None:
+            return f"{label} is read-only"
+        return f"{label} is read-only; '{name}' cannot be {verb}"
+
+    @classmethod
     def is_element(cls, value: object) -> bool:
         """Report whether `value` is one element rather than a sequence of them.
 
@@ -389,7 +400,7 @@ class Rows(Kind):
 
 
 class ReadOnlyRows(Rows):
-    """Rows the user reads but never writes: callback inputs and solution values."""
+    """Rows the user reads but never writes: a callback's inputs, and, refined, a solution's."""
 
     read_only = True
 

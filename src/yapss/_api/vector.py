@@ -747,8 +747,7 @@ class Vector:
                 raise self._no_field(name)
             kind = self._kind_or_raise()
             if kind.read_only:
-                msg = f"{self._label} is read-only; '{name}' cannot be assigned"
-                raise AttributeError(msg)
+                raise AttributeError(kind.refusal(self._label, name))
             spec = cls._meta[name]
             if not kind.by_row:
                 self._values[name] = self._one_or_per_row(kind, spec, name, value)
@@ -764,6 +763,9 @@ class Vector:
             if name.startswith("_"):
                 object.__delattr__(self, name)
                 return
+            kind = type(self)._kind
+            if kind is not None and kind.read_only:
+                raise AttributeError(kind.refusal(self._label, name, "deleted"))
             msg = f"{type(self)._label} '{name}' cannot be deleted"
             raise AttributeError(msg)
 
@@ -817,8 +819,7 @@ class Vector:
         cls = type(self)
         kind = self._kind_or_raise()
         if kind.read_only:
-            msg = f"{self._label} is read-only; '{name}' cannot be assigned"
-            raise AttributeError(msg)
+            raise AttributeError(kind.refusal(self._label, name))
         spec = cls._meta[name]
         count = spec.rows
 
@@ -949,8 +950,7 @@ class Vector:
         kind = self._kind_or_raise()
         cls = type(self)
         if kind.read_only:
-            msg = f"{self._label} is read-only"
-            raise AttributeError(msg)
+            raise AttributeError(kind.refusal(self._label, None))
         if not kind.positional:
             msg = f"{self._label} cannot be set by position; set its fields by name"
             if cls._fields:

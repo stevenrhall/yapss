@@ -82,12 +82,12 @@ def test_a_setting_cannot_be_deleted(target: str) -> None:
 
 @pytest.mark.parametrize("target", ["sol.objective", "sol.status", "ps.state", "sol.nlp.x"])
 def test_a_solution_cannot_be_deleted_from(target: str) -> None:
-    """A solution is a record; deleting from it would break its pickling and its repr."""
+    """A solution's names are fixed; deleting one would break its pickling and its repr."""
     p = solvable()
     p.ipopt_options.print_level = 0
     sol = p.solve()
     ps = sol[p.phases.slide]
-    with raises(AttributeError, "a solution is read-only", "cannot be deleted", at="exec"):
+    with raises(AttributeError, "cannot be deleted", "names are fixed", at="exec"):
         exec(f"del {target}", {"sol": sol, "ps": ps})  # noqa: S102
 
 

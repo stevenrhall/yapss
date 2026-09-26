@@ -274,11 +274,11 @@ def test_no_array_of_the_record_shares_memory_with_another(solved):
             assert not np.shares_memory(a, b)
 
 
-def test_the_record_is_read_only(solved):
+def test_the_records_names_are_fixed(solved):
     _, _, solution, ps = solved
-    with pytest.raises(AttributeError, match="read-only"):
+    with pytest.raises(AttributeError, match="names are fixed"):
         solution.nlp.x = None
-    with pytest.raises(AttributeError, match="read-only"):
+    with pytest.raises(AttributeError, match="names are fixed"):
         ps.nlp.index.variable.state = None
     with pytest.raises(AttributeError, match="Did you mean 'mult_g'"):
         solution.nlp.mult_gg  # noqa: B018

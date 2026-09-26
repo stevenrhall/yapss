@@ -109,7 +109,7 @@ def test_a_pickled_solution_keeps_its_names_and_messages(solved):
     copy = pickle.loads(pickle.dumps(solution))
     with pytest.raises(AttributeError, match=r"has no field 'yy'\. Did you mean 'y'\?"):
         copy[problem.phases.run].state.yy  # noqa: B018
-    with pytest.raises(AttributeError, match="read-only"):
+    with pytest.raises(AttributeError, match="names are fixed"):
         copy.objective = 0.0
 
 
