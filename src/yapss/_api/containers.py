@@ -173,6 +173,15 @@ class Container:
             msg = f"{self._label} has no setting '{name}'.{suggest(name, self._names())}"
             raise AttributeError(msg)
 
+        def __delattr__(self, name):
+            """Refuse deleting a public name, which would leave the container without it."""
+            if name.startswith("_"):
+                object.__delattr__(self, name)
+                return
+            advice = "; assign it a new value instead" if name in self._settable else ""
+            msg = f"{self._label} '{name}' cannot be deleted{advice}"
+            raise AttributeError(msg)
+
         def __getattr__(self, name):
             """Refuse an unknown name with a suggestion."""
             if name.startswith("_"):

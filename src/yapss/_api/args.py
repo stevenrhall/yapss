@@ -107,6 +107,11 @@ class _Frozen:
         msg = f"{type(self).__name__}.{name} is an input and cannot be assigned"
         raise AttributeError(msg)
 
+    def __delattr__(self, name: str) -> None:
+        """Refuse every deletion."""
+        msg = f"{type(self).__name__}.{name} is an input and cannot be deleted"
+        raise AttributeError(msg)
+
 
 class ContinuousArg(_Frozen, Generic[S_co, C_co, PR_co]):
     """What a continuous callback is given, for one phase at one set of time points.
@@ -211,6 +216,11 @@ class ContinuousOut(_Frozen, Generic[S_co, P_co, I_co]):
             )
             raise AttributeError(msg)
         msg = f"out has no '{name}'.{suggest(name, self.__slots__)}"
+        raise AttributeError(msg)
+
+    def __delattr__(self, name: str) -> None:
+        """Refuse deleting an output vector."""
+        msg = f"out.{name} cannot be deleted; it is filled field by field"
         raise AttributeError(msg)
 
     def _is_complete(self) -> bool:
@@ -380,6 +390,11 @@ class DiscreteOut(_Frozen, Generic[D_co]):
             )
             raise AttributeError(msg)
         msg = f"out has no '{name}'.{suggest(name, self.__slots__)}"
+        raise AttributeError(msg)
+
+    def __delattr__(self, name: str) -> None:
+        """Refuse deleting the discrete vector."""
+        msg = f"out.{name} cannot be deleted; it is filled field by field"
         raise AttributeError(msg)
 
     def _is_complete(self) -> bool:

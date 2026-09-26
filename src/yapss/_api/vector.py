@@ -754,6 +754,14 @@ class Vector:
                     row_value, label=self._label, name=name, npoints=self._npoints
                 )
 
+        def __delattr__(self, name):
+            """Refuse deleting a field's value; assigning a new one is how it is changed."""
+            if name.startswith("_"):
+                object.__delattr__(self, name)
+                return
+            msg = f"{type(self)._label} '{name}' cannot be deleted"
+            raise AttributeError(msg)
+
     def _one_or_per_row(self, kind: type[Kind], spec: Field, name: str, value: Any) -> Any:
         """Return the stored value of a scalar setup field, and refuse a block one.
 

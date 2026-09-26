@@ -381,6 +381,11 @@ class Phases:
             msg = f"{type(self).__name__}.{name} cannot be assigned; phases are declared"
             raise AttributeError(msg)
 
+        def __delattr__(self, name):
+            """Refuse every deletion: phases are declared, not assigned."""
+            msg = f"{type(self).__name__}.{name} cannot be deleted; phases are declared"
+            raise AttributeError(msg)
+
     def _all(self) -> dict[str, AnyPhase]:
         handles: dict[str, AnyPhase] = object.__getattribute__(self, "_handles")
         return handles

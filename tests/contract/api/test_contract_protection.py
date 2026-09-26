@@ -8,6 +8,8 @@ quietly does nothing.
 
 from __future__ import annotations
 
+import pytest
+
 from ._api import problem, raises, solvable
 
 
@@ -45,3 +47,43 @@ def test_a_misspelling_is_refused_where_it_is_written() -> None:
     p = solvable()
     with raises(AttributeError, "no setting", at="p.derivatives.methodd"):
         p.derivatives.methodd = "auto"
+
+
+# ------------------------------------------------------------------------- deletion
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "p.derivatives",
+        "p.derivatives.method",
+        "p.objective.sense",
+        "p.spectral_method",
+        "ph.time.final",
+        "ph.mesh",
+        "ph.state.x",
+        "ph.state.x.bounds",
+        "p.phases.slide",
+    ],
+)
+def test_a_setting_cannot_be_deleted(target: str) -> None:
+    """Deleted, a setting would leave the problem contradicting itself at every later read.
+
+    "derivatives has no setting 'method'. Did you mean 'method'?" would be reported far from
+    the line that caused it, so the deletion is refused at that line.
+    """
+    p = solvable()
+    ph = p.phases.slide
+    with raises(AttributeError, "cannot be deleted", at="exec"):
+        exec(f"del {target}", {"p": p, "ph": ph})  # noqa: S102
+
+
+@pytest.mark.parametrize("target", ["sol.objective", "sol.status", "ps.state", "sol.nlp.x"])
+def test_a_solution_cannot_be_deleted_from(target: str) -> None:
+    """A solution is a record; deleting from it would break its pickling and its repr."""
+    p = solvable()
+    p.ipopt_options.print_level = 0
+    sol = p.solve()
+    ps = sol[p.phases.slide]
+    with raises(AttributeError, "a solution is read-only", "cannot be deleted", at="exec"):
+        exec(f"del {target}", {"sol": sol, "ps": ps})  # noqa: S102

@@ -103,6 +103,12 @@ class Fields:
         )
         raise AttributeError(msg)
 
+    def __delattr__(self, name: str) -> None:
+        """Refuse deleting a field."""
+        label: str = object.__getattribute__(self, "_label")
+        msg = f"{label} {name!r} cannot be deleted; its fields are declared"
+        raise AttributeError(msg)
+
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Pass a call to the aspects, which answer the slip it usually is.
 
@@ -186,6 +192,12 @@ class FieldSettings:
         if setting not in aspects._held:
             raise self._refuse(setting)
         setattr(getattr(aspects, setting), object.__getattribute__(self, "_name"), value)
+
+    def __delattr__(self, setting: str) -> None:
+        """Refuse deleting a setting; assigning a new value is how one is changed."""
+        name = object.__getattribute__(self, "_name")
+        msg = f"'{name}.{setting}' cannot be deleted; assign it a new value instead"
+        raise AttributeError(msg)
 
     def __getitem__(self, index: Any) -> Any:
         """Refuse an index on the field itself: rows belong to one of its settings."""

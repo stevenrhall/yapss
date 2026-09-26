@@ -279,6 +279,11 @@ class _Record:
         msg = f"a solution is read-only; '{name}' cannot be assigned"
         raise AttributeError(msg)
 
+    def __delattr__(self, name: str) -> None:
+        """Refuse every deletion: a solution is a record of what was solved."""
+        msg = f"a solution is read-only; '{name}' cannot be deleted"
+        raise AttributeError(msg)
+
 
 _STATE_BOUNDS_OWED = (
     "A state's bound multiplier has to be divided by the quadrature weight and, at a collocated "
@@ -1052,6 +1057,11 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         msg = f"a solution is read-only; '{name}' cannot be assigned"
         raise AttributeError(msg)
 
+    def __delattr__(self, name: str) -> None:
+        """Refuse every deletion: a solution is a record of what was solved."""
+        msg = f"a solution is read-only; '{name}' cannot be deleted"
+        raise AttributeError(msg)
+
 
 class Solution(Generic[D_co, PR_co]):
     """The result of a solve.
@@ -1230,6 +1240,11 @@ class Solution(Generic[D_co, PR_co]):
         """Refuse every assignment: a solution is a record of what was solved."""
         del value
         msg = f"a solution is read-only; '{name}' cannot be assigned"
+        raise AttributeError(msg)
+
+    def __delattr__(self, name: str) -> None:
+        """Refuse every deletion: a solution is a record of what was solved."""
+        msg = f"a solution is read-only; '{name}' cannot be deleted"
         raise AttributeError(msg)
 
     def __repr__(self) -> str:
