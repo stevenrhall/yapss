@@ -7,12 +7,14 @@ guessed extent, which is what lets a sampled guess carry no times of its own to 
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pytest
 
 import yapss
 
-from ._api import Control, State, problem, raises, solvable
+from ._api import Angle, Control, State, problem, raises, solvable
 
 # ----------------------------------------------------------------- the three accepted forms
 
@@ -343,3 +345,77 @@ def test_the_time_guess_increases(guess: tuple[float, float]) -> None:
     ph = solvable().phases.slide
     with raises(ValueError, "is not less than tf", at="time.guess"):
         ph.time.guess = guess
+
+
+# --------------------------------------------------------------- a guess from a solution
+
+
+def _solved() -> Any:
+    p = solvable()
+    p.ipopt_options.print_level = 0
+    return p.solve()
+
+
+@pytest.mark.parametrize("method", ["lg", "lgr", "lgl"])
+def test_a_warm_start_converges_quickly_on_another_mesh_and_method(method: str) -> None:
+    """Spec 6.1: the guess is written from the solution, and it is a good one."""
+    solution = _solved()
+    cold = solvable()
+    warm = solvable()
+    for p in (cold, warm):
+        p.phases.slide.mesh = yapss.Mesh.uniform(segments=4, points=6)
+        p.spectral_method = method
+        p.ipopt_options.print_level = 0
+    warm.guess_from_solution(solution)
+    cold_solution, warm_solution = cold.solve(), warm.solve()
+    assert warm_solution.converged
+    assert abs(warm_solution.objective - cold_solution.objective) < 1e-6
+    assert warm_solution.nlp.convergence.iterations < cold_solution.nlp.convergence.iterations
+
+
+def test_a_warm_start_writes_ordinary_guesses() -> None:
+    """What is written can be read and changed afterwards like any other guess."""
+    solution = _solved()
+    p = solvable()
+    p.guess_from_solution(solution)
+    ps = solution[p.phases.slide]
+    assert p.phases.slide.time.guess == (float(ps.time[0]), float(ps.time[-1]))
+    p.phases.slide.state.v.guess = (0.0, 4.0)
+
+
+def test_a_mismatched_solution_is_refused_listing_every_mismatch() -> None:
+    """Matching loosely would be a silent failure; nothing is written when anything differs."""
+
+    class Other(yapss.State):
+        x = yapss.scalar()
+        extra = yapss.scalar()
+
+    class OtherPhase(yapss.Phase):
+        state: Other
+        control: Angle
+        time: yapss.Independent
+
+    class OtherPhases(yapss.Phases):
+        slide: OtherPhase
+
+    q = yapss.Problem("other", phases=OtherPhases)
+    before = q.phases.slide.time.guess
+    with raises(
+        ValueError,
+        "does not match",
+        "state 'y' is in the solution but not the problem",
+        "state 'extra' is in the problem but not the solution",
+        "integral 'effort' is in the solution but not the problem",
+        at="guess_from_solution",
+    ):
+        q.guess_from_solution(_solved())
+    assert q.phases.slide.time.guess == before
+
+
+def test_one_phase_may_be_paired_with_another() -> None:
+    """The per-phase form covers subsets and renames, and needs both of its arguments."""
+    solution = _solved()
+    p = solvable()
+    p.guess_from_solution(solution, solution_phase="slide", guess_phase=p.phases.slide)
+    with raises(TypeError, "give both", at="guess_from_solution"):
+        p.guess_from_solution(solution, solution_phase="slide")

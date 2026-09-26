@@ -38,6 +38,7 @@ from .kinds import Bounds, ScalarGuess, Scale
 from .old_api import old_api_message
 from .spec import snapshot, validate_problem
 from .vector import Discrete, Parameter, Vector
+from .warm import guess_from_solution
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -547,6 +548,40 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         return register if function is None else register(function)
 
     # -- solving ------------------------------------------------------------------------------
+
+    def guess_from_solution(
+        self,
+        solution: Solution[Any, Any],
+        *,
+        solution_phase: Any = None,
+        guess_phase: Any = None,
+    ) -> None:
+        """Write this problem's guesses from a solution: a warm start.
+
+        Each phase's time guess is the span it was solved over, its states and controls are
+        guessed with `yapss.interp` on the points the solution reports, and its integrals and
+        the problem's parameters with the values they took. What is written is ordinary guess
+        values, so any of them can be changed afterwards.
+
+        Parameters
+        ----------
+        solution : Solution
+            The solution to start from, of this problem or of one declared the same way. It may
+            have been solved on another mesh or with another spectral method.
+        solution_phase, guess_phase : phase handle or str, optional
+            Given together, pair one phase of the solution with one of this problem, and write
+            that phase's guesses only -- for a subset of phases, or a renamed one.
+
+        Raises
+        ------
+        ValueError
+            If the solution does not match the problem: phases by name, and within each phase
+            every state, control and integral by name and size, and the parameters. Every
+            mismatch is listed, and nothing is written.
+        TypeError
+            If only one of `solution_phase` and `guess_phase` is given.
+        """
+        guess_from_solution(self, solution, solution_phase, guess_phase)
 
     def validate(self) -> None:
         """Check everything `solve` checks before Ipopt starts, without solving.
