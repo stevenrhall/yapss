@@ -471,13 +471,11 @@ def test_a_row_is_not_a_boolean() -> None:
         p.solve()
 
 
-@not_yet("message", "a row of the wrong length falls through to numpy's broadcast error")
 def test_a_row_of_the_wrong_length_is_told_how_many_are_needed() -> None:
-    """YAPSS has the message and this path does not reach it.
+    """A row has one value per time point, and one of another length is refused at its line.
 
-    What a user gets is ``could not broadcast input array from shape (3,) into shape (10,)``,
-    which names neither the field nor the callback nor what 10 is. The message written for it
-    -- "a row needs one value per time point, 10; got 3" -- is reached only from elsewhere.
+    A single number is still a constant row; a one-element array is not, since it is neither a
+    number nor one value per point.
     """
     p = solvable("central-difference")
 
@@ -562,3 +560,16 @@ def test_one_row_of_a_block_output_is_written_by_index() -> None:
 
     solution = _block_problem(by_row).solve()
     assert solution.converged
+
+
+def test_a_one_element_array_is_not_a_constant_row() -> None:
+    """Broadcast silently, it made a row that was one value where the rest vary."""
+    p = solvable()
+
+    def one_element(arg, out):
+        dynamics(arg, out)
+        out.integrand.effort = np.atleast_1d(arg.control.theta[0])[:1]
+
+    p.phases.slide.register.continuous(one_element)
+    with raises(ValueError, "one value per time point", "got 1", at="out.integrand.effort"):
+        p.solve()

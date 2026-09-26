@@ -112,17 +112,17 @@ class _PhaseMakers:
 
     __slots__ = (
         "_arg",
+        "_label",
+        "_outputs",
+        "_phase",
         "arg_class",
         "callback",
         "control",
-        "dynamics",
         "handle",
         "has_integral",
         "has_path",
         "has_state",
-        "integrand",
         "parameter",
-        "path",
         "state",
         "what",
     )
@@ -153,6 +153,26 @@ class _PhaseMakers:
         setattr_(cached.parameter, "_source", parameter)
         return cached
 
+    def outputs(self, npoints: int) -> ContinuousOut:
+        """Return empty outputs for one evaluation at `npoints` time points.
+
+        The number of points is part of each output's class, because a row must have one value
+        per point: a row of another length is refused where it is written, rather than
+        broadcast when the rows are handed over. It varies between calls -- every point, the
+        points one at a time in the setup check -- so the makers are kept per count.
+        """
+        makers = self._outputs.get(npoints)
+        if makers is None:
+            phase, label = self._phase, self._label
+            makers = (
+                Maker(phase.state, Rows, f"{label} dynamics", npoints),
+                Maker(phase.path, Rows, f"{label} path", npoints),
+                Maker(phase.integral, Rows, f"{label} integrand", npoints),
+            )
+            self._outputs[npoints] = makers
+        dynamics, path, integrand = makers
+        return ContinuousOut(dynamics.make(), path.make(), integrand.make())
+
     def __init__(self, spec: ProblemSpec_, phase: PhaseSpec_) -> None:
         label = f"phase '{phase.name}'"
         self.handle = phase.handle
@@ -162,9 +182,9 @@ class _PhaseMakers:
         self.state = Maker(phase.state, ReadOnlyRows, f"{label} state")
         self.control = Maker(phase.control, ReadOnlyRows, f"{label} control")
         self.parameter = Maker(spec.parameter, ReadOnlyRows, "parameter")
-        self.dynamics = Maker(phase.state, Rows, f"{label} dynamics")
-        self.path = Maker(phase.path, Rows, f"{label} path")
-        self.integrand = Maker(phase.integral, Rows, f"{label} integrand")
+        self._phase = phase
+        self._label = label
+        self._outputs: dict[int, tuple[Maker, Maker, Maker]] = {}
         self._arg = None
         self.has_state = phase.state._nrows > 0
         self.has_path = phase.path._nrows > 0
@@ -180,7 +200,7 @@ def _make_continuous(spec: ProblemSpec_) -> Callable[[Any], None]:
             maker = makers[index]
             data = arg.phase[index]
             new_arg = maker.arg(data, arg.parameter)
-            out = ContinuousOut(maker.dynamics.make(), maker.path.make(), maker.integrand.make())
+            out = maker.outputs(len(data.time))
             result = _call(maker.callback, maker.what, arg, new_arg, out)
             _check_return(result, out, maker.callback, maker.what)
             _check_complete(out, maker.callback, maker.what)
