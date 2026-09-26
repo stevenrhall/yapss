@@ -52,7 +52,13 @@ class Phases(yapss.Phases):
     slide: Slide
 
 
-def setup() -> yapss.Problem[Phases]:
+# Names for the types the annotations below use.
+SlideArg = yapss.ContinuousArg[State, Control]
+SlideOut = yapss.ContinuousOut[State]
+BrachistochroneProblem = yapss.Problem[Phases]
+
+
+def setup() -> BrachistochroneProblem:
     """Set up the brachistochrone problem.
 
     Returns
@@ -64,9 +70,7 @@ def setup() -> yapss.Problem[Phases]:
     ph = problem.phases.slide
 
     @ph.register.continuous
-    def continuous(
-        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State]
-    ) -> None:
+    def continuous(arg: SlideArg, out: SlideOut) -> None:
         """Compute the bead's dynamics."""
         v, u = arg.state.v, arg.control.u
         out.dynamics.x = v * cos(u)
@@ -97,7 +101,7 @@ def setup() -> yapss.Problem[Phases]:
     return problem
 
 
-def plot_solution(problem: yapss.Problem[Phases], solution: yapss.Solution) -> None:
+def plot_solution(problem: BrachistochroneProblem, solution: yapss.Solution) -> None:
     """Plot the path the bead takes.
 
     Parameters

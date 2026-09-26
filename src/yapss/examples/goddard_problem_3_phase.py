@@ -111,12 +111,19 @@ class Phases(yapss.Phases):
     coast: Arc
 
 
+# Names for the types the annotations below use.
+RocketArg = yapss.ContinuousArg[State, Control]
+ArcOut = yapss.ContinuousOut[State]
+SingularOut = yapss.ContinuousOut[State, SingularArc]
+GoddardProblem = yapss.Problem[Phases, Discrete]
+
+
 def drag(h: Any, v: Any) -> Any:
     """Return the drag on the rocket at altitude `h` and speed `v`."""
     return sigma * v**2 * exp(-h / h0)
 
 
-def setup() -> yapss.Problem[Phases, Discrete]:
+def setup() -> GoddardProblem:
     """Set up the Goddard rocket problem.
 
     Returns
@@ -128,7 +135,7 @@ def setup() -> yapss.Problem[Phases, Discrete]:
     phases = problem.phases
     boost, singular, coast = phases.boost, phases.singular, phases.coast
 
-    def rocket(arg: yapss.ContinuousArg[State, Control], xdot: State) -> None:
+    def rocket(arg: RocketArg, xdot: State) -> None:
         """Fill in the rocket's dynamics, which are the same in every phase."""
         h, v, m = arg.state.h, arg.state.v, arg.state.m
         thrust = arg.control.thrust
@@ -137,16 +144,14 @@ def setup() -> yapss.Problem[Phases, Discrete]:
         xdot.m = -thrust / c
 
     @boost.register.continuous
-    def powered(arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State]) -> None:
+    def powered(arg: RocketArg, out: ArcOut) -> None:
         """Compute the dynamics of a phase with no path constraint."""
         rocket(arg, out.dynamics)
 
     coast.register.continuous(powered)
 
     @singular.register.continuous
-    def singular_arc(
-        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State, SingularArc]
-    ) -> None:
+    def singular_arc(arg: RocketArg, out: SingularOut) -> None:
         """Compute the dynamics, and the switching function that must vanish."""
         rocket(arg, out.dynamics)
         h, v, m = arg.state.h, arg.state.v, arg.state.m
@@ -221,7 +226,7 @@ Panel = tuple[str, Callable[[yapss.PhaseSolution], Any]]
 """A plot of one quantity: its axis label, and how to read it from a phase's solution."""
 
 
-def plot_solution(problem: yapss.Problem[Phases, Discrete], solution: yapss.Solution) -> None:
+def plot_solution(problem: GoddardProblem, solution: yapss.Solution) -> None:
     """Plot the thrust, the state histories and the Hamiltonian of every phase.
 
     Parameters

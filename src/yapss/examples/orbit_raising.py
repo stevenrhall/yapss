@@ -81,7 +81,13 @@ class Phases(yapss.Phases):
     raise_: Transfer
 
 
-def setup() -> yapss.Problem[Phases, Discrete]:
+# Names for the types the annotations below use.
+TransferArg = yapss.ContinuousArg[State, Control]
+TransferOut = yapss.ContinuousOut[State, Path]
+OrbitRaisingProblem = yapss.Problem[Phases, Discrete]
+
+
+def setup() -> OrbitRaisingProblem:
     """Set up the orbit raising problem.
 
     Returns
@@ -93,9 +99,7 @@ def setup() -> yapss.Problem[Phases, Discrete]:
     ph = problem.phases.raise_
 
     @ph.register.continuous
-    def continuous(
-        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State, Path]
-    ) -> None:
+    def continuous(arg: TransferArg, out: TransferOut) -> None:
         """Compute the vehicle's dynamics and the magnitude of its steering vector."""
         r, v_r, v_theta = arg.state.r, arg.state.v_r, arg.state.v_theta
         u_r, u_theta = arg.control.u_r, arg.control.u_theta
@@ -149,7 +153,7 @@ def setup() -> yapss.Problem[Phases, Discrete]:
     return problem
 
 
-def plot_solution(problem: yapss.Problem[Phases, Discrete], solution: yapss.Solution) -> None:
+def plot_solution(problem: OrbitRaisingProblem, solution: yapss.Solution) -> None:
     """Plot the states, the controls, the steering angle, the orbit, and the Hamiltonian.
 
     Parameters

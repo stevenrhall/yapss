@@ -8,8 +8,9 @@ the dynamics cost far more than the plumbing around them -- which is what a comp
 black-box model looks like, and which is why the released version of this problem uses central
 differences rather than tracing.
 
-The tables, the splines and the interpolator are imported from the released version, so any
-difference in the answer is the API's and not a slip in transcribing the physics.
+The tables, the splines and the interpolator are the released version's, built the same way and
+in the same order, so any difference in the answer is the API's and not a slip in transcribing
+the physics.
 
 """
 
@@ -21,18 +22,171 @@ __all__ = ["main", "plot_solution", "setup"]
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 from numpy import pi
+from scipy.interpolate import CubicSpline, RBFInterpolator
 
 import yapss
-from yapss._legacy.examples.minimum_time_to_climb import (
-    get_c,
-    get_cd0,
-    get_cla,
-    get_eta,
-    get_rho,
-    thrust_function,
-)
 from yapss.math import cos, sin
+
+# -- the model: the thrust table, the atmosphere, and the aerodynamic coefficients ---------------
+
+# mach number array, and altitude array in thousands of feet
+mach_data = np.array((0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8))
+h_data = np.array((0, 5, 10, 15, 20, 25, 30, 40, 50, 70), dtype=float)
+
+# normalize so that each array has range [0,1]
+h_data /= 70.0
+mach_data /= 1.8
+
+# Thrust data. Note that there are zero entries where the data is unknown or
+# undefined. Thrust is in thousands of lbf.
+# fmt:off
+thrust_data = np.array(
+    [[24.2,    0,    0,    0,    0,    0,    0,    0,    0,    0],
+     [28.0, 24.6, 21.1, 18.1, 15.2, 12.8, 10.7,    0,    0,    0],
+     [28.3, 25.2, 21.9, 18.7, 15.9, 13.4, 11.2,  7.3,  4.4,    0],
+     [30.8, 27.2, 23.8, 20.5, 17.3, 14.7, 12.3,  8.1,  4.9,    0],
+     [34.5, 30.3, 26.6, 23.2, 19.8, 16.8, 14.1,  9.4,  5.6,  1.1],
+     [37.9, 34.3, 30.4, 26.8, 23.3, 19.8, 16.8, 11.2,  6.8,  1.4],
+     [36.1, 38.0, 34.9, 31.3, 27.3, 23.6, 20.1, 13.4,  8.3,  1.7],
+     [   0, 36.6, 38.5, 36.1, 31.6, 28.1, 24.2, 16.2, 10.0,  2.2],
+     [   0,    0,    0, 38.7, 35.7, 32.0, 28.1, 19.3, 11.9,  2.9],
+     [   0,    0,    0,    0,    0, 34.6, 31.1, 21.7, 13.3,  3.1]],
+)
+# fmt: on
+
+# convert to lbf
+thrust_data *= 1000
+
+# Find non-empty entries in thrust table, and form argument and value arrays for the
+# radial basis function interpolator
+thrust_table = []
+mh = []
+for j, mj in enumerate(mach_data):
+    for k, hk in enumerate(h_data):
+        thrust_data_point = thrust_data[j][k]
+        if thrust_data_point != 0:
+            thrust_table.append(thrust_data_point)
+            mh.append([mj, hk])
+
+thrust_rbf_interpolator = RBFInterpolator(
+    mh,
+    thrust_table,
+    smoothing=0,
+    kernel="cubic",
+)
+
+
+def thrust_function(mach, h):
+    """Determine the thrust available at the given mach numbers and altitudes.
+
+    Parameters
+    ----------
+    mach : array_like
+        The Mach numbers.
+    h : array_like
+        The altitudes (ft).
+
+    Returns
+    -------
+    numpy.ndarray
+        The thrust at each Mach number and altitude (lbf).
+    """
+    shape = mach.shape
+    length = 1
+    for i in shape:
+        length *= i
+    mach = mach.reshape([length])
+    h = h.reshape([length])
+    thrust = thrust_rbf_interpolator(np.stack([mach / 1.8, h / 70000], -1))
+    return np.array(thrust.reshape(shape), dtype=float)
+
+
+# make splines of atmospheric data, using the U.S. 1976 Standard Atmosphere in US
+# customary units. Data from: http://www.pdas.com/atmosTable1US.html
+
+# fmt: off
+atmosphere_data = np.array(
+    #  h     rho       c
+    # --  --------  ------
+    [[ 0, 2.377E-3, 1116.5],
+     [ 5, 2.048E-3, 1097.1],
+     [10, 1.756E-3, 1077.4],
+     [15, 1.496E-3, 1057.4],
+     [20, 1.267E-3, 1036.9],
+     [25, 1.066E-3, 1016.1],
+     [30, 8.907E-4,  994.8],
+     [35, 7.382E-4,  973.1],
+     [40, 5.873E-4,  968.1],
+     [45, 4.623E-4,  968.1],
+     [50, 3.639E-4,  968.1],
+     [55, 2.865E-4,  968.1],
+     [60, 2.256E-4,  968.1],
+     [65, 1.777E-4,  968.1],
+     [70, 1.392E-4,  970.9],
+     [75, 1.091E-4,  974.3],
+     [80, 8.571E-5,  977.6],
+     [85, 6.743E-5,  981.0],
+     [90, 5.315E-5,  984.3]],
+)
+# fmt: on
+
+atmosphere_data[:, 0] *= 1000
+
+get_rho = CubicSpline(atmosphere_data[:, 0], atmosphere_data[:, 1])
+get_c = CubicSpline(atmosphere_data[:, 0], atmosphere_data[:, 2])
+
+# cubic splines of areodynamic parameters. In order to get desired results, some
+# spline points are doubled, effectively forcing the slope at those points to be zero.
+# Plots of the resulting spline functions show that the desired result is obtained.
+eps = 1e-5
+
+# lift curve slope (CLalpha)
+mach_cla = [0, 0.4, 0.8, 0.84 - eps, 0.84, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8]
+cla = [3.44, 3.44, 3.44, 3.44, 3.44, 3.58, 4.44, 3.44, 3.01, 2.86, 2.44]
+get_cla = CubicSpline(mach_cla, cla)
+
+# baseline drag coefficient (CD0)
+mach_cd0 = [0, 0.4, 0.8, 0.86 - eps, 0.86, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8]
+cd0 = [0.013, 0.013, 0.013, 0.013, 0.013, 0.014, 0.031, 0.041, 0.039, 0.036, 0.035]
+get_cd0 = CubicSpline(mach_cd0, cd0)
+
+# eta
+mach_eta = [
+    0,
+    0.4,
+    0.8 - eps,
+    0.8,
+    0.9,
+    1.0,
+    1.0 + eps,
+    1.2 - eps,
+    1.2,
+    1.4,
+    1.6,
+    1.6 + eps,
+    1.8 - eps,
+    1.8,
+]
+eta_data = [
+    0.54,
+    0.54,
+    0.54,
+    0.54,
+    0.75 - 0.01,
+    0.79,
+    0.79 - eps / 10,
+    0.78 + eps / 10,
+    0.78,
+    0.89,
+    0.93,
+    0.93,
+    0.93,
+    0.93,
+]
+get_eta = CubicSpline(mach_eta, eta_data)
+
 
 S = 530.0
 """Aerodynamic reference area (ft^2)."""
@@ -76,7 +230,13 @@ class Phases(yapss.Phases):
     climb: Climb
 
 
-def setup() -> yapss.Problem[Phases]:
+# Names for the types the annotations below use.
+ClimbArg = yapss.ContinuousArg[State, Control]
+ClimbOut = yapss.ContinuousOut[State]
+MinimumTimeToClimbProblem = yapss.Problem[Phases]
+
+
+def setup() -> MinimumTimeToClimbProblem:
     """Set up the minimum time to climb problem.
 
     Returns
@@ -88,9 +248,7 @@ def setup() -> yapss.Problem[Phases]:
     ph = problem.phases.climb
 
     @ph.register.continuous
-    def continuous(
-        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State]
-    ) -> None:
+    def continuous(arg: ClimbArg, out: ClimbOut) -> None:
         """Compute the aircraft's dynamics, looking the model up in tables."""
         h, v = arg.state.h, arg.state.v
         gamma, mass = arg.state.gamma, arg.state.mass
@@ -162,7 +320,7 @@ def setup() -> yapss.Problem[Phases]:
     return problem
 
 
-def plot_solution(problem: yapss.Problem[Phases], solution: yapss.Solution) -> None:
+def plot_solution(problem: MinimumTimeToClimbProblem, solution: yapss.Solution) -> None:
     r"""Plot the climb: the trajectory, the four states, the control, and the Hamiltonian.
 
     Parameters

@@ -116,7 +116,13 @@ class Phases(yapss.Phases):
     loop: Loop
 
 
-def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
+# Names for the types the annotations below use.
+LoopArg = yapss.ContinuousArg[State, Control, Parameter]
+LoopOut = yapss.ContinuousOut[State, Path]
+DynamicSoaringProblem = yapss.Problem[Phases, Discrete, Parameter]
+
+
+def setup() -> DynamicSoaringProblem:
     """Set up the dynamic soaring problem.
 
     Returns
@@ -130,9 +136,7 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
     ph = problem.phases.loop
 
     @ph.register.continuous
-    def continuous(
-        arg: yapss.ContinuousArg[State, Control, Parameter], out: yapss.ContinuousOut[State, Path]
-    ) -> None:
+    def continuous(arg: LoopArg, out: LoopOut) -> None:
         """Compute the flight dynamics in a wind that grows with altitude."""
         h, v = arg.state.h, arg.state.v
         gamma, psi = arg.state.gamma, arg.state.psi
@@ -240,9 +244,7 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
     return problem
 
 
-def plot_solution(
-    problem: yapss.Problem[Phases, Discrete, Parameter], solution: yapss.Solution
-) -> None:
+def plot_solution(problem: DynamicSoaringProblem, solution: yapss.Solution) -> None:
     """Plot the circuit in three dimensions, and the quantities along it.
 
     Parameters

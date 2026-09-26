@@ -92,7 +92,13 @@ class Phases(yapss.Phases):
     curve: Curve
 
 
-def setup() -> yapss.Problem[Phases, Discrete]:
+# Names for the types the annotations below use.
+CurveArg = yapss.ContinuousArg[State, Control]
+CurveOut = yapss.ContinuousOut[State, Path, Integral]
+IsoperimetricProblem = yapss.Problem[Phases, Discrete]
+
+
+def setup() -> IsoperimetricProblem:
     """Set up the isoperimetric problem.
 
     Returns
@@ -104,10 +110,7 @@ def setup() -> yapss.Problem[Phases, Discrete]:
     ph = problem.phases.curve
 
     @ph.register.continuous
-    def continuous(
-        arg: yapss.ContinuousArg[State, Control],
-        out: yapss.ContinuousOut[State, Path, Integral],
-    ) -> None:
+    def continuous(arg: CurveArg, out: CurveOut) -> None:
         """Move along the curve, accumulating the area and the moments."""
         x, y = arg.state.x, arg.state.y
         tx, ty = arg.control.tx, arg.control.ty
@@ -161,7 +164,7 @@ def setup() -> yapss.Problem[Phases, Discrete]:
     return problem
 
 
-def plot_solution(problem: yapss.Problem[Phases, Discrete], solution: yapss.Solution) -> None:
+def plot_solution(problem: IsoperimetricProblem, solution: yapss.Solution) -> None:
     """Plot the curve found and the Hamiltonian along it.
 
     The collocation points are shown as dots, with a cubic spline through them.

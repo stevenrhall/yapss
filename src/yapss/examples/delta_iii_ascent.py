@@ -183,19 +183,23 @@ class Phases(yapss.Phases):
     stage_3: Stage
 
 
+# Names for the types the annotations below use.
+StageArg = yapss.ContinuousArg[State, Control]
+StageOut = yapss.ContinuousOut[State, Path]
+DeltaIIIProblem = yapss.Problem[Phases, Discrete]
+
+
 Vector3 = NDArray[Any] | Sequence[Any]
 """A 3-vector: a vector field's value, or a list of its components."""
 
-Continuous = Callable[[yapss.ContinuousArg[State, Control], yapss.ContinuousOut[State, Path]], None]
+Continuous = Callable[[StageArg, StageOut], None]
 """The type of a stage's continuous callback."""
 
 
 def make_dynamics(thrust: float, mass_flow: float) -> Continuous:
     """Return the continuous callback of a stage with the given thrust and mass flow."""
 
-    def continuous(
-        arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State, Path]
-    ) -> None:
+    def continuous(arg: StageArg, out: StageOut) -> None:
         """Compute the vehicle's dynamics and the constraints that hold along the way.
 
         The arithmetic is grouped exactly as the released version of this example groups it, so
@@ -313,7 +317,7 @@ def orbital_elements(r_vec: Vector3, v_vec: Vector3) -> tuple[Any, ...]:
     )
 
 
-def setup() -> yapss.Problem[Phases, Discrete]:
+def setup() -> DeltaIIIProblem:
     """Set up the Delta III ascent problem.
 
     Returns
@@ -368,7 +372,7 @@ def setup() -> yapss.Problem[Phases, Discrete]:
     return problem
 
 
-def _set_bounds(problem: yapss.Problem[Phases, Discrete], stages: list[Stage]) -> None:
+def _set_bounds(problem: DeltaIIIProblem, stages: list[Stage]) -> None:
     """Set the bounds on every stage, and the bounds the constraints must meet."""
     launch = [R_e * cos(psi_l), 0.0, R_e * sin(psi_l)]
     launch_velocity = [0.0, R_e * omega_e * cos(psi_l), 0.0]
@@ -414,7 +418,7 @@ def _set_bounds(problem: yapss.Problem[Phases, Discrete], stages: list[Stage]) -
     problem.discrete.argument_of_perigee.bounds = (omega_f, omega_f)
 
 
-def _set_scales(problem: yapss.Problem[Phases, Discrete], stages: list[Stage]) -> None:
+def _set_scales(problem: DeltaIIIProblem, stages: list[Stage]) -> None:
     """Condition the problem: say how large each quantity typically is."""
     for stage in stages:
         stage.state.r.scale[:] = length_scale
@@ -476,7 +480,7 @@ def _set_guess(stages: list[Stage]) -> None:
         stage.control.u.guess[:] = yapss.interp(time, np.tile([[0.0], [1.0], [0.0]], (1, 9)))
 
 
-def plot_solution(problem: yapss.Problem[Phases, Discrete], solution: yapss.Solution) -> None:
+def plot_solution(problem: DeltaIIIProblem, solution: yapss.Solution) -> None:
     r"""Plot the ascent: altitude, position, velocity, mass, steering, and the Hamiltonian.
 
     Every quantity spans four phases, so each panel is a loop over them. The mass is the one

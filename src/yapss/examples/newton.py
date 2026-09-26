@@ -73,7 +73,13 @@ class Phases(yapss.Phases):
     nose: Nose
 
 
-def setup(y_max: float = 1.0) -> yapss.Problem[Phases]:
+# Names for the types the annotations below use.
+NoseArg = yapss.ContinuousArg[State, Control]
+NoseOut = yapss.ContinuousOut[State, yapss.Path, Integral]
+NewtonProblem = yapss.Problem[Phases]
+
+
+def setup(y_max: float = 1.0) -> NewtonProblem:
     """Set up Newton's minimal resistance problem.
 
     Parameters
@@ -90,10 +96,7 @@ def setup(y_max: float = 1.0) -> yapss.Problem[Phases]:
     ph = problem.phases.nose
 
     @ph.register.continuous
-    def continuous(
-        arg: yapss.ContinuousArg[State, Control],
-        out: yapss.ContinuousOut[State, yapss.Path, Integral],
-    ) -> None:
+    def continuous(arg: NoseArg, out: NoseOut) -> None:
         """Compute the profile's dynamics and the drag integrand."""
         yp, u, r = arg.state.yp, arg.control.u, arg.r
         out.dynamics.y = yp
@@ -121,7 +124,7 @@ def setup(y_max: float = 1.0) -> yapss.Problem[Phases]:
     return problem
 
 
-def setup2(y_max: float = 1.0) -> yapss.Problem[Phases]:
+def setup2(y_max: float = 1.0) -> NewtonProblem:
     """Set up the alternate formulation of Newton's minimal resistance problem.
 
     The radius of the flat tip becomes a variable: the phase starts at a free ``r`` and the
@@ -152,7 +155,7 @@ def setup2(y_max: float = 1.0) -> yapss.Problem[Phases]:
     return problem
 
 
-def plot_solution(problem: yapss.Problem[Phases], solution: yapss.Solution, **kwargs: Any) -> None:
+def plot_solution(problem: NewtonProblem, solution: yapss.Solution, **kwargs: Any) -> None:
     """Plot one nosecone profile, reflected about its axis.
 
     Parameters

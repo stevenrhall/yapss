@@ -38,7 +38,11 @@ class Discrete(yapss.Discrete):
     """The sum of their squares, exactly 40."""
 
 
-def setup() -> yapss.Problem[yapss.Phases, Discrete, Parameter]:
+# Names for the types the annotations below use.
+HS071Problem = yapss.Problem[yapss.Phases, Discrete, Parameter]
+
+
+def setup() -> HS071Problem:
     """Set up the HS071 problem.
 
     Returns
@@ -67,11 +71,18 @@ def setup() -> yapss.Problem[yapss.Phases, Discrete, Parameter]:
     problem.discrete.sum_of_squares.bounds = (40.0, 40.0)
 
     problem.ipopt_options.print_level = 3
+    problem.ipopt_options.print_timing_statistics = "no"
     return problem
 
 
 def print_solution(solution: yapss.Solution) -> None:
-    """Print the design variables, the constraints and the objective.
+    """Print what the Ipopt C++ example prints: the variables, both multipliers, and the rest.
+
+    The constraints and their multipliers are read by name. The multipliers of the *bounds*
+    belong to the nonlinear program rather than to the problem, so they come from
+    `solution.nlp`, the record of what Ipopt was given and returned, and
+    `solution.nlp.index.variable` says where each parameter sits in those vectors -- here one
+    for one, since the parameters are the only variables.
 
     Parameters
     ----------
@@ -80,6 +91,14 @@ def print_solution(solution: yapss.Solution) -> None:
     """
     for i, value in enumerate(solution.parameter.x):
         print(f"x[{i}] = {value:1.6e}")
+
+    nlp = solution.nlp
+    print()
+    for i, position in enumerate(nlp.index.variable.parameter.x):
+        print(f"z_L[{i}] = {nlp.mult_x_L[position]:1.6e}\tz_U[{i}] = {nlp.mult_x_U[position]:1.6e}")
+
+    print(f"\nlambda[product]        = {solution.multiplier.discrete.product:1.6e}")
+    print(f"lambda[sum_of_squares] = {solution.multiplier.discrete.sum_of_squares:1.6e}")
     print(f"\nproduct         = {solution.discrete.product:1.6e}")
     print(f"sum of squares  = {solution.discrete.sum_of_squares:1.6e}")
     print(f"\nf(x*) = {solution.objective:1.6e}")
