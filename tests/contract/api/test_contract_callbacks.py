@@ -12,6 +12,8 @@ package refused them, so they are stated here, with the page's subject.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 import yapss
@@ -486,3 +488,77 @@ def test_a_row_of_the_wrong_length_is_told_how_many_are_needed() -> None:
     p.phases.slide.register.continuous(short)
     with raises(ValueError, "one value per time point", "dynamics 'x'", at="out.dynamics.x"):
         p.solve()
+
+
+# ------------------------------------------------------------- the rows of a block field
+
+
+def _block_problem(continuous: Any) -> Any:
+    """Return a problem whose one state is a two-row block field, with `continuous` registered."""
+
+    class Pair(yapss.State):
+        r = yapss.vector(2)
+
+    class Rate(yapss.Control):
+        u = yapss.scalar()
+
+    class Only(yapss.Phase):
+        state: Pair
+        control: Rate
+        time: yapss.Independent
+
+    class BlockPhases(yapss.Phases):
+        only: Only
+
+    p = yapss.Problem("block rows", phases=BlockPhases)
+    ph = p.phases.only
+    ph.register.continuous(continuous)
+    p.register.objective(lambda arg: arg[ph].final.time)
+    ph.time.initial = (0.0, 0.0)
+    ph.time.final = (1.0, 1.0)
+    ph.state.r.initial[:] = (0.0, 0.0)
+    ph.control.u.bounds = (-1.0, 1.0)
+    ph.time.guess = (0.0, 1.0)
+    p.ipopt_options.print_level = 0
+    return p
+
+
+def test_a_block_input_row_cannot_be_written() -> None:
+    """An input is read-only, a block's rows included: the write fails at its line."""
+
+    def writes_an_input(arg, out):
+        arg.state.r[0] = 0.0
+        out.dynamics.r = [arg.control.u, arg.control.u]
+
+    with raises(ValueError, "read-only", "writes_an_input", at="arg.state.r[0]"):
+        _block_problem(writes_an_input).solve()
+
+
+def test_a_write_into_a_read_block_output_fails_rather_than_being_lost() -> None:
+    """Reading a block output gives its rows as a new array; writing into that is refused.
+
+    Were it writable, the write would land in the copy and the field would keep its value, so
+    the solve would answer a different problem than the callback describes, without a word.
+    """
+
+    def writes_a_read_copy(arg, out):
+        out.dynamics.r = [arg.control.u, arg.control.u]
+        out.dynamics.r[0] = 2.0 * arg.control.u
+
+    with raises(ValueError, "read-only", "writes_a_read_copy", at="out.dynamics.r[0]"):
+        _block_problem(writes_a_read_copy).solve()
+
+
+@not_yet(
+    "item 24",
+    "one row of a block output cannot be written by index, as the spec (2.3) says it can",
+)
+def test_one_row_of_a_block_output_is_written_by_index() -> None:
+    """Spec 2.3: a block field's rows are reached by index where they are read or written."""
+
+    def by_row(arg, out):
+        out.dynamics.r[0] = arg.control.u
+        out.dynamics.r[1] = arg.control.u
+
+    solution = _block_problem(by_row).solve()
+    assert solution.converged

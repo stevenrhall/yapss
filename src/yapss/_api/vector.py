@@ -1147,20 +1147,31 @@ def symbolic_view(block: Any) -> Any:
 
 
 def _stack(values: list[Any]) -> Any:
-    """Return `values` as an array, stacking rows that are arrays.
+    """Return `values` as a read-only array, stacking rows that are arrays.
 
     Rows of a block field nearly always already share a shape, and then they can simply be laid
     out, which is several times cheaper than broadcasting them first. Broadcasting is still
     needed when they do not -- a row that is one constant beside rows that vary over the points.
+
+    The array is built for the read, so nothing written into it would reach the field: a
+    callback writing ``out.dynamics.r[0] = ...`` or ``arg.state.r[0] = ...`` would lose the
+    write without a word. Read-only, it fails at that line, as a write into the slice of a
+    stored block does.
     """
     if not values:
-        return np.empty((0,))
+        return _read_only(np.empty((0,)))
     first = values[0]
     if isinstance(first, np.ndarray) and first.ndim > 0:
         shape = first.shape
         if all(isinstance(v, np.ndarray) and v.shape == shape for v in values):
-            return symbolic_view(np.array(values))
-        return symbolic_view(np.stack(np.broadcast_arrays(*values)))
+            return _read_only(symbolic_view(np.array(values)))
+        return _read_only(symbolic_view(np.stack(np.broadcast_arrays(*values))))
     if any(isinstance(v, np.ndarray) and v.ndim > 0 for v in values):
-        return symbolic_view(np.stack(np.broadcast_arrays(*values)))
-    return symbolic_view(np.asarray(values))
+        return _read_only(symbolic_view(np.stack(np.broadcast_arrays(*values))))
+    return _read_only(symbolic_view(np.asarray(values)))
+
+
+def _read_only(array: Any) -> Any:
+    """Return `array` with writing turned off."""
+    array.flags.writeable = False
+    return array
