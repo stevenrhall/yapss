@@ -420,6 +420,10 @@ below give the details.
 - `yapss.math.float_power` is now NumPy's `float_power` on real arguments. It was an alias of
   `power`, so `float_power(2, -1)` raised `ValueError` where NumPy returns 0.5, and
   `float_power(2, 3)` returned the integer 8.
+- `numpy.clip` on a single symbolic value, such as a final time or a parameter under the `"auto"`
+  method, now works; it raised `TypeError` about a truth value. A bound of `None` in
+  `yapss.math.clip`, which NumPy accepts as no bound, now means no bound on a symbolic value too; it
+  raised a CasADi error.
 
 ## [0.2.3] - 2026-09-13
 

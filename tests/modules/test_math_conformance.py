@@ -327,3 +327,34 @@ def test_unsupported_error_is_a_type_error():
 def test_the_removed_warning_says_what_replaced_it(module):
     with pytest.raises(AttributeError, match="removed in 0.3.0.*now raise"):
         _ = module.UnsupportedMathFunctionWarning
+
+
+CLIP_VALUES = np.linspace(-2.0, 2.0, 9)
+SYMBOLIC_BOUND = -0.5  # the value a symbolic lower bound takes
+
+
+@pytest.mark.parametrize("shape", ["scalar", "array"])
+@pytest.mark.parametrize("bounds", [(-1.0, 1.0), (None, 1.0), (-1.0, None), ("symbol", 1.0)])
+@pytest.mark.parametrize("function", [np.clip, math.clip], ids=["numpy", "yapss.math"])
+def test_clip_on_a_symbol_agrees_with_numpy(function, bounds, shape):
+    """numpy's clip and yapss.math's give numpy's values on a symbol, with a bound of None.
+
+    numpy's clip calls its argument's ``clip`` method, which a single symbol must have, or
+    numpy compares through its object loop and a symbol has no truth value.
+    """
+    symbols = ca.SX.sym("x", len(CLIP_VALUES))
+    bound = ca.SX.sym("s")
+    lo, hi = bounds
+    symbolic_lo = SXW(bound) if lo == "symbol" else lo
+    if shape == "scalar":
+        result = [function(SXW(symbols[i]), symbolic_lo, hi) for i in range(len(CLIP_VALUES))]
+    else:
+        values = sx_array([SXW(symbols[i]) for i in range(len(CLIP_VALUES))])
+        result = list(function(values, symbolic_lo, hi))
+    expression = ca.vertcat(*[SXW(item)._value for item in result])
+    actual = np.asarray(
+        ca.Function("f", [symbols, bound], [expression])(CLIP_VALUES, SYMBOLIC_BOUND)
+    )
+
+    expected = np.clip(CLIP_VALUES, SYMBOLIC_BOUND if lo == "symbol" else lo, hi)
+    assert np.array_equal(actual.flatten(), expected)
