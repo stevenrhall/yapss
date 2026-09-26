@@ -25,6 +25,7 @@ from yapss._backend.callbacks import UserFunctions
 from yapss._backend.input_args import callback_location, note_callback_error
 from yapss._backend.solver import solve
 from yapss._backend.spec import PhaseSpec, ProblemSpec, UserNames, frozen_array
+from yapss.math.wrapper import SXW
 
 from .args import (
     ContinuousArg,
@@ -35,7 +36,7 @@ from .args import (
     EndpointValues,
     phase_arg_class,
 )
-from .kinds import ReadOnlyRows, Rows, is_bool
+from .kinds import ReadOnlyRows, Rows, is_bool, is_real
 from .solution import Solution
 from .vector import Maker
 
@@ -360,23 +361,49 @@ def _make_objective(spec: ProblemSpec_, makers: _EndpointMakers) -> Callable[[An
 
     def objective(arg: Any) -> None:
         value = _call(callback, "objective callback", arg, makers.arg(arg))
-        if value is None:
-            name = getattr(callback, "__qualname__", repr(callback))
-            msg = f"the objective callback '{name}' returned nothing; it must return the objective"
-            raise ValueError(msg)
-        if is_bool(value) or (isinstance(value, np.ndarray) and value.dtype == np.bool_):
-            # Checked here, where the setup check first calls the objective with floats: a
-            # comparison then gives a boolean, which would otherwise be taken as 0 or 1.
-            name = getattr(callback, "__qualname__", repr(callback))
-            msg = (
-                f"the objective callback '{name}' returned a boolean; it must return the "
-                f"objective's value. If this came from a comparison, the comparison is probably "
-                f"the mistake."
-            )
-            raise TypeError(msg)
+        _check_objective(value, callback)
         arg.objective = value
 
     return objective
+
+
+def _check_objective(value: Any, callback: Callable[..., Any]) -> None:
+    """Refuse an objective that is not one real number, naming the callback that returned it.
+
+    One number is a Python or NumPy real, a 0-d array holding one, or, under the "auto" trace,
+    a symbolic value. A boolean is told apart, since it usually comes from a comparison and would
+    otherwise be taken as 0 or 1; the setup check's first call, with floats, is where it shows.
+    """
+    if _is_one_number(value):
+        return
+    name = getattr(callback, "__qualname__", repr(callback))
+    if value is None:
+        msg = f"the objective callback '{name}' returned nothing; it must return the objective"
+        raise ValueError(msg)
+    if is_bool(value) or (isinstance(value, np.ndarray) and value.dtype == np.bool_):
+        msg = (
+            f"the objective callback '{name}' returned a boolean; it must return the "
+            f"objective's value. If this came from a comparison, the comparison is probably "
+            f"the mistake."
+        )
+        raise TypeError(msg)
+    if isinstance(value, np.ndarray):
+        got = f"an array of shape {value.shape}" if value.ndim else f"an array of {value.dtype}"
+    else:
+        got = f"a {type(value).__name__}"
+    msg = f"the objective callback '{name}' returned {got}; it must return one number"
+    raise TypeError(msg)
+
+
+def _is_one_number(value: object) -> bool:
+    """Report whether `value` is one real number, as a value, a 0-d array, or a symbol."""
+    if is_real(value) or isinstance(value, SXW):
+        return True
+    if isinstance(value, np.ndarray) and value.ndim == 0:
+        if value.dtype == object:
+            return _is_one_number(value.item())
+        return value.dtype.kind in "iuf"
+    return False
 
 
 def _make_discrete(

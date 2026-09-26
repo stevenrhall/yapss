@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+import pytest
 
 import yapss
 from yapss.math import cos, sin
@@ -591,4 +592,23 @@ def test_the_objective_is_not_a_boolean() -> None:
 
     p.register.objective(compares)
     with raises(TypeError, "compares' returned a boolean", "comparison", at="solve"):
+        p.solve()
+
+
+@pytest.mark.parametrize("returned", ["array", "tuple", "str", "dict", "complex", "0-d complex"])
+def test_the_objective_is_one_number(returned: str) -> None:
+    """Anything but one real number is refused, naming the objective callback, not 0.3.0's
+    arg.objective."""
+    p = solvable()
+    ph = p.phases.slide
+    values = {
+        "array": lambda arg: np.array([arg[ph].final.time] * 3),
+        "tuple": lambda arg: (arg[ph].final.time, 1.0),
+        "str": lambda arg: "time",
+        "dict": lambda arg: {"time": arg[ph].final.time},
+        "complex": lambda arg: 1j,
+        "0-d complex": lambda arg: np.array(1j),
+    }
+    p.register.objective(values[returned])
+    with raises(TypeError, "objective callback", "must return one number", at="solve"):
         p.solve()
