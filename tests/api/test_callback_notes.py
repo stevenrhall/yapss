@@ -147,3 +147,17 @@ def test_the_line_between_yapss_and_its_user():
     assert in_yapss(str(package / "_legacy" / "problem.py"))
     assert not in_yapss(str(package / "examples" / "brachistochrone.py"))
     assert not in_yapss(str(Path(__file__).absolute()))
+
+
+def test_no_yapss_math_hint_on_a_refusal_yapss_raised_itself():
+    """Under "auto" a boolean row is refused by YAPSS; the hint about float-only functions
+    would point away from the actual mistake."""
+    problem = solvable("auto")
+
+    def flagged(arg, out):
+        out.dynamics.x = True
+
+    problem.phases.slide.register.continuous(flagged)
+    with pytest.raises(TypeError, match="a boolean is not a number") as info:
+        problem.solve()
+    assert not any("yapss.math" in note for note in _notes(info.value))

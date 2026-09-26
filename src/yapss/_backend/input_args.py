@@ -151,8 +151,24 @@ def note_callback_error(exc: BaseException, note: str, *, symbolic: bool) -> Non
         symbolic
         and isinstance(exc, (TypeError, NotImplementedError))
         and "yapss.math" not in str(exc)
+        and not _raised_in_yapss(exc)
     ):
         exc.add_note(_SYMBOLIC_HINT)
+
+
+def _raised_in_yapss(exc: BaseException) -> bool:
+    """Report whether `exc` was raised by YAPSS's own code rather than by the user's.
+
+    The `yapss.math` hint explains a float-only function failing on a symbol, which is raised
+    from the user's line (or from C beneath it). A TypeError YAPSS raises itself -- refusing a
+    boolean row, say -- already says what is wrong, and the hint would point elsewhere.
+    """
+    tb = exc.__traceback__
+    if tb is None:
+        return False
+    while tb.tb_next is not None:
+        tb = tb.tb_next
+    return in_yapss(tb.tb_frame.f_code.co_filename)
 
 
 _SYMBOLIC_HINT = (
