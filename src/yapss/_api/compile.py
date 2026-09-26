@@ -35,7 +35,7 @@ from .args import (
     EndpointValues,
     phase_arg_class,
 )
-from .kinds import ReadOnlyRows, Rows
+from .kinds import ReadOnlyRows, Rows, is_bool
 from .solution import Solution
 from .vector import Maker
 
@@ -339,6 +339,16 @@ def _make_objective(spec: ProblemSpec_, makers: _EndpointMakers) -> Callable[[An
             name = getattr(callback, "__qualname__", repr(callback))
             msg = f"the objective callback '{name}' returned nothing; it must return the objective"
             raise ValueError(msg)
+        if is_bool(value) or (isinstance(value, np.ndarray) and value.dtype == np.bool_):
+            # Checked here, where the setup check first calls the objective with floats: a
+            # comparison then gives a boolean, which would otherwise be taken as 0 or 1.
+            name = getattr(callback, "__qualname__", repr(callback))
+            msg = (
+                f"the objective callback '{name}' returned a boolean; it must return the "
+                f"objective's value. If this came from a comparison, the comparison is probably "
+                f"the mistake."
+            )
+            raise TypeError(msg)
         arg.objective = value
 
     return objective

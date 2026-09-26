@@ -573,3 +573,16 @@ def test_a_one_element_array_is_not_a_constant_row() -> None:
     p.phases.slide.register.continuous(one_element)
     with raises(ValueError, "one value per time point", "got 1", at="out.integrand.effort"):
         p.solve()
+
+
+def test_the_objective_is_not_a_boolean() -> None:
+    """A comparison returned by accident was taken as 0 or 1, and solved."""
+    p = solvable()
+    ph = p.phases.slide
+
+    def compares(arg):
+        return arg[ph].final.time > 1.0
+
+    p.register.objective(compares)
+    with raises(TypeError, "compares' returned a boolean", "comparison", at="solve"):
+        p.solve()
