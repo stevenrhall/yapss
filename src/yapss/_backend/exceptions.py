@@ -101,10 +101,9 @@ REMOVED_NAMES = {
         "report. A warnings filter naming it can be deleted."
     ),
     "UnsupportedMathFunctionWarning": (
-        "UnsupportedMathFunctionWarning was removed in 0.3.0. yapss.math.nextafter, signbit, "
-        "and spacing, which it warned about on real arguments, now raise "
-        "UnsupportedMathFunctionError on every argument. A warnings filter naming it can be "
-        "deleted."
+        "UnsupportedMathFunctionWarning was removed in 0.3.0. It warned about nextafter, "
+        "signbit, and spacing on real arguments, which yapss.math no longer provides: they "
+        "have no symbolic equivalent. A warnings filter naming it can be deleted."
     ),
 }
 

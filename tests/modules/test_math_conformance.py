@@ -84,11 +84,6 @@ OUT_OF_SCOPE = {
     "invert": "integer domain",
 }
 
-# Exported names that YAPSS deliberately refuses in a callback, because they have no
-# symbolic equivalent. Every argument raises UnsupportedMathFunctionError; a real argument
-# warned and evaluated through 0.2.x.
-REJECTED = ("nextafter", "signbit", "spacing")
-
 # Exported names that do not round-trip through SXW. Entries are xfail(strict=True), so
 # fixing one fails the suite until it is removed from this list. Empty is the goal
 # state, not an invitation to leave it empty: record a defect here rather than deleting
@@ -100,7 +95,7 @@ def elementwise_ufunc_names():
     """Return the exported names that should agree with numpy elementwise."""
     names = []
     for name in math.__all__:
-        if name in OUT_OF_SCOPE or name in REJECTED:
+        if name in OUT_OF_SCOPE:
             continue
         ufunc = getattr(np, name, None)
         if isinstance(ufunc, np.ufunc) and ufunc.nout == 1:
@@ -270,11 +265,11 @@ def test_every_exported_name_is_classified():
     raise without anything noticing.
     """
     tested = set(elementwise_ufunc_names())
-    classified = tested | set(OUT_OF_SCOPE) | set(REJECTED)
+    classified = tested | set(OUT_OF_SCOPE)
     unclassified = sorted(set(math.__all__) - classified)
     assert not unclassified, (
         f"{len(unclassified)} name(s) exported by yapss.math are neither covered by "
-        f"test_agrees_with_numpy nor listed in OUT_OF_SCOPE or REJECTED: "
+        f"test_agrees_with_numpy nor listed in OUT_OF_SCOPE: "
         f"{unclassified}. Classify each, or make it conform."
     )
 
@@ -285,36 +280,18 @@ def test_known_broken_names_are_all_exported():
     assert not stale, f"KNOWN_BROKEN lists names no longer exported by yapss.math: {stale}"
 
 
-@pytest.mark.parametrize("name", REJECTED)
-def test_rejected_names_raise_on_symbolic_input(name):
-    """A rejected name must raise on a symbolic argument, naming itself and numpy."""
-    function = getattr(math, name)
-    nin = getattr(getattr(np, name), "nin", 1)  # round is not a ufunc
-    symbolic = np.array([SXW(ca.SX.sym("v"))], dtype=object)
+@pytest.mark.parametrize("name", ["nextafter", "signbit", "spacing"])
+def test_numpy_function_without_a_symbolic_equivalent_is_refused(name):
+    """Under "auto", numpy's function on a callback argument names itself and the method.
 
-    with pytest.raises(math.UnsupportedMathFunctionError) as excinfo:
-        function(*(symbolic,) * nin)
-
-    message = str(excinfo.value)
-    assert name in message
-    assert f"numpy.{name}" in message
-
-
-@pytest.mark.parametrize("name", REJECTED)
-def test_rejected_names_raise_on_real_input(name):
-    """Real arguments raise as symbolic ones do, so no formulation depends on the method.
-
-    They warned and evaluated through 0.2.x, having worked through 0.2.1.
+    These read a float's representation rather than its value; yapss.math does not provide
+    them, and numpy's work on real arguments.
     """
-    function = getattr(math, name)
-    arguments = (np.array([1.0, 2.0]),) * getattr(getattr(np, name), "nin", 1)
+    nin = getattr(np, name).nin
+    symbolic = sx_array([SXW(ca.SX.sym("v"))])
 
-    with pytest.raises(math.UnsupportedMathFunctionError) as excinfo:
-        function(*arguments)
-
-    message = str(excinfo.value)
-    assert name in message
-    assert f"numpy.{name}" in message
+    with pytest.raises(math.UnsupportedMathFunctionError, match=f"numpy.{name} has no symbolic"):
+        getattr(np, name)(*(symbolic,) * nin)
 
 
 def test_unsupported_error_is_a_type_error():
@@ -324,7 +301,7 @@ def test_unsupported_error_is_a_type_error():
 
 @pytest.mark.parametrize("module", [yapss, math], ids=["yapss", "yapss.math"])
 def test_the_removed_warning_says_what_replaced_it(module):
-    with pytest.raises(ImportError, match="removed in 0.3.0.*now raise"):
+    with pytest.raises(ImportError, match="removed in 0.3.0.*no symbolic equivalent"):
         _ = module.UnsupportedMathFunctionWarning
 
 
@@ -342,7 +319,7 @@ def test_the_module_provides_only_its_promise():
     assert public - NOT_FUNCTIONS == set(math.__all__)
 
 
-@pytest.mark.parametrize("name", ["linspace", "ndarray", "gcd", "divmod"])
+@pytest.mark.parametrize("name", ["linspace", "ndarray", "gcd", "divmod", "spacing"])
 def test_a_numpy_name_says_where_to_import_it(name):
     with pytest.raises(AttributeError, match=f"{name!r} is not one of them.*import it from numpy"):
         getattr(math, name)

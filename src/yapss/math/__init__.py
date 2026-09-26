@@ -87,7 +87,6 @@ __all__ = [  # noqa: RUF022
     "mod",
     "multiply",
     "negative",
-    "nextafter",
     "not_equal",
     "pi",
     "positive",
@@ -100,10 +99,8 @@ __all__ = [  # noqa: RUF022
     "rint",
     "round",
     "sign",
-    "signbit",
     "sin",
     "sinh",
-    "spacing",
     "sqrt",
     "square",
     "subtract",
@@ -179,7 +176,6 @@ from numpy import (
     mod,
     multiply,
     negative,
-    nextafter,
     not_equal,
     pi,
     positive,
@@ -190,10 +186,8 @@ from numpy import (
     remainder,
     rint,
     sign,
-    signbit,
     sin,
     sinh,
-    spacing,
     sqrt,
     square,
     subtract,
@@ -242,10 +236,7 @@ globals()["logaddexp2"] = functions.logaddexp2
 globals()["copysign"] = functions.copysign
 globals()["heaviside"] = functions.heaviside
 globals()["logical_xor"] = functions.logical_xor
-globals()["nextafter"] = functions.nextafter
 globals()["rint"] = functions.rint
-globals()["signbit"] = functions.signbit
-globals()["spacing"] = functions.spacing
 globals()["round"] = functions.round
 globals()["clip"] = functions.clip
 globals()["where"] = functions.where

@@ -5,8 +5,8 @@ Module-level functions of ``yapss.math`` that need symbolic dispatch.
 A unary ufunc such as ``sin`` needs nothing here: numpy dispatches it to
 :meth:`SXW.__array_ufunc__` for a scalar and to the element method for an array, and both
 resolve through :data:`yapss.math.wrapper.UFUNCS`. The functions below are the ones numpy
-would otherwise get wrong on a symbol -- by coercing to ``bool``, by handing casadi an array,
-or by having no symbolic meaning at all.
+would otherwise get wrong on a symbol -- by coercing to ``bool``, or by handing casadi an
+array.
 
 """
 
@@ -17,14 +17,12 @@ import numpy as np
 
 from .wrapper import (
     REDUCTIONS,
-    REJECTED,
     UnsupportedMathFunctionError,
     _round,
     apply_ufunc,
     is_symbolic,
     map_unary,
     reduce_symbolic,
-    rejected_message,
 )
 
 __all__ = [
@@ -59,15 +57,12 @@ __all__ = [
     "min",
     "minimum",
     "mod",
-    "nextafter",
     "not_equal",
     "power",
     "remainder",
     "rint",
     "round",
     "sign",
-    "signbit",
-    "spacing",
     "where",
 ]
 
@@ -100,22 +95,6 @@ def _reduction(name: str) -> Callable[..., Any]:
         f"``{REDUCTIONS[name].__name__}`` over every element (``axis`` is not supported)."
     )
     return function
-
-
-def _rejected(name: str) -> Callable[..., Any]:
-    """Build a stub that rejects `name`, which is unsupported in a YAPSS callback."""
-    message = rejected_message(name)
-
-    def rejected(*args: Any, **kwargs: Any) -> Any:  # noqa: ARG001
-        raise UnsupportedMathFunctionError(message)
-
-    rejected.__name__ = name
-    rejected.__qualname__ = name
-    rejected.__doc__ = (
-        f"Raise :class:`UnsupportedMathFunctionError`, on real and symbolic arguments alike; "
-        f"{name} {REJECTED[name]}."
-    )
-    return rejected
 
 
 # Two-argument functions. numpy's object loop cannot dispatch these to an element method
@@ -208,9 +187,3 @@ def round(x: Any, decimals: int = 0) -> Any:  # noqa: A001
         lambda value: np.round(value, decimals),
         x,
     )
-
-
-# Functions with no symbolic meaning; see REJECTED in yapss.math.wrapper.
-nextafter = _rejected("nextafter")
-signbit = _rejected("signbit")
-spacing = _rejected("spacing")

@@ -47,33 +47,12 @@ if TYPE_CHECKING:
 
 
 class UnsupportedMathFunctionError(YapssError, TypeError):
-    """Raised for a numpy function that YAPSS callbacks cannot support.
+    """Raised when a function with no symbolic equivalent is applied to a symbolic value.
 
-    Subclasses :class:`TypeError`, which is what numpy itself raises today when one of these
-    is handed a symbolic argument.
+    Under ``"auto"`` that is a numpy ufunc with no casadi implementation, or the builtin
+    ``round(x, ndigits)``. Subclasses :class:`TypeError`, which is what numpy raises for an
+    argument its function cannot take.
     """
-
-
-# Functions with no meaning on a symbolic value, with the reason. They raise on every argument:
-# a function that worked under central differences and failed under "auto" would let a
-# formulation depend on the derivative method, which is the class of defect this module
-# exists to prevent. A real argument warned and evaluated through 0.2.x, since it had worked
-# through 0.2.1; 0.3.0 raises. Use numpy directly if one of these is needed outside a callback.
-REJECTED: dict[str, str] = {
-    "nextafter": "steps between adjacent floating-point values",
-    "signbit": "reads the floating-point sign bit, including the sign of negative zero",
-    "spacing": "returns the distance to the adjacent floating-point value",
-}
-
-
-def rejected_message(name: str) -> str:
-    """Return the message explaining why `name` is refused in a callback."""
-    return (
-        f"'{name}' is not supported in YAPSS callback functions because it {REJECTED[name]}, "
-        f"which has no symbolic equivalent. Callback functions must give the same result "
-        f"under every derivative method. Use 'numpy.{name}' directly if you need it outside "
-        f"a callback."
-    )
 
 
 # ====================================================================================
@@ -348,8 +327,6 @@ def _apply_scalar(name: str, elements: Sequence[Any]) -> Any:
     if not any(isinstance(item, SXW) for item in elements):
         # a purely numeric element of a mixed array: numpy's own arithmetic
         return getattr(np, name)(*elements)
-    if name in REJECTED:
-        raise UnsupportedMathFunctionError(rejected_message(name))
     implementation = UFUNCS.get(name)
     if implementation is None:
         msg = (
@@ -544,8 +521,6 @@ class SXW(NDArrayOperatorsMixin):
         """
         if name.startswith("_"):
             raise AttributeError(name)
-        if name in REJECTED:
-            raise UnsupportedMathFunctionError(rejected_message(name))
         implementation = UNARY.get(name)
         if implementation is None:
             msg = f"'{type(self).__name__}' object has no attribute '{name}'"

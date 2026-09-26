@@ -427,8 +427,8 @@ So each NumPy `ufunc` falls into exactly one of three categories:
     Listed below. Checked against NumPy on both paths by the package's test suite.
 
 **Unsupported**
-    Raises ``yapss.math.UnsupportedMathFunctionError`` on every argument. See `Unsupported
-    Functions`_.
+    Not provided by ``yapss.math``; NumPy's own raise ``yapss.UnsupportedMathFunctionError``
+    on a symbolic argument. See `Unsupported Functions`_.
 
 **Not applicable**
     Integer-domain functions (``gcd``, ``left_shift``) and multiple-output functions
@@ -604,28 +604,12 @@ the belief that half-to-even rounding could not be reproduced symbolically, is s
    * - ``spacing``
      - Returns the distance to the adjacent floating-point value.
 
-They raise ``yapss.math.UnsupportedMathFunctionError``, a subclass of the built-in
-``TypeError``, whatever the argument:
-
-.. doctest::
-   :options: +NORMALIZE_WHITESPACE
-
-   >>> from yapss.math import spacing
-   >>> spacing(1.0)
-   Traceback (most recent call last):
-       ...
-   yapss.math.wrapper.UnsupportedMathFunctionError: 'spacing' is not supported in YAPSS
-   callback functions because it returns the distance to the adjacent floating-point value,
-   which has no symbolic equivalent. Callback functions must give the same result under every
-   derivative method. Use 'numpy.spacing' directly if you need it outside a callback.
-
-If one of these worked under central differences and failed under automatic differentiation, a
-formulation could come to depend on the differentiation method, which is exactly what
-``yapss.math`` exists to prevent.
+``yapss.math`` does not provide them. NumPy's own work on real arguments, under the
+central-difference methods; under ``"auto"``, applying one to a callback argument raises
+``yapss.UnsupportedMathFunctionError``, a subclass of the built-in ``TypeError``, as does any
+NumPy function that has no symbolic equivalent.
 
 .. autoexception:: yapss.UnsupportedMathFunctionError
-
-If you have a reason to use one anyway (you shouldn't!), call it directly through ``numpy``.
 
 Continuous Argument Class Reference
 -----------------------------------
