@@ -124,6 +124,7 @@ def _rejected(name: str) -> Callable[..., Any]:
 arctan2 = _ufunc("arctan2")
 hypot = _ufunc("hypot")
 power = _ufunc("power")
+float_power = _ufunc("float_power")
 maximum = _ufunc("maximum")
 minimum = _ufunc("minimum")
 fmod = _ufunc("fmod")
@@ -156,7 +157,6 @@ sign = _ufunc("sign")
 # callback should not be producing NaN in the first place.
 fmax = maximum
 fmin = minimum
-float_power = power
 
 # Three-argument functions that numpy evaluates by coercing a comparison to bool, and so
 # silently returned their first argument on a symbol before 0.2.3.
