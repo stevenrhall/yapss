@@ -444,6 +444,13 @@ def _scale_array(declaration: type[Vector], values: dict[str, Any]) -> Any:
     return frozen_array(_flat(declaration, values, float))
 
 
+def _dynamics_scale(state: type[Vector], dynamics: dict[str, Any], scale: dict[str, Any]) -> Any:
+    """Return the scale of every defect row: as set, or where it is None, the state's own."""
+    chosen = _flat(state, dynamics, lambda value: value)
+    own = _flat(state, scale, float)
+    return frozen_array([s if d is None else float(d) for d, s in zip(chosen, own, strict=True)])
+
+
 def _guess_grid(
     declarations: tuple[tuple[type[Vector], dict[str, Any]], ...], span: tuple[float, float]
 ) -> Any:
@@ -534,7 +541,7 @@ def _phase_spec(phase: PhaseSpec_) -> PhaseSpec:
         state_scale=_scale_array(phase.state, phase.state_scale),
         control_scale=_scale_array(phase.control, phase.control_scale),
         integral_scale=_scale_array(phase.integral, phase.integral_scale),
-        dynamics_scale=_scale_array(phase.state, phase.state_defect_scale),
+        dynamics_scale=_dynamics_scale(phase.state, phase.dynamics_scale, phase.state_scale),
         path_scale=_scale_array(phase.path, phase.path_scale),
         time_scale=phase.time_scale,
         guess_time=frozen_array(grid),

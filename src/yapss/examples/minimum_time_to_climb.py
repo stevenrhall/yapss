@@ -146,10 +146,10 @@ def setup() -> yapss.Problem[Phases]:
     ph.state.mass.guess = (m0, m0)
     ph.control.alpha.guess = (0.0, 0.0)
 
-    ph.state.h.scale = ph.state.h.defect_scale = 30000.0
-    ph.state.v.scale = ph.state.v.defect_scale = 1000.0
-    ph.state.gamma.scale = ph.state.gamma.defect_scale = 3.0
-    ph.state.mass.scale = ph.state.mass.defect_scale = 500.0
+    ph.state.h.scale = 30000.0
+    ph.state.v.scale = 1000.0
+    ph.state.gamma.scale = 3.0
+    ph.state.mass.scale = 500.0
     ph.control.alpha.scale = 0.2
     ph.time.scale = 200.0
     problem.objective.scale = 200.0

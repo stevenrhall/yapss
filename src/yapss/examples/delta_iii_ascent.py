@@ -420,9 +420,6 @@ def _set_scales(problem: yapss.Problem[Phases, Discrete], stages: list[Stage]) -
         stage.state.r.scale[:] = length_scale
         stage.state.v.scale[:] = velocity_scale
         stage.state.m.scale = m_total
-        stage.state.r.defect_scale[:] = length_scale
-        stage.state.v.defect_scale[:] = velocity_scale
-        stage.state.m.defect_scale = m_total
         stage.path.unit_thrust.scale = 1.0
         stage.path.radius.scale = length_scale
         stage.time.scale = time_scale

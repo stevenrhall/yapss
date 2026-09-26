@@ -23,7 +23,16 @@ import numpy as np
 
 from .sampled import Interp
 
-__all__ = ["Bounds", "Guess", "Kind", "ReadOnlyRows", "Rows", "ScalarGuess", "Scale"]
+__all__ = [
+    "Bounds",
+    "DynamicsScale",
+    "Guess",
+    "Kind",
+    "ReadOnlyRows",
+    "Rows",
+    "ScalarGuess",
+    "Scale",
+]
 
 PAIR = 2
 """The length of a bound or two-point guess tuple."""
@@ -489,3 +498,27 @@ class Scale(Kind):
             )
             raise ValueError(msg)
         return scaled
+
+
+class DynamicsScale(Scale):
+    """The scale of a state's collocation defects: a positive number, or None for YAPSS's choice.
+
+    A defect is in the units of its state, so the scale YAPSS chooses is the state's own, and
+    None -- the default -- asks for that. Only this scale takes None, because only it has a
+    natural source: each defect row belongs to one state. None is stored as written, so reading
+    it back says whether YAPSS or the user chose.
+    """
+
+    default: Any = None
+
+    @classmethod
+    def is_element(cls, value: object) -> bool:
+        """Report whether `value` is a single scale or None. See `Kind.is_element`."""
+        return value is None or super().is_element(value)
+
+    @classmethod
+    def check(cls, value: object, *, label: str, name: str, npoints: int | None) -> Any:
+        """Validate one scale, or None. See `Kind.check`."""
+        if value is None:
+            return None
+        return super().check(value, label=label, name=name, npoints=npoints)

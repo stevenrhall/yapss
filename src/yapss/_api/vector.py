@@ -158,8 +158,7 @@ class ScalarField(_AsValue):
         initial: _Bound
         final: _Bound
         guess: Any
-        scale: SupportsFloat
-        defect_scale: SupportsFloat
+        scale: SupportsFloat | None
 
 
 class WrittenByRows:
@@ -201,8 +200,7 @@ class VectorField(_AsValue):
     initial: _ByRows[_Bound] = _ByRows()
     final: _ByRows[_Bound] = _ByRows()
     guess: _ByRows[Any] = _ByRows()
-    scale: _ByRows[SupportsFloat] = _ByRows()
-    defect_scale: _ByRows[SupportsFloat] = _ByRows()
+    scale: _ByRows[SupportsFloat | None] = _ByRows()
 
 
 def scalar() -> ScalarField:
@@ -367,7 +365,16 @@ class BlockRows(Sequence[Any]):
         owner = self._owner
         if isinstance(index, slice) and owner._kind_or_raise().numeric:
             aspect = owner._aspect
-            return NumberRows(rows, f"{self._name}.{aspect}" if aspect else self._name)
+            target = f"{self._name}.{aspect}" if aspect else self._name
+            if any(row is None for row in rows):
+                # NumPy would read None as NaN, and arithmetic on the rows would carry it on
+                msg = (
+                    f"{owner._label} '{self._name}': YAPSS chooses the scale of a row that is "
+                    f"None, so there is no number to compute with; set the rows first, as in "
+                    f"'{target}[:] = ...'"
+                )
+                raise ValueError(msg)
+            return NumberRows(rows, target)
         return rows
 
     def __setitem__(self, index: int | slice, value: Any) -> None:

@@ -121,9 +121,9 @@ def setup() -> yapss.Problem[Phases]:
     ph.state.m.guess = (m0, mf)
     ph.control.thrust.guess = (Tm, 0.0)
 
-    ph.state.h.scale = ph.state.h.defect_scale = 18_000.0
-    ph.state.v.scale = ph.state.v.defect_scale = 800.0
-    ph.state.m.scale = ph.state.m.defect_scale = 3.0
+    ph.state.h.scale = 18_000.0
+    ph.state.v.scale = 800.0
+    ph.state.m.scale = 3.0
     ph.time.scale = 30.0
 
     problem.ipopt_options.print_level = 3

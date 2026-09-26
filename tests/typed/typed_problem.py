@@ -121,6 +121,9 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
     ph.integral.distance.bounds = (0.0, None)
     problem.parameter.g.bounds = (32.174, 32.174)
     problem.discrete.landing.bounds = (1.0, 1.0)
+    ph.state.v.scale = 10.0
+    ph.dynamics.v.scale = None  # YAPSS chooses: the state's scale
+    ph.dynamics.x.scale = 2.0
 
     ph.time.guess = (0.0, 1.0)
     ph.state.x.guess = (0, 1)

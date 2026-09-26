@@ -82,15 +82,41 @@ def test_the_objective_scale_is_positive_too() -> None:
         p.objective.scale = -1.0
 
 
-# ------------------------------------------------------- a state has two scales, not one
+# ------------------------------------------ the dynamics are scaled beside the other outputs
 
 
-def test_a_state_has_a_scale_and_a_defect_scale() -> None:
-    """How large the state is, and how large its defect is, are different questions."""
+def test_the_dynamics_scale_is_yapss_s_choice_until_set() -> None:
+    """None, the default, means YAPSS chooses; a number is the user's choice; reading returns
+    what was written, so which of them chose is visible."""
     ph = problem().phases.first
-    ph.state.x.scale = 1000.0
-    ph.state.x.defect_scale = 10.0
-    assert (ph.state.x.scale, ph.state.x.defect_scale) == (1000.0, 10.0)
+    assert ph.dynamics.x.scale is None
+    assert list(ph.dynamics.y.scale) == [None, None]
+    ph.dynamics.x.scale = 10.0
+    ph.dynamics.y.scale[0] = 3.0
+    assert (ph.dynamics.x.scale, list(ph.dynamics.y.scale)) == (10.0, [3.0, None])
+    ph.dynamics.x.scale = None
+    assert ph.dynamics.x.scale is None
+
+
+def test_the_dynamics_have_a_scale_and_nothing_else() -> None:
+    """A defect is an equality, so there is nothing to bound."""
+    ph = problem().phases.first
+    with raises(AttributeError, "dynamics 'x' has no setting 'bounds'", at="bounds"):
+        ph.dynamics.x.bounds = (0.0, 1.0)
+
+
+def test_only_the_dynamics_scale_takes_none() -> None:
+    """It alone has a natural source, the state it belongs to; any other scale is a number."""
+    ph = problem().phases.first
+    with raises(TypeError, "a scale is a positive number; got None", at="ph.state.x.scale"):
+        ph.state.x.scale = None  # type: ignore[assignment]
+
+
+def test_arithmetic_on_rows_yapss_chooses_is_refused() -> None:
+    """There is no number to multiply, and NumPy would carry None on as NaN."""
+    ph = problem().phases.first
+    with raises(ValueError, "YAPSS chooses the scale", "set the rows first", at="*= 2"):
+        ph.dynamics.y.scale[:] *= 2
 
 
 def test_scaling_does_not_change_the_answer() -> None:
@@ -98,8 +124,9 @@ def test_scaling_does_not_change_the_answer() -> None:
     plain = solvable()
     scaled = solvable()
     ph = scaled.phases.slide
-    ph.state.x.scale = ph.state.x.defect_scale = 2.0
-    ph.state.v.scale = ph.state.v.defect_scale = 5.0
+    ph.state.x.scale = 2.0
+    ph.state.v.scale = 5.0
+    ph.dynamics.v.scale = 3.0
     ph.time.scale = 0.5
     scaled.objective.scale = 0.5
     assert abs(plain.solve().objective - scaled.solve().objective) < 1e-6

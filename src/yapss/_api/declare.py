@@ -36,7 +36,7 @@ import math
 import numbers
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeAlias, cast, overload
 
 # `TypeVar` from typing_extensions, not typing: PEP 696 defaults are native only from
 # Python 3.13, and the floor is 3.11. The defaults are what let `yapss.Phase[Slide, Angle]`
@@ -54,7 +54,7 @@ from .containers import (
     suggest,
 )
 from .fields import Fields
-from .kinds import Bounds, Guess, ScalarGuess, Scale, is_bool, is_pair, is_real
+from .kinds import Bounds, DynamicsScale, Guess, ScalarGuess, Scale, is_bool, is_pair, is_real
 from .mesh import Mesh
 from .vector import Control, Integral, Path, State, Vector, role_of
 
@@ -177,7 +177,22 @@ _ROLES: dict[str, type[Vector]] = {
 }
 """A phase's slots and the role each takes, in the order a phase is declared."""
 
-_RESERVED = ("mesh", "register", "name", "index")
+_S_co = TypeVar("_S_co", bound=State, covariant=True)
+
+
+class _HasState(Protocol[_S_co]):
+    """A phase, as far as its state: what ``state: Rocket`` in a shape satisfies.
+
+    It types ``ph.dynamics`` from the shape's state, since the two have the same fields. Where a
+    checker does not follow the match -- PyCharm's engine does not -- ``ph.dynamics`` is merely
+    unchecked.
+    """
+
+    @property
+    def state(self) -> _S_co: ...
+
+
+_RESERVED = ("mesh", "register", "name", "index", "dynamics")
 """A phase's own attributes, which its independent variable cannot also be called."""
 
 
@@ -446,18 +461,27 @@ class Phases:
 
 
 class StateAspects(Container):
-    """The state of one phase: its bounds, its endpoint bounds, its guess, and its scales.
-
-    There are two scales. ``scale`` says how large the state itself typically is; while
-    ``defect_scale`` says how large the collocation defect is -- the residual of the dynamics,
-    which is a constraint rather than a variable and can be of a quite different size.
+    """The state of one phase: its bounds, its endpoint bounds, its guess, and its scale.
 
     Every aspect is an instance of the declaration itself, which is what makes the fields
     reachable by the names they were declared with. It is read field first, through
     `fields.Fields`, and a type checker never sees it: `ph.state` is typed as the declaration.
     """
 
-    _held = ("bounds", "initial", "final", "guess", "scale", "defect_scale")
+    _held = ("bounds", "initial", "final", "guess", "scale")
+
+
+class DynamicsAspects(Container):
+    """The dynamics of one phase: the scale of each state's collocation defects.
+
+    The continuous callback computes three outputs, and each is set up on the phase beside the
+    others: ``ph.dynamics`` beside ``ph.path`` and ``ph.integral``. It has the state's fields,
+    and a scale and nothing else, since a defect is an equality and has no bounds. The scale is
+    None until set, and None means YAPSS chooses: today, the state's own scale, since a defect
+    is in the state's units.
+    """
+
+    _held = ("scale",)
 
 
 class ControlAspects(Container):
@@ -605,7 +629,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
 
     # `register` and the independent variable's name are added per instance, since the
     # latter is whatever the phase called it
-    _held = ("state", "control", "path", "integral")
+    _held = ("state", "control", "dynamics", "path", "integral")
     _settable = ("mesh",)
     _declaration: PhaseDeclaration | None = None
 
@@ -620,6 +644,11 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         integral: I_co
         mesh: Mesh
         register: PhaseRegistry
+
+        # The dynamics have the state's fields, so their type is read from the shape's own
+        # `state` annotation through `self`; the shape does not annotate them a second time.
+        @property
+        def dynamics(self: _HasState[_S_co]) -> _S_co: ...
 
         # No `time` here: every shape annotates its own independent variable, so the name a
         # checker sees is the name that phase has. Declaring `time` on the base would make
@@ -715,12 +744,19 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
             ("final", Bounds),
             ("guess", Guess),
             ("scale", Scale),
-            ("defect_scale", Scale),
         ):
             state._hold(
                 aspect, declaration.state._new(kind, f"{state._label} {aspect}", aspect=aspect)
             )
         self._hold("state", Fields(state, declaration.state, state._label))
+
+        dynamics = DynamicsAspects()
+        dynamics._label = f"{self._label} dynamics"
+        dynamics._hold(
+            "scale",
+            declaration.state._new(DynamicsScale, f"{dynamics._label} scale", aspect="scale"),
+        )
+        self._hold("dynamics", Fields(dynamics, declaration.state, dynamics._label))
 
         control = ControlAspects()
         control._label = f"{self._label} control"

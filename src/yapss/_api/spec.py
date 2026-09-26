@@ -62,7 +62,7 @@ class PhaseSpec:
     integral_bounds: dict[str, Any]
     integral_guess: dict[str, Any]
     state_scale: dict[str, Any]
-    state_defect_scale: dict[str, Any]
+    dynamics_scale: dict[str, Any]
     control_scale: dict[str, Any]
     path_scale: dict[str, Any]
     integral_scale: dict[str, Any]
@@ -241,7 +241,7 @@ def snapshot(problem: Problem[Any, Any, Any]) -> ProblemSpec:
             integral_bounds=_values(aspects_of(phase.integral).bounds),
             integral_guess=_values(aspects_of(phase.integral).guess),
             state_scale=_values(aspects_of(phase.state).scale),
-            state_defect_scale=_values(aspects_of(phase.state).defect_scale),
+            dynamics_scale=_values(aspects_of(phase.dynamics).scale),
             control_scale=_values(aspects_of(phase.control).scale),
             path_scale=_values(aspects_of(phase.path).scale),
             integral_scale=_values(aspects_of(phase.integral).scale),
