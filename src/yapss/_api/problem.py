@@ -176,10 +176,17 @@ class Derivatives(Container):
 
 
 def _check_name(name: object) -> None:
-    """Refuse a name that is not a string, in the constructor and on assignment alike."""
+    """Refuse a name that is not a string, or is blank, at construction and on assignment.
+
+    The name is what messages and the solution's repr call the problem, so a blank one would
+    leave them naming nothing.
+    """
     if not is_string(name):
         msg = f"the problem name must be a string; got {name!r}"
         raise TypeError(msg)
+    if not str(name).strip():
+        msg = f"the problem name must not be blank; got {name!r}"
+        raise ValueError(msg)
 
 
 def _check_parameters(parameter: type[Vector], phases: Any) -> None:

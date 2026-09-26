@@ -629,3 +629,13 @@ def test_a_phase_callback_registered_twice_replaces() -> None:
         pass
 
     assert ph._continuous is other
+
+
+@pytest.mark.parametrize("name", ["", "   "])
+def test_the_name_is_not_blank(name: str) -> None:
+    """Messages and the solution's repr call the problem by its name."""
+    with raises(ValueError, "must not be blank", at="yapss.Problem"):
+        yapss.Problem(name, phases=Phases)
+    p = problem()
+    with raises(ValueError, "must not be blank", at="p.name"):
+        p.name = name
