@@ -23,11 +23,11 @@ from typing import TYPE_CHECKING, Any, Literal
 import numpy as np
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
     from numpy.typing import NDArray
 
-__all__ = ["PhaseSpec", "ProblemSpec", "VariableScale", "frozen_array"]
+__all__ = ["PhaseSpec", "ProblemSpec", "UserNames", "VariableScale", "frozen_array"]
 
 Sense = Literal["minimize", "maximize"]
 SpectralMethod = Literal["lgl", "lgr", "lg"]
@@ -143,6 +143,33 @@ class VariableScale:
 
 
 @dataclass(frozen=True, slots=True)
+class UserNames:
+    """What the user calls their callbacks and outputs, for the messages the back end writes.
+
+    A front end that calls the user's functions through adapters of its own gives the functions
+    it wraps, so that a report points at the user's ``def`` rather than at the adapter, and the
+    name of every output row, so that it names ``phase 'slide' integrand.effort`` rather than a
+    position. A front end that gives none is reported as the transcription sees it.
+
+    Attributes
+    ----------
+    continuous : tuple of callable
+        The user's continuous callback of each phase.
+    objective : callable
+        The user's objective callback.
+    outputs : tuple of mapping
+        For each phase, the name of every row of ``"dynamics"``, ``"path"`` and ``"integrand"``.
+    discrete : tuple of str
+        The name of every row of the discrete callback's output.
+    """
+
+    continuous: tuple[Callable[..., Any], ...]
+    objective: Callable[..., Any]
+    outputs: tuple[Mapping[str, tuple[str, ...]], ...]
+    discrete: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ProblemSpec:
     """A whole problem, reduced to numbers and callbacks.
 
@@ -155,6 +182,9 @@ class ProblemSpec:
     auxdata : Any
         Carried through to the callback arguments untouched. It belongs to the released API's
         callback surface; the redesigned API has no use for it and leaves it empty.
+    user_names : UserNames or None
+        What the user calls the callbacks and outputs, for messages; None to report them as the
+        transcription calls them.
     """
 
     name: str
@@ -183,6 +213,7 @@ class ProblemSpec:
     ipopt_options: dict[str, Any]
     catch_keyboard_interrupt: bool
     intermediate_callback: Any = None
+    user_names: UserNames | None = None
 
     @property
     def variable_scale(self) -> VariableScale:

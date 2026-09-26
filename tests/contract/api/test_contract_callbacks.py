@@ -222,7 +222,14 @@ def test_a_callback_must_be_pointwise() -> None:
         out.dynamics.x = np.sum(np.asarray(arg.state.v))
 
     p.phases.slide.register.continuous(summed)
-    with raises(ValueError, "continuous callback", at="solve"):
+    with raises(
+        ValueError,
+        "continuous callback",
+        "summed (",
+        "not pointwise",
+        "phase 'slide' dynamics.x",
+        at="solve",
+    ):
         p.solve()
 
 
@@ -253,12 +260,11 @@ def test_the_note_names_the_callback_the_user_wrote() -> None:
         p.solve()
 
 
-@not_yet("message", "non-finite values are reported by position, not by name")
 def test_a_non_finite_value_is_reported_by_name() -> None:
     """The whole of this API is that a quantity has a name; a refusal has to use it.
 
-    Today the message says ``phase 0 integrand[0] is not finite``, which is the transcription's
-    numbering showing through. What the user wrote was ``out.integrand.effort``.
+    The transcription numbers the rows (``phase 0 integrand[0]``); what the user wrote was
+    ``out.integrand.effort``, in phase 'slide', and that is what the message names.
     """
     p = solvable("central-difference")
 

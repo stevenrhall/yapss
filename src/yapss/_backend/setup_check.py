@@ -191,6 +191,28 @@ def _list(lines: list[str]) -> str:
     return "\n".join(f"  - {line}" for line in shown)
 
 
+def _output_label(problem: ProblemSpec, p: int, output: str, row: int) -> str:
+    """Name an output row: by the name its front end gave it, or by its position."""
+    names = problem.user_names
+    if names is None:
+        return f"phase {p} {output}[{row}]" if output != "discrete" else f"discrete[{row}]"
+    return names.discrete[row] if output == "discrete" else names.outputs[p][output][row]
+
+
+def _user_location(problem: ProblemSpec, function: Callable[..., Any], phases: Any) -> str:
+    """Name the callback the user wrote, for the phases given, and the line of its ``def``.
+
+    `function` is the callback the transcription calls. A front end that wraps the user's
+    functions in its own gives them in ``problem.user_names``, since naming the wrapper would
+    point into YAPSS. `phases` is None for the objective.
+    """
+    names = problem.user_names
+    if names is None:
+        return callback_location(function)
+    users = [names.objective] if phases is None else [names.continuous[p] for p in phases]
+    return ", ".join(dict.fromkeys(callback_location(user) for user in users))
+
+
 def _again(function: Callable[..., Any], arg: Any, read: Callable[[], Any]) -> Any:
     """Call `function` again with its outputs blanked to zero, and return what `read` gives.
 
@@ -244,7 +266,12 @@ def check_callbacks(problem: ProblemSpec, mesh: Mesh, z0: NDArray[np.float64]) -
         if np.all(np.isfinite(objective)):
             unset.setdefault(objective_function, ("objective", []))[1].append("arg.objective")
         else:
-            not_finite.append(f"the objective is {_describe(objective)}")
+            not_finite.append(
+                f"the objective, from {_user_location(problem, objective_function, None)}, is "
+                f"{_describe(objective)}"
+                if problem.user_names is not None
+                else f"the objective is {_describe(objective)}"
+            )
 
     if problem.nd > 0 and functions.discrete is not None:
         discrete_function = cast("DiscreteFunctionFloat", functions.discrete)
@@ -262,9 +289,13 @@ def check_callbacks(problem: ProblemSpec, mesh: Mesh, z0: NDArray[np.float64]) -
                         f"arg.discrete[{row}]"
                     )
                 else:
-                    not_finite.append(f"discrete[{row}] is {_describe(constraints[row : row + 1])}")
+                    not_finite.append(
+                        f"{_output_label(problem, 0, 'discrete', int(row))} is "
+                        f"{_describe(constraints[row : row + 1])}"
+                    )
 
     pointwise: list[str] = []
+    pointwise_phases: list[int] = []
     failure: Exception | None = None
     if problem.np > 0 and functions.continuous is not None:
         continuous_function = cast("ContinuousFunctionFloat", functions.continuous)
@@ -290,12 +321,14 @@ def check_callbacks(problem: ProblemSpec, mesh: Mesh, z0: NDArray[np.float64]) -
                     )
                 else:
                     not_finite.append(
-                        f"phase {p} {name}[{i}] is {_describe(values[bad])} at "
-                        f"{_points(int(bad.sum()), bad.size)}"
+                        f"{_output_label(problem, p, name, i)} is "
+                        f"{_describe(values[bad])} at {_points(int(bad.sum()), bad.size)}"
                     )
             call_callback(continuous_function, base)  # restore the blanked call's values
         if not unset:  # an unassigned row is the likelier cause of anything reported next
-            pointwise, failure = _pointwise_findings(problem, mesh, z0, base, continuous_function)
+            pointwise, failure, pointwise_phases = _pointwise_findings(
+                problem, mesh, z0, base, continuous_function
+            )
 
     if unset:
         entries = [
@@ -320,10 +353,11 @@ def check_callbacks(problem: ProblemSpec, mesh: Mesh, z0: NDArray[np.float64]) -
             "the function at those points."
         )
     if pointwise:
+        where = _user_location(problem, continuous_function, pointwise_phases)
         sections.append(
-            f"The continuous callback {callback_location(continuous_function)} is not "
-            "pointwise: evaluated on all points of each phase but the last, in reverse order, "
-            f"its outputs changed:\n\n{_list(pointwise)}\n\n"
+            f"The continuous callback {where} is not pointwise: evaluated on all points of "
+            "each phase but the last, in reverse order, its outputs changed:\n\n"
+            f"{_list(pointwise)}\n\n"
             "Each output at a point may depend only on the inputs at that point (time, state, "
             "control) and on the parameters. Common causes are t[0] or other indexing across "
             'points, len, mean, sum, cumsum, and diff. "auto" evaluates the function at one '
@@ -340,8 +374,11 @@ def _pointwise_findings(
     z0: NDArray[np.float64],
     base: ContinuousArg[np.float64],
     continuous: Callable[[ContinuousArg[np.float64]], None],
-) -> tuple[list[str], Exception | None]:
-    """Compare the continuous outputs with a call on all points but the last, reversed."""
+) -> tuple[list[str], Exception | None, list[int]]:
+    """Compare the continuous outputs with a call on all points but the last, reversed.
+
+    Returns the findings, the exception if the reversed call raised, and the phases found.
+    """
     # every evaluation point but the last, in reverse order: the count changes (len, sum,
     # mean), the first point moves (t[0], cumsum, diff), and the subset is not symmetric, so
     # even the mean of a linear guess on symmetric points changes (step 5, measurement m9)
@@ -358,9 +395,10 @@ def _pointwise_findings(
     try:
         call_callback(continuous, reversed_arg)
     except Exception as exc:  # noqa: BLE001 -- the base call succeeded; report this as a finding
-        return [f"the call raised {type(exc).__name__}: {exc}"], exc
+        return [f"the call raised {type(exc).__name__}: {exc}"], exc, list(range(problem.np))
 
     findings: list[str] = []
+    phases_found: list[int] = []
     for p, (whole_phase, part_phase) in enumerate(zip(base.phase, reversed_arg.phase, strict=True)):
         selected = nodes[p]
         scale = problem.phases[p]
@@ -383,10 +421,13 @@ def _pointwise_findings(
                 if not same.all():
                     k = int(np.flatnonzero(~same)[0])
                     findings.append(
-                        f"phase {p} {name}[{i}] at point {int(selected[k])}: {a[k]:.10g} when "
-                        f"evaluated at every point, {b[k]:.10g} on the points reversed"
+                        f"{_output_label(problem, p, name, i)} at point {int(selected[k])}: "
+                        f"{a[k]:.10g} when evaluated at every point, {b[k]:.10g} on the points "
+                        f"reversed"
                     )
-    return findings, None
+                    if p not in phases_found:
+                        phases_found.append(p)
+    return findings, None, phases_found
 
 
 def check_derivatives(problem: ProblemSpec, nlp: NLP, z0: NDArray[np.float64]) -> None:

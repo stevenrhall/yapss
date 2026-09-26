@@ -24,7 +24,7 @@ import numpy as np
 from yapss._backend.callbacks import UserFunctions
 from yapss._backend.input_args import callback_location, note_callback_error
 from yapss._backend.solver import solve
-from yapss._backend.spec import PhaseSpec, ProblemSpec, frozen_array
+from yapss._backend.spec import PhaseSpec, ProblemSpec, UserNames, frozen_array
 
 from .args import (
     ContinuousArg,
@@ -329,6 +329,31 @@ class _Endpoints:
         return endpoint
 
 
+def _row_labels(declaration: type[Vector], owner: str) -> tuple[str, ...]:
+    """Return each flat row of `declaration` by name: ``owner.x``, or ``owner.r[1]`` in a block."""
+    return tuple(
+        f"{owner}.{name}" if member is None else f"{owner}.{name}[{member}]"
+        for name, member in declaration._rows
+    )
+
+
+def _user_names(spec: ProblemSpec_) -> UserNames:
+    """Return what the user calls the callbacks and outputs, for the setup check's messages."""
+    return UserNames(
+        continuous=tuple(phase.continuous for phase in spec.phases),
+        objective=spec.objective_function,
+        outputs=tuple(
+            {
+                "dynamics": _row_labels(phase.state, f"phase '{phase.name}' dynamics"),
+                "path": _row_labels(phase.path, f"phase '{phase.name}' path"),
+                "integrand": _row_labels(phase.integral, f"phase '{phase.name}' integrand"),
+            }
+            for phase in spec.phases
+        ),
+        discrete=_row_labels(spec.discrete, "discrete"),
+    )
+
+
 def _make_objective(spec: ProblemSpec_, makers: _EndpointMakers) -> Callable[[Any], None]:
     """Return the 0.3.0 objective callback that drives the user's objective."""
     callback = spec.objective_function
@@ -538,6 +563,7 @@ def to_transcription_spec(spec: ProblemSpec_) -> ProblemSpec:
         derivative_order=spec.derivative_order,
         ipopt_options=dict(spec.ipopt_options),
         catch_keyboard_interrupt=spec.catch_keyboard_interrupt,
+        user_names=_user_names(spec),
     )
 
 
