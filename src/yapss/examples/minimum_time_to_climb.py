@@ -24,6 +24,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import pi
+from numpy.typing import NDArray
 from scipy.interpolate import CubicSpline, RBFInterpolator
 
 import yapss
@@ -78,7 +79,7 @@ thrust_rbf_interpolator = RBFInterpolator(
 )
 
 
-def thrust_function(mach, h):
+def thrust_function(mach: NDArray[np.float64], h: NDArray[np.float64]) -> NDArray[np.float64]:
     """Determine the thrust available at the given mach numbers and altitudes.
 
     Parameters
