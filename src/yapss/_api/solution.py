@@ -108,7 +108,7 @@ def _declaration(shape: Shape) -> type[Vector]:
 
 
 _NAMES_FIXED = "a solution's names are fixed, and its arrays can be edited in place"
-"""Why a solution refuses to assign or delete a name, and what it allows instead (spec 8)."""
+"""Why a solution refuses to assign or delete a name, and what it allows instead."""
 
 
 class SolutionRows(ReadOnlyRows):

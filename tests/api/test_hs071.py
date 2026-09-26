@@ -1,7 +1,7 @@
 """A problem with no phases, which is an ordinary nonlinear program.
 
-HS071 is here for the degenerate case rather than for the mathematics. Spec 1.1 says zero is a
-count -- no phases, no states, no fields, no rows -- because nothing about the transcription
+HS071 is here for the degenerate case rather than for the mathematics. Zero is a count -- no
+phases, no states, no fields, no rows -- because nothing about the transcription
 changes shape at the bottom of any of those ranges, so nothing in the interface refuses them.
 Two exceptions have been retired since: `Phases` refused to declare none, and `phases=`
 was a required keyword, so a problem with no phases had to hand over an empty class.
@@ -25,7 +25,7 @@ def problem():
 
 
 def test_a_problem_may_have_no_phases(problem):
-    """The case the spec's 'zero is a count' principle covers, and the one that was refused."""
+    """The case the principle that zero is a count covers, and the one that was refused."""
     assert list(problem.phases) == []
     assert list(yapss.Phases()) == []
 

@@ -556,10 +556,11 @@ def test_a_write_into_a_read_block_output_fails_rather_than_being_lost() -> None
 
 @not_yet(
     "item 24",
-    "one row of a block output cannot be written by index, as the spec (2.3) says it can",
+    "one row of a block output cannot be written by index, as a row of an input is read",
 )
 def test_one_row_of_a_block_output_is_written_by_index() -> None:
-    """Spec 2.3: a block field's rows are reached by index where they are read or written."""
+    """A block field's rows are reached by index where they are read and where they are
+    written, so a callback can fill a block one row at a time."""
 
     def by_row(arg, out):
         out.dynamics.r[0] = arg.control.u
@@ -634,8 +635,8 @@ def test_the_objective_is_returned_not_assigned() -> None:
 @pytest.mark.parametrize("access", ["out.dynamics[:]", "out.path[0]", "arg.state[0]"])
 @pytest.mark.filterwarnings("ignore::yapss.IpoptConvergenceWarning")  # stopped after 1 iteration
 def test_a_callback_argument_has_no_positions(access: str) -> None:
-    """Spec 2.6: rows are reached by name, since a position is only the order a class body
-    happens to be written in, and reordering it would silently change what the code means."""
+    """Rows are reached by name, since a position is only the order a class body happens to
+    be written in, and reordering it would silently change what the code means."""
     p = solvable()
     p.ipopt_options.print_level = 0
     p.ipopt_options.max_iter = 1

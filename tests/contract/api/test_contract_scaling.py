@@ -134,8 +134,8 @@ def test_a_block_field_is_scaled_row_by_row() -> None:
 
 
 def test_a_block_fields_scales_can_be_multiplied_in_place() -> None:
-    """Scaling every row up at once is arithmetic on numbers, and reads as it would on an array
-    (spec 4.7): the rows read back as numbers, and the product is assigned back through [:]."""
+    """Scaling every row up at once is arithmetic on numbers, and reads as it would on an
+    array: the rows read back as numbers, and the product is assigned back through [:]."""
     ph = problem().phases.first
     ph.state.y.scale[:] = 2.0
     ph.state.y.scale[:] *= 3

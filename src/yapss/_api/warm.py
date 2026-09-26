@@ -1,6 +1,6 @@
 """
 
-Guess a problem from a solution: a warm start (spec 6.1).
+Guess a problem from a solution: a warm start.
 
 `Problem.guess_from_solution` writes the problem's guess aspects from a solution, as ordinary
 guesses that can be edited afterwards: each phase's time guess from the span it was solved over,

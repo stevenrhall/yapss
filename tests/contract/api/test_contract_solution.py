@@ -145,8 +145,8 @@ def _arrays(obj: object, path: str, found: dict[str, np.ndarray], depth: int = 0
 
 
 def test_a_solutions_arrays_are_the_users_and_share_nothing_else() -> None:
-    """Spec 8: a solution's arrays are ordinary writable arrays, and two of them share storage
-    only when they are the same quantity.
+    """A solution's arrays are ordinary writable arrays, and two of them share storage only
+    when they are the same quantity.
 
     Writable, because once the solve has returned nothing depends on these numbers; sharing
     nothing else, because a write for a plot must not change what a neighbouring quantity
@@ -172,8 +172,8 @@ def test_a_solutions_arrays_are_the_users_and_share_nothing_else() -> None:
 
 
 def test_an_edit_to_a_solution_array_is_kept() -> None:
-    """Spec 8: an array handed out on every read is the one the solution holds, not a copy, so
-    an edit made through one read is what the next read returns -- it does not land in a
+    """An array handed out on every read is the one the solution holds, not a copy, so an
+    edit made through one read is what the next read returns -- it does not land in a
     temporary and do nothing."""
     problem, result = solution()
     ps = result[problem.phases.slide]

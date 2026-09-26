@@ -358,7 +358,7 @@ def _solved() -> Any:
 
 @pytest.mark.parametrize("method", ["lg", "lgr", "lgl"])
 def test_a_warm_start_converges_quickly_on_another_mesh_and_method(method: str) -> None:
-    """Spec 6.1: the guess is written from the solution, and it is a good one."""
+    """The guess is written from the solution, and it is a good one."""
     solution = _solved()
     cold = solvable()
     warm = solvable()
