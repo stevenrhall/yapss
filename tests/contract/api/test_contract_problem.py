@@ -766,3 +766,36 @@ def test_a_solution_copies_and_pickles_completely(copier: Any) -> None:
     assert copied.objective == solution.objective
     assert np.array_equal(copied[ph].state.x, solution[ph].state.x)
     assert np.array_equal(copied["slide"].time, solution["slide"].time)
+
+
+# ------------------------------------------------------------------ a phase by position or name
+
+
+def test_a_phase_is_reached_by_name_as_by_attribute() -> None:
+    """A name that arrives as data reaches the same handle the attribute does."""
+    p = problem()
+    assert p.phases["first"] is p.phases.first
+    assert p.phases[0] is p.phases.first
+    assert p.phases[np.int64(1)] is p.phases.second
+
+
+def test_an_unknown_phase_name_is_suggested() -> None:
+    """A misspelled name is told what is there, as the solution's name lookup is."""
+    p = problem()
+    with raises(KeyError, "no phase 'frist'", "Did you mean 'first'", at='p.phases["frist"]'):
+        p.phases["frist"]  # noqa: B018
+
+
+def test_a_phase_position_out_of_range_names_the_count() -> None:
+    """A position past the last phase says how many there are."""
+    p = problem()
+    with raises(IndexError, "the problem has 2 phases", "no phase 5", at="p.phases[5]"):
+        p.phases[5]  # noqa: B018
+
+
+@pytest.mark.parametrize("key", [1.0, True, slice(0, 1)])
+def test_a_phase_is_reached_by_position_or_name_only(key: object) -> None:
+    """Anything else is refused in YAPSS's words, not a list's."""
+    p = problem()
+    with raises(TypeError, "by its position or its name", at="p.phases[key]"):
+        p.phases[key]  # type: ignore[index]

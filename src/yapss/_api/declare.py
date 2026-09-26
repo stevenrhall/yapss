@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import inspect
 import math
+import numbers
 import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, TypeAlias, cast, overload
@@ -414,9 +415,31 @@ class Phases:
         """Return the number of phases."""
         return len(self._all())
 
-    def __getitem__(self, index: int) -> AnyPhase:
-        """Return the phase at `index`, in declaration order."""
-        return list(self._all().values())[index]
+    def __getitem__(self, key: int | str) -> AnyPhase:
+        """Return a phase by its position in declaration order, or by its name.
+
+        The attribute, ``problem.phases.boost``, is the form to write when the name is known,
+        since it is the one a type checker follows. A position or a name is for a phase chosen
+        by data -- a count, or a name read from a file -- and gives a phase typed loosely.
+        """
+        phases = self._all()
+        if isinstance(key, str):
+            if key in phases:
+                return phases[key]
+            hint = suggest(key, tuple(phases)) if phases else " The problem declares no phases."
+            msg = f"the problem has no phase {key!r}.{hint}"
+            raise KeyError(msg)
+        position: object = key  # the annotation is the promise; this checks what arrived
+        if is_bool(position) or not isinstance(position, numbers.Integral):
+            msg = f"a phase is reached by its position or its name; got {key!r}"
+            raise TypeError(msg)
+        index = int(position)
+        handles = list(phases.values())
+        if not -len(handles) <= index < len(handles):
+            count = "one phase" if len(handles) == 1 else f"{len(handles)} phases"
+            msg = f"the problem has {count}; there is no phase {index}"
+            raise IndexError(msg)
+        return handles[index]
 
 
 # -- aspects ---------------------------------------------------------------------------------
