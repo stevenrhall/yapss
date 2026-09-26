@@ -54,6 +54,7 @@ import numpy as np
 from yapss.math.wrapper import SXArray
 
 from .kinds import MISSING, Kind, is_sequence
+from .sampled import Interp
 
 if TYPE_CHECKING:
     from typing import Self
@@ -771,7 +772,32 @@ class Vector:
                 f"was meant."
             )
             raise TypeError(msg)
+        self._check_sample_rows(value, name, covered=1, whole=True)
         return kind.check(value, label=self._label, name=name, npoints=self._npoints)
+
+    def _check_sample_rows(self, value: Any, name: str, *, covered: int, whole: bool) -> None:
+        """Refuse sampled values whose rows do not match the rows they are assigned to.
+
+        One row of samples is one row's guess, and broadcasts. Several rows are the rows of the
+        field, matched by position, so they fit only an assignment covering the whole field
+        with as many rows; given to fewer, one of them would be taken without a word.
+        """
+        if not isinstance(value, Interp) or value.values.ndim == 1:
+            return
+        given = value.values.shape[0]
+        if whole and given == covered:
+            return
+        target = f"{name}.{self._aspect}" if self._aspect else name
+        size = type(self)._meta[name].rows
+        msg = (
+            f"{self._label} '{name}': the interp values have {given} rows, and the assignment "
+            f"covers {covered} of the field's {size}; give one row of samples, or {size} rows "
+            f"to '{target}[:]'"
+            if size > 1
+            else f"{self._label} '{name}': the interp values have {given} rows, and the field "
+            f"has one; give one row of samples"
+        )
+        raise ValueError(msg)
 
     def _set_field_rows(self, name: str, index: int | slice, value: Any) -> None:
         """Assign to the rows of block field `name` that `index` covers."""
@@ -786,6 +812,7 @@ class Vector:
         if isinstance(index, slice):
             rows = list(range(*index.indices(count)))
             if kind.is_element(value):
+                self._check_sample_rows(value, name, covered=len(rows), whole=len(rows) == count)
                 values = [value] * len(rows)
             else:
                 if not is_sequence(value):
@@ -813,6 +840,7 @@ class Vector:
                     f"not a sequence of them; got {value!r}"
                 )
                 raise TypeError(msg)
+            self._check_sample_rows(value, name, covered=1, whole=count == 1)
             rows, values = [row], [value]
 
         stored = list(self._elements(name))

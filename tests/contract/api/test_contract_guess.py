@@ -291,3 +291,21 @@ def test_interp_samples_are_finite(time: list[float], values: object, bad: str) 
     what = bad.split("[")[0]
     with raises(ValueError, f"interp({what}=) must be finite", bad, at="interp"):
         yapss.interp(time, values)
+
+
+def test_several_rows_of_samples_fit_only_the_whole_field() -> None:
+    """Given to one row, one of the sampled rows was taken without a word."""
+    ph = problem().phases.first
+    two_rows = yapss.interp([0.0, 1.0], np.zeros((2, 2)))
+    with raises(ValueError, "have 2 rows", "covers 1", "give one row of samples", at="y.guess[0]"):
+        ph.state.y.guess[0] = two_rows
+    with raises(ValueError, "have 2 rows", "the field has one", at="x.guess"):
+        ph.state.x.guess = two_rows
+    ph.state.y.guess[:] = two_rows
+
+
+def test_the_row_count_of_samples_is_checked_where_they_are_assigned() -> None:
+    """Three rows for a two-row field were refused only when the problem was solved."""
+    ph = problem().phases.first
+    with raises(ValueError, "have 3 rows", "field's 2", at="y.guess[:]"):
+        ph.state.y.guess[:] = yapss.interp([0.0, 1.0], np.zeros((3, 2)))
