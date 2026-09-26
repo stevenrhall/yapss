@@ -8,7 +8,10 @@ put into that shape belongs to the page for that aspect.
 
 from __future__ import annotations
 
+import copy
+import pickle
 import threading
+from typing import Any
 
 import numpy as np
 import pytest
@@ -742,3 +745,24 @@ def test_too_few_degrees_of_freedom_raises() -> None:
     p.ipopt_options.print_level = 0
     with raises(ValueError, "Status -10", "too few degrees of freedom", at="solve"):
         p.solve()
+
+
+@pytest.mark.parametrize("copier", [copy.copy, copy.deepcopy])
+def test_a_problem_is_not_copied(copier: Any) -> None:
+    """A copy would share the callbacks, which refer to this problem; build it again instead."""
+    p = problem()
+    with raises(TypeError, "a problem is not copied", "call the function that builds", at="copier"):
+        copier(p)
+
+
+@pytest.mark.parametrize("copier", [copy.deepcopy, lambda s: pickle.loads(pickle.dumps(s))])
+def test_a_solution_copies_and_pickles_completely(copier: Any) -> None:
+    """A solution is data only: its copy answers the original problem's handles and names."""
+    p = solvable()
+    p.ipopt_options.print_level = 0
+    solution = p.solve()
+    copied = copier(solution)
+    ph = p.phases.slide
+    assert copied.objective == solution.objective
+    assert np.array_equal(copied[ph].state.x, solution[ph].state.x)
+    assert np.array_equal(copied["slide"].time, solution["slide"].time)

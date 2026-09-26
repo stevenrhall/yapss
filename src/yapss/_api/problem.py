@@ -76,6 +76,13 @@ CATCH_KEYBOARD_INTERRUPT = True
 """Whether a keyboard interrupt stops the solve cleanly, by default."""
 
 
+_NOT_COPIED = (
+    "a problem is not copied: its callbacks refer to this problem, so a copy could not be "
+    "complete. To make a variant, call the function that builds the problem again and change "
+    "what differs; to keep a result, keep the solution, which copies and pickles."
+)
+
+
 def _one_of(value: Any, allowed: tuple[str, ...], label: str) -> str:
     # A string first: `in` compares elementwise, so a numpy array holding one allowed name
     # passes the membership test, and its str() -- "['maximize']" -- matches nothing later.
@@ -548,6 +555,21 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         return register if function is None else register(function)
 
     # -- solving ------------------------------------------------------------------------------
+
+    def __copy__(self) -> Problem[PH_co, D_co, PR_co]:
+        """Refuse a copy. See `__deepcopy__`."""
+        raise TypeError(_NOT_COPIED)
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Problem[PH_co, D_co, PR_co]:
+        """Refuse a copy: a problem's callbacks refer to it, so no copy of it could be complete.
+
+        `copy` copies data and shares functions, and a callback closes over this problem's
+        phase handles and whatever else it captured, so a copy would run code that still
+        refers to the original. A variant is made by building the problem again. A solution is
+        data only, and copies and pickles completely.
+        """
+        del memo
+        raise TypeError(_NOT_COPIED)
 
     def guess_from_solution(
         self,
