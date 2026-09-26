@@ -234,14 +234,25 @@ def test_a_row_given_a_sequence_of_elements_is_refused() -> None:
 
 
 def test_a_slice_takes_one_element_or_one_per_row() -> None:
-    """Anything else cannot be spread over the rows, and the message says both forms."""
+    """A value that is neither is checked as the one element it was likely meant to be.
+
+    So the message is the element's own -- here, that a bound is a pair, with the fix -- rather
+    than a general one about slices.
+    """
     ph = problem().phases.first
-    with raises(
-        TypeError,
-        "takes one element for all of them or 2 of them",
-        at="y.bounds[:]",
-    ):
+    with raises(TypeError, "a bound is a pair, and 5 is one number", "(5, 5)", at="y.bounds[:]"):
         ph.state.y.bounds[:] = 5
+
+
+def test_a_row_written_with_a_bad_value_is_told_what_is_wrong_with_it() -> None:
+    """One row given a boolean, or one number for a pair, hears about that, not about sequences."""
+    ph = problem().phases.first
+    with raises(TypeError, "a boolean is not a number", at="y.bounds[0]"):
+        ph.state.y.bounds[0] = (0.0, True)
+    with raises(TypeError, "a bound is a pair, and 5.0 is one number", at="y.bounds[0]"):
+        ph.state.y.bounds[0] = 5.0
+    with raises(TypeError, "is one row, so it takes one element", at="y.bounds[0]"):
+        ph.state.y.bounds[0] = [(0.0, 1.0), (2.0, 3.0)]
 
 
 def test_a_setting_is_reached_through_its_field() -> None:

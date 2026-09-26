@@ -416,6 +416,11 @@ def _field_property(name: str, row: int, size: int | None, kind: type[Kind]) -> 
     return property(get_block)
 
 
+def _holds_elements(kind: type[Kind], value: object) -> bool:
+    """Report whether `value` is a sequence holding at least one element of `kind`."""
+    return is_sequence(value) and any(kind.is_element(item) for item in value)
+
+
 def _is_integer(value: object) -> bool:
     """Report whether `value` is an integer, excluding booleans."""
     if isinstance(value, bool | np.bool_):
@@ -822,14 +827,13 @@ class Vector:
             if kind.is_element(value):
                 self._check_sample_rows(value, name, covered=len(rows), whole=len(rows) == count)
                 values = [value] * len(rows)
+            elif not _holds_elements(kind, value):
+                # Not one element and not a sequence of them: check it as the one element it
+                # was most likely meant to be, so the kind says what is wrong with it -- a
+                # boolean, a bound written as one number -- rather than this method guessing.
+                kind.check(value, label=self._label, name=name, npoints=self._npoints)
+                values = [value] * len(rows)
             else:
-                if not is_sequence(value):
-                    msg = (
-                        f"{self._label} '{name}'[{_show_slice(index)}] covers {len(rows)} "
-                        f"rows, so it takes one element for all of them or {len(rows)} of "
-                        f"them; got a {type(value).__name__}"
-                    )
-                    raise TypeError(msg)
                 values = list(value)
                 if len(values) != len(rows):
                     msg = (
@@ -843,11 +847,13 @@ class Vector:
                 msg = f"{self._label} '{name}' has {count} rows; there is no row {index}"
                 raise IndexError(msg)
             if not kind.is_element(value):
-                msg = (
-                    f"{self._label} '{name}'[{index}] is one row, so it takes one element, "
-                    f"not a sequence of them; got {value!r}"
-                )
-                raise TypeError(msg)
+                if _holds_elements(kind, value):
+                    msg = (
+                        f"{self._label} '{name}'[{index}] is one row, so it takes one element, "
+                        f"not a sequence of them; got {value!r}"
+                    )
+                    raise TypeError(msg)
+                kind.check(value, label=self._label, name=name, npoints=self._npoints)
             self._check_sample_rows(value, name, covered=1, whole=count == 1)
             rows, values = [row], [value]
 
