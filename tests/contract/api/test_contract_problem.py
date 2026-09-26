@@ -655,3 +655,33 @@ def test_a_callback_may_take_extra_parameters_with_defaults() -> None:
     p = problem()
     p.phases.first.register.continuous(lambda arg, out, gain=1.0: None)
     p.register.objective(lambda arg, scale=1.0: 0.0)
+
+
+@pytest.mark.parametrize(
+    ("target", "example"),
+    [
+        ("objective", "'objective.sense = ...'"),
+        ("derivatives", "'derivatives.method = ...'"),
+        ("ipopt_options", "'ipopt_options.max_iter = ...'"),
+        ("register", "'@register.objective'"),
+    ],
+)
+def test_replacing_a_held_object_names_a_real_example(target: str, example: str) -> None:
+    """The advice shows a line the user could write, not a placeholder."""
+    p = problem()
+    with raises(AttributeError, "cannot be replaced", example, at="setattr"):
+        setattr(p, target, None)
+
+
+def test_every_held_object_can_be_named_in_the_advice() -> None:
+    """Each object a problem or a phase holds says how it is changed, so the advice for
+    replacing it is a line the user could write, whatever kind of object it is."""
+    p = problem()
+    todo: list[object] = [p, p.phases.first]
+    while todo:
+        owner = todo.pop()
+        for name in getattr(type(owner), "_held", ()):  # only containers hold objects
+            advice = owner._advice(name)  # type: ignore[attr-defined]
+            assert "cannot be replaced" in advice
+            assert "<" not in advice, advice
+            todo.append(object.__getattribute__(owner, name))

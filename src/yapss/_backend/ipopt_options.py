@@ -194,6 +194,10 @@ class IpoptOptions:
         """Return a dictionary of all defined option values."""
         return {k: v for k, v in self.__dict__.items() if v is not None}
 
+    def _example(self) -> str:
+        """Return an option written the way a user sets one, for a front end's message."""
+        return "max_iter"
+
     # retrieved from https://coin-or.github.io/Ipopt/OPTIONS.html 2024-10-27
     # Ipopt's documentation says output_file, file_print_level and file_append work only
     # when read from an ipopt.opt file. That is not true of the C interface for the first

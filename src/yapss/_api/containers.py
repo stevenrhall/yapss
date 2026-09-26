@@ -158,18 +158,26 @@ class Container:
         object.__setattr__(self, name, value)
 
     def _advice(self, name: str) -> str:
-        """Return the message for an attempt to replace the sub-object `name`."""
+        """Return the message for an attempt to replace the sub-object `name`.
+
+        Every object a container holds answers `_example` with a line the user could write,
+        relative to its own name: a setting, a field's setting, an option, or for a registry a
+        registration.
+        """
         held = object.__getattribute__(self, name)
-        fields = getattr(held, "_fields", ())
-        if hasattr(type(held), "_example"):
-            # a vector's settings, reached field first: 'state.x.bounds', not 'state.x'
-            example = f"{name}.{held._example()}"
-        else:
-            example = f"{name}.{fields[0]}" if fields else f"{name}.<field>"
+        if isinstance(held, Registry):
+            return (
+                f"{self._label} {name} cannot be replaced; register a callback through it, "
+                f"for example '@{name}.{held._example()}'."
+            )
         return (
-            f"{self._label} {name} cannot be replaced; it is set one field at a time, "
-            f"for example '{example} = ...'."
+            f"{self._label} {name} cannot be replaced; it is changed one setting at a time, "
+            f"for example '{name}.{held._example()} = ...'."
         )
+
+    def _example(self) -> str:
+        """Return a setting written the way a user sets one, for a message: the first."""
+        return self._settable[0]
 
     def _check(self, name: str, value: Any) -> Any:
         """Validate a settable value and return what to store. Overridden by subclasses."""
@@ -252,6 +260,10 @@ class Registry(Container):
 
     def _names(self) -> tuple[str, ...]:
         return (*self._held, *self._settable, *self._registrations)
+
+    def _example(self) -> str:
+        """Return a registration, for a message: the first."""
+        return self._registrations[0]
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse an assignment to a registration, naming the idiom that works."""
