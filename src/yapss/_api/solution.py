@@ -30,6 +30,7 @@ import numpy as np
 from typing_extensions import TypeVar
 
 from yapss._backend.layout import problem_layout
+from yapss._backend.quadrature import lg, lgl, lgr
 from yapss._backend.structure import get_nlp_cf_structure, get_nlp_dv_structure
 
 from .args import C_co, D_co, EndpointValues, I_co, P_co, PR_co, S_co
@@ -170,6 +171,28 @@ def _barycentric(nodes: Any, values: Any, at: float) -> Any:
         return values[..., exact[0]]
     terms = weights / d
     return (values * terms).sum(axis=-1) / terms.sum()
+
+
+def _weights(method: str, mesh: Mesh, duration: float) -> NDArray[np.float64]:
+    """Return the quadrature weights in time on a phase's state points.
+
+    Each segment's rule is scaled by half the segment's width in time, so ``weights @ f`` is the
+    method's own quadrature of `f` over the phase. A point that is not collocated has weight
+    zero; under LGL a point shared by two segments carries both segments' weights.
+    """
+    rule = {"lg": lg, "lgr": lgr, "lgl": lgl}[method]
+    parts: list[NDArray[np.float64]] = []
+    for fraction, points in mesh.segments:
+        # a copy: the rules are memoized. LG's lists the segment start, with weight zero.
+        w = np.array(rule(points)[1], dtype=np.float64) * (fraction * duration / 2)
+        if method == "lgl" and parts:
+            parts[-1][-1] += w[0]
+            w = w[1:]
+        parts.append(w)
+    if method != "lgl":
+        # the phase's final point, which LG and LGR do not collocate
+        parts.append(np.zeros(1))
+    return np.concatenate(parts)
 
 
 class _Grid:
@@ -942,6 +965,9 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         on every point of `time`; where this is false, the value is the method's polynomial
         extrapolated there -- close, and fine to plot, but not the solver's, and not bound by
         anything the solver imposed. Checks and statistics use ``quantity[ps.collocated]``.
+    weights : numpy.ndarray
+        The quadrature weights over `time`, zero where a point is not collocated, so that
+        ``ps.weights @ f`` is the method's own integral of `f` over the phase.
     mesh : Mesh
         The mesh the phase was solved on.
     nlp : PhaseNLP
@@ -966,6 +992,7 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         "nlp",
         "path",
         "state",
+        "weights",
     )
 
     if TYPE_CHECKING:
@@ -985,6 +1012,7 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         duration: float
         hamiltonian: NDArray[np.float64]
         collocated: NDArray[np.bool_]
+        weights: NDArray[np.float64]
         mesh: Mesh
         nlp: PhaseNLP[S_co, C_co, P_co, I_co]
 
@@ -1030,6 +1058,7 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
             {
                 "_points": data.time,
                 "collocated": grid.collocated,
+                "weights": _weights(method, phase.mesh, data.time[-1] - data.time[0]),
                 "state": _vector(phase.state, state, f"{label} state"),
                 "costate": costate,
                 "multiplier": multiplier,

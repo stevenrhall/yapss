@@ -11,8 +11,9 @@ import pickle
 import numpy as np
 import pytest
 
+import yapss
 from yapss._api.solution import _Grid
-from yapss.examples import goddard_problem_3_phase, orbit_raising
+from yapss.examples import goddard_problem_3_phase, isoperimetric, orbit_raising
 
 # ------------------------------------------------------------------ the fill, on known data
 
@@ -162,3 +163,33 @@ def test_the_mask_and_the_fill_pickle():
     ps, ps_copy = solution[problem.phases.raise_], copy[problem.phases.raise_]
     np.testing.assert_array_equal(ps_copy.collocated, ps.collocated)
     np.testing.assert_array_equal(ps_copy.control[:], ps.control[:])
+    np.testing.assert_array_equal(ps_copy.weights, ps.weights)
+
+
+# ---------------------------------------------------------------------------- the weights
+
+
+def test_the_weights_are_a_quadrature_over_the_phase(goddard):
+    """Zero off the collocated points, summing to the duration, exact on a low-degree polynomial."""
+    _, solution = goddard
+    for name in ("boost", "singular", "coast"):
+        ps = solution[name]
+        assert ps.weights.shape == ps.time.shape
+        assert (ps.weights[~ps.collocated] == 0.0).all()
+        assert ps.weights.sum() == pytest.approx(ps.duration, rel=1e-13)
+        t0, tf = ps.time[0], ps.time[-1]
+        assert ps.weights @ (ps.time - t0) ** 3 == pytest.approx((tf - t0) ** 4 / 4, rel=1e-12)
+
+
+@pytest.mark.parametrize("method", ["lgl", "lgr", "lg"])
+def test_the_weights_reproduce_the_transcribed_integrals(method):
+    """An integral is transcribed as this very quadrature of its integrand, on an uneven mesh."""
+    problem = isoperimetric.setup()
+    problem.ipopt_options.print_level = 0
+    problem.spectral_method = method
+    ph = problem.phases.curve
+    ph.mesh = yapss.Mesh([(0.2, 8), (0.3, 10), (0.5, 12)])
+    ps = problem.solve()[ph]
+    assert ps.weights @ ps.integrand.area == pytest.approx(ps.integral.area, abs=1e-9)
+    assert ps.weights @ ps.integrand.x_moment == pytest.approx(ps.integral.x_moment, abs=1e-9)
+    assert ps.weights @ ps.integrand.y_moment == pytest.approx(ps.integral.y_moment, abs=1e-9)
