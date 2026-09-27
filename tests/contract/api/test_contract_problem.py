@@ -1,6 +1,6 @@
 """What a problem is, and what refuses to become one.
 
-Everything here happens before a solve: what `Problem(...)` accepts, what a phase declaration
+Everything here happens before a solve: what a problem class accepts, what a phase declaration
 accepts, how callbacks are registered, and the completeness check that runs when a solve is
 asked for. A message about the *shape* of the problem belongs here; a message about a value
 put into that shape belongs to the page for that aspect.
@@ -20,13 +20,17 @@ import yapss
 
 from ._api import Control, Discrete, Parameter, Phases, State, problem, raises, solvable
 
-# --------------------------------------------------------------- what Problem() accepts
+# ------------------------------------------------------ what a problem class accepts
 
 
 def test_name_must_be_a_string() -> None:
     """The problem's name is a string, and a number is a mistake rather than a label."""
-    with raises(TypeError, "the problem name must be a string", at="yapss.Problem("):
-        yapss.Problem(42, phases=Phases)  # type: ignore[arg-type]
+
+    class P(yapss.Problem):
+        phases: Phases
+
+    with raises(TypeError, "the problem name must be a string", at="P(42)"):
+        P(42)  # type: ignore[arg-type]
 
 
 def test_the_name_may_be_changed() -> None:
@@ -64,21 +68,29 @@ def test_a_declaration_cannot_be_replaced() -> None:
 
 
 def test_phases_must_be_a_phases_subclass() -> None:
-    """`phases=` takes the class, not an instance of it and not a list."""
-    with raises(TypeError, "class Phases(yapss.Phases)", at="yapss.Problem("):
-        yapss.Problem("p", phases=[])  # type: ignore[arg-type]
+    """`phases` is annotated with a `yapss.Phases` subclass, and nothing else."""
+    with raises(TypeError, "P.phases is annotated", "class Phases(yapss.Phases)", at="class P"):
+
+        class P(yapss.Problem):
+            phases: list[int]
 
 
 def test_discrete_must_be_a_discrete_declaration() -> None:
-    """`discrete=` takes a subclass of `yapss.Discrete`."""
-    with raises(TypeError, "takes a subclass of", "yapss.Discrete", at="yapss.Problem("):
-        yapss.Problem("p", phases=Phases, discrete=object)  # type: ignore[arg-type]
+    """`discrete` is annotated with a subclass of `yapss.Discrete`."""
+    with raises(TypeError, "takes a subclass of", "yapss.Discrete", at="class P"):
+
+        class P(yapss.Problem):
+            phases: Phases
+            discrete: object
 
 
 def test_parameter_must_be_a_parameter_declaration() -> None:
-    """`parameter=` takes a subclass of `yapss.Parameter`, and the message names the keyword."""
-    with raises(TypeError, "parameter=", "yapss.Parameter", at="yapss.Problem("):
-        yapss.Problem("p", phases=Phases, parameter=object)  # type: ignore[arg-type]
+    """`parameter` is annotated with a subclass of `yapss.Parameter`; the message names it."""
+    with raises(TypeError, "P.parameter", "yapss.Parameter", at="class P"):
+
+        class P(yapss.Problem):
+            phases: Phases
+            parameter: object
 
 
 def test_a_problem_with_no_decision_variables_is_refused() -> None:
@@ -89,8 +101,10 @@ def test_a_problem_with_no_decision_variables_is_refused() -> None:
     fix. It is not incompleteness -- nothing is missing from a constant objective over no
     variables -- so it is not reported as one.
     """
-    with raises(ValueError, "no decision variables", "declare a phase", at="yapss.Problem("):
-        yapss.Problem("p")
+    with raises(ValueError, "no decision variables", "declare a phase", at="class Empty"):
+
+        class Empty(yapss.Problem):
+            """Nothing to choose."""
 
 
 def test_a_declaration_is_refused_in_the_wrong_role() -> None:
@@ -125,8 +139,11 @@ def test_a_swapped_argument_is_named() -> None:
 
     Changing the class's base would also silence the error, and would be the wrong fix.
     """
-    with raises(TypeError, "Did you mean parameter=", at="yapss.Problem("):
-        yapss.Problem("p", phases=Phases, discrete=Parameter)  # type: ignore[arg-type]
+    with raises(TypeError, "Did you mean 'parameter: Parameter'?", at="class P"):
+
+        class P(yapss.Problem):
+            phases: Phases
+            discrete: Parameter
 
 
 def test_a_parameter_may_not_share_a_name_with_a_phase_variable() -> None:
@@ -135,13 +152,11 @@ def test_a_parameter_may_not_share_a_name_with_a_phase_variable() -> None:
     class Shared(yapss.Parameter):
         x = yapss.scalar()
 
-    with raises(
-        ValueError,
-        "declares 'x'",
-        "one namespace",
-        at="yapss.Problem(",
-    ):
-        yapss.Problem("p", phases=Phases, parameter=Shared)
+    with raises(ValueError, "declares 'x'", "one namespace", at="class P"):
+
+        class P(yapss.Problem):
+            phases: Phases
+            parameter: Shared
 
 
 def test_the_message_names_the_phase_the_parameter_collided_in() -> None:
@@ -157,8 +172,11 @@ def test_the_message_names_the_phase_the_parameter_collided_in() -> None:
     class TwoPhases(yapss.Phases):
         early: Early
 
-    with raises(ValueError, "phase 'early'", at="yapss.Problem("):
-        yapss.Problem("p", phases=TwoPhases, parameter=Other)
+    with raises(ValueError, "phase 'early'", at="class P"):
+
+        class P(yapss.Problem):
+            phases: TwoPhases
+            parameter: Other
 
 
 def test_catch_keyboard_interrupt_is_a_flag() -> None:
@@ -282,7 +300,10 @@ def test_a_problem_with_no_objective_is_incomplete() -> None:
     class OnlyPhase(yapss.Phases):
         only: Only
 
-    p = yapss.Problem("p", phases=OnlyPhase)
+    class P(yapss.Problem):
+        phases: OnlyPhase
+
+    p = P("p")
     ph = p.phases.only
 
     @ph.register.continuous
@@ -325,7 +346,11 @@ def test_declared_discrete_constraints_need_a_callback() -> None:
     class OnlyPhase(yapss.Phases):
         only: Only
 
-    p = yapss.Problem("p", phases=OnlyPhase, discrete=Discrete)
+    class P(yapss.Problem):
+        phases: OnlyPhase
+        discrete: Discrete
+
+    p = P("p")
     ph = p.phases.only
 
     @ph.register.continuous
@@ -350,7 +375,10 @@ def test_phases_may_be_omitted_entirely() -> None:
     class Parameters(yapss.Parameter):
         x = yapss.scalar()
 
-    p = yapss.Problem("p", parameter=Parameters)
+    class P(yapss.Problem):
+        parameter: Parameters
+
+    p = P("p")
     assert list(p.phases) == []
 
     @p.register.objective
@@ -379,7 +407,10 @@ def test_one_complaint_is_not_numbered() -> None:
     class Design(yapss.Parameter):
         a = yapss.scalar()
 
-    p = yapss.Problem("p", parameter=Design)
+    class P(yapss.Problem):
+        parameter: Design
+
+    p = P("p")
     with pytest.raises(ValueError) as info:
         p.validate()
     message = str(info.value)
@@ -576,8 +607,12 @@ def test_a_phase_callback_registered_twice_replaces() -> None:
 @pytest.mark.parametrize("name", ["", "   "])
 def test_the_name_is_not_blank(name: str) -> None:
     """Messages and the solution's repr call the problem by its name."""
-    with raises(ValueError, "must not be blank", at="yapss.Problem"):
-        yapss.Problem(name, phases=Phases)
+
+    class P(yapss.Problem):
+        phases: Phases
+
+    with raises(ValueError, "must not be blank", at="P(name)"):
+        P(name)
     p = problem()
     with raises(ValueError, "must not be blank", at="p.name"):
         p.name = name
@@ -669,7 +704,11 @@ def test_too_few_degrees_of_freedom_raises() -> None:
         a = yapss.scalar()
         b = yapss.scalar()
 
-    p = yapss.Problem("overdetermined", parameter=K, discrete=Twice)
+    class P(yapss.Problem):
+        discrete: Twice
+        parameter: K
+
+    p = P("overdetermined")
 
     def discrete(arg, out):
         out.discrete.a = arg.parameter.k

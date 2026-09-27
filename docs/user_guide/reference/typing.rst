@@ -73,10 +73,11 @@ The objective returns a float when the problem is evaluated and a symbol when YA
 for automatic differentiation, so its honest return type is ``Any``. A value read from a
 continuous callback is typed as a numpy array, which it is: of floats, or of symbols.
 
-To type the problem itself, give `yapss.Problem` the classes it was built from --
-``yapss.Problem[Phases, Discrete, Parameter]`` -- as the ``setup`` above does. The bare
-``yapss.Problem`` is also valid, and answers any phase, parameter or discrete name, since it does
-not say what was declared; so does the solution it returns.
+A problem class is its own annotation: ``setup`` above returns ``Typed``, and a function taking
+the problem is written ``def plot(problem: Typed)``. The bare ``yapss.Problem`` is also valid, and
+answers any phase, parameter or discrete name, since it does not say what was declared; so does
+the solution it returns. A member a problem class omits is not checked either; to have reading
+it reported, declare it as its empty role, ``parameter: yapss.Parameter``.
 
 Reading a solution
 ------------------

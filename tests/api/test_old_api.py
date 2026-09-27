@@ -40,14 +40,17 @@ def test_a_new_problem_call_is_untouched():
     class Parameter(yapss.Parameter):
         x = yapss.scalar()
 
-    problem = yapss.Problem("hs", parameter=Parameter)
+    class HS(yapss.Problem):
+        parameter: Parameter
+
+    problem = HS("hs")
     assert problem.name == "hs"
 
 
 def test_the_signature_is_the_constructors():
     """The hidden __new__ must not become the signature a notebook's help shows."""
     parameters = inspect.signature(yapss.Problem).parameters
-    assert list(parameters) == ["name", "phases", "discrete", "parameter"]
+    assert list(parameters) == ["name"]
 
 
 @pytest.mark.parametrize("name", sorted(OLD_ROOT_NAMES))

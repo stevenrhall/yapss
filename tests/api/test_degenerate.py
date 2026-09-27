@@ -29,7 +29,10 @@ def test_a_phase_that_declares_nothing_still_has_its_own_times():
     class Phases(yapss.Phases):
         p: P
 
-    problem = yapss.Problem("bare phase", phases=Phases)
+    class P(yapss.Problem):
+        phases: Phases
+
+    problem = P("bare phase")
     ph = problem.phases.p
 
     @ph.register.continuous
@@ -62,7 +65,10 @@ def test_the_endpoints_alone_make_an_optimization_problem():
     class Phases(yapss.Phases):
         interval: Interval
 
-    problem = yapss.Problem("endpoints alone", phases=Phases)
+    class P(yapss.Problem):
+        phases: Phases
+
+    problem = P("endpoints alone")
     ph = problem.phases.interval
 
     @ph.register.continuous
@@ -98,7 +104,9 @@ def test_a_parameter_of_no_rows_is_not_a_variable():
     assert Design._fields == ("a",)
     assert Design._nrows == 0
     with pytest.raises(ValueError, match="no decision variables"):
-        yapss.Problem("a parameter of no rows", parameter=Design)
+
+        class P(yapss.Problem):
+            parameter: Design
 
 
 def test_a_problem_of_parameters_alone_solves():
@@ -110,7 +118,11 @@ def test_a_problem_of_parameters_alone_solves():
     class Phases(yapss.Phases):
         pass
 
-    problem = yapss.Problem("parameters only", phases=Phases, parameter=Design)
+    class P(yapss.Problem):
+        phases: Phases
+        parameter: Design
+
+    problem = P("parameters only")
 
     @problem.register.objective
     def objective(arg):
@@ -125,12 +137,15 @@ def test_a_problem_of_parameters_alone_solves():
 def test_a_problem_with_no_variables_is_refused_at_construction():
     """Neither a phase nor a parameter leaves nothing to solve for.
 
-    Refused on the line that builds the problem, because that is the line to fix: a
+    Refused at the problem class's statement, because that is the line to fix: a
     declaration is a class, so no later statement can add a phase or a parameter row. Waiting
     for `solve` would also have let ``"auto"`` trace a constant objective and fail inside
     CasADi, naming a C++ header and a type the user never wrote.
     """
     with pytest.raises(ValueError, match="no decision variables") as info:
-        yapss.Problem("nothing at all")
+
+        class P(yapss.Problem):
+            """Nothing at all."""
+
     assert "declare a phase or a parameter" in str(info.value)
     assert "not ready to solve" not in str(info.value)

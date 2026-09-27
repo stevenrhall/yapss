@@ -80,7 +80,13 @@ def record(seen: dict[str, Any], label: str, value: Any) -> None:
 
 def build(seen: dict[str, Any]) -> yapss.Problem:
     """Return a problem whose callbacks record every symbolic array they are handed."""
-    problem = yapss.Problem("blocks", phases=Phases, parameter=Parameter, discrete=Discrete)
+
+    class P(yapss.Problem):
+        phases: Phases
+        discrete: Discrete
+        parameter: Parameter
+
+    problem = P("blocks")
     ph = problem.phases.flight
 
     @ph.register.continuous

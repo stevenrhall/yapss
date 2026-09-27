@@ -46,7 +46,12 @@ def declared_in_a_function():
     class Phases(yapss.Phases):
         run: Run
 
-    problem = yapss.Problem("local", phases=Phases, discrete=Discrete, parameter=Parameter)
+    class P(yapss.Problem):
+        phases: Phases
+        discrete: Discrete
+        parameter: Parameter
+
+    problem = P("local")
     ph = problem.phases.run
 
     @ph.register.continuous

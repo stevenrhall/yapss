@@ -102,7 +102,7 @@ def _values(vector: Vector) -> dict[str, tuple[Any, ...]]:
     return {name: vector._elements(name) for name in vector._fields}
 
 
-def validate_problem(problem: Problem[Any, Any, Any]) -> None:
+def validate_problem(problem: Problem) -> None:
     """Check that a problem is complete. See `Problem.validate`."""
     complaints: list[str] = []
     for phase in problem.phases:
@@ -207,7 +207,7 @@ def _unbounded(bounds: Vector, label: str) -> list[str]:
     ]
 
 
-def snapshot(problem: Problem[Any, Any, Any]) -> ProblemSpec:
+def snapshot(problem: Problem) -> ProblemSpec:
     """Return a `ProblemSpec` recording `problem` as it stands.
 
     Parameters

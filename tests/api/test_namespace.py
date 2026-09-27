@@ -35,6 +35,11 @@ def made(role, *names):
     return type("Made", (role,), {name: yapss.scalar() for name in names})
 
 
+def problem_of(**members):
+    """Return a problem declaring `members`, as a class body would, built with the name 'p'."""
+    return type("P", (yapss.Problem,), {"__annotations__": members})("p")
+
+
 def shape(**annotations):
     """Return a phase's shape with the given annotations, as a class body would declare it."""
     return type("Shape", (yapss.Phase,), {"__annotations__": annotations})
@@ -77,15 +82,15 @@ def test_a_name_may_be_a_control_in_one_phase_and_a_state_in_another():
 )
 def test_a_parameter_may_not_share_a_phase_variable_s_name(name, role):
     with pytest.raises(ValueError, match=rf"declares '{name}'.*phase 'only' also has as {role}"):
-        yapss.Problem("p", phases=Phases, parameter=made(yapss.Parameter, name))
+        problem_of(phases=Phases, parameter=made(yapss.Parameter, name))
 
 
 def test_a_parameter_that_collides_with_no_phase_is_accepted():
-    problem = yapss.Problem("p", phases=Phases, parameter=made(yapss.Parameter, "wind"))
+    problem = problem_of(phases=Phases, parameter=made(yapss.Parameter, "wind"))
     assert aspects_of(problem.parameter).bounds._fields == ("wind",)
 
 
 def test_a_discrete_name_may_match_a_phase_variable():
     # discrete constraints are outputs, like path and integral names
-    problem = yapss.Problem("p", phases=Phases, discrete=made(yapss.Discrete, "h"))
+    problem = problem_of(phases=Phases, discrete=made(yapss.Discrete, "h"))
     assert aspects_of(problem.discrete).bounds._fields == ("h",)

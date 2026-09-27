@@ -81,9 +81,17 @@ def dynamics(arg: yapss.ContinuousArg[State, Control, Parameter], out: State) ->
     out.v = arg.parameter.g * sin(u)
 
 
-def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
-    """Set up the problem, typed with the declarations it was built from."""
-    problem = yapss.Problem("typed", phases=Phases, discrete=Discrete, parameter=Parameter)
+class Typed(yapss.Problem):
+    """The problem, declared as a class: its annotations are what a checker reads."""
+
+    phases: Phases
+    discrete: Discrete
+    parameter: Parameter
+
+
+def setup() -> Typed:
+    """Set up the problem, typed by its class."""
+    problem = Typed("typed")
     ph = problem.phases.slide
 
     @ph.register.continuous
@@ -199,7 +207,13 @@ class NosePhases(yapss.Phases):
     nose: Nose
 
 
-def independent_mistakes(problem: yapss.Problem[NosePhases]) -> None:
+class NoseProblem(yapss.Problem):
+    """A problem of that one phase."""
+
+    phases: NosePhases
+
+
+def independent_mistakes(problem: NoseProblem) -> None:
     """Every phase's independent variable is `time`; another name is an ordinary misspelling."""
     problem.phases.nose.time.guess = (0.0, 1.0)
     problem.phases.nose.r  # type: ignore[attr-defined]
@@ -208,7 +222,7 @@ def independent_mistakes(problem: yapss.Problem[NosePhases]) -> None:
 
 
 def mistakes(
-    problem: yapss.Problem[Phases, Discrete, Parameter],
+    problem: Typed,
     arg: yapss.ContinuousArg[State, Control, Parameter],
     out: yapss.ContinuousOut[State, Path, Integral],
     endpoint: yapss.DiscreteArg[Parameter],
@@ -237,7 +251,7 @@ def mistakes(
     problem.ipopt_options.hessian_approximation = "exact"  # type: ignore[attr-defined]
 
 
-def registration_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -> None:
+def registration_mistakes(problem: Typed) -> None:
     """A continuous or discrete callback fills `out` and returns nothing; one annotated to
     return something is reported, by the decorator and by the call alike."""
     ph = problem.phases.slide
@@ -260,7 +274,7 @@ def registration_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -
         return out
 
 
-def solution_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -> None:
+def solution_mistakes(problem: Typed) -> None:
     """Each line is a mistake in reading a solution that the checker must report."""
     solution = problem.solve()
     ps = solution.phases[problem.phases.slide]
@@ -285,8 +299,16 @@ def solution_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -> No
 
 
 def no_parameters_declared() -> None:
-    """A problem that declares no parameters reports reading one, from its solution too."""
-    problem = yapss.Problem("none", phases=Phases)
+    """A problem that declares it has no parameters reports reading one, from its solution too.
+
+    Declared, not omitted: an omitted member is `Any`, and a checker reports nothing on it.
+    """
+
+    class NoParameters(yapss.Problem):
+        phases: Phases
+        parameter: yapss.Parameter
+
+    problem = NoParameters("none")
     problem.solve().parameter.g  # type: ignore[attr-defined]
 
 

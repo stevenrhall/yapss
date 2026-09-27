@@ -128,7 +128,10 @@ def test_a_phase_without_a_time_guess_is_incomplete() -> None:
     class OnePhase(yapss.Phases):
         only: Only
 
-    p = yapss.Problem("p", phases=OnePhase)
+    class P(yapss.Problem):
+        phases: OnePhase
+
+    p = P("p")
     ph = p.phases.only
 
     @ph.register.continuous
@@ -369,7 +372,10 @@ def test_a_mismatched_solution_is_refused_listing_every_mismatch() -> None:
     class OtherPhases(yapss.Phases):
         slide: OtherPhase
 
-    q = yapss.Problem("other", phases=OtherPhases)
+    class P(yapss.Problem):
+        phases: OtherPhases
+
+    q = P("other")
     before = q.phases.slide.time.guess
     with raises(
         ValueError,

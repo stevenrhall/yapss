@@ -29,7 +29,10 @@ def build(row_guess):
     class Phases(yapss.Phases):
         only: Only
 
-    problem = yapss.Problem("block guesses", phases=Phases)
+    class P(yapss.Problem):
+        phases: Phases
+
+    problem = P("block guesses")
     ph = problem.phases.only
 
     @ph.register.continuous

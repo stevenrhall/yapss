@@ -77,8 +77,8 @@ numerical differentiation is used, the derivative order is set to "second", as t
 out to be (a little bit) faster than using first-order derivatives.
 
    >>> import yapss
-   >>> from yapss.examples.minimum_time_to_climb import Phases
-   >>> problem = yapss.Problem("Bryson minimum time to climb", phases=Phases)
+   >>> from yapss.examples.minimum_time_to_climb import MinimumTimeToClimb
+   >>> problem = MinimumTimeToClimb("Bryson minimum time to climb")
    >>> problem.derivatives.method = "central-difference"
    >>> problem.derivatives.order = "second"
 

@@ -347,7 +347,10 @@ def test_a_problem_may_have_no_discrete_constraints() -> None:
     class Bare(yapss.Phases):
         only: Only
 
-    p = yapss.Problem("bare", phases=Bare)
+    class P(yapss.Problem):
+        phases: Bare
+
+    p = P("bare")
     ph = p.phases.only
 
     @ph.register.continuous
@@ -513,7 +516,10 @@ def _block_problem(continuous: Any) -> Any:
     class BlockPhases(yapss.Phases):
         only: Only
 
-    p = yapss.Problem("block rows", phases=BlockPhases)
+    class P(yapss.Problem):
+        phases: BlockPhases
+
+    p = P("block rows")
     ph = p.phases.only
     ph.register.continuous(continuous)
     p.register.objective(lambda arg: arg[ph].final.time)

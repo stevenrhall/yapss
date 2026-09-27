@@ -113,9 +113,17 @@ class Phases(yapss.Phases):
     second: Shape
 
 
+class Contract(yapss.Problem):
+    """A problem with one of everything."""
+
+    phases: Phases
+    discrete: Discrete
+    parameter: Parameter
+
+
 def problem() -> Any:
     """Return a problem with one of everything, declared and otherwise untouched."""
-    return yapss.Problem("contract", phases=Phases, discrete=Discrete, parameter=Parameter)
+    return Contract("contract")
 
 
 # ------------------------------------------------------------------ a problem that solves
@@ -177,13 +185,20 @@ class OnePhase(yapss.Phases):
     slide: SlidePhase
 
 
+class Callbacks(yapss.Problem):
+    """The small solvable problem."""
+
+    phases: OnePhase
+    discrete: Height
+
+
 def solvable(method: str = "auto") -> Any:
     """Return the small solvable problem, with the given derivative method.
 
     Every callback is registered and every aspect set, so a clause can take this problem,
     break exactly one thing, and be sure that what it sees is what it broke.
     """
-    problem = yapss.Problem("callbacks", phases=OnePhase, discrete=Height)
+    problem = Callbacks("callbacks")
     ph = problem.phases.slide
 
     @ph.register.continuous

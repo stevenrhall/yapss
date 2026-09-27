@@ -35,7 +35,7 @@ ROLES = ("state", "control", "integral")
 
 
 def guess_from_solution(
-    problem: Problem[Any, Any, Any],
+    problem: Problem,
     solution: Solution[Any, Any],
     solution_phase: Any = None,
     guess_phase: Any = None,
@@ -67,7 +67,7 @@ def guess_from_solution(
         _write_scalars(solution.parameter, problem.parameter)
 
 
-def _own_phase(problem: Problem[Any, Any, Any], phase: Any) -> Any:
+def _own_phase(problem: Problem, phase: Any) -> Any:
     """Return `problem`'s phase for `phase`, a handle of it or its name."""
     for ph in problem.phases:
         if ph is phase or (isinstance(phase, str) and ph._name == phase):
@@ -77,7 +77,7 @@ def _own_phase(problem: Problem[Any, Any, Any], phase: Any) -> Any:
 
 
 def _pair_by_name(
-    problem: Problem[Any, Any, Any], solution: Solution[Any, Any]
+    problem: Problem, solution: Solution[Any, Any]
 ) -> tuple[list[tuple[PhaseSolution, Any]], list[str]]:
     """Pair every phase of the problem with the solution's phase of the same name."""
     names = list(object.__getattribute__(solution.phases, "_names"))

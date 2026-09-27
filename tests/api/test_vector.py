@@ -452,7 +452,12 @@ def test_every_declared_setting_actually_exists():
     class OnePhase(Phases):
         only: Only
 
-    problem = Problem("t", phases=OnePhase, discrete=D, parameter=P)
+    class T(Problem):
+        phases: OnePhase
+        discrete: D
+        parameter: P
+
+    problem = T("t")
     seen = []
     pending = [problem, *problem.phases]
     while pending:

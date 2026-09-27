@@ -12,7 +12,7 @@ afterwards never alters what an earlier solution recorded.
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Protocol, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, overload
 
 # See `_api.declare`: PEP 696 defaults, which `typing.TypeVar` cannot carry below 3.13.
 from typing_extensions import TypeVar
@@ -47,20 +47,6 @@ if TYPE_CHECKING:
     from .solution import Solution
 
 __all__ = ["Problem"]
-
-# Each default is `Any`, not the role. A bare `yapss.Problem` -- the annotation every example's
-# `setup` returns, and a helper taking any problem writes -- cannot say what was declared, so it
-# answers any name, and so does the solution it returns; a problem built from its declarations
-# is typed by them, and a misspelling is reported there. The base class cannot do both: a
-# permissive reader on `Phases` would be inherited by every declaration and blind the checker to
-# every phase name. A keyword left out of the constructor is typed as its role by the
-# overloads of `Problem.__init__`, so a problem declaring no parameters reports reading one.
-PH_co = TypeVar("PH_co", bound=Phases, default=Any, covariant=True)
-"""The class declaring the problem's phases."""
-D_co = TypeVar("D_co", bound=Discrete, default=Any, covariant=True)
-"""The class declaring the problem's discrete constraint groups."""
-PR_co = TypeVar("PR_co", bound=Parameter, default=Any, covariant=True)
-"""The class declaring the problem's parameters."""
 
 # `solve` reads what a problem declared through a protocol on `self`, so a problem declared as a
 # subclass -- `class Goddard(yapss.Problem)` annotating `discrete: GodDiscrete` -- returns a
@@ -285,7 +271,7 @@ def _check_decision_variables(phases: Any, parameter: type[Vector]) -> None:
 
     Refused here rather than in `validate` because it is decidable here and incurable after: a
     declaration is a class, so neither count can change once the problem is built, and the line
-    that has to be fixed is the one that called `Problem`. Leaving it to `validate` also had it
+    that has to be fixed is the problem class's statement. Leaving it to `validate` also had it
     reported as incompleteness, which it is not -- nothing is missing from a constant objective
     over no variables; there is simply nothing to choose.
 
@@ -315,7 +301,7 @@ class ProblemRegistry(Registry):
     _registrations = ("objective", "discrete")
     _label = "problem callbacks"
 
-    def __init__(self, problem: Problem[Any, Any, Any]) -> None:
+    def __init__(self, problem: Problem) -> None:
         self._problem = problem
 
     @overload
@@ -362,19 +348,26 @@ class ProblemRegistry(Registry):
         return self._problem._register("discrete", function)
 
 
-class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
-    """An optimal control problem.
+class Problem(HasRegistry):
+    """An optimal control problem: subclass it, and annotate what the problem declares.
+
+    ::
+
+        class Goddard(yapss.Problem):
+            phases: Phases
+            discrete: Discrete
+
+        problem = Goddard("Goddard rocket")
+
+    The annotations are ``phases`` (a `yapss.Phases` subclass), ``discrete`` and ``parameter``
+    (a `yapss.Discrete` and a `yapss.Parameter` subclass), each optional: a problem that omits
+    one has none of it. The class body holds nothing else, and a problem class is not
+    subclassed again.
 
     Parameters
     ----------
     name : str
         A name for the problem, used in messages and printed output.
-    phases : type[Phases], optional
-        The class declaring the problem's phases; none, if omitted.
-    discrete : type[Discrete], optional
-        The class naming the problem's discrete constraint groups; none, if omitted.
-    parameter : type[Parameter], optional
-        The class naming the problem's parameters; none, if omitted.
 
     Attributes
     ----------
@@ -417,16 +410,12 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
     _settable = ("name", "spectral_method", "catch_keyboard_interrupt")
 
     if TYPE_CHECKING:
-        # The three parameters are the classes the problem was declared with, so a type
-        # checker follows `problem.phases.<name>` into the phase and on to the fields of its
-        # state and control without an annotation being written anywhere. Each has a default,
-        # which is what keeps the bare `yapss.Problem` -- the spelling every example's `setup`
-        # returns -- both legal under `disallow_any_generics` and meaningful.
-        phases: PH_co
-        # Typed as the declarations, so a setting is reached field first and checked: see
-        # `Phase`. At runtime each is a `fields.Fields` over the aspect container.
-        discrete: D_co
-        parameter: PR_co
+        # `Any` here, and the classes a problem class annotates there. A checker holds a mutable
+        # attribute's type fixed in a subclass unless the base declares `Any`, and a declaration
+        # names these three in its own body, where the checker reads them.
+        phases: Any
+        discrete: Any
+        parameter: Any
         objective: ObjectiveAspects
         derivatives: Derivatives
         ipopt_options: IpoptOptions
@@ -436,7 +425,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         catch_keyboard_interrupt: bool
 
     _members: ClassVar[dict[str, type[Any]] | None] = None
-    """What a problem class declared; None on `Problem` itself, which takes keywords."""
+    """What a problem class declared; None on `Problem` itself, which is not instantiated."""
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Read a problem class's declaration: its phases, discrete constraints and parameters.
@@ -486,6 +475,10 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
             else:
                 declared_role(value, cls.__name__, name, roles, annotation=True)
             members[name] = value
+        # Both are decided by the declaration alone, so they are refused at the class statement.
+        handles = members["phases"]()
+        _check_parameters(members["parameter"], handles)
+        _check_decision_variables(handles, members["parameter"])
         cls._members = members
 
     # Hidden from type checkers, so the overloads below remain the signature they check. Python
@@ -494,115 +487,22 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
     # told what happened, rather than being refused as an unexpected keyword.
     if not TYPE_CHECKING:
 
-        def __new__(cls, *args: Any, **kwargs: Any) -> Problem[Any, Any, Any]:  # noqa: ARG004
+        def __new__(cls, *args: Any, **kwargs: Any) -> Problem:  # noqa: ARG004
             if "nx" in kwargs:
                 raise TypeError(old_api_message("Problem(name=..., nx=...)"))
             return super().__new__(cls)
 
-    # One overload per combination of the three keywords, all of them optional. A keyword left
-    # out pins its parameter to the role, which declares no fields -- not to the class default,
-    # `Any`, which is for the bare annotation. Every count may be zero, phases included; a
-    # problem with nothing to choose at all is refused by `validate`, not here.
-    @overload
-    def __init__(
-        self: Problem[PH_co, D_co, PR_co],
-        name: str,
-        *,
-        phases: type[PH_co],
-        discrete: type[D_co],
-        parameter: type[PR_co],
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self: Problem[PH_co, D_co, Parameter],
-        name: str,
-        *,
-        phases: type[PH_co],
-        discrete: type[D_co],
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self: Problem[PH_co, Discrete, PR_co],
-        name: str,
-        *,
-        phases: type[PH_co],
-        parameter: type[PR_co],
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self: Problem[PH_co, Discrete, Parameter], name: str, *, phases: type[PH_co]
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self: Problem[Phases, D_co, PR_co],
-        name: str,
-        *,
-        discrete: type[D_co],
-        parameter: type[PR_co],
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self: Problem[Phases, D_co, Parameter], name: str, *, discrete: type[D_co]
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self: Problem[Phases, Discrete, PR_co], name: str, *, parameter: type[PR_co]
-    ) -> None: ...
-
-    @overload
-    def __init__(self: Problem[Phases, Discrete, Parameter], name: str) -> None: ...
-
-    def __init__(
-        self,
-        name: str,
-        *,
-        # See `_api.declare.phase`: the defaults are declared on the type parameters, and a
-        # checker measures the default value against the parameter type regardless.
-        phases: type[PH_co] | None = None,
-        discrete: type[D_co] | None = None,
-        parameter: type[PR_co] | None = None,
-    ) -> None:
-        _check_name(name)
+    def __init__(self, name: str) -> None:
         members = type(self)._members
-        if members is not None:
-            given = [
-                k
-                for k, v in (("phases", phases), ("discrete", discrete), ("parameter", parameter))
-                if v is not None
-            ]
-            if given:
-                msg = (
-                    f"{type(self).__name__}(...) takes only a name: its {given[0]} is declared "
-                    f"in the class body, as '{given[0]}: ...'"
-                )
-                raise TypeError(msg)
-            phases, discrete, parameter = (
-                members["phases"],
-                members["discrete"],
-                members["parameter"],
-            )
-        else:
-            phases = Phases if phases is None else phases  # type: ignore[assignment]
-            discrete = Discrete if discrete is None else discrete  # type: ignore[assignment]
-            parameter = Parameter if parameter is None else parameter  # type: ignore[assignment]
-        assert phases is not None
-        assert discrete is not None
-        assert parameter is not None
-        if not is_subclass(phases, Phases):
+        if members is None:
             msg = (
-                "Problem(phases=) takes a phase declaration, written as "
-                f"'class Phases(yapss.Phases)'; got {phases!r}"
+                "yapss.Problem is subclassed, not instantiated: declare the problem as "
+                "'class MyProblem(yapss.Problem)', annotating its phases, discrete and "
+                "parameter, and call 'MyProblem(name)'."
             )
             raise TypeError(msg)
-        roles: dict[str, type[Vector]] = {"discrete": Discrete, "parameter": Parameter}
-        declared_role(discrete, "Problem", "discrete", roles)
-        declared_role(parameter, "Problem", "parameter", roles)
+        _check_name(name)
+        phases, discrete, parameter = members["phases"], members["discrete"], members["parameter"]
 
         self._label = "problem"
         self._objective_function: Callable[..., Any] | None = None
@@ -611,8 +511,6 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         self._parameter_class = parameter
 
         self._hold("phases", phases())
-        _check_parameters(parameter, self.phases)
-        _check_decision_variables(self.phases, parameter)
         self._hold("objective", ObjectiveAspects())
         self._hold("derivatives", Derivatives())
         self._hold("ipopt_options", IpoptOptions())
@@ -676,11 +574,11 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
 
     # -- solving ------------------------------------------------------------------------------
 
-    def __copy__(self) -> Problem[PH_co, D_co, PR_co]:
+    def __copy__(self) -> Problem:
         """Refuse a copy. See `__deepcopy__`."""
         raise TypeError(_NOT_COPIED)
 
-    def __deepcopy__(self, memo: dict[int, Any]) -> Problem[PH_co, D_co, PR_co]:
+    def __deepcopy__(self, memo: dict[int, Any]) -> Problem:
         """Refuse a copy: a problem's callbacks refer to it, so no copy of it could be complete.
 
         `copy` copies data and shares functions, and a callback closes over this problem's

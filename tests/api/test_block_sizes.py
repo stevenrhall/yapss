@@ -45,7 +45,10 @@ def problem():
     class Phases(yapss.Phases):
         slide: SlidePhase
 
-    problem = yapss.Problem("block sizes", phases=Phases)
+    class P(yapss.Problem):
+        phases: Phases
+
+    problem = P("block sizes")
     ph = problem.phases.slide
     shapes = {}
 

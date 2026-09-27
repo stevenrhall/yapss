@@ -217,11 +217,16 @@ Every phase's independent variable is ``time``, whatever it measures. A phase th
 a radius sets its extent as ``ph.time.initial`` and ``ph.time.final``, and a script can read
 it into a name of its own where its formulas use it, as ``r = arg.time``.
 
-Then instantiate the problem, by providing the name of the problem and the phase information:
+Then declare the problem itself, as a subclass of `yapss.Problem` annotating what it has, and
+create it with its name:
 
 .. doctest:: example
 
-    >>> problem = yapss.Problem("Goddard rocket, one phase", phases=Phases)
+    >>> class Goddard(yapss.Problem):
+    ...     """The Goddard rocket, flown as one phase."""
+    ...
+    ...     phases: Phases
+    >>> problem = Goddard("Goddard rocket, one phase")
 
 With that, the shape and name definition of the problem is complete. The string representation
 of the problem object provides a summary of the problem:
@@ -231,22 +236,21 @@ of the problem object provides a summary of the problem:
     >>> print(problem)
     <Problem 'Goddard rocket, one phase' phases=(flight)>
 
-The `yapss.Problem` constructor takes the problem name as its only positional argument,
-followed by three keyword arguments:
+A problem class annotates up to three names, and its body holds nothing else:
 
-- `name` (positional): The name of the optimal control problem, which may be used in messages
-  and printed output, and which the solution carries. It is a setting like any other, so it can
-  be changed later with ``problem.name = ...``; each solve records the name the problem had
-  when it ran.
-- `phases`: The phases of the problem, defined as a subclass of `yapss.Phases`. This keyword is
-  optional, and defaults to `yapss.Phases` itself, which declares no phases. Zero phases is a
-  count like any other: a problem with none reduces to a parameter optimization problem, and is
-  written by leaving the keyword out.
-- `discrete`: The discrete constraints of the problem, defined as a subclass of
-  `yapss.Discrete`. (Path constraints belong to a phase, and are declared there.) This keyword is
-  optional, and defaults to `yapss.Discrete` itself, which declares no fields.
-- `parameter`: The static parameters of the problem, defined as a subclass of `yapss.Parameter`.
-  This keyword is optional, and defaults to `yapss.Parameter` itself, which declares no fields.
+- `phases`: The phases of the problem, a subclass of `yapss.Phases`. A problem that omits it
+  has no phases: zero is a count like any other, and a problem with none reduces to a parameter
+  optimization problem.
+- `discrete`: The discrete constraints of the problem, a subclass of `yapss.Discrete`. (Path
+  constraints belong to a phase, and are declared there.) Omitted, the problem has none.
+- `parameter`: The static parameters of the problem, a subclass of `yapss.Parameter`. Omitted,
+  the problem has none.
+
+The class is created with one argument, `name`: the name of the optimal control problem, used in
+messages and printed output, and carried by the solution. It is a setting like any other, so it
+can be changed later with ``problem.name = ...``; each solve records the name the problem had
+when it ran. The class is also the annotation for code that takes the problem, such as
+``def plot_solution(problem: Goddard, ...)``.
 
 See the :ref:`Problem Class Reference <problem-class-reference>` section below for the full API.
 
@@ -269,7 +273,7 @@ problem using YAPSS:
 ``Problem`` Class Reference
 ---------------------------
 
-.. autoclass:: yapss.Problem(name, *, phases=Empty, discrete=Empty, parameter=Empty)
+.. autoclass:: yapss.Problem(name)
    :members:
    :no-special-members:
    :no-undoc-members:

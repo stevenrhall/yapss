@@ -9,11 +9,10 @@ This file is outside ``tests/typed`` on purpose: its mistakes are real errors, a
 there must pass.
 """
 
-import yapss
-from yapss.examples.brachistochrone_minimal import Phases
+from yapss.examples.brachistochrone_minimal import Brachistochrone
 
 # -- shown on the page --------------------------------------------------------------------------
-problem = yapss.Problem("Brachistochrone", phases=Phases)
+problem = Brachistochrone("Brachistochrone")
 ph = problem.phases.slide
 
 ph.state.x.bounds = (0, 10)  # fine
