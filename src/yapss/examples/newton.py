@@ -27,11 +27,14 @@ instead, removing the corner; its slope is monotone throughout and it reaches a 
 
 __all__ = ["main", "plot_solution", "setup", "setup2"]
 
+# standard library imports
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
 import numpy as np
 
+# package imports
 import yapss
 
 

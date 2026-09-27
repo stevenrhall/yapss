@@ -10,13 +10,15 @@ guess are set. `brachistochrone.py` is the same problem with docstrings and comm
 
 __all__ = ["main", "plot_solution", "setup"]
 
+# standard library imports
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
-from numpy import pi
 
+# package imports
 import yapss
-from yapss.math import cos, sin
+from yapss.math import cos, pi, sin
 
 G0 = 32.174
 """Acceleration of gravity, ft/s^2."""
@@ -26,16 +28,18 @@ class State(yapss.State):
     """Where the bead is and how fast it is going."""
 
     x = yapss.scalar()
-
+    """Horizontal position."""
     y = yapss.scalar()
-
+    """Vertical drop."""
     v = yapss.scalar()
+    """Speed."""
 
 
 class Control(yapss.Control):
     """The slope of the path."""
 
     u = yapss.scalar()
+    """Path angle."""
 
 
 class Slide(yapss.Phase):

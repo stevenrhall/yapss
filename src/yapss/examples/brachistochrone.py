@@ -9,15 +9,15 @@ slope angle of the path, and the objective is the time taken.
 
 __all__ = ["main", "plot_solution", "setup"]
 
-# third party imports
+# standard library imports
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
-from numpy import pi
 
 # package imports
 import yapss
-from yapss.math import cos, sin
+from yapss.math import cos, pi, sin
 
 g0 = 32.174
 

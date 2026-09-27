@@ -18,10 +18,13 @@ is what says it, which is what the other example does.
 
 __all__ = ["main", "plot_solution", "setup"]
 
+# standard library imports
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
 
+# package imports
 import yapss
 from yapss.math import exp
 

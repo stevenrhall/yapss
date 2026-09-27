@@ -13,11 +13,14 @@ that a problem need not have a phase to be a problem.
 
 __all__ = ["main", "plot_rosenbrock", "setup"]
 
+# standard library imports
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
 import numpy as np
 
+# package imports
 import yapss
 
 MINIMUM = (1.0, 1.0)

@@ -21,14 +21,17 @@ and the derivatives are discontinuous where it does.
 
 __all__ = ["main", "plot_solution", "setup"]
 
+# standard library imports
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
+# package imports
 import yapss
-from yapss.math import cos, sin
+from yapss.math import cos, pi, rad2deg, radians, sin
 
 w0 = 0.0
 """Wind speed at zero altitude (ft/s)."""
@@ -192,32 +195,32 @@ def setup() -> DynamicSoaringProblem:
     ph.state.y.bounds = (-1000, 1000)
     ph.state.h.bounds = (0, 1000)
     ph.state.v.bounds = (10, 350)
-    ph.state.gamma.bounds = (np.radians(-75), np.radians(75))
-    ph.state.psi.bounds = (np.radians(-225), np.radians(225))
+    ph.state.gamma.bounds = (radians(-75), radians(75))
+    ph.state.psi.bounds = (radians(-225), radians(225))
 
     ph.control.cl.bounds = (0, cl_max)
-    ph.control.phi.bounds = (np.radians(-75), np.radians(75))
+    ph.control.phi.bounds = (radians(-75), radians(75))
     ph.path.load_factor.bounds = (-2, load_factor_max)
 
     problem.discrete.v_periodic.bounds = (0.0, 0.0)
     problem.discrete.gamma_periodic.bounds = (0.0, 0.0)
-    problem.discrete.psi_periodic.bounds = (np.radians(360), np.radians(360))
+    problem.discrete.psi_periodic.bounds = (radians(360), radians(360))
 
     # A circuit that is roughly the right shape and size, so the solver starts from a closed
     # loop rather than having to find one.
     tf = 24.0
     t = np.linspace(0.0, tf, num=50)
-    turn = 2 * np.pi * t / tf
-    x = 600 * (np.cos(turn) - 1)
+    turn = 2 * pi * t / tf
+    x = 600 * (cos(turn) - 1)
     ph.time.guess = (0.0, tf)
     ph.state.x.guess = yapss.interp(t, x)
-    ph.state.y.guess = yapss.interp(t, -200 * np.sin(turn))
+    ph.state.y.guess = yapss.interp(t, -200 * sin(turn))
     ph.state.h.guess = yapss.interp(t, -0.7 * x)
     ph.state.v.guess = (150.0, 150.0)
     ph.state.gamma.guess = (0.0, 0.0)
-    ph.state.psi.guess = yapss.interp(t, np.radians(t / tf * 360))
+    ph.state.psi.guess = yapss.interp(t, radians(t / tf * 360))
     ph.control.cl.guess = (0.5, 0.5)
-    ph.control.phi.guess = (np.radians(45), np.radians(45))
+    ph.control.phi.guess = (radians(45), radians(45))
     problem.parameter.beta.guess = 0.08
 
     # Scaling, which this problem needs: the states run over four orders of magnitude.
@@ -274,8 +277,8 @@ def plot_solution(problem: DynamicSoaringProblem, solution: yapss.Solution) -> N
 
     panels = (
         (r"Velocity, $v$ (ft/s)", ps.state.v),
-        (r"Flight path angle, $\gamma$ (deg)", np.rad2deg(ps.state.gamma)),
-        (r"Heading angle, $\psi$ (deg)", np.rad2deg(ps.state.psi)),
+        (r"Flight path angle, $\gamma$ (deg)", rad2deg(ps.state.gamma)),
+        (r"Heading angle, $\psi$ (deg)", rad2deg(ps.state.psi)),
     )
     for ylabel, quantity in panels:
         plt.figure()
@@ -301,7 +304,7 @@ def plot_solution(problem: DynamicSoaringProblem, solution: yapss.Solution) -> N
     plt.tight_layout()
 
     for ylabel, quantity in (
-        (r"Bank angle, $\phi$ (deg)", np.rad2deg(ps.control.phi)),
+        (r"Bank angle, $\phi$ (deg)", rad2deg(ps.control.phi)),
         (r"Hamiltonian, $\mathcal{H}$", ps.hamiltonian),
     ):
         plt.figure()

@@ -61,3 +61,36 @@ def test_an_example_uses_only_the_public_typed_access_model(path):
         f"{where}, {offence}" for where, source in _sources(path) for offence in _offences(source)
     ]
     assert not found, "\n".join(found)
+
+
+def _undocumented_fields(source: str) -> list[str]:
+    """Return each field declared with `scalar()` or `vector(n)` that has no docstring below it."""
+    missing = []
+    for cls in ast.parse(source).body:
+        if not isinstance(cls, ast.ClassDef):
+            continue
+        for statement, following in zip(cls.body, [*cls.body[1:], None], strict=True):
+            if not (
+                isinstance(statement, ast.Assign)
+                and isinstance(statement.value, ast.Call)
+                and isinstance(statement.value.func, ast.Attribute)
+                and statement.value.func.attr in {"scalar", "vector"}
+            ):
+                continue
+            documented = (
+                isinstance(following, ast.Expr)
+                and isinstance(following.value, ast.Constant)
+                and isinstance(following.value.value, str)
+            )
+            if not documented:
+                name = ast.unparse(statement.targets[0])
+                missing.append(f"line {statement.lineno}: {cls.name}.{name}")
+    return missing
+
+
+@pytest.mark.parametrize("path", SCRIPTS, ids=lambda path: path.name)
+def test_every_field_of_an_example_has_a_docstring(path):
+    """A script documents itself: its page renders each vector class's fields from their
+    docstrings, and a field without one would drop off the page without a word."""
+    missing = _undocumented_fields(path.read_text(encoding="utf-8"))
+    assert not missing, "\n".join(missing)

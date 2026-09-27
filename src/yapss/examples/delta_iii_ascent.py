@@ -18,15 +18,18 @@ the same problem to the last bit and any difference in the answer is the API's.
 
 __all__ = ["main", "plot_solution", "setup"]
 
+# standard library imports
 from collections.abc import Callable, Sequence
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
 
+# package imports
 import yapss
-from yapss.math import arccos, cos, exp, pi, sin, sqrt
+from yapss.math import arccos, arcsin, arctan2, cos, exp, pi, sin, sqrt
 
 # -- the Earth, the atmosphere and the launch site ------------------------------------------------
 
@@ -109,7 +112,7 @@ MASS_FLOW = (
 
 
 class State(yapss.State):
-    """Where the vehicle is, how fast it is going, and what it weighs."""
+    """Vehicle position, velocity, and mass."""
 
     r = yapss.vector(3)
     """Position."""
@@ -120,19 +123,19 @@ class State(yapss.State):
 
 
 class Control(yapss.Control):
-    """The direction the thrust points, as a unit vector."""
+    """Thrust direction, path constrained to be a unit vector."""
 
     u = yapss.vector(3)
-    """Thrust direction."""
+    """Thrust vector direction."""
 
 
 class Path(yapss.Path):
-    """What must hold at every instant of the flight."""
+    """Path constraints."""
 
     unit_thrust = yapss.scalar()
-    """The steering vector must have unit magnitude."""
+    """The thrust vector direction is constrained to be a unit vector."""
     radius = yapss.scalar()
-    """The vehicle must stay above the ground."""
+    """The vehicle is constrained to be above the surface of the Earth."""
 
 
 class Discrete(yapss.Discrete):
@@ -143,26 +146,27 @@ class Discrete(yapss.Discrete):
     """
 
     stage_0_1_position = yapss.vector(3)
-
+    """Position continuity between stages 0 and 1."""
     stage_0_1_velocity = yapss.vector(3)
-
+    """Velocity continuity between stages 0 and 1."""
     stage_1_2_position = yapss.vector(3)
-
+    """Position continuity between stages 1 and 2."""
     stage_1_2_velocity = yapss.vector(3)
-
+    """Velocity continuity between stages 1 and 2."""
     stage_2_3_position = yapss.vector(3)
-
+    """Position continuity between stages 2 and 3."""
     stage_2_3_velocity = yapss.vector(3)
-
+    """Velocity continuity between stages 2 and 3."""
     semi_major_axis = yapss.scalar()
-
+    """Semi-major axis for the target orbit."""
     eccentricity = yapss.scalar()
-
+    """Eccentricity for the target orbit."""
     inclination = yapss.scalar()
-
+    """Inclination for the target orbit."""
     raan = yapss.scalar()
-    """Right ascension of ascending node."""
+    """Right ascension of ascending node for the target orbit."""
     argument_of_perigee = yapss.scalar()
+    """Argument of perigee for the target orbit."""
 
 
 class Stage(yapss.Phase):
@@ -307,6 +311,7 @@ def orbital_elements(r_vec: Vector3, v_vec: Vector3) -> tuple[Any, ...]:
     e_vec = tuple(
         ((v**2 - mu / r) * r_vec[i] - dot(r_vec, v_vec) * v_vec[i]) / mu for i in range(3)
     )
+
     e = mag(e_vec)
     return (
         1 / (2 / r - v**2 / mu),
@@ -446,12 +451,12 @@ def _set_guess(stages: list[Stage]) -> None:
     initial_velocity = np.array([0.0, R_e * omega_e * cos(psi_l), 0.0])
 
     initial_radius, final_radius = np.linalg.norm(initial_position), np.linalg.norm(final_position)
-    initial_latitude = np.arcsin(initial_position[2] / initial_radius)
-    final_latitude = np.arcsin(final_position[2] / final_radius)
-    initial_longitude = np.arctan2(initial_position[1], initial_position[0])
-    final_longitude = np.arctan2(final_position[1], final_position[0])
-    turn = np.arctan2(
-        np.sin(final_longitude - initial_longitude), np.cos(final_longitude - initial_longitude)
+    initial_latitude = arcsin(initial_position[2] / initial_radius)
+    final_latitude = arcsin(final_position[2] / final_radius)
+    initial_longitude = arctan2(initial_position[1], initial_position[0])
+    final_longitude = arctan2(final_position[1], final_position[0])
+    turn = arctan2(
+        sin(final_longitude - initial_longitude), cos(final_longitude - initial_longitude)
     )
 
     for index, stage in enumerate(stages):
@@ -463,9 +468,9 @@ def _set_guess(stages: list[Stage]) -> None:
         radius = initial_radius + fraction * (final_radius - initial_radius)
         position = np.vstack(
             (
-                radius * np.cos(latitude) * np.cos(longitude),
-                radius * np.cos(latitude) * np.sin(longitude),
-                radius * np.sin(latitude),
+                radius * cos(latitude) * cos(longitude),
+                radius * cos(latitude) * sin(longitude),
+                radius * sin(latitude),
             )
         )
         velocity = (
@@ -523,7 +528,7 @@ def plot_solution(problem: DeltaIIIProblem, solution: yapss.Solution) -> None:
 
     def magnitude(vector: Vector3) -> Any:
         """Return the Euclidean norm of a block field's three rows."""
-        return np.sqrt(sum(vector[i] ** 2 for i in range(3)))
+        return sqrt(sum(vector[i] ** 2 for i in range(3)))
 
     panel(
         lambda ps: [(magnitude(ps.state.r) - R_e) / 1000],

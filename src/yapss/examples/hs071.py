@@ -14,8 +14,10 @@ refused it would be refusing arithmetic it can already do.
 
 __all__ = ["main", "print_solution", "setup"]
 
+# standard library imports
 from typing import Any
 
+# package imports
 import yapss
 
 OPTIMUM = 17.01401714

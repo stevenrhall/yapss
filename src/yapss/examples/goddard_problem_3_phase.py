@@ -11,11 +11,14 @@ Each arc is a phase, and the phases are joined by continuity constraints on time
 
 __all__ = ["main", "plot_solution", "setup"]
 
+# standard library imports
 from collections.abc import Callable
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
 
+# package imports
 import yapss
 from yapss.math import exp
 

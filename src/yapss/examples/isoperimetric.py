@@ -16,18 +16,21 @@ not say otherwise.
 
 __all__ = ["main", "plot_solution", "setup"]
 
-import math
+# standard library imports
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
 
+# package imports
 import yapss
+from yapss.math import pi
 
 PERIMETER = 1.0
 """The length of the curve, which the unit-speed constraint and the arc-length span fix."""
-AREA = 1 / (4 * math.pi)
+AREA = 1 / (4 * pi)
 """The largest area a closed curve of unit perimeter can enclose."""
 
 

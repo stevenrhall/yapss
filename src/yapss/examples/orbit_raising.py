@@ -10,14 +10,15 @@ independent variable.
 
 __all__ = ["main", "plot_solution", "setup"]
 
-from math import pi
+# standard library imports
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
-import numpy as np
 
+# package imports
 import yapss
-from yapss.math import sqrt
+from yapss.math import arctan2, pi, sqrt
 
 m_0, r_0, mu = 1.0, 1.0, 1.0
 thrust, m_dot = 0.1405, 0.0749
@@ -192,7 +193,7 @@ def plot_solution(problem: OrbitRaisingProblem, solution: yapss.Solution) -> Non
     plt.tight_layout()
 
     plt.figure()
-    plt.plot(time, np.arctan2(ps.control.u_r, ps.control.u_theta) * 180 / pi)
+    plt.plot(time, arctan2(ps.control.u_r, ps.control.u_theta) * 180 / pi)
     plt.xlabel("Time")
     plt.ylabel("Steering angle (deg)")
     plt.xlim(time[0], time[-1])

@@ -19,16 +19,18 @@ the physics.
 
 __all__ = ["main", "plot_solution", "setup"]
 
+# standard library imports
 from typing import Any
 
+# third-party imports
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy import pi
 from numpy.typing import NDArray
 from scipy.interpolate import CubicSpline, RBFInterpolator
 
+# package imports
 import yapss
-from yapss.math import cos, sin
+from yapss.math import cos, pi, sin
 
 # -- the model: the thrust table, the atmosphere, and the aerodynamic coefficients ---------------
 
