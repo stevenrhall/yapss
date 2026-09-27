@@ -79,7 +79,7 @@ class Discrete(yapss.Discrete):
     """Vertical gap between the ends."""
 
 
-class Curve(yapss.Phase):
+class Phase(yapss.Phase):
     """The curve, run over its arc length (the phase's ``time``)."""
 
     state: State
@@ -91,7 +91,7 @@ class Curve(yapss.Phase):
 class Phases(yapss.Phases):
     """One phase, running over arc length rather than time."""
 
-    curve: Curve
+    phase: Phase
 
 
 class Isoperimetric(yapss.Problem):
@@ -102,8 +102,8 @@ class Isoperimetric(yapss.Problem):
 
 
 # Names for the types the annotations below use.
-CurveArg = yapss.ContinuousArg[State, Control]
-CurveOut = yapss.ContinuousOut[State, Path, Integral]
+PhaseArg = yapss.ContinuousArg[State, Control]
+PhaseOut = yapss.ContinuousOut[State, Path, Integral]
 
 
 def setup() -> Isoperimetric:
@@ -115,10 +115,10 @@ def setup() -> Isoperimetric:
         The problem.
     """
     problem = Isoperimetric("Isoperimetric problem")
-    ph = problem.phases.curve
+    ph = problem.phases.phase
 
     @ph.register.continuous
-    def continuous(arg: CurveArg, out: CurveOut) -> None:
+    def continuous(arg: PhaseArg, out: PhaseOut) -> None:
         """Move along the curve, accumulating the area and the moments."""
         x, y = arg.state.x, arg.state.y
         tx, ty = arg.control.tx, arg.control.ty
@@ -184,7 +184,7 @@ def plot_solution(problem: Isoperimetric, solution: yapss.Solution) -> None:
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution.phases[problem.phases.curve]
+    ps = solution.phases[problem.phases.phase]
     s = ps.time
     fine = np.linspace(s[0], s[-1], 500)
     x = interp1d(s, ps.state.x, kind="cubic")(fine)

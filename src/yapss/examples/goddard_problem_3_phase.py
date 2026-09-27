@@ -89,7 +89,7 @@ class Discrete(yapss.Discrete):
     """Time, singular to coast."""
 
 
-class Arc(yapss.Phase):
+class Bang(yapss.Phase):
     """A thrust arc, the shape boost and coast share."""
 
     state: State
@@ -107,9 +107,9 @@ class Singular(yapss.Phase):
 class Phases(yapss.Phases):
     """The three arcs of the flight."""
 
-    boost: Arc
+    boost: Bang
     singular: Singular
-    coast: Arc
+    coast: Bang
 
 
 class Goddard3Phase(yapss.Problem):
@@ -121,7 +121,7 @@ class Goddard3Phase(yapss.Problem):
 
 # Names for the types the annotations below use.
 RocketArg = yapss.ContinuousArg[State, Control]
-ArcOut = yapss.ContinuousOut[State]
+BangOut = yapss.ContinuousOut[State]
 SingularOut = yapss.ContinuousOut[State, SingularArc]
 
 
@@ -151,7 +151,7 @@ def setup() -> Goddard3Phase:
         xdot.m = -thrust / c
 
     @boost.register.continuous
-    def powered(arg: RocketArg, out: ArcOut) -> None:
+    def powered(arg: RocketArg, out: BangOut) -> None:
         """Compute the dynamics of a phase with no path constraint."""
         rocket(arg, out.dynamics)
 

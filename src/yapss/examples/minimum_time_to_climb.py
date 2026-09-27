@@ -219,7 +219,7 @@ class Control(yapss.Control):
     """Angle of attack."""
 
 
-class Climb(yapss.Phase):
+class Phase(yapss.Phase):
     """The whole climb."""
 
     state: State
@@ -229,7 +229,7 @@ class Climb(yapss.Phase):
 class Phases(yapss.Phases):
     """One phase: the climb."""
 
-    climb: Climb
+    phase: Phase
 
 
 class MinimumTimeToClimb(yapss.Problem):
@@ -239,8 +239,8 @@ class MinimumTimeToClimb(yapss.Problem):
 
 
 # Names for the types the annotations below use.
-ClimbArg = yapss.ContinuousArg[State, Control]
-ClimbOut = yapss.ContinuousOut[State]
+PhaseArg = yapss.ContinuousArg[State, Control]
+PhaseOut = yapss.ContinuousOut[State]
 
 
 def setup() -> MinimumTimeToClimb:
@@ -252,10 +252,10 @@ def setup() -> MinimumTimeToClimb:
         The problem.
     """
     problem = MinimumTimeToClimb("Bryson minimum time to climb")
-    ph = problem.phases.climb
+    ph = problem.phases.phase
 
     @ph.register.continuous
-    def continuous(arg: ClimbArg, out: ClimbOut) -> None:
+    def continuous(arg: PhaseArg, out: PhaseOut) -> None:
         """Compute the aircraft's dynamics, looking the model up in tables."""
         h, v = arg.state.h, arg.state.v
         gamma, mass = arg.state.gamma, arg.state.mass
@@ -337,7 +337,7 @@ def plot_solution(problem: MinimumTimeToClimb, solution: yapss.Solution) -> None
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution.phases[problem.phases.climb]
+    ps = solution.phases[problem.phases.phase]
     t = ps.time
 
     # the trajectory, in the plane the climb is really flown in

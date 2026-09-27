@@ -67,7 +67,7 @@ class Discrete(yapss.Discrete):
     """The final orbit must be circular."""
 
 
-class Transfer(yapss.Phase):
+class Phase(yapss.Phase):
     """The transfer, with the vehicle thrusting throughout."""
 
     state: State
@@ -78,7 +78,7 @@ class Transfer(yapss.Phase):
 class Phases(yapss.Phases):
     """One phase: the vehicle thrusts continuously."""
 
-    raise_: Transfer
+    phase: Phase
 
 
 class OrbitRaising(yapss.Problem):
@@ -89,8 +89,8 @@ class OrbitRaising(yapss.Problem):
 
 
 # Names for the types the annotations below use.
-TransferArg = yapss.ContinuousArg[State, Control]
-TransferOut = yapss.ContinuousOut[State, Path]
+PhaseArg = yapss.ContinuousArg[State, Control]
+PhaseOut = yapss.ContinuousOut[State, Path]
 
 
 def setup() -> OrbitRaising:
@@ -102,10 +102,10 @@ def setup() -> OrbitRaising:
         The problem.
     """
     problem = OrbitRaising("Orbit raising")
-    ph = problem.phases.raise_
+    ph = problem.phases.phase
 
     @ph.register.continuous
-    def continuous(arg: TransferArg, out: TransferOut) -> None:
+    def continuous(arg: PhaseArg, out: PhaseOut) -> None:
         """Compute the vehicle's dynamics and the magnitude of its steering vector."""
         r, v_r, v_theta = arg.state.r, arg.state.v_r, arg.state.v_theta
         u_r, u_theta = arg.control.u_r, arg.control.u_theta
@@ -169,7 +169,7 @@ def plot_solution(problem: OrbitRaising, solution: yapss.Solution) -> None:
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution.phases[problem.phases.raise_]
+    ps = solution.phases[problem.phases.phase]
     time = ps.time
 
     plt.figure()

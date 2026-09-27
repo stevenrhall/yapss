@@ -60,7 +60,7 @@ class Integral(yapss.Integral):
     """Pressure drag on the nosecone."""
 
 
-class Nose(yapss.Phase):
+class Phase(yapss.Phase):
     """The nosecone's profile, run over the radius (the phase's ``time``)."""
 
     state: State
@@ -71,7 +71,7 @@ class Nose(yapss.Phase):
 class Phases(yapss.Phases):
     """One phase, run over the radius rather than over time."""
 
-    nose: Nose
+    phase: Phase
 
 
 class Newton(yapss.Problem):
@@ -81,8 +81,8 @@ class Newton(yapss.Problem):
 
 
 # Names for the types the annotations below use.
-NoseArg = yapss.ContinuousArg[State, Control]
-NoseOut = yapss.ContinuousOut[State, yapss.Path, Integral]
+PhaseArg = yapss.ContinuousArg[State, Control]
+PhaseOut = yapss.ContinuousOut[State, yapss.Path, Integral]
 
 
 def setup(y_max: float = 1.0) -> Newton:
@@ -99,10 +99,10 @@ def setup(y_max: float = 1.0) -> Newton:
         The problem.
     """
     problem = Newton("Newton's minimal resistance problem")
-    ph = problem.phases.nose
+    ph = problem.phases.phase
 
     @ph.register.continuous
-    def continuous(arg: NoseArg, out: NoseOut) -> None:
+    def continuous(arg: PhaseArg, out: PhaseOut) -> None:
         """Compute the profile's dynamics and the drag integrand."""
         yp, u, r = arg.state.yp, arg.control.u, arg.time
         out.dynamics.y = yp
@@ -150,7 +150,7 @@ def setup2(y_max: float = 1.0) -> Newton:
         The problem.
     """
     problem = setup(y_max)
-    ph = problem.phases.nose
+    ph = problem.phases.phase
 
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:
@@ -173,7 +173,7 @@ def plot_solution(problem: Newton, solution: yapss.Solution, **kwargs: Any) -> N
     **kwargs
         Passed to `matplotlib.pyplot.plot`, for a label or a style.
     """
-    ps = solution.phases[problem.phases.nose]
+    ps = solution.phases[problem.phases.phase]
     r = np.concatenate((-ps.time[::-1], ps.time))
     y = np.concatenate((ps.state.y[::-1], ps.state.y))
     plt.plot(r, y, linewidth=2, **kwargs)
@@ -200,7 +200,7 @@ def main() -> None:
 
     problem2 = setup2()
     solution2 = problem2.solve()
-    r0 = solution2.phases[problem2.phases.nose].initial.time
+    r0 = solution2.phases[problem2.phases.phase].initial.time
     print(f"drag, with the flat tip free           = {solution2.objective:.6f}")
     print(f"radius of the flat tip, r0 = {r0:.6f}")
     plt.figure()

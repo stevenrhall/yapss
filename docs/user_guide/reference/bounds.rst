@@ -8,7 +8,7 @@ A bound is set on the quantity it bounds, as a ``(lower, upper)`` pair. Each sid
 
     >>> from yapss.examples.brachistochrone_minimal import setup
     >>> problem = setup()
-    >>> ph = problem.phases.slide
+    >>> ph = problem.phases.phase
     >>> ph.state.v.bounds = (0.0, 10.0)      # an interval
     >>> ph.state.y.bounds = (0.0, None)      # a floor, with no ceiling
     >>> ph.state.x.initial = (0.0, 0.0)      # fixed: an interval whose ends agree
@@ -76,7 +76,7 @@ field's rows. A refused write leaves the bound as it was.
     >>> ph.state.x.bounds = 5.0
     Traceback (most recent call last):
         ...
-    TypeError: phase 'slide' state bounds 'x': a bound is a pair, and 5.0 is one number. To fix
+    TypeError: phase 'phase' state bounds 'x': a bound is a pair, and 5.0 is one number. To fix
     the value, write (5.0, 5.0); for an interval, write its two ends.
 
 Bounds that are each valid but contradict one another depend on more than one assignment, so
@@ -93,7 +93,7 @@ is refused until then, bounds can be set in any order.
     Traceback (most recent call last):
         ...
     ValueError: the problem is not ready to solve:
-      phase 'slide' state 'v': its initial bound (20.0, 20.0) does not overlap its bound
+      phase 'phase' state 'v': its initial bound (20.0, 20.0) does not overlap its bound
       (0.0, 10.0), so no initial value satisfies both
 
 Special Considerations for State Bounds

@@ -64,7 +64,7 @@ class Control(yapss.Control):
     """Thrust."""
 
 
-class Flight(yapss.Phase):
+class Phase(yapss.Phase):
     """The whole flight."""
 
     state: State
@@ -74,7 +74,7 @@ class Flight(yapss.Phase):
 class Phases(yapss.Phases):
     """One phase: the whole flight, whatever shape the thrust programme turns out to have."""
 
-    flight: Flight
+    phase: Phase
 
 
 class Goddard(yapss.Problem):
@@ -84,8 +84,8 @@ class Goddard(yapss.Problem):
 
 
 # Names for the types the annotations below use.
-FlightArg = yapss.ContinuousArg[State, Control]
-FlightOut = yapss.ContinuousOut[State]
+PhaseArg = yapss.ContinuousArg[State, Control]
+PhaseOut = yapss.ContinuousOut[State]
 
 
 def setup() -> Goddard:
@@ -97,10 +97,10 @@ def setup() -> Goddard:
         The problem.
     """
     problem = Goddard("Goddard rocket, one phase")
-    ph = problem.phases.flight
+    ph = problem.phases.phase
 
     @ph.register.continuous
-    def continuous(arg: FlightArg, out: FlightOut) -> None:
+    def continuous(arg: PhaseArg, out: PhaseOut) -> None:
         """Compute the rocket's dynamics."""
         h, v, m = arg.state.h, arg.state.v, arg.state.m
         thrust = arg.control.thrust
@@ -151,7 +151,7 @@ def plot_solution(problem: Goddard, solution: yapss.Solution) -> None:
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution.phases[problem.phases.flight]
+    ps = solution.phases[problem.phases.phase]
     panels = (
         ("Thrust, $T$ (lbf)", ps.control.thrust),
         ("Altitude, $h$ (ft)", ps.state.h),

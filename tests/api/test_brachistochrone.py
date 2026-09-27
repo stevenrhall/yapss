@@ -45,7 +45,7 @@ def test_every_spectral_method_agrees(problem, method):
 
 def test_the_solution_is_reached_by_name(problem):
     solution = problem.solve()
-    phase = solution.phases[problem.phases.slide]
+    phase = solution.phases[problem.phases.phase]
     assert phase.state.x.shape == phase.time.shape
     assert phase.control.u.shape == phase.time.shape
     assert phase.final.x == pytest.approx(1.0)
@@ -57,14 +57,14 @@ def test_the_solution_is_reached_by_name(problem):
 def test_a_solutions_names_are_fixed(problem):
     solution = problem.solve()
     with pytest.raises(AttributeError, match="names are fixed"):
-        solution.phases[problem.phases.slide].state.x = 1.0
+        solution.phases[problem.phases.phase].state.x = 1.0
     with pytest.raises(AttributeError, match="names are fixed"):
         solution.objective = 1.0
 
 
 def test_a_phase_is_reached_by_position_too(problem):
     solution = problem.solve()
-    assert solution.phases[0] is solution.phases[problem.phases.slide]
+    assert solution.phases[0] is solution.phases[problem.phases.phase]
     with pytest.raises(IndexError, match="there is no phase 1"):
         solution.phases[1]
 
@@ -72,7 +72,7 @@ def test_a_phase_is_reached_by_position_too(problem):
 def test_a_later_edit_does_not_alter_an_earlier_solution(problem):
     """Each solve snapshots the problem, so a continuation loop cannot rewrite its own past."""
     first = problem.solve()
-    problem.phases.slide.state.x.bounds = (0, 100)
+    problem.phases.phase.state.x.bounds = (0, 100)
     assert first.objective == pytest.approx(ANALYTIC, rel=1e-8)
     assert problem.solve().objective == pytest.approx(ANALYTIC, rel=1e-8)
 
@@ -80,17 +80,17 @@ def test_a_later_edit_does_not_alter_an_earlier_solution(problem):
 def test_the_mesh_is_one_value(problem):
     from yapss._api import Mesh
 
-    problem.phases.slide.mesh = Mesh.uniform(segments=4, points=6)
+    problem.phases.phase.mesh = Mesh.uniform(segments=4, points=6)
     solution = problem.solve()
     assert solution.objective == pytest.approx(ANALYTIC, rel=1e-6)
-    assert solution.phases[problem.phases.slide].mesh.collocation_points == (6, 6, 6, 6)
+    assert solution.phases[problem.phases.phase].mesh.collocation_points == (6, 6, 6, 6)
 
 
 def test_the_phases_declaration_is_reached_by_name_and_index():
     phases = Phases()
-    assert phases.slide.name == "slide"
-    assert phases.slide.index == 0
+    assert phases.phase.name == "phase"
+    assert phases.phase.index == 0
     assert len(phases) == 1
-    assert phases[0] is phases.slide
-    with pytest.raises(AttributeError, match=r"has no phase 'slid'\. Did you mean 'slide'\?"):
-        phases.slid
+    assert phases[0] is phases.phase
+    with pytest.raises(AttributeError, match=r"has no phase 'phas'\. Did you mean 'phase'\?"):
+        phases.phas

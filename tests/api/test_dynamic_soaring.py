@@ -40,7 +40,7 @@ def test_the_objective_is_the_parameter(solved):
 def test_the_circuit_closes(solved):
     """Speed and flight path angle return to where they began, and the heading after one turn."""
     problem, solution = solved
-    ps = solution.phases[problem.phases.loop]
+    ps = solution.phases[problem.phases.phase]
     assert solution.discrete.v_periodic == pytest.approx(0.0, abs=1e-6)
     assert solution.discrete.gamma_periodic == pytest.approx(0.0, abs=1e-8)
     assert solution.discrete.psi_periodic == pytest.approx(np.radians(360), abs=1e-8)
@@ -57,7 +57,7 @@ def test_the_vehicle_flies_within_its_limits(solved):
     asserting something about Ipopt's termination rather than about the trajectory.
     """
     problem, solution = solved
-    ps = solution.phases[problem.phases.loop]
+    ps = solution.phases[problem.phases.phase]
     tolerance = 1e-6
     assert np.asarray(ps.control.cl).max() <= cl_max * (1 + tolerance)
     assert np.asarray(ps.path.load_factor).max() <= load_factor_max * (1 + tolerance)
@@ -67,7 +67,7 @@ def test_the_vehicle_flies_within_its_limits(solved):
 def test_the_load_factor_limit_is_reached(solved):
     """The constraint is active, which is why the mesh has to be as dense as it is."""
     problem, solution = solved
-    ps = solution.phases[problem.phases.loop]
+    ps = solution.phases[problem.phases.phase]
     assert np.asarray(ps.path.load_factor).max() == pytest.approx(load_factor_max, rel=1e-6)
 
 
@@ -75,7 +75,7 @@ def test_the_parameter_reaches_the_continuous_callback(solved):
     """The value the dynamics see is the one being solved for, not the guess."""
     problem, _ = solved
     seen = {}
-    original = problem.phases.loop._continuous
+    original = problem.phases.phase._continuous
 
     def spy(arg, out):
         seen["beta"] = float(np.asarray(arg.parameter.beta).ravel()[0])
@@ -83,7 +83,7 @@ def test_the_parameter_reaches_the_continuous_callback(solved):
 
     spied = setup()
     spied.ipopt_options.print_level = 0
-    spied.phases.loop.register.continuous(spy)
+    spied.phases.phase.register.continuous(spy)
     spied.derivatives.method = "central-difference"
     solution = spied.solve()
     assert seen["beta"] == pytest.approx(solution.parameter.beta, rel=1e-6)

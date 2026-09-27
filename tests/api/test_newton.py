@@ -47,14 +47,14 @@ def test_the_alternate_formulation_frees_the_initial_radius():
     """Its whole point: r0 becomes a variable, and the optimum puts it well away from zero."""
     problem = setup2()
     problem.ipopt_options.print_level = 0
-    ps = problem.solve().phases[problem.phases.nose]
+    ps = problem.solve().phases[problem.phases.phase]
     assert ps.initial.time > 0.3
     assert ps.final.time == pytest.approx(1.0)
 
 
 def test_the_radius_is_the_phase_s_time(problem):
     solution = problem.solve()
-    ps = solution.phases[problem.phases.nose]
+    ps = solution.phases[problem.phases.phase]
     assert ps.time.shape == ps.state.y.shape
     assert ps.time[0] == pytest.approx(0.0)
     assert ps.final.time == pytest.approx(1.0)
@@ -63,7 +63,7 @@ def test_the_radius_is_the_phase_s_time(problem):
 
 
 def test_a_misspelled_endpoint_name_is_answered(problem):
-    ps = problem.solve().phases[problem.phases.nose]
+    ps = problem.solve().phases[problem.phases.phase]
     with pytest.raises(AttributeError, match="Did you mean 'time'"):
         _ = ps.final.tim
 
@@ -78,7 +78,7 @@ def test_the_callback_reads_the_independent_variable_by_name(problem):
         out.dynamics.yp = arg.control.u
         out.integrand.drag = 8 * arg.time / (1 + yp**2)
 
-    problem.phases.nose.register.continuous(spy)
+    problem.phases.phase.register.continuous(spy)
     problem.derivatives.method = "central-difference"
     problem.solve()
     assert seen["r"][0] > 1
@@ -86,5 +86,5 @@ def test_the_callback_reads_the_independent_variable_by_name(problem):
 
 def test_the_declaration_names_what_it_holds():
     phases = Phases()
-    assert [phase.name for phase in phases] == ["nose"]
-    assert phases.nose._independent == "time"
+    assert [phase.name for phase in phases] == ["phase"]
+    assert phases.phase._independent == "time"

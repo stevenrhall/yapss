@@ -13,13 +13,13 @@ from yapss.examples.brachistochrone_minimal import Brachistochrone
 
 # -- shown on the page --------------------------------------------------------------------------
 problem = Brachistochrone("Brachistochrone")
-ph = problem.phases.slide
+ph = problem.phases.phase
 
 ph.state.x.bounds = (0, 10)  # fine
 ph.state.xx.bounds = (0, 10)  # "State" has no attribute "xx"
 ph.state.x.bond = (0, 10)  # "ScalarField" has no attribute "bond"; maybe "bounds"?
 ph.state.x.bounds = 5.0  # Incompatible types in assignment (expression has type "float", ...
-problem.phases.slid  # "Phases" has no attribute "slid"; maybe "slide"?
+problem.phases.phas  # "Phases" has no attribute "phas"; maybe "phase"?
 problem.ipopt_options.max_iters = 5000  # "IpoptOptions" has no attribute "max_iters"; maybe ...
 problem.ipopt_options.max_iter = "5000"  # Incompatible types in assignment (expression has ...
 # -- end of what the page shows ------------------------------------------------------------------

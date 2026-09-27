@@ -193,7 +193,7 @@ annotated: it is ``time`` in every phase. This problem has no path constraints o
 
 .. doctest:: example
 
-    >>> class Flight(yapss.Phase):
+    >>> class Phase(yapss.Phase):
     ...     """The shape of the flight: the rocket's state, its thrust, and time."""
     ...
     ...     state: RocketState
@@ -207,7 +207,7 @@ shape. This problem has only one:
     >>> class Phases(yapss.Phases):
     ...     """Define the single phase of this problem."""
     ...
-    ...     flight: Flight
+    ...     phase: Phase
 
 A shape is not a phase, so two phases may share one: in the three-phase version of this
 problem, the boost and coast arcs are both annotated with one shape, and only the singular arc
@@ -234,7 +234,7 @@ of the problem object provides a summary of the problem:
 .. doctest:: example
 
     >>> print(problem)
-    <Problem 'Goddard rocket, one phase' phases=(flight)>
+    <Problem 'Goddard rocket, one phase' phases=(phase)>
 
 A problem class annotates up to three names, and its body holds nothing else:
 

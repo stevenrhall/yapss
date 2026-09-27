@@ -40,7 +40,7 @@ class Control(yapss.Control):
     """Path angle."""
 
 
-class Slide(yapss.Phase):
+class Phase(yapss.Phase):
     """The bead's descent, built from the state and control above."""
 
     state: State
@@ -50,7 +50,7 @@ class Slide(yapss.Phase):
 class Phases(yapss.Phases):
     """Define the only phase of the problem."""
 
-    slide: Slide
+    phase: Phase
 
 
 class Brachistochrone(yapss.Problem):
@@ -60,8 +60,8 @@ class Brachistochrone(yapss.Problem):
 
 
 # Names for the types the annotations below use.
-SlideArg = yapss.ContinuousArg[State, Control]
-SlideOut = yapss.ContinuousOut[State]
+PhaseArg = yapss.ContinuousArg[State, Control]
+PhaseOut = yapss.ContinuousOut[State]
 
 
 def setup() -> Brachistochrone:
@@ -74,10 +74,10 @@ def setup() -> Brachistochrone:
         slides without friction from the origin to x = 1 in minimum time
     """
     problem = Brachistochrone("Brachistochrone")
-    phase = problem.phases.slide
+    phase = problem.phases.phase
 
     @phase.register.continuous
-    def continuous(arg: SlideArg, out: SlideOut) -> None:
+    def continuous(arg: PhaseArg, out: PhaseOut) -> None:
         """Compute the bead's dynamics."""
         v, u = arg.state.v, arg.control.u
         out.dynamics.x = v * cos(u)
@@ -122,7 +122,7 @@ def plot_solution(problem: Brachistochrone, solution: yapss.Solution) -> None:
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution.phases[problem.phases.slide]
+    ps = solution.phases[problem.phases.phase]
     time = ps.time
 
     plt.figure()

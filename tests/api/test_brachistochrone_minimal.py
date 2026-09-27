@@ -39,7 +39,7 @@ def test_every_derivative_method_agrees(problem, method):
 
 
 def test_the_bead_arrives_where_it_was_sent(problem):
-    ps = problem.solve().phases[problem.phases.slide]
+    ps = problem.solve().phases[problem.phases.phase]
     assert ps.final.x == pytest.approx(1.0, abs=1e-8)
     assert ps.initial.x == pytest.approx(0.0, abs=1e-8)
     assert ps.initial.v == pytest.approx(0.0, abs=1e-8)

@@ -32,7 +32,7 @@ def test_every_derivative_method_agrees(problem, method):
 
 def test_the_final_orbit_is_circular(problem):
     solution = problem.solve()
-    ps = solution.phases[problem.phases.raise_]
+    ps = solution.phases[problem.phases.phase]
     assert solution.discrete.circular == pytest.approx(0.0, abs=1e-8)
     assert ps.final.v_theta == pytest.approx(np.sqrt(1.0 / ps.final.r), rel=1e-6)
 
@@ -53,7 +53,7 @@ def test_the_callback_is_given_the_time_at_every_point(problem):
         out.dynamics.v_theta = -(v_r * v_theta) / r + a * u_theta
         out.path.unit_thrust = u_r**2 + u_theta**2
 
-    problem.phases.raise_.register.continuous(spy)
+    problem.phases.phase.register.continuous(spy)
     problem.derivatives.method = "central-difference"
     assert problem.solve().objective == pytest.approx(RELEASED, rel=1e-6)
     # every point of the phase, not one at a time, and spanning it
@@ -65,13 +65,13 @@ def test_the_callback_is_given_the_time_at_every_point(problem):
 def test_the_time_is_read_only_in_the_callback(problem):
     seen = {}
 
-    original = problem.phases.raise_._continuous
+    original = problem.phases.phase._continuous
 
     def spy(arg, out):
         seen["writeable"] = np.asarray(arg.time).flags.writeable
         return original(arg, out)
 
-    problem.phases.raise_.register.continuous(spy)
+    problem.phases.phase.register.continuous(spy)
     problem.derivatives.method = "central-difference"
     problem.solve()
     assert seen["writeable"] is False

@@ -52,7 +52,7 @@ def test_the_solution_is_returned_rather_than_raised():
     problem = unconverged()
     with pytest.warns(yapss.IpoptConvergenceWarning):
         solution = problem.solve()
-    ps = solution.phases[problem.phases.slide]
+    ps = solution.phases[problem.phases.phase]
     assert ps.state.x.shape == ps.time.shape
     assert solution.status == yapss.IpoptStatus.MAXIMUM_ITERATIONS_EXCEEDED
 
@@ -96,6 +96,6 @@ def test_strict_mode_turns_it_into_an_error():
 def test_validate_still_runs_first():
     """An incomplete problem raises before Ipopt is reached, so there is nothing to warn about."""
     problem = setup()
-    problem.phases.slide._continuous = None
+    problem.phases.phase._continuous = None
     with pytest.raises(ValueError, match="has no continuous callback"):
         problem.solve()

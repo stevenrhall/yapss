@@ -18,7 +18,7 @@ def problem():
 
 @pytest.fixture
 def phase(problem):
-    return problem.phases.slide
+    return problem.phases.phase
 
 
 def test_the_registry_holds_exactly_the_callbacks(problem, phase):

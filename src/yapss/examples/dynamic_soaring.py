@@ -104,7 +104,7 @@ class Discrete(yapss.Discrete):
     """Change in heading, one full turn."""
 
 
-class Loop(yapss.Phase):
+class Phase(yapss.Phase):
     """One loop of the glider's periodic flight."""
 
     state: State
@@ -115,7 +115,7 @@ class Loop(yapss.Phase):
 class Phases(yapss.Phases):
     """One phase: one circuit of the loop."""
 
-    loop: Loop
+    phase: Phase
 
 
 class DynamicSoaring(yapss.Problem):
@@ -127,8 +127,8 @@ class DynamicSoaring(yapss.Problem):
 
 
 # Names for the types the annotations below use.
-LoopArg = yapss.ContinuousArg[State, Control, Parameter]
-LoopOut = yapss.ContinuousOut[State, Path]
+PhaseArg = yapss.ContinuousArg[State, Control, Parameter]
+PhaseOut = yapss.ContinuousOut[State, Path]
 
 
 def setup() -> DynamicSoaring:
@@ -140,10 +140,10 @@ def setup() -> DynamicSoaring:
         The problem.
     """
     problem = DynamicSoaring("Dynamic soaring")
-    ph = problem.phases.loop
+    ph = problem.phases.phase
 
     @ph.register.continuous
-    def continuous(arg: LoopArg, out: LoopOut) -> None:
+    def continuous(arg: PhaseArg, out: PhaseOut) -> None:
         """Compute the flight dynamics in a wind that grows with altitude."""
         h, v = arg.state.h, arg.state.v
         gamma, psi = arg.state.gamma, arg.state.psi
@@ -261,7 +261,7 @@ def plot_solution(problem: DynamicSoaring, solution: yapss.Solution) -> None:
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution.phases[problem.phases.loop]
+    ps = solution.phases[problem.phases.phase]
     t = ps.time
     x, y, h = ps.state.x, ps.state.y, ps.state.h
 

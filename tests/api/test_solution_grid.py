@@ -162,7 +162,7 @@ def test_the_mask_and_the_fill_pickle():
     problem.spectral_method = "lgr"
     solution = problem.solve()
     copy = pickle.loads(pickle.dumps(solution))
-    ps, ps_copy = solution.phases[problem.phases.raise_], copy.phases[problem.phases.raise_]
+    ps, ps_copy = solution.phases[problem.phases.phase], copy.phases[problem.phases.phase]
     np.testing.assert_array_equal(ps_copy.collocated, ps.collocated)
     np.testing.assert_array_equal(ps_copy.control[:], ps.control[:])
     np.testing.assert_array_equal(ps_copy.weights, ps.weights)
@@ -189,7 +189,7 @@ def test_the_weights_reproduce_the_transcribed_integrals(method):
     problem = isoperimetric.setup()
     problem.ipopt_options.print_level = 0
     problem.spectral_method = method
-    ph = problem.phases.curve
+    ph = problem.phases.phase
     ph.mesh = yapss.Mesh([(0.2, 8), (0.3, 10), (0.5, 12)])
     ps = problem.solve().phases[ph]
     assert ps.weights @ ps.integrand.area == pytest.approx(ps.integral.area, abs=1e-9)
