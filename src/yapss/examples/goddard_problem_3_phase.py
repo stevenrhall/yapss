@@ -112,7 +112,7 @@ class Phases(yapss.Phases):
     coast: Arc
 
 
-class Goddard(yapss.Problem):
+class Goddard3Phase(yapss.Problem):
     """The Goddard rocket, flown as a boost, a singular arc and a coast."""
 
     phases: Phases
@@ -130,15 +130,15 @@ def drag(h: Any, v: Any) -> Any:
     return sigma * v**2 * exp(-h / h0)
 
 
-def setup() -> Goddard:
+def setup() -> Goddard3Phase:
     """Set up the Goddard rocket problem.
 
     Returns
     -------
-    yapss.Problem
+    Goddard3Phase
         The problem.
     """
-    problem = Goddard("Goddard rocket with singular arc")
+    problem = Goddard3Phase("Goddard rocket with singular arc")
     phases = problem.phases
     boost, singular, coast = phases.boost, phases.singular, phases.coast
 
@@ -233,12 +233,12 @@ Panel = tuple[str, Callable[[yapss.PhaseSolution], Any]]
 """A plot of one quantity: its axis label, and how to read it from a phase's solution."""
 
 
-def plot_solution(problem: Goddard, solution: yapss.Solution) -> None:
+def plot_solution(problem: Goddard3Phase, solution: yapss.Solution) -> None:
     """Plot the thrust, the state histories and the Hamiltonian of every phase.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : Goddard3Phase
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.

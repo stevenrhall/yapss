@@ -232,21 +232,26 @@ class Phases(yapss.Phases):
     climb: Climb
 
 
+class MinimumTimeToClimb(yapss.Problem):
+    """Bryson's minimum time to climb."""
+
+    phases: Phases
+
+
 # Names for the types the annotations below use.
 ClimbArg = yapss.ContinuousArg[State, Control]
 ClimbOut = yapss.ContinuousOut[State]
-MinimumTimeToClimbProblem = yapss.Problem[Phases]
 
 
-def setup() -> MinimumTimeToClimbProblem:
+def setup() -> MinimumTimeToClimb:
     """Set up the minimum time to climb problem.
 
     Returns
     -------
-    yapss.Problem
+    MinimumTimeToClimb
         The problem.
     """
-    problem = yapss.Problem("Bryson minimum time to climb", phases=Phases)
+    problem = MinimumTimeToClimb("Bryson minimum time to climb")
     ph = problem.phases.climb
 
     @ph.register.continuous
@@ -322,12 +327,12 @@ def setup() -> MinimumTimeToClimbProblem:
     return problem
 
 
-def plot_solution(problem: MinimumTimeToClimbProblem, solution: yapss.Solution) -> None:
+def plot_solution(problem: MinimumTimeToClimb, solution: yapss.Solution) -> None:
     r"""Plot the climb: the trajectory, the four states, the control, and the Hamiltonian.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : MinimumTimeToClimb
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.

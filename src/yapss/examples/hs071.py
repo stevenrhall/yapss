@@ -40,19 +40,22 @@ class Discrete(yapss.Discrete):
     """The sum of their squares, exactly 40."""
 
 
-# Names for the types the annotations below use.
-HS071Problem = yapss.Problem[yapss.Phases, Discrete, Parameter]
+class HS071(yapss.Problem):
+    """Problem 71 of Hock and Schittkowski: a nonlinear program, with no phases."""
+
+    discrete: Discrete
+    parameter: Parameter
 
 
-def setup() -> HS071Problem:
+def setup() -> HS071:
     """Set up the HS071 problem.
 
     Returns
     -------
-    yapss.Problem
+    HS071
         The problem.
     """
-    problem = yapss.Problem("HS071", parameter=Parameter, discrete=Discrete)
+    problem = HS071("HS071")
 
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg[Parameter]) -> Any:

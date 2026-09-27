@@ -94,21 +94,27 @@ class Phases(yapss.Phases):
     curve: Curve
 
 
+class Isoperimetric(yapss.Problem):
+    """The closed curve of given perimeter that encloses the most area."""
+
+    phases: Phases
+    discrete: Discrete
+
+
 # Names for the types the annotations below use.
 CurveArg = yapss.ContinuousArg[State, Control]
 CurveOut = yapss.ContinuousOut[State, Path, Integral]
-IsoperimetricProblem = yapss.Problem[Phases, Discrete]
 
 
-def setup() -> IsoperimetricProblem:
+def setup() -> Isoperimetric:
     """Set up the isoperimetric problem.
 
     Returns
     -------
-    yapss.Problem
+    Isoperimetric
         The problem.
     """
-    problem = yapss.Problem("Isoperimetric problem", phases=Phases, discrete=Discrete)
+    problem = Isoperimetric("Isoperimetric problem")
     ph = problem.phases.curve
 
     @ph.register.continuous
@@ -166,14 +172,14 @@ def setup() -> IsoperimetricProblem:
     return problem
 
 
-def plot_solution(problem: IsoperimetricProblem, solution: yapss.Solution) -> None:
+def plot_solution(problem: Isoperimetric, solution: yapss.Solution) -> None:
     """Plot the curve found and the Hamiltonian along it.
 
     The collocation points are shown as dots, with a cubic spline through them.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : Isoperimetric
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.

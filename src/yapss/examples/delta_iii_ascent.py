@@ -186,10 +186,16 @@ class Phases(yapss.Phases):
     stage_3: Stage
 
 
+class DeltaIII(yapss.Problem):
+    """The Delta III launch to orbit, in four stages."""
+
+    phases: Phases
+    discrete: Discrete
+
+
 # Names for the types the annotations below use.
 StageArg = yapss.ContinuousArg[State, Control]
 StageOut = yapss.ContinuousOut[State, Path]
-DeltaIIIProblem = yapss.Problem[Phases, Discrete]
 
 
 Vector3 = NDArray[Any] | Sequence[Any]
@@ -321,15 +327,15 @@ def orbital_elements(r_vec: Vector3, v_vec: Vector3) -> tuple[Any, ...]:
     )
 
 
-def setup() -> DeltaIIIProblem:
+def setup() -> DeltaIII:
     """Set up the Delta III ascent problem.
 
     Returns
     -------
-    yapss.Problem
+    DeltaIII
         The problem.
     """
-    problem = yapss.Problem("Delta III ascent", phases=Phases, discrete=Discrete)
+    problem = DeltaIII("Delta III ascent")
     phases = problem.phases
     stages = [phases.stage_0, phases.stage_1, phases.stage_2, phases.stage_3]
 
@@ -376,7 +382,7 @@ def setup() -> DeltaIIIProblem:
     return problem
 
 
-def _set_bounds(problem: DeltaIIIProblem, stages: list[Stage]) -> None:
+def _set_bounds(problem: DeltaIII, stages: list[Stage]) -> None:
     """Set the bounds on every stage, and the bounds the constraints must meet."""
     launch = [R_e * cos(psi_l), 0.0, R_e * sin(psi_l)]
     launch_velocity = [0.0, R_e * omega_e * cos(psi_l), 0.0]
@@ -422,7 +428,7 @@ def _set_bounds(problem: DeltaIIIProblem, stages: list[Stage]) -> None:
     problem.discrete.argument_of_perigee.bounds = (omega_f, omega_f)
 
 
-def _set_scales(problem: DeltaIIIProblem, stages: list[Stage]) -> None:
+def _set_scales(problem: DeltaIII, stages: list[Stage]) -> None:
     """Condition the problem: say how large each quantity typically is."""
     for stage in stages:
         stage.state.r.scale[:] = length_scale
@@ -484,7 +490,7 @@ def _set_guess(stages: list[Stage]) -> None:
         stage.control.u.guess[:] = yapss.interp(time, np.tile([[0.0], [1.0], [0.0]], (1, 9)))
 
 
-def plot_solution(problem: DeltaIIIProblem, solution: yapss.Solution) -> None:
+def plot_solution(problem: DeltaIII, solution: yapss.Solution) -> None:
     r"""Plot the ascent: altitude, position, velocity, mass, steering, and the Hamiltonian.
 
     Every quantity spans four phases, so each panel is a loop over them. The mass is the one
@@ -492,7 +498,7 @@ def plot_solution(problem: DeltaIIIProblem, solution: yapss.Solution) -> None:
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : DeltaIII
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.

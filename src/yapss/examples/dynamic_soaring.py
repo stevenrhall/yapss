@@ -22,7 +22,7 @@ and the derivatives are discontinuous where it does.
 __all__ = ["main", "plot_solution", "setup"]
 
 # standard library imports
-from typing import Any
+from typing import Any, cast
 
 # third-party imports
 import matplotlib.pyplot as plt
@@ -118,23 +118,28 @@ class Phases(yapss.Phases):
     loop: Loop
 
 
+class DynamicSoaring(yapss.Problem):
+    """Dynamic soaring: the least wind gradient for a closed circuit."""
+
+    phases: Phases
+    discrete: Discrete
+    parameter: Parameter
+
+
 # Names for the types the annotations below use.
 LoopArg = yapss.ContinuousArg[State, Control, Parameter]
 LoopOut = yapss.ContinuousOut[State, Path]
-DynamicSoaringProblem = yapss.Problem[Phases, Discrete, Parameter]
 
 
-def setup() -> DynamicSoaringProblem:
+def setup() -> DynamicSoaring:
     """Set up the dynamic soaring problem.
 
     Returns
     -------
-    yapss.Problem
+    DynamicSoaring
         The problem.
     """
-    problem = yapss.Problem(
-        "Dynamic soaring", phases=Phases, parameter=Parameter, discrete=Discrete
-    )
+    problem = DynamicSoaring("Dynamic soaring")
     ph = problem.phases.loop
 
     @ph.register.continuous
@@ -246,12 +251,12 @@ def setup() -> DynamicSoaringProblem:
     return problem
 
 
-def plot_solution(problem: DynamicSoaringProblem, solution: yapss.Solution) -> None:
+def plot_solution(problem: DynamicSoaring, solution: yapss.Solution) -> None:
     """Plot the circuit in three dimensions, and the quantities along it.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : DynamicSoaring
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.
@@ -261,7 +266,7 @@ def plot_solution(problem: DynamicSoaringProblem, solution: yapss.Solution) -> N
     x, y, h = ps.state.x, ps.state.y, ps.state.h
 
     plt.figure()
-    ax: Axes3D = plt.axes(projection=Axes3D.name)
+    ax = cast("Axes3D", plt.axes(projection=Axes3D.name))
     ax.plot3D(x, y, h)
     ax.plot3D(0 * x - 1200, y, h, "r--")
     ax.plot3D(x, 0 * y + 500, h, "r--")

@@ -53,13 +53,18 @@ class Phases(yapss.Phases):
     slide: Slide
 
 
+class Brachistochrone(yapss.Problem):
+    """The brachistochrone: the fastest slide between two points."""
+
+    phases: Phases
+
+
 # Names for the types the annotations below use.
 SlideArg = yapss.ContinuousArg[State, Control]
 SlideOut = yapss.ContinuousOut[State]
-BrachistochroneProblem = yapss.Problem[Phases]
 
 
-def setup() -> BrachistochroneProblem:
+def setup() -> Brachistochrone:
     """Set up the brachistochrone problem.
 
     Returns
@@ -68,7 +73,7 @@ def setup() -> BrachistochroneProblem:
         The optimal control problem to find the shape of a wire along which a bead
         slides without friction from the origin to x = 1 in minimum time
     """
-    problem = yapss.Problem("Brachistochrone", phases=Phases)
+    problem = Brachistochrone("Brachistochrone")
     phase = problem.phases.slide
 
     @phase.register.continuous
@@ -107,12 +112,12 @@ def setup() -> BrachistochroneProblem:
     return problem
 
 
-def plot_solution(problem: BrachistochroneProblem, solution: yapss.Solution) -> None:
+def plot_solution(problem: Brachistochrone, solution: yapss.Solution) -> None:
     """Plot the trajectory, the states, the control, the costate, and the Hamiltonian.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : Brachistochrone
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.

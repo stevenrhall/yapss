@@ -36,8 +36,10 @@ class Parameter(yapss.Parameter):
     """Vertical coordinate."""
 
 
-# Names for the types the annotations below use.
-RosenbrockProblem = yapss.Problem[yapss.Phases, yapss.Discrete, Parameter]
+class Rosenbrock(yapss.Problem):
+    """The minimum of the Rosenbrock function."""
+
+    parameter: Parameter
 
 
 def rosenbrock(x: Any, y: Any) -> Any:
@@ -56,15 +58,15 @@ def rosenbrock(x: Any, y: Any) -> Any:
     return 100 * (y - x**2) ** 2 + (1 - x) ** 2
 
 
-def setup() -> RosenbrockProblem:
+def setup() -> Rosenbrock:
     """Set up the Rosenbrock minimization problem.
 
     Returns
     -------
-    yapss.Problem
+    Rosenbrock
         The problem.
     """
-    problem = yapss.Problem("Rosenbrock", parameter=Parameter)
+    problem = Rosenbrock("Rosenbrock")
 
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg[Parameter]) -> Any:

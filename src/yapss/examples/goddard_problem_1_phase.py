@@ -77,21 +77,26 @@ class Phases(yapss.Phases):
     flight: Flight
 
 
+class Goddard(yapss.Problem):
+    """The Goddard rocket, flown as one phase."""
+
+    phases: Phases
+
+
 # Names for the types the annotations below use.
 FlightArg = yapss.ContinuousArg[State, Control]
 FlightOut = yapss.ContinuousOut[State]
-GoddardProblem = yapss.Problem[Phases]
 
 
-def setup() -> GoddardProblem:
+def setup() -> Goddard:
     """Set up the one-phase Goddard rocket problem.
 
     Returns
     -------
-    yapss.Problem
+    Goddard
         The problem.
     """
-    problem = yapss.Problem("Goddard rocket, one phase", phases=Phases)
+    problem = Goddard("Goddard rocket, one phase")
     ph = problem.phases.flight
 
     @ph.register.continuous
@@ -136,12 +141,12 @@ def setup() -> GoddardProblem:
     return problem
 
 
-def plot_solution(problem: GoddardProblem, solution: yapss.Solution) -> None:
+def plot_solution(problem: Goddard, solution: yapss.Solution) -> None:
     """Plot the trajectory, the thrust programme, and the Hamiltonian.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : Goddard
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.

@@ -55,21 +55,26 @@ class Phases(yapss.Phases):
     slide: Slide
 
 
+class Brachistochrone(yapss.Problem):
+    """The brachistochrone: the fastest slide between two points."""
+
+    phases: Phases
+
+
 # Names for the types the annotations below use.
 SlideArg = yapss.ContinuousArg[State, Control]
 SlideOut = yapss.ContinuousOut[State]
-BrachistochroneProblem = yapss.Problem[Phases]
 
 
-def setup() -> BrachistochroneProblem:
+def setup() -> Brachistochrone:
     """Set up the brachistochrone problem.
 
     Returns
     -------
-    yapss.Problem
+    Brachistochrone
         The problem.
     """
-    problem = yapss.Problem("Brachistochrone", phases=Phases)
+    problem = Brachistochrone("Brachistochrone")
     ph = problem.phases.slide
 
     @ph.register.continuous
@@ -104,12 +109,12 @@ def setup() -> BrachistochroneProblem:
     return problem
 
 
-def plot_solution(problem: BrachistochroneProblem, solution: yapss.Solution) -> None:
+def plot_solution(problem: Brachistochrone, solution: yapss.Solution) -> None:
     """Plot the path the bead takes.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : Brachistochrone
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.

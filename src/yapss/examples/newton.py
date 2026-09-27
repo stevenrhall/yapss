@@ -74,13 +74,18 @@ class Phases(yapss.Phases):
     nose: Nose
 
 
+class Newton(yapss.Problem):
+    """Newton's minimal resistance problem."""
+
+    phases: Phases
+
+
 # Names for the types the annotations below use.
 NoseArg = yapss.ContinuousArg[State, Control]
 NoseOut = yapss.ContinuousOut[State, yapss.Path, Integral]
-NewtonProblem = yapss.Problem[Phases]
 
 
-def setup(y_max: float = 1.0) -> NewtonProblem:
+def setup(y_max: float = 1.0) -> Newton:
     """Set up Newton's minimal resistance problem.
 
     Parameters
@@ -90,10 +95,10 @@ def setup(y_max: float = 1.0) -> NewtonProblem:
 
     Returns
     -------
-    yapss.Problem
+    Newton
         The problem.
     """
-    problem = yapss.Problem("Newton's minimal resistance problem", phases=Phases)
+    problem = Newton("Newton's minimal resistance problem")
     ph = problem.phases.nose
 
     @ph.register.continuous
@@ -125,7 +130,7 @@ def setup(y_max: float = 1.0) -> NewtonProblem:
     return problem
 
 
-def setup2(y_max: float = 1.0) -> NewtonProblem:
+def setup2(y_max: float = 1.0) -> Newton:
     """Set up the alternate formulation of Newton's minimal resistance problem.
 
     The radius of the flat tip becomes a variable: the phase starts at a free ``r`` and the
@@ -141,7 +146,7 @@ def setup2(y_max: float = 1.0) -> NewtonProblem:
 
     Returns
     -------
-    yapss.Problem
+    Newton
         The problem.
     """
     problem = setup(y_max)
@@ -156,12 +161,12 @@ def setup2(y_max: float = 1.0) -> NewtonProblem:
     return problem
 
 
-def plot_solution(problem: NewtonProblem, solution: yapss.Solution, **kwargs: Any) -> None:
+def plot_solution(problem: Newton, solution: yapss.Solution, **kwargs: Any) -> None:
     """Plot one nosecone profile, reflected about its axis.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : Newton
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.

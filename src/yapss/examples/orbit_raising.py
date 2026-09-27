@@ -81,21 +81,27 @@ class Phases(yapss.Phases):
     raise_: Transfer
 
 
+class OrbitRaising(yapss.Problem):
+    """The largest circular orbit reached in a fixed time."""
+
+    phases: Phases
+    discrete: Discrete
+
+
 # Names for the types the annotations below use.
 TransferArg = yapss.ContinuousArg[State, Control]
 TransferOut = yapss.ContinuousOut[State, Path]
-OrbitRaisingProblem = yapss.Problem[Phases, Discrete]
 
 
-def setup() -> OrbitRaisingProblem:
+def setup() -> OrbitRaising:
     """Set up the orbit raising problem.
 
     Returns
     -------
-    yapss.Problem
+    OrbitRaising
         The problem.
     """
-    problem = yapss.Problem("Orbit raising", phases=Phases, discrete=Discrete)
+    problem = OrbitRaising("Orbit raising")
     ph = problem.phases.raise_
 
     @ph.register.continuous
@@ -153,12 +159,12 @@ def setup() -> OrbitRaisingProblem:
     return problem
 
 
-def plot_solution(problem: OrbitRaisingProblem, solution: yapss.Solution) -> None:
+def plot_solution(problem: OrbitRaising, solution: yapss.Solution) -> None:
     """Plot the states, the controls, the steering angle, the orbit, and the Hamiltonian.
 
     Parameters
     ----------
-    problem : yapss.Problem
+    problem : OrbitRaising
         The problem that was solved, which carries the phase handles.
     solution : yapss.Solution
         The solution to plot.
