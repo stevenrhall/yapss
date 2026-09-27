@@ -124,11 +124,11 @@ nitpick_ignore = [
     # with, `yapss.Problem[yapss.Phases, yapss.Discrete, Parameter]`, as hs071 and rosenbrock are.
     ("py:class", "yapss._api.declare.Phases"),
     ("py:class", "yapss._api.vector.Discrete"),
-    # The type parameters of `Problem`, which `Problem.solve`'s return annotation,
-    # `Solution[D_co, PR_co]`, carries into its signature. Type variables have no page to
+    # The type variables of `Problem.solve`'s signature, which reads the declaration through a
+    # protocol on `self` and returns `Solution[_D_co, _PR_co]`. Type variables have no page to
     # resolve against; typing.rst says what they are in prose.
-    ("py:class", "D_co"),
-    ("py:class", "PR_co"),
+    ("py:class", "_D_co"),
+    ("py:class", "_PR_co"),
 ]
 
 # The example scripts are annotated, so `setup` and `plot_solution` name the script's own

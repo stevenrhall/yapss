@@ -69,7 +69,6 @@ class Flight(yapss.Phase):
 
     state: State
     control: Control
-    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -147,7 +146,7 @@ def plot_solution(problem: GoddardProblem, solution: yapss.Solution) -> None:
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution[problem.phases.flight]
+    ps = solution.phases[problem.phases.flight]
     panels = (
         ("Thrust, $T$ (lbf)", ps.control.thrust),
         ("Altitude, $h$ (ft)", ps.state.h),

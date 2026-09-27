@@ -86,7 +86,7 @@ def test_a_solution_cannot_be_deleted_from(target: str) -> None:
     p = solvable()
     p.ipopt_options.print_level = 0
     sol = p.solve()
-    ps = sol[p.phases.slide]
+    ps = sol.phases[p.phases.slide]
     with raises(AttributeError, "cannot be deleted", "names are fixed", at="exec"):
         exec(f"del {target}", {"sol": sol, "ps": ps})  # noqa: S102
 
@@ -125,7 +125,7 @@ def _reachable() -> list[object]:
     solution = p.solve()
     assert set(given) == {"continuous", "objective", "discrete"}
     seen: dict[int, object] = {}
-    todo: list[object] = [p, solution, solution[ph], ph.state.x]
+    todo: list[object] = [p, solution, solution.phases[ph], ph.state.x]
     todo += [obj for objects in given.values() for obj in objects]
     while todo:
         obj = todo.pop()

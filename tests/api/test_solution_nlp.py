@@ -28,7 +28,7 @@ def solved(request):
     problem.spectral_method = request.param
     problem.phases.run.mesh = yapss.Mesh.uniform(segments=3, points=4)
     solution = problem.solve()
-    return request.param, problem, solution, solution[problem.phases.run]
+    return request.param, problem, solution, solution.phases[problem.phases.run]
 
 
 def _concatenated(*arrays):
@@ -42,8 +42,8 @@ def _variable_positions(method, solution, ps):
         var.state.y,
         var.control.u,
         [var.integral.effort],
-        [var.initial.s],
-        [var.final.s],
+        [var.initial.time],
+        [var.final.time],
         [solution.nlp.index.variable.parameter.k],
     ]
     if method == "lgl":
@@ -116,8 +116,8 @@ def test_x_read_through_the_index_is_the_primal_layer(solved):
     np.testing.assert_array_equal(nlp.x[var.state.y], ps.state.y)
     np.testing.assert_array_equal(nlp.x[var.control.u], ps.control.u[ps.collocated])
     assert nlp.x[var.integral.effort] == ps.integral.effort
-    assert nlp.x[var.initial.s] == ps.initial.s
-    assert nlp.x[var.final.s] == ps.final.s
+    assert nlp.x[var.initial.time] == ps.initial.time
+    assert nlp.x[var.final.time] == ps.final.time
     np.testing.assert_array_equal(nlp.x[var.final.r], ps.final.r)
     assert nlp.x[solution.nlp.index.variable.parameter.k] == solution.parameter.k
 
@@ -153,8 +153,8 @@ def test_point_multipliers_agree_with_the_multiplier_tree(solved):
     assert nlp.mult_g[solution.nlp.index.constraint.discrete.end] == (
         solution.multiplier.discrete.end
     )
-    assert bound(var.initial.s) == ps.multiplier.initial.s
-    assert bound(var.final.s) == ps.multiplier.final.s
+    assert bound(var.initial.time) == ps.multiplier.initial.time
+    assert bound(var.final.time) == ps.multiplier.final.time
     assert bound(solution.nlp.index.variable.parameter.k) == solution.multiplier.parameter.k
 
 
@@ -229,8 +229,8 @@ def test_continuity_rows_sit_at_the_segment_ends(solved):
     if method != "lg":
         pytest.skip("continuity rows exist only under LG")
     fractions = np.array(ps.mesh.fractions)
-    ends = ps.s[0] + np.cumsum(fractions / fractions.sum()) * (ps.s[-1] - ps.s[0])
-    np.testing.assert_allclose(ps.s[ps.nlp.point.continuity], ends)
+    ends = ps.time[0] + np.cumsum(fractions / fractions.sum()) * (ps.time[-1] - ps.time[0])
+    np.testing.assert_allclose(ps.time[ps.nlp.point.continuity], ends)
 
 
 # -- the record ----------------------------------------------------------------------------------
@@ -287,13 +287,13 @@ def test_the_records_names_are_fixed(solved):
 def test_the_record_and_its_index_survive_pickling(solved):
     method, problem, solution, ps = solved
     copy = pickle.loads(pickle.dumps(solution))
-    ps_copy = copy[problem.phases.run]
+    ps_copy = copy.phases[problem.phases.run]
     np.testing.assert_array_equal(copy.nlp.x, solution.nlp.x)
     np.testing.assert_array_equal(copy.nlp.jac_g.value, solution.nlp.jac_g.value)
     assert copy.nlp.convergence.iterations == solution.nlp.convergence.iterations
     var, var_copy = ps.nlp.index.variable, ps_copy.nlp.index.variable
     np.testing.assert_array_equal(var_copy.state.r, var.state.r)
-    assert var_copy.final.s == var.final.s
+    assert var_copy.final.time == var.final.time
     if method != "lgl":
         with pytest.raises(AttributeError, match="exists only under LGL"):
             var_copy.zero_mode  # noqa: B018

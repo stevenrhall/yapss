@@ -2,10 +2,9 @@
 
 Newton's minimal resistance problem: the nosecone shape of least pressure drag.
 
-The phase runs over the radius, not over time, so the phase names its independent variable
-``r`` and that is what it is called everywhere afterwards -- in setup, in the callback, and in
-the solution. The released version of this example calls it ``time`` and apologises in a
-comment.
+The phase runs over the radius, not over time. YAPSS calls every phase's independent variable
+``time``, whatever it measures, so here ``time`` is the radius; the script reads it into a
+variable ``r`` where the formulas use it.
 
 There are two formulations, and `setup2` is the one to prefer. In Newton's model a gas
 particle strikes the surface once and leaves, so drag falls as the local slope steepens --
@@ -62,12 +61,11 @@ class Integral(yapss.Integral):
 
 
 class Nose(yapss.Phase):
-    """The nosecone's profile, run over the radius ``r`` rather than time."""
+    """The nosecone's profile, run over the radius (the phase's ``time``)."""
 
     state: State
     control: Control
     integral: Integral
-    r: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -101,7 +99,7 @@ def setup(y_max: float = 1.0) -> NewtonProblem:
     @ph.register.continuous
     def continuous(arg: NoseArg, out: NoseOut) -> None:
         """Compute the profile's dynamics and the drag integrand."""
-        yp, u, r = arg.state.yp, arg.control.u, arg.r
+        yp, u, r = arg.state.yp, arg.control.u, arg.time
         out.dynamics.y = yp
         out.dynamics.yp = u
         out.integrand.drag = 8 * r / (1 + yp**2)
@@ -111,13 +109,13 @@ def setup(y_max: float = 1.0) -> NewtonProblem:
         """Return the drag, which is the objective."""
         return arg[ph].integral.drag
 
-    ph.r.initial = (0.0, 0.0)
-    ph.r.final = (1.0, 1.0)
+    ph.time.initial = (0.0, 0.0)
+    ph.time.final = (1.0, 1.0)
     ph.state.y.bounds = (0.0, y_max)
     ph.state.yp.bounds = (None, 0.0)
     ph.control.u.bounds = (None, 0.0)
 
-    ph.r.guess = (0.0, 1.0)
+    ph.time.guess = (0.0, 1.0)
     ph.state.y.guess = (y_max, 0.0)
     ph.state.yp.guess = (-y_max, -y_max)
     ph.control.u.guess = (0.0, 0.0)
@@ -152,9 +150,9 @@ def setup2(y_max: float = 1.0) -> NewtonProblem:
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the drag of the curve plus the drag of the flat tip."""
-        return arg[ph].integral.drag + 4 * arg[ph].initial.r**2
+        return arg[ph].integral.drag + 4 * arg[ph].initial.time**2
 
-    ph.r.initial = (0.0, 1.0)
+    ph.time.initial = (0.0, 1.0)
     return problem
 
 
@@ -170,8 +168,8 @@ def plot_solution(problem: NewtonProblem, solution: yapss.Solution, **kwargs: An
     **kwargs
         Passed to `matplotlib.pyplot.plot`, for a label or a style.
     """
-    ps = solution[problem.phases.nose]
-    r = np.concatenate((-ps.r[::-1], ps.r))
+    ps = solution.phases[problem.phases.nose]
+    r = np.concatenate((-ps.time[::-1], ps.time))
     y = np.concatenate((ps.state.y[::-1], ps.state.y))
     plt.plot(r, y, linewidth=2, **kwargs)
     plt.xlabel("Radius, $r/R$")
@@ -197,7 +195,7 @@ def main() -> None:
 
     problem2 = setup2()
     solution2 = problem2.solve()
-    r0 = solution2[problem2.phases.nose].initial.r
+    r0 = solution2.phases[problem2.phases.nose].initial.time
     print(f"drag, with the flat tip free           = {solution2.objective:.6f}")
     print(f"radius of the flat tip, r0 = {r0:.6f}")
     plt.figure()

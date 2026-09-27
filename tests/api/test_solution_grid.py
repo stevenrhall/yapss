@@ -112,7 +112,7 @@ def test_every_per_point_quantity_is_on_the_state_points(goddard):
     """What the corpus could not do under LGR and LG: plot a control against time."""
     _, solution = goddard
     for name in ("boost", "singular", "coast"):
-        ps = solution[name]
+        ps = solution.phases[name]
         n = len(ps.time)
         assert ps.collocated.shape == (n,)
         for quantity in (
@@ -124,13 +124,15 @@ def test_every_per_point_quantity_is_on_the_state_points(goddard):
         ):
             assert np.shape(quantity) == (n,)
         assert np.isfinite(ps.control.thrust).all()
-    assert solution["singular"].path.switching.shape == (len(solution["singular"].time),)
+    assert solution.phases["singular"].path.switching.shape == (
+        len(solution.phases["singular"].time),
+    )
 
 
 def test_the_filled_points_are_where_the_method_has_none(goddard):
     """LGL: none. LGR: the final point. LG: every segment's start, and the final point."""
     problem, solution = goddard
-    ps = solution["boost"]
+    ps = solution.phases["boost"]
     missing = ps.time[~ps.collocated]
     if problem.spectral_method == "lgl":
         assert missing.size == 0
@@ -146,7 +148,7 @@ def test_the_filled_points_are_where_the_method_has_none(goddard):
 def test_the_fill_is_close_to_its_neighbours_on_a_smooth_arc(goddard):
     """The coast arc's costate is smooth, so an extrapolated end sits beside its neighbour."""
     _, solution = goddard
-    ps = solution["coast"]
+    ps = solution.phases["coast"]
     lam = ps.costate.v
     scale = np.abs(lam).max()
     for i in np.flatnonzero(~ps.collocated):
@@ -160,7 +162,7 @@ def test_the_mask_and_the_fill_pickle():
     problem.spectral_method = "lgr"
     solution = problem.solve()
     copy = pickle.loads(pickle.dumps(solution))
-    ps, ps_copy = solution[problem.phases.raise_], copy[problem.phases.raise_]
+    ps, ps_copy = solution.phases[problem.phases.raise_], copy.phases[problem.phases.raise_]
     np.testing.assert_array_equal(ps_copy.collocated, ps.collocated)
     np.testing.assert_array_equal(ps_copy.control[:], ps.control[:])
     np.testing.assert_array_equal(ps_copy.weights, ps.weights)
@@ -173,7 +175,7 @@ def test_the_weights_are_a_quadrature_over_the_phase(goddard):
     """Zero off the collocated points, summing to the duration, exact on a low-degree polynomial."""
     _, solution = goddard
     for name in ("boost", "singular", "coast"):
-        ps = solution[name]
+        ps = solution.phases[name]
         assert ps.weights.shape == ps.time.shape
         assert (ps.weights[~ps.collocated] == 0.0).all()
         assert ps.weights.sum() == pytest.approx(ps.duration, rel=1e-13)
@@ -189,7 +191,7 @@ def test_the_weights_reproduce_the_transcribed_integrals(method):
     problem.spectral_method = method
     ph = problem.phases.curve
     ph.mesh = yapss.Mesh([(0.2, 8), (0.3, 10), (0.5, 12)])
-    ps = problem.solve()[ph]
+    ps = problem.solve().phases[ph]
     assert ps.weights @ ps.integrand.area == pytest.approx(ps.integral.area, abs=1e-9)
     assert ps.weights @ ps.integrand.x_moment == pytest.approx(ps.integral.x_moment, abs=1e-9)
     assert ps.weights @ ps.integrand.y_moment == pytest.approx(ps.integral.y_moment, abs=1e-9)

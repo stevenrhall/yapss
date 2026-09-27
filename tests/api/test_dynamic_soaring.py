@@ -40,7 +40,7 @@ def test_the_objective_is_the_parameter(solved):
 def test_the_circuit_closes(solved):
     """Speed and flight path angle return to where they began, and the heading after one turn."""
     problem, solution = solved
-    ps = solution[problem.phases.loop]
+    ps = solution.phases[problem.phases.loop]
     assert solution.discrete.v_periodic == pytest.approx(0.0, abs=1e-6)
     assert solution.discrete.gamma_periodic == pytest.approx(0.0, abs=1e-8)
     assert solution.discrete.psi_periodic == pytest.approx(np.radians(360), abs=1e-8)
@@ -57,7 +57,7 @@ def test_the_vehicle_flies_within_its_limits(solved):
     asserting something about Ipopt's termination rather than about the trajectory.
     """
     problem, solution = solved
-    ps = solution[problem.phases.loop]
+    ps = solution.phases[problem.phases.loop]
     tolerance = 1e-6
     assert np.asarray(ps.control.cl).max() <= cl_max * (1 + tolerance)
     assert np.asarray(ps.path.load_factor).max() <= load_factor_max * (1 + tolerance)
@@ -67,7 +67,7 @@ def test_the_vehicle_flies_within_its_limits(solved):
 def test_the_load_factor_limit_is_reached(solved):
     """The constraint is active, which is why the mesh has to be as dense as it is."""
     problem, solution = solved
-    ps = solution[problem.phases.loop]
+    ps = solution.phases[problem.phases.loop]
     assert np.asarray(ps.path.load_factor).max() == pytest.approx(load_factor_max, rel=1e-6)
 
 

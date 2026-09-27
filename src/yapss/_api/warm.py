@@ -49,7 +49,7 @@ def guess_from_solution(
         raise TypeError(msg)
     mismatches: list[str] = []
     if guess_phase is not None:
-        pairs = [(solution[solution_phase], _own_phase(problem, guess_phase))]
+        pairs = [(solution.phases[solution_phase], _own_phase(problem, guess_phase))]
         parameters = False
     else:
         pairs, mismatches = _pair_by_name(problem, solution)
@@ -80,7 +80,7 @@ def _pair_by_name(
     problem: Problem[Any, Any, Any], solution: Solution[Any, Any]
 ) -> tuple[list[tuple[PhaseSolution, Any]], list[str]]:
     """Pair every phase of the problem with the solution's phase of the same name."""
-    names = object.__getattribute__(solution, "_names")
+    names = list(object.__getattribute__(solution.phases, "_names"))
     own = {ph._name: ph for ph in problem.phases}
     mismatches = [
         f"phase '{n}' is in the solution but not the problem" for n in names if n not in own
@@ -88,7 +88,7 @@ def _pair_by_name(
     mismatches += [
         f"phase '{n}' is in the problem but not the solution" for n in own if n not in names
     ]
-    pairs = [(solution[name], own[name]) for name in names if name in own]
+    pairs = [(solution.phases[name], own[name]) for name in names if name in own]
     return pairs, mismatches
 
 

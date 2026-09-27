@@ -124,7 +124,6 @@ def test_a_phase_without_a_time_guess_is_incomplete() -> None:
     class Only(yapss.Phase):
         state: State
         control: Control
-        time: yapss.Independent
 
     class OnePhase(yapss.Phases):
         only: Only
@@ -142,33 +141,6 @@ def test_a_phase_without_a_time_guess_is_incomplete() -> None:
         return arg[ph].final.x
 
     with raises(ValueError, "has no time guess", "ph.time.guess = (start, end)", at="validate"):
-        p.validate()
-
-
-def test_the_independent_variable_is_named_in_the_complaint() -> None:
-    """A phase that renamed its independent variable is told about *that* name."""
-
-    class Nose(yapss.Phase):
-        state: State
-        control: Control
-        r: yapss.Independent
-
-    class Radial(yapss.Phases):
-        nose: Nose
-
-    p = yapss.Problem("p", phases=Radial)
-    ph = p.phases.nose
-
-    @ph.register.continuous
-    def continuous(arg, out):
-        out.dynamics.x = 0.0
-        out.dynamics.y = [0.0, 0.0]
-
-    @p.register.objective
-    def objective(arg):
-        return arg[ph].final.x
-
-    with raises(ValueError, "has no r guess", "ph.r.guess = (start, end)", at="validate"):
         p.validate()
 
 
@@ -378,7 +350,7 @@ def test_a_warm_start_writes_ordinary_guesses() -> None:
     solution = _solved()
     p = solvable()
     p.guess_from_solution(solution)
-    ps = solution[p.phases.slide]
+    ps = solution.phases[p.phases.slide]
     assert p.phases.slide.time.guess == (float(ps.time[0]), float(ps.time[-1]))
     p.phases.slide.state.v.guess = (0.0, 4.0)
 
@@ -393,7 +365,6 @@ def test_a_mismatched_solution_is_refused_listing_every_mismatch() -> None:
     class OtherPhase(yapss.Phase):
         state: Other
         control: Angle
-        time: yapss.Independent
 
     class OtherPhases(yapss.Phases):
         slide: OtherPhase

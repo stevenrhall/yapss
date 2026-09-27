@@ -32,7 +32,7 @@ def test_every_derivative_method_agrees(problem, method):
 
 
 def test_the_rocket_burns_to_the_dry_mass(problem):
-    ps = problem.solve()[problem.phases.flight]
+    ps = problem.solve().phases[problem.phases.flight]
     assert ps.initial.m == pytest.approx(m0, abs=1e-8)
     assert ps.final.m == pytest.approx(mf, abs=1e-8)
     assert ps.final.h == pytest.approx(RELEASED, rel=1e-6)
@@ -48,7 +48,7 @@ def test_the_singular_arc_chatters(problem):
     right to six figures. `goddard_problem_3_phase` states the arcs as phases and gets a clean
     interior thrust instead.
     """
-    thrust = np.asarray(problem.solve()[problem.phases.flight].control.thrust)
+    thrust = np.asarray(problem.solve().phases[problem.phases.flight].control.thrust)
     interior = thrust[len(thrust) // 4 : len(thrust) // 2]
     at_a_limit = (interior < 0.01 * Tm) | (interior > 0.99 * Tm)
 

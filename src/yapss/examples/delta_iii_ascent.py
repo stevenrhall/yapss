@@ -175,7 +175,6 @@ class Stage(yapss.Phase):
     state: State
     control: Control
     path: Path
-    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -501,7 +500,7 @@ def plot_solution(problem: DeltaIIIProblem, solution: yapss.Solution) -> None:
     phases = problem.phases
     stages = [phases.stage_0, phases.stage_1, phases.stage_2, phases.stage_3]
     color = ("darkblue", "maroon", "darkorange")
-    tf = solution[stages[LAST]].final.time
+    tf = solution.phases[stages[LAST]].final.time
 
     def panel(
         series: Callable[[yapss.PhaseSolution[State, Control, Path]], list[Any]],
@@ -513,7 +512,7 @@ def plot_solution(problem: DeltaIIIProblem, solution: yapss.Solution) -> None:
         """Plot one or more series over every stage."""
         plt.figure()
         for stage in stages:
-            ps = solution[stage]
+            ps = solution.phases[stage]
             for index, values in enumerate(series(ps)):
                 plt.plot(ps.time, values, color[colors[index % len(colors)]])
         if legend:

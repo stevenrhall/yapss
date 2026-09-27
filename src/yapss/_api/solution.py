@@ -19,6 +19,7 @@ its problem was declared.
 
 from __future__ import annotations
 
+import numbers
 from functools import cache
 from itertools import pairwise
 from types import MappingProxyType
@@ -35,11 +36,11 @@ from yapss._backend.structure import get_nlp_cf_structure, get_nlp_dv_structure
 
 from .args import C_co, D_co, EndpointValues, I_co, P_co, PR_co, S_co
 from .containers import suggest
-from .kinds import ReadOnlyRows
+from .kinds import ReadOnlyRows, is_bool
 from .vector import ROLES, Vector, role_of, scalar, vector
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
 
     from numpy.typing import NDArray
 
@@ -916,7 +917,7 @@ _I_co = TypeVar("_I_co", bound="Integral", covariant=True)
 class _PhaseShape(Protocol[_S_co, _C_co, _P_co, _I_co]):
     """A phase handle, as far as its vectors: what a `yapss.Phase` subclass satisfies.
 
-    ``solution[ph]`` differs by phase, so nothing written on the solution could type it; the
+    ``solution.phases[ph]`` differs by phase, so nothing written on the solution could type it; the
     handle can, as ``arg[ph]`` is typed from it. A checker that does not follow the match --
     PyCharm's engine does not -- is given the type by annotating the variable instead.
     """
@@ -1087,16 +1088,20 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         """Pickle the phase solution as its independent variable's name and its values."""
         return (PhaseSolution, (object.__getattribute__(self, "_independent"), self._values()))
 
-    def __getattr__(self, name: str) -> Any:
-        """Return the points under the independent variable's name, or refuse the name."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        independent = object.__getattribute__(self, "_independent")
-        if name == independent:
-            return object.__getattribute__(self, "_points")
-        names = (*(n for n in self.__slots__ if not n.startswith("_")), independent)
-        msg = f"the phase solution has no '{name}'.{suggest(name, names)}"
-        raise AttributeError(msg)
+    # Hidden from type checkers: every name a phase solution holds is declared above, `time`
+    # included, so a misspelling is reported.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name):
+            """Return the points under the independent variable's name, or refuse the name."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            independent = object.__getattribute__(self, "_independent")
+            if name == independent:
+                return object.__getattribute__(self, "_points")
+            names = (*(n for n in self.__slots__ if not n.startswith("_")), independent)
+            msg = f"the phase solution has no '{name}'.{suggest(name, names)}"
+            raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment: each name is one solved quantity."""
@@ -1106,6 +1111,112 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
 
     def __delattr__(self, name: str) -> None:
         """Refuse every deletion: each name is one solved quantity."""
+        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
+        raise AttributeError(msg)
+
+
+class PhaseSolutions:
+    """The phases of a solution: ``solution.phases``.
+
+    A phase is reached the way it is reached on the problem. By its name, as an attribute:
+    ``solution.phases.boost``. By its handle: ``solution.phases[problem.phases.boost]``, the
+    form a type checker follows, since the handle carries the phase's vector classes. By a
+    name or a position held in data: ``solution.phases["boost"]``, ``solution.phases[0]``.
+    Iterating visits every phase in the order the phases were declared.
+
+    A handle is matched by its position and its name, not by identity, and a name is enough on
+    its own, so a solution unpickled in another process is read without the problem.
+    """
+
+    __slots__ = ("_names", "_phases")
+
+    if TYPE_CHECKING:
+        # Declared, so that the reader below, visible to checkers, does not answer for them.
+        _names: tuple[str, ...]
+        _phases: tuple[PhaseSolution, ...]
+
+    def __init__(self, names: tuple[str, ...], phases: tuple[PhaseSolution, ...]) -> None:
+        object.__setattr__(self, "_names", names)
+        object.__setattr__(self, "_phases", phases)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        """Pickle the phases as their names and their solutions."""
+        return (PhaseSolutions, (self._names, self._phases))
+
+    @overload
+    def __getitem__(
+        self, key: _PhaseShape[_S_co, _C_co, _P_co, _I_co]
+    ) -> PhaseSolution[_S_co, _C_co, _P_co, _I_co]: ...
+
+    @overload
+    def __getitem__(self, key: str | int) -> PhaseSolution: ...
+
+    def __getitem__(self, key: Any) -> PhaseSolution:
+        """Return a phase's solution by its handle, its name, or its position."""
+        names, phases = self._names, self._phases
+        if isinstance(key, str):
+            if key in names:
+                return phases[names.index(key)]
+            hint = suggest(key, names) if names else " The problem declared no phases."
+            msg = f"the solution has no phase {key!r}.{hint}"
+            raise KeyError(msg)
+        position: object = key  # the annotation is the promise; this checks what arrived
+        if not is_bool(position) and isinstance(position, numbers.Integral):
+            index = int(position)
+            if not -len(phases) <= index < len(phases):
+                count = "one phase" if len(phases) == 1 else f"{len(phases)} phases"
+                msg = f"the solution has {count}; there is no phase {index}"
+                raise IndexError(msg)
+            return phases[index]
+        index_ = getattr(key, "_index", None)
+        name = getattr(key, "_name", None)
+        if isinstance(index_, int) and 0 <= index_ < len(names) and names[index_] == name:
+            return phases[index_]
+        msg = (
+            f"solution.phases[...] takes a phase handle, such as 'problem.phases.<name>', a "
+            f"phase's name, or its position; got {key!r}"
+        )
+        raise KeyError(msg)
+
+    def __iter__(self) -> Iterator[PhaseSolution]:
+        """Iterate over the phases' solutions, in declaration order."""
+        return iter(self._phases)
+
+    def __len__(self) -> int:
+        """Return the number of phases."""
+        return len(self._phases)
+
+    def __repr__(self) -> str:
+        """Return the phases' names."""
+        return f"<PhaseSolutions {', '.join(self._names) or '(none)'}>"
+
+    if TYPE_CHECKING:
+        # Visible to checkers: a phase read by name has no declared type (a checker cannot turn
+        # the problem's `Boost` into `PhaseSolution[BoostState, ...]`), so it is a phase solution
+        # of unknown shape. Its own attributes are still checked: `ps.hamiltonain` is reported.
+        def __getattr__(self, name: str) -> PhaseSolution: ...
+
+    else:
+
+        def __getattr__(self, name):
+            """Return the phase of that name."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            names = object.__getattribute__(self, "_names")
+            if name in names:
+                return object.__getattribute__(self, "_phases")[names.index(name)]
+            hint = suggest(name, names) if names else " The problem declared no phases."
+            msg = f"the solution has no phase '{name}'.{hint}"
+            raise AttributeError(msg)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Refuse every assignment: each name is one solved phase."""
+        del value
+        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
+        raise AttributeError(msg)
+
+    def __delattr__(self, name: str) -> None:
+        """Refuse every deletion: each name is one solved phase."""
         msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
@@ -1131,11 +1242,11 @@ class Solution(Generic[D_co, PR_co]):
         Their multipliers, in the same shapes: ``solution.multiplier.discrete.d``.
     nlp : NLPRecord
         What Ipopt saw and returned, with the positions of every variable and constraint.
+    phases : PhaseSolutions
+        Each phase's solution: ``solution.phases.boost``, ``solution.phases[ph]``.
     """
 
     __slots__ = (
-        "_names",
-        "_phases",
         "converged",
         "discrete",
         "multiplier",
@@ -1143,6 +1254,7 @@ class Solution(Generic[D_co, PR_co]):
         "nlp",
         "objective",
         "parameter",
+        "phases",
         "spectral_method",
         "status",
     )
@@ -1157,6 +1269,7 @@ class Solution(Generic[D_co, PR_co]):
         discrete: D_co
         multiplier: ProblemMultiplier[D_co, PR_co]
         nlp: NLPRecord[D_co, PR_co]
+        phases: PhaseSolutions
 
     def __init__(self, values: dict[str, Any]) -> None:
         for name, value in values.items():
@@ -1173,20 +1286,22 @@ class Solution(Generic[D_co, PR_co]):
         dv, cf, layouts = _positions_of(transcription)
         return cls(
             {
-                "_names": tuple(phase.name for phase in spec.phases),
-                "_phases": tuple(
-                    PhaseSolution._from(
-                        phase,
-                        record.phase[phase.index],
-                        spec.spectral_method,
-                        _phase_nlp(
+                "phases": PhaseSolutions(
+                    tuple(phase.name for phase in spec.phases),
+                    tuple(
+                        PhaseSolution._from(
                             phase,
-                            dv.phase[phase.index],
-                            cf.phase[phase.index],
-                            layouts[phase.index],
-                        ),
-                    )
-                    for phase in spec.phases
+                            record.phase[phase.index],
+                            spec.spectral_method,
+                            _phase_nlp(
+                                phase,
+                                dv.phase[phase.index],
+                                cf.phase[phase.index],
+                                layouts[phase.index],
+                            ),
+                        )
+                        for phase in spec.phases
+                    ),
                 ),
                 "nlp": NLPRecord._from(
                     record.nlp_info,
@@ -1238,39 +1353,6 @@ class Solution(Generic[D_co, PR_co]):
         values = {name: object.__getattribute__(self, name) for name in self.__slots__}
         return (Solution, (values,))
 
-    @overload
-    def __getitem__(self, phase: str) -> PhaseSolution: ...
-
-    @overload
-    def __getitem__(
-        self, phase: _PhaseShape[_S_co, _C_co, _P_co, _I_co]
-    ) -> PhaseSolution[_S_co, _C_co, _P_co, _I_co]: ...
-
-    def __getitem__(self, phase: Any) -> PhaseSolution:
-        """Return the solution for `phase`: a phase handle, or the phase's name.
-
-        A handle is matched by its position and its name, not by identity, and a name is enough
-        on its own, so a solution unpickled in another process is readable with no problem at
-        all: ``solution["boost"]``.
-        """
-        names: tuple[str, ...] = object.__getattribute__(self, "_names")
-        phases: tuple[PhaseSolution, ...] = object.__getattribute__(self, "_phases")
-        if isinstance(phase, str):
-            if phase in names:
-                return phases[names.index(phase)]
-            hint = suggest(phase, names) if names else " The problem declared no phases."
-            msg = f"the solution has no phase {phase!r}.{hint}"
-            raise KeyError(msg)
-        index = getattr(phase, "_index", None)
-        name = getattr(phase, "_name", None)
-        if isinstance(index, int) and 0 <= index < len(names) and names[index] == name:
-            return phases[index]
-        msg = (
-            f"solution[...] takes a phase handle, such as 'problem.phases.<name>', or a phase's "
-            f"name; got {phase!r}"
-        )
-        raise KeyError(msg)
-
     # Hidden from type checkers: one that sees a reader answering any name stops
     # reporting misspellings. The names are declared for them instead.
     if not TYPE_CHECKING:
@@ -1283,9 +1365,23 @@ class Solution(Generic[D_co, PR_co]):
             if name == "nlp_info":
                 # the 0.3.0 name, which a script being ported reaches for
                 msg = "the solution has no 'nlp_info'; what 0.3.0 called nlp_info is 'nlp'."
+            elif name == "phase":
+                # the 0.3.0 name, `solution.phase[k]`
+                msg = (
+                    "the solution has no 'phase'; its phases are 'phases': "
+                    "solution.phases.<name>, or solution.phases[k]."
+                )
             else:
                 msg = f"the solution has no '{name}'.{suggest(name, names)}"
             raise AttributeError(msg)
+
+        def __getitem__(self, key):
+            """Refuse indexing the solution: its phases are in `phases`."""
+            msg = (
+                f"a solution is not indexed; its phases are 'solution.phases': "
+                f"solution.phases[{key!r}]"
+            )
+            raise TypeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment: each name is one solved quantity."""

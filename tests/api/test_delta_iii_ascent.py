@@ -70,7 +70,7 @@ def test_the_stages_are_joined(solution):
 
 def test_block_fields_are_read_as_arrays(solution):
     problem, result = solution
-    phase = result[problem.phases.stage_3]
+    phase = result.phases[problem.phases.stage_3]
     assert phase.state.r.shape == (3, len(phase.time))
     assert phase.control.u.shape == (3, len(phase.time))
     assert len(phase.state) == 7

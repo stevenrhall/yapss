@@ -52,7 +52,7 @@ def test_the_solution_is_returned_rather_than_raised():
     problem = unconverged()
     with pytest.warns(yapss.IpoptConvergenceWarning):
         solution = problem.solve()
-    ps = solution[problem.phases.slide]
+    ps = solution.phases[problem.phases.slide]
     assert ps.state.x.shape == ps.time.shape
     assert solution.status == yapss.IpoptStatus.MAXIMUM_ITERATIONS_EXCEEDED
 

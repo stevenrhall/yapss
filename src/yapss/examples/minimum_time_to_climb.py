@@ -224,7 +224,6 @@ class Climb(yapss.Phase):
 
     state: State
     control: Control
-    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -333,7 +332,7 @@ def plot_solution(problem: MinimumTimeToClimbProblem, solution: yapss.Solution) 
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution[problem.phases.climb]
+    ps = solution.phases[problem.phases.climb]
     t = ps.time
 
     # the trajectory, in the plane the climb is really flown in

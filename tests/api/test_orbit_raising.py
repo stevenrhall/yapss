@@ -32,7 +32,7 @@ def test_every_derivative_method_agrees(problem, method):
 
 def test_the_final_orbit_is_circular(problem):
     solution = problem.solve()
-    ps = solution[problem.phases.raise_]
+    ps = solution.phases[problem.phases.raise_]
     assert solution.discrete.circular == pytest.approx(0.0, abs=1e-8)
     assert ps.final.v_theta == pytest.approx(np.sqrt(1.0 / ps.final.r), rel=1e-6)
 

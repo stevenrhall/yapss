@@ -8,9 +8,9 @@ arc length rather than time, the curve is held at unit speed by a path constrain
 an integral, two further integrals place the centroid at the origin, and two discrete
 constraints require the curve to close.
 
-Nothing in the API knows that the independent variable is a length. A phase runs over a
-variable it names -- here `s` -- and `time` is simply the name YAPSS uses where a problem does
-not say otherwise.
+Nothing in the API knows that the independent variable is a length. Every phase's independent
+variable is called `time`, whatever it measures; here `time` is the arc length, which the
+script reads into a variable `s`.
 
 """
 
@@ -80,13 +80,12 @@ class Discrete(yapss.Discrete):
 
 
 class Curve(yapss.Phase):
-    """The curve, run over its arc length ``s`` rather than time."""
+    """The curve, run over its arc length (the phase's ``time``)."""
 
     state: State
     control: Control
     path: Path
     integral: Integral
-    s: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -139,8 +138,8 @@ def setup() -> IsoperimetricProblem:
     problem.objective.sense = "maximize"
 
     # Arc length runs from 0 to the perimeter, and unit speed is what makes it arc length.
-    ph.s.initial = (0.0, 0.0)
-    ph.s.final = (PERIMETER, PERIMETER)
+    ph.time.initial = (0.0, 0.0)
+    ph.time.final = (PERIMETER, PERIMETER)
     ph.path.speed_squared.bounds = (1.0, 1.0)
 
     # The centroid at the origin, which fixes the circle's position rather than its shape.
@@ -153,7 +152,7 @@ def setup() -> IsoperimetricProblem:
     # A square of the right perimeter, so the guess satisfies the constraint it starts from.
     side = PERIMETER / 4
     corners = np.array([0.0, 0.25, 0.5, 0.75, 1.0]) * PERIMETER
-    ph.s.guess = (0.0, PERIMETER)
+    ph.time.guess = (0.0, PERIMETER)
     ph.state.x.guess = yapss.interp(corners, side * np.array([0.5, 0.5, -0.5, -0.5, 0.5]))
     ph.state.y.guess = yapss.interp(corners, side * np.array([0.5, -0.5, -0.5, 0.5, 0.5]))
 
@@ -179,8 +178,8 @@ def plot_solution(problem: IsoperimetricProblem, solution: yapss.Solution) -> No
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution[problem.phases.curve]
-    s = ps.s
+    ps = solution.phases[problem.phases.curve]
+    s = ps.time
     fine = np.linspace(s[0], s[-1], 500)
     x = interp1d(s, ps.state.x, kind="cubic")(fine)
     y = interp1d(s, ps.state.y, kind="cubic")(fine)

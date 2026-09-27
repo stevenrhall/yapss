@@ -25,7 +25,6 @@ def test_a_phase_that_declares_nothing_still_has_its_own_times():
 
     class P(yapss.Phase):
         state: yapss.State
-        time: yapss.Independent
 
     class Phases(yapss.Phases):
         p: P
@@ -59,7 +58,6 @@ def test_the_endpoints_alone_make_an_optimization_problem():
 
     class Interval(yapss.Phase):
         state: yapss.State
-        time: yapss.Independent
 
     class Phases(yapss.Phases):
         interval: Interval
@@ -82,8 +80,8 @@ def test_the_endpoints_alone_make_an_optimization_problem():
 
     solution = problem.solve()
     assert solution.objective == pytest.approx(0.0, abs=1e-16)
-    assert solution[ph].initial.time == pytest.approx(0.3)
-    assert solution[ph].final.time == pytest.approx(1.7)
+    assert solution.phases[ph].initial.time == pytest.approx(0.3)
+    assert solution.phases[ph].final.time == pytest.approx(1.7)
 
 
 def test_a_parameter_of_no_rows_is_not_a_variable():

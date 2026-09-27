@@ -42,7 +42,6 @@ def declared_in_a_function():
         control: Control
         path: Path
         integral: Integral
-        s: yapss.Independent
 
     class Phases(yapss.Phases):
         run: Run
@@ -65,9 +64,9 @@ def declared_in_a_function():
     def discrete(arg, out):
         out.discrete.end = arg[ph].final.y
 
-    ph.s.initial = (0.0, 0.0)
-    ph.s.final = (1.0, 1.0)
-    ph.s.guess = (0.0, 1.0)
+    ph.time.initial = (0.0, 0.0)
+    ph.time.final = (1.0, 1.0)
+    ph.time.guess = (0.0, 1.0)
     ph.state.r.initial[:] = (0.0, 0.0)
     ph.state.y.initial = (0.0, 0.0)
     ph.control.u.bounds = (-10.0, 10.0)
@@ -92,15 +91,15 @@ def test_a_solution_to_a_problem_declared_in_a_function_pickles(solved):
     assert copy.objective == solution.objective
     assert copy.parameter.k == solution.parameter.k
     assert copy.discrete.end == solution.discrete.end
-    ps, ps_copy = solution[ph], copy[ph]
-    np.testing.assert_array_equal(ps_copy.s, ps.s)
+    ps, ps_copy = solution.phases[ph], copy.phases[ph]
+    np.testing.assert_array_equal(ps_copy.time, ps.time)
     np.testing.assert_array_equal(ps_copy.state.r, ps.state.r)
     np.testing.assert_array_equal(ps_copy.state.y, ps.state.y)
     np.testing.assert_array_equal(ps_copy.control.u, ps.control.u)
     np.testing.assert_array_equal(ps_copy.costate.y, ps.costate.y)
     assert ps_copy.integral.effort == ps.integral.effort
     assert ps_copy.final.y == ps.final.y
-    assert ps_copy.final.s == ps.final.s
+    assert ps_copy.final.time == ps.final.time
     assert ps_copy.mesh == ps.mesh
 
 
@@ -108,7 +107,7 @@ def test_a_pickled_solution_keeps_its_names_and_messages(solved):
     problem, solution = solved
     copy = pickle.loads(pickle.dumps(solution))
     with pytest.raises(AttributeError, match=r"has no field 'yy'\. Did you mean 'y'\?"):
-        copy[problem.phases.run].state.yy  # noqa: B018
+        copy.phases[problem.phases.run].state.yy  # noqa: B018
     with pytest.raises(AttributeError, match="names are fixed"):
         copy.objective = 0.0
 
@@ -121,7 +120,7 @@ def test_a_solution_holds_neither_the_problem_nor_its_classes(solved):
 
 def test_one_piece_of_a_solution_pickles_on_its_own(solved):
     problem, solution = solved
-    ps = solution[problem.phases.run]
+    ps = solution.phases[problem.phases.run]
     np.testing.assert_array_equal(pickle.loads(pickle.dumps(ps.state)).r, ps.state.r)
     assert pickle.loads(pickle.dumps(ps.final)).y == ps.final.y
 
@@ -130,27 +129,27 @@ def test_a_solution_is_read_with_the_handles_of_a_rebuilt_problem(solved):
     """Handles are matched by position and name, so a solution outlives the problem object."""
     _, solution = solved
     rebuilt = declared_in_a_function()
-    assert solution[rebuilt.phases.run].final.y == pytest.approx(1.0)
+    assert solution.phases[rebuilt.phases.run].final.y == pytest.approx(1.0)
 
 
 def test_a_pickled_solution_is_read_by_phase_name_with_no_problem_at_all(solved):
     """What makes pickling useful in a worker: nothing from the problem is needed to read it."""
     problem, solution = solved
     copy = pickle.loads(pickle.dumps(solution))
-    assert copy["run"].final.y == solution[problem.phases.run].final.y
+    assert copy.phases["run"].final.y == solution.phases[problem.phases.run].final.y
 
 
 def test_a_misspelled_phase_name_is_refused_with_a_suggestion(solved):
     _, solution = solved
     with pytest.raises(KeyError, match=r"has no phase 'rn'\. Did you mean 'run'\?"):
-        solution["rn"]
+        solution.phases["rn"]
 
 
 def test_a_vector_of_a_solution_is_not_an_instance_of_the_users_class(solved):
     """The one visible cost of holding no classes, stated so it is not discovered."""
     problem, solution = solved
     declaration = problem.phases.run._declaration.state
-    assert not isinstance(solution[problem.phases.run].state, declaration)
+    assert not isinstance(solution.phases[problem.phases.run].state, declaration)
 
 
 EXAMPLES = [
@@ -178,4 +177,4 @@ def test_every_example_s_solution_pickles(name):
     copy = pickle.loads(pickle.dumps(solution))
     assert copy.objective == solution.objective
     for ph in problem.phases:
-        np.testing.assert_array_equal(copy[ph].state[:], solution[ph].state[:])
+        np.testing.assert_array_equal(copy.phases[ph].state[:], solution.phases[ph].state[:])

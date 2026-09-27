@@ -12,7 +12,7 @@ afterwards never alters what an earlier solution recorded.
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Any, Generic, Literal, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Protocol, overload
 
 # See `_api.declare`: PEP 696 defaults, which `typing.TypeVar` cannot carry below 3.13.
 from typing_extensions import TypeVar
@@ -31,8 +31,9 @@ from .containers import (
     is_callable,
     is_string,
     is_subclass,
+    suggest,
 )
-from .declare import Phases, declared_role
+from .declare import Phases, _declaring_scope, declared_role, own_annotations
 from .fields import Fields
 from .kinds import Bounds, ScalarGuess, Scale
 from .old_api import old_api_message
@@ -60,6 +61,47 @@ D_co = TypeVar("D_co", bound=Discrete, default=Any, covariant=True)
 """The class declaring the problem's discrete constraint groups."""
 PR_co = TypeVar("PR_co", bound=Parameter, default=Any, covariant=True)
 """The class declaring the problem's parameters."""
+
+# `solve` reads what a problem declared through a protocol on `self`, so a problem declared as a
+# subclass -- `class Goddard(yapss.Problem)` annotating `discrete: GodDiscrete` -- returns a
+# solution typed by those classes. A subclass's annotations do not bind the base's type
+# parameters, which would otherwise leave the solution `Solution[Any, Any]`.
+_D_co = TypeVar("_D_co", bound=Discrete, covariant=True)
+_PR_co = TypeVar("_PR_co", bound=Parameter, covariant=True)
+
+
+class _Declared(Protocol[_D_co, _PR_co]):
+    @property
+    def discrete(self) -> _D_co: ...
+
+    @property
+    def parameter(self) -> _PR_co: ...
+
+
+_MEMBERS = ("phases", "discrete", "parameter")
+"""What a problem class declares, by annotation."""
+
+# The names Python puts in a class body by itself, which a declaration does not write.
+_IMPLICIT = frozenset(
+    {
+        "__module__",
+        "__qualname__",
+        "__doc__",
+        "__annotations__",
+        "__annotate__",
+        "__annotate_func__",
+        "__annotations_cache__",
+        "__orig_bases__",
+        "__parameters__",
+        "__firstlineno__",
+        "__static_attributes__",
+        "__type_params__",
+        "__classdictcell__",
+        "__dict__",
+        "__weakref__",
+    }
+)
+
 
 SPECTRAL_METHODS = ("lgl", "lgr", "lg")
 DERIVATIVE_METHODS = ("auto", "central-difference", "central-difference-full")
@@ -393,6 +435,59 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         spectral_method: Literal["lgl", "lgr", "lg"]
         catch_keyboard_interrupt: bool
 
+    _members: ClassVar[dict[str, type[Any]] | None] = None
+    """What a problem class declared; None on `Problem` itself, which takes keywords."""
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Read a problem class's declaration: its phases, discrete constraints and parameters.
+
+        The class body holds annotations of those three names and a docstring, nothing else.
+        Every name on a problem is YAPSS's or a declaration, so a method or attribute of the
+        user's would collide with a name YAPSS adds later, or override one it has; and a
+        problem class is not subclassed, since a variant's inherited declarations would not
+        carry the setup its instance was given.
+        """
+        super().__init_subclass__(**kwargs)
+        for base in cls.__mro__[1:]:
+            if base is not Problem and isinstance(base, type) and issubclass(base, Problem):
+                msg = (
+                    f"{cls.__name__} cannot inherit from {base.__name__}, which is already a "
+                    f"problem class. Subclass yapss.Problem, and declare what differs."
+                )
+                raise TypeError(msg)
+        extra = [name for name in vars(cls) if name not in _IMPLICIT]
+        if extra:
+            msg = (
+                f"{cls.__name__}.{extra[0]} is defined in a problem class, which declares only "
+                f"its phases, discrete constraints and parameters, by annotation: every other "
+                f"name on a problem is YAPSS's. Write it as a function that takes the problem."
+            )
+            raise TypeError(msg)
+        members: dict[str, type[Any]] = {
+            "phases": Phases,
+            "discrete": Discrete,
+            "parameter": Parameter,
+        }
+        roles: dict[str, type[Vector]] = {"discrete": Discrete, "parameter": Parameter}
+        for name, value in own_annotations(cls, _declaring_scope()).items():
+            if name not in _MEMBERS:
+                msg = (
+                    f"{cls.__name__}.{name} is not something a problem declares; a problem "
+                    f"class annotates {', '.join(_MEMBERS)}.{suggest(name, _MEMBERS)}"
+                )
+                raise TypeError(msg)
+            if name == "phases":
+                if not is_subclass(value, Phases):
+                    msg = (
+                        f"{cls.__name__}.phases is annotated {value!r}; it takes a phase "
+                        f"declaration, written as 'class Phases(yapss.Phases)'"
+                    )
+                    raise TypeError(msg)
+            else:
+                declared_role(value, cls.__name__, name, roles, annotation=True)
+            members[name] = value
+        cls._members = members
+
     # Hidden from type checkers, so the overloads below remain the signature they check. Python
     # passes the constructor's arguments to __new__ before __init__, so code written for YAPSS
     # 0.3 or earlier -- whose Problem required `nx` in every release -- is recognized here and
@@ -469,11 +564,36 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         *,
         # See `_api.declare.phase`: the defaults are declared on the type parameters, and a
         # checker measures the default value against the parameter type regardless.
-        phases: type[PH_co] = Phases,  # type: ignore[assignment]
-        discrete: type[D_co] = Discrete,  # type: ignore[assignment]
-        parameter: type[PR_co] = Parameter,  # type: ignore[assignment]
+        phases: type[PH_co] | None = None,
+        discrete: type[D_co] | None = None,
+        parameter: type[PR_co] | None = None,
     ) -> None:
         _check_name(name)
+        members = type(self)._members
+        if members is not None:
+            given = [
+                k
+                for k, v in (("phases", phases), ("discrete", discrete), ("parameter", parameter))
+                if v is not None
+            ]
+            if given:
+                msg = (
+                    f"{type(self).__name__}(...) takes only a name: its {given[0]} is declared "
+                    f"in the class body, as '{given[0]}: ...'"
+                )
+                raise TypeError(msg)
+            phases, discrete, parameter = (
+                members["phases"],
+                members["discrete"],
+                members["parameter"],
+            )
+        else:
+            phases = Phases if phases is None else phases  # type: ignore[assignment]
+            discrete = Discrete if discrete is None else discrete  # type: ignore[assignment]
+            parameter = Parameter if parameter is None else parameter  # type: ignore[assignment]
+        assert phases is not None
+        assert discrete is not None
+        assert parameter is not None
         if not is_subclass(phases, Phases):
             msg = (
                 "Problem(phases=) takes a phase declaration, written as "
@@ -618,7 +738,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
         """
         validate_problem(self)
 
-    def solve(self) -> Solution[D_co, PR_co]:
+    def solve(self: _Declared[_D_co, _PR_co]) -> Solution[_D_co, _PR_co]:
         """Solve the problem.
 
         Returns
@@ -647,6 +767,7 @@ class Problem(HasRegistry, Generic[PH_co, D_co, PR_co]):
             is returned for each of these; an unconverged solve is valid input that
             deserves attention.
         """
+        assert isinstance(self, Problem)
         self.validate()
         solution, record = solve_problem(snapshot(self))
         # The warning belongs at the public boundary, not inside the solve, so that its

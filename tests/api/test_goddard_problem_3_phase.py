@@ -53,20 +53,26 @@ def test_the_phases_are_joined(problem):
     )
     for name in Discrete._fields:
         assert getattr(solution.discrete, name) == pytest.approx(0.0, abs=1e-8)
-    assert solution[singular].initial.time == pytest.approx(solution[boost].final.time)
-    assert solution[coast].initial.time == pytest.approx(solution[singular].final.time)
+    assert solution.phases[singular].initial.time == pytest.approx(
+        solution.phases[boost].final.time
+    )
+    assert solution.phases[coast].initial.time == pytest.approx(
+        solution.phases[singular].final.time
+    )
 
 
 def test_the_path_constraint_holds_on_the_singular_arc(problem):
     solution = problem.solve()
-    switching = solution[problem.phases.singular].path.switching
+    switching = solution.phases[problem.phases.singular].path.switching
     assert np.abs(switching).max() == pytest.approx(0.0, abs=1e-6)
 
 
 def test_the_terminal_conditions_are_met(problem):
     solution = problem.solve()
-    assert solution[problem.phases.coast].final.m == pytest.approx(mf)
-    assert solution[problem.phases.coast].final.h == pytest.approx(solution.objective, rel=1e-12)
+    assert solution.phases[problem.phases.coast].final.m == pytest.approx(mf)
+    assert solution.phases[problem.phases.coast].final.h == pytest.approx(
+        solution.objective, rel=1e-12
+    )
 
 
 def test_the_discrete_vector_is_read_by_name_and_by_position(problem):
@@ -79,7 +85,7 @@ def test_the_discrete_vector_is_read_by_name_and_by_position(problem):
 
 def test_a_phase_without_a_path_declares_none(problem):
     solution = problem.solve()
-    assert len(solution[problem.phases.boost].path) == 0
+    assert len(solution.phases[problem.phases.boost].path) == 0
 
 
 def test_one_callback_serves_two_phases(problem):

@@ -38,7 +38,7 @@ def test_it_agrees_with_the_same_problem_in_the_released_api(solution):
 
 def test_the_terminal_conditions_are_met(solution):
     problem, result = solution
-    final = result[problem.phases.climb].final
+    final = result.phases[problem.phases.climb].final
     assert final.h == pytest.approx(65600.0, rel=1e-6)
     assert final.v == pytest.approx(968.148, rel=1e-6)
     assert final.gamma == pytest.approx(0.0, abs=1e-6)
@@ -46,7 +46,7 @@ def test_the_terminal_conditions_are_met(solution):
 
 def test_the_solution_is_reached_by_name(solution):
     problem, result = solution
-    ps = result[problem.phases.climb]
+    ps = result.phases[problem.phases.climb]
     assert ps.state.h.shape == ps.time.shape
     assert ps.control.alpha.shape == ps.time.shape
     assert State._fields == ("h", "v", "gamma", "mass")

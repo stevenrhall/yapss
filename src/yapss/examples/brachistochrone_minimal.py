@@ -47,7 +47,6 @@ class Slide(yapss.Phase):
 
     state: State
     control: Control
-    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -115,7 +114,7 @@ def plot_solution(problem: BrachistochroneProblem, solution: yapss.Solution) -> 
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution[problem.phases.slide]
+    ps = solution.phases[problem.phases.slide]
     plt.figure()
     plt.plot(ps.state.x, ps.state.y, linewidth=2)
     plt.xlabel("Horizontal position, $x(t)$")

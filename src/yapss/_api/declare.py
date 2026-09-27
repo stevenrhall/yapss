@@ -63,20 +63,21 @@ if TYPE_CHECKING:
 
 __all__ = ["AnyPhase", "Independent", "Phase", "Phases"]
 
-# Each parameter is bounded by its role, which is what makes a state handed over as a control a
-# type error. Each default is the role itself: a role class declares no fields, so it says what
-# an omitted argument means -- no field of this is known -- and it is an *ancestor* of every
-# declaration of that role, which a default has to be. (The old `Empty` could not be: it was a
-# sibling of every user declaration, and a covariant parameter whose default is not a supertype
-# of what a declaration supplies makes `Problem[Mine, ...]` unassignable to the bare
-# `yapss.Problem`.) Covariance is sound because all of these are reached only for reading.
-S_co = TypeVar("S_co", bound=State, default=State, covariant=True)
+# Each parameter is bounded by its role, and each default is `Any`, as `Problem`'s are. The base
+# class declares its slots through these parameters, and a phase class overrides them with its
+# own annotations; a default of the role itself made the base declare `state: State`, and
+# pyright, which holds a mutable attribute's type fixed in a subclass, then reported every
+# correct `state: MyState` as an incompatible override. With `Any` no correct declaration is
+# reported by any checker. A vector put in the wrong slot is refused when the class statement
+# runs, naming the slot it belongs in. Covariance is sound because all of these are reached
+# only for reading.
+S_co = TypeVar("S_co", bound=State, default=Any, covariant=True)
 """The class declaring a phase's states."""
-C_co = TypeVar("C_co", bound=Control, default=Control, covariant=True)
+C_co = TypeVar("C_co", bound=Control, default=Any, covariant=True)
 """The class declaring a phase's controls."""
-P_co = TypeVar("P_co", bound=Path, default=Path, covariant=True)
+P_co = TypeVar("P_co", bound=Path, default=Any, covariant=True)
 """The class declaring a phase's path constraints."""
-I_co = TypeVar("I_co", bound=Integral, default=Integral, covariant=True)
+I_co = TypeVar("I_co", bound=Integral, default=Any, covariant=True)
 """The class declaring a phase's integrals."""
 
 AnyPhase: TypeAlias = "Phase[Any, Any, Any, Any]"
@@ -192,12 +193,8 @@ class _HasState(Protocol[_S_co]):
     def state(self) -> _S_co: ...
 
 
-_RESERVED = ("mesh", "register", "name", "index", "dynamics")
-"""A phase's own attributes, which its independent variable cannot also be called."""
-
-
 def _not_a_slot(owner: str, name: str, value: object) -> str:
-    """Return the message for an annotation that is neither a role slot nor `Independent`.
+    """Return the message for an annotation that is not a role slot.
 
     A vector class under an unknown name is a misspelled slot, and is answered as one, since
     that is far likelier than an independent variable annotated with the wrong type.
@@ -213,8 +210,7 @@ def _not_a_slot(owner: str, name: str, value: object) -> str:
         )
     return (
         f"{owner}.{name} is annotated {_named(value)}. A phase annotates its vectors as "
-        f"{', '.join(_ROLES)}, and names its independent variable with "
-        f"'{name}: yapss.Independent'.{hint}"
+        f"{', '.join(_ROLES)}.{hint}"
     )
 
 
@@ -289,11 +285,9 @@ def _check_namespace(
     for role, declaration in (("state", state), ("control", control)):
         if independent in declaration._fields:
             msg = (
-                f"{owner}: its {role} {declaration.__name__} declares {independent!r}, and that "
-                f"is also the phase's independent variable, which you named. They are one "
-                f"namespace, so their names must differ; rename "
-                f"the {role}, or name the independent variable something else with "
-                f"'<name>: yapss.Independent'."
+                f"{owner}: its {role} {declaration.__name__} declares {independent!r}, which is "
+                f"every phase's independent variable. An endpoint holds both in one namespace "
+                f"(final.{independent}), so rename the {role}'s field."
             )
             raise ValueError(msg)
 
@@ -505,12 +499,7 @@ class IntegralAspects(Container):
 class Independent(Container):
     """A phase's independent variable: its initial and final values, and the guess for them.
 
-    Every phase has one, called ``time`` unless the phase names it otherwise, which it does
-    with an annotation of this type::
-
-        class Nose(yapss.Phase):
-            state: Body
-            r: yapss.Independent
+    Every phase has one, ``ph.time``, whatever it measures; a phase class does not declare it.
 
     ``initial`` and ``final`` are bounds, written the same way as any other bound. ``guess`` is
     a ``(t0, tf)`` pair, and is the only source of the phase's guessed duration, so a sampled
@@ -611,8 +600,8 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
     """A phase's shape: the vectors it is built from. Subclass it and annotate them.
 
     ``state`` is required; ``control``, ``path`` and ``integral`` are optional, and a phase
-    that omits one has none of it. One further annotation, of type `Independent`, names the
-    phase's independent variable, which is otherwise ``time``::
+    that omits one has none of it. The independent variable is ``time`` in every phase, whatever
+    it measures, and is not annotated::
 
         class Slide(yapss.Phase):
             state: Position
@@ -650,9 +639,9 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         @property
         def dynamics(self: _HasState[_S_co]) -> _S_co: ...
 
-        # No `time` here: every shape annotates its own independent variable, so the name a
-        # checker sees is the name that phase has. Declaring `time` on the base would make
-        # `ph.time` resolve on a phase that runs over a radius, and fail only at runtime.
+        # Every phase's independent variable is `time`, whatever it measures, so it is declared
+        # here once, and the shapes do not annotate it.
+        time: Independent
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Read the shape from the subclass's annotations, refusing what is not one."""
@@ -673,42 +662,16 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
             )
             raise TypeError(msg)
         roles: dict[str, type[Vector]] = {}
-        independent: list[str] = []
         for name, value in own_annotations(cls, _declaring_scope()).items():
             if name.startswith("_"):
                 continue
-            if name in _ROLES:
-                roles[name] = declared_role(value, owner, name, _ROLES, annotation=True)
-            elif value is Independent:
-                independent.append(name)
-            else:
+            if name not in _ROLES:
                 raise TypeError(_not_a_slot(owner, name, value))
+            roles[name] = declared_role(value, owner, name, _ROLES, annotation=True)
         if "state" not in roles:
             msg = f"{owner} declares no state. Every phase has one: write 'state: <a yapss.State>'."
             raise TypeError(msg)
-        if len(independent) > 1:
-            names = ", ".join(repr(name) for name in independent)
-            msg = f"{owner}: a phase has one independent variable, but {names} are annotated so"
-            raise TypeError(msg)
-        if not independent:
-            # A phase always has an independent variable, so nothing is saved by defaulting
-            # its name: the choice between 'time', 't' and 's' is the user's problem's, not
-            # YAPSS's preference. Defaulting it also cost a type-checker hole -- `time` had to
-            # be declared on this class for `ph.time` to resolve, which made `ph.time` check
-            # on a phase that runs over a radius and fail only at runtime.
-            msg = (
-                f"The class declaration for {owner} does not name its independent variable. "
-                f"Write 'time: yapss.Independent' if you want to name the independent "
-                f"variable 'time'."
-            )
-            raise TypeError(msg)
-        name = independent[0]
-        if name in _RESERVED:
-            msg = (
-                f"{owner}.{name} names the independent variable, but '{name}' is already a "
-                f"phase's own attribute. Name it something else."
-            )
-            raise TypeError(msg)
+        name = "time"
         state = roles["state"]
         control = roles.get("control", Control)
         _check_namespace(owner, state, control, name)

@@ -343,7 +343,6 @@ def test_a_problem_may_have_no_discrete_constraints() -> None:
     class Only(yapss.Phase):
         state: _Two
         control: _One
-        time: yapss.Independent
 
     class Bare(yapss.Phases):
         only: Only
@@ -510,7 +509,6 @@ def _block_problem(continuous: Any) -> Any:
     class Only(yapss.Phase):
         state: Pair
         control: Rate
-        time: yapss.Independent
 
     class BlockPhases(yapss.Phases):
         only: Only

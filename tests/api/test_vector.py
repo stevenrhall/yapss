@@ -448,7 +448,6 @@ def test_every_declared_setting_actually_exists():
         control: C
         path: H
         integral: Q
-        time: Independent
 
     class OnePhase(Phases):
         only: Only

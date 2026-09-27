@@ -159,12 +159,6 @@ class ContinuousArg(_Frozen, Generic[S_co, C_co, PR_co]):
         parameter: PR_co
         time: Any
 
-        # The independent variable is reached by the name the phase gave it, which nothing in
-        # a type parameter can carry, so `arg.r` must not be an error. This reader answers for
-        # it, at the top level only: `arg.state.x` is still checked. The cost is that
-        # `arg.stat` passes the checker, and is refused at run time with a suggestion.
-        def __getattr__(self, name: str) -> Any: ...
-
     def __init__(
         self, phase: Any, points: Any, state: Vector, control: Vector, parameter: Vector
     ) -> None:

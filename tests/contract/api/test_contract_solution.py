@@ -24,33 +24,52 @@ def solution():
 def test_a_phase_is_reached_by_its_handle() -> None:
     """The same rule as a callback's `arg[ph]`, so one way of naming a phase serves both."""
     problem, result = solution()
-    assert result[problem.phases.slide] is not None
+    assert result.phases[problem.phases.slide] is not None
 
 
 def test_a_phase_is_also_reached_by_its_name() -> None:
     """A solution is data, readable with no problem at hand -- unpickled in a worker, say."""
     problem, result = solution()
-    assert result["slide"] is result[problem.phases.slide]
+    assert result.phases["slide"] is result.phases[problem.phases.slide]
 
 
 def test_a_misspelled_phase_name_is_refused_with_a_suggestion() -> None:
     """The name is checked against the phases the problem declared."""
     _, result = solution()
-    with raises(KeyError, "has no phase 'slid'", "Did you mean 'slide'?", at="result["):
-        result["slid"]
+    with raises(KeyError, "has no phase 'slid'", "Did you mean 'slide'?", at="result.phases["):
+        result.phases["slid"]
 
 
-def test_anything_else_is_refused_naming_both_forms() -> None:
-    """Neither a handle nor a name: the message shows the two forms that work."""
+def test_anything_else_is_refused_naming_the_forms() -> None:
+    """Neither a handle, a name nor a position: the message shows the forms that work."""
     _, result = solution()
-    with raises(KeyError, "takes a phase handle", "or a phase's name", at="result["):
-        result[0]
+    with raises(
+        KeyError, "takes a phase handle", "a phase's name", "its position", at="result.phases["
+    ):
+        result.phases[1.5]  # type: ignore[call-overload]
+
+
+def test_a_phase_is_reached_by_attribute_and_by_position() -> None:
+    """The access modes of `problem.phases`: attribute, handle, name, position, iteration."""
+    problem, result = solution()
+    ps = result.phases[problem.phases.slide]
+    assert result.phases.slide is ps
+    assert result.phases[0] is ps
+    assert list(result.phases) == [ps]
+    assert len(result.phases) == 1
+
+
+def test_the_solution_itself_is_not_indexed() -> None:
+    """The 0.3.0 reach, and an easy slip: the message names the container."""
+    problem, result = solution()
+    with raises(TypeError, "not indexed", "solution.phases", at="result["):
+        result[problem.phases.slide]  # type: ignore[index]
 
 
 def test_every_declared_quantity_reads_back_by_name() -> None:
     """The state, the control, the path, the integral and the costate, under the user's names."""
     problem, result = solution()
-    ps = result[problem.phases.slide]
+    ps = result.phases[problem.phases.slide]
     assert np.asarray(ps.state.x).shape == np.asarray(ps.time).shape
     assert np.asarray(ps.control.theta).size > 0
     assert np.asarray(ps.path.speed).size > 0
@@ -61,7 +80,7 @@ def test_every_declared_quantity_reads_back_by_name() -> None:
 def test_the_ends_of_a_phase_are_reported_as_a_callback_sees_them() -> None:
     """`initial` and `final` hold the state there and the independent variable there."""
     problem, result = solution()
-    ps = result[problem.phases.slide]
+    ps = result.phases[problem.phases.slide]
     assert ps.initial.time == 0.0
     assert abs(ps.final.x - 1.0) < 1e-6
     assert ps.duration == ps.final.time - ps.initial.time
@@ -89,7 +108,7 @@ def test_a_solution_has_no_name_that_was_not_declared() -> None:
 def test_a_phase_solution_has_no_name_that_was_not_declared() -> None:
     """The same for a phase's own record."""
     problem, result = solution()
-    ps = result[problem.phases.slide]
+    ps = result.phases[problem.phases.slide]
     with raises(AttributeError, "the phase solution has no 'nope'", at="ps.nope"):
         _ = ps.nope
 
@@ -97,7 +116,7 @@ def test_a_phase_solution_has_no_name_that_was_not_declared() -> None:
 def test_a_misspelled_field_names_the_vector() -> None:
     """Inside a vector, the message says which vector of which phase was asked."""
     problem, result = solution()
-    ps = result[problem.phases.slide]
+    ps = result.phases[problem.phases.slide]
     with raises(AttributeError, "phase 'slide' solution state has no field 'nope'", at="state."):
         _ = ps.state.nope
 
@@ -113,7 +132,7 @@ def test_a_solutions_names_are_fixed() -> None:
 def test_a_phase_solutions_names_are_fixed() -> None:
     """The same for a phase's record."""
     problem, result = solution()
-    ps = result[problem.phases.slide]
+    ps = result.phases[problem.phases.slide]
     with raises(AttributeError, "names are fixed", "edited in place", at="ps.state"):
         ps.state = 1.0
 
@@ -121,7 +140,7 @@ def test_a_phase_solutions_names_are_fixed() -> None:
 def test_a_solutions_fields_are_fixed() -> None:
     """Down to the fields: a field names its array, and the array is edited, not replaced."""
     problem, result = solution()
-    ps = result[problem.phases.slide]
+    ps = result.phases[problem.phases.slide]
     with raises(AttributeError, "'x' cannot be assigned", "names are fixed", at="ps.state.x"):
         ps.state.x = np.zeros(3)
 
@@ -155,7 +174,7 @@ def test_a_solutions_arrays_are_the_users_and_share_nothing_else() -> None:
     problem, result = solution()
     found: dict[str, np.ndarray] = {}
     _arrays(result, "solution", found)
-    _arrays(result[problem.phases.slide], "ps", found)
+    _arrays(result.phases[problem.phases.slide], "ps", found)
     assert len(found) > 20
     assert all(array.flags.writeable for array in found.values())
     same_quantity = {("costate", "multiplier.dynamics")}
@@ -176,7 +195,7 @@ def test_an_edit_to_a_solution_array_is_kept() -> None:
     edit made through one read is what the next read returns -- it does not land in a
     temporary and do nothing."""
     problem, result = solution()
-    ps = result[problem.phases.slide]
+    ps = result.phases[problem.phases.slide]
     ps.state.v[0] = -99.0
     assert ps.state.v[0] == -99.0
 

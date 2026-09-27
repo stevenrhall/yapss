@@ -36,13 +36,13 @@ def local():
 def test_the_costate_is_the_multiplier_of_the_dynamics(goddard):
     """One array under two names, so an edit to one is an edit to the other."""
     _, solution, _ = goddard
-    ps = solution["boost"]
+    ps = solution.phases["boost"]
     assert ps.costate is ps.multiplier.dynamics
 
 
 def test_the_phase_multipliers_are_the_back_end_s(local):
     _, solution, record = local
-    ps, data = solution["run"], record.phase[0]
+    ps, data = solution.phases["run"], record.phase[0]
     np.testing.assert_array_equal(ps.multiplier.dynamics[:], data.costate)
     np.testing.assert_array_equal(ps.multiplier.control.u, data.control_multiplier[0])
     np.testing.assert_array_equal(ps.multiplier.path.size, data.path_multiplier[0])
@@ -53,9 +53,9 @@ def test_the_phase_multipliers_are_the_back_end_s(local):
 def test_the_time_multipliers_are_under_the_phase_s_own_name(local):
     """The phase runs over `s`, and its endpoint multipliers say `s`, as `ps.initial` does."""
     _, solution, record = local
-    ps, data = solution["run"], record.phase[0]
-    assert ps.multiplier.initial.s == data.initial_time_multiplier
-    assert ps.multiplier.final.s == data.final_time_multiplier
+    ps, data = solution.phases["run"], record.phase[0]
+    assert ps.multiplier.initial.time == data.initial_time_multiplier
+    assert ps.multiplier.final.time == data.final_time_multiplier
 
 
 def test_the_problem_multipliers_are_the_back_end_s(local):
@@ -66,7 +66,9 @@ def test_the_problem_multipliers_are_the_back_end_s(local):
 
 def test_the_integrand_is_restored(local):
     _, solution, record = local
-    np.testing.assert_array_equal(solution["run"].integrand.effort, record.phase[0].integrand[0])
+    np.testing.assert_array_equal(
+        solution.phases["run"].integrand.effort, record.phase[0].integrand[0]
+    )
 
 
 def test_the_solution_names_its_problem_and_method(goddard):
@@ -78,7 +80,7 @@ def test_the_solution_names_its_problem_and_method(goddard):
 def test_the_state_bound_multipliers_are_owed_and_say_so(goddard):
     """Reserved names, not unknown ones: the message says what is outstanding."""
     _, solution, _ = goddard
-    ps = solution["boost"]
+    ps = solution.phases["boost"]
     with pytest.raises(AttributeError, match="state's bounds are not reported yet"):
         ps.multiplier.state  # noqa: B018
     with pytest.raises(AttributeError, match="multiplier of 'h' at this endpoint is not reported"):
@@ -87,7 +89,7 @@ def test_the_state_bound_multipliers_are_owed_and_say_so(goddard):
 
 def test_a_misspelled_multiplier_is_refused_with_a_suggestion(goddard):
     _, solution, _ = goddard
-    ps = solution["boost"]
+    ps = solution.phases["boost"]
     with pytest.raises(AttributeError, match=r"no 'dynamic'\. Did you mean 'dynamics'\?"):
         ps.multiplier.dynamic  # noqa: B018
     with pytest.raises(AttributeError, match=r"no 'tim'\. Did you mean 'time'\?"):
@@ -112,8 +114,8 @@ def test_a_problem_without_phases_has_problem_multipliers_only():
 def test_the_multipliers_pickle_with_the_solution(local):
     _, solution, _ = local
     copy = pickle.loads(pickle.dumps(solution))
-    ps, ps_copy = solution["run"], copy["run"]
+    ps, ps_copy = solution.phases["run"], copy.phases["run"]
     np.testing.assert_array_equal(ps_copy.multiplier.control.u, ps.multiplier.control.u)
-    assert ps_copy.multiplier.final.s == ps.multiplier.final.s
+    assert ps_copy.multiplier.final.time == ps.multiplier.final.time
     assert copy.multiplier.discrete.end == solution.multiplier.discrete.end
     assert ps_copy.costate is ps_copy.multiplier.dynamics

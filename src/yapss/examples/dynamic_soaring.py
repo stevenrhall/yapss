@@ -110,7 +110,6 @@ class Loop(yapss.Phase):
     state: State
     control: Control
     path: Path
-    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -257,7 +256,7 @@ def plot_solution(problem: DynamicSoaringProblem, solution: yapss.Solution) -> N
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution[problem.phases.loop]
+    ps = solution.phases[problem.phases.loop]
     t = ps.time
     x, y, h = ps.state.x, ps.state.y, ps.state.h
 

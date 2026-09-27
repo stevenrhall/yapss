@@ -65,7 +65,6 @@ class Slide(yapss.Phase):
     control: Control
     path: Path
     integral: Integral
-    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -136,7 +135,7 @@ def setup() -> yapss.Problem[Phases, Discrete, Parameter]:
     return problem
 
 
-# The alias a PyCharm user writes once: its engine does not follow `solution[ph]` to the phase's
+# The alias a PyCharm user writes once: its engine does not follow `solution.phases[ph]` to the phase's
 # vectors, which mypy does, so the variable is annotated instead.
 SlideSolution = yapss.PhaseSolution[State, Control, Path, Integral]
 
@@ -172,7 +171,7 @@ def solve_and_report() -> dict[str, Any]:
     its handle."""
     problem = setup()
     solution = problem.solve()
-    ps = solution[problem.phases.slide]
+    ps = solution.phases[problem.phases.slide]
     return report(solution, ps)
 
 
@@ -183,15 +182,15 @@ class Radius(yapss.State):
 
 
 class Nose(yapss.Phase):
-    """A phase whose independent variable is not time."""
+    """A phase that runs over a radius, which is its `time`."""
 
     state: Radius
-    r: yapss.Independent
 
 
 def over_radius(arg: yapss.ContinuousArg[Radius], out: yapss.ContinuousOut[Radius]) -> None:
-    """Read the independent variable by the name the phase gave it, which must check."""
-    out.dynamics.y = arg.r
+    """Read the independent variable, `time` whatever it measures; any other name is reported."""
+    out.dynamics.y = arg.time
+    out.dynamics.y = arg.r  # type: ignore[attr-defined]
 
 
 class NosePhases(yapss.Phases):
@@ -201,14 +200,11 @@ class NosePhases(yapss.Phases):
 
 
 def independent_mistakes(problem: yapss.Problem[NosePhases]) -> None:
-    """A phase has the independent variable it named, and no other.
-
-    `time` is not defaulted, so nothing declares it here, and reaching for it is the ordinary
-    misspelling every other line in `mistakes` is. While `time` was supplied by the base class
-    this line checked, and failed only when it ran.
-    """
-    problem.phases.nose.time  # type: ignore[attr-defined]
-    problem.phases.nose.r.guess = (0.0, 1.0)
+    """Every phase's independent variable is `time`; another name is an ordinary misspelling."""
+    problem.phases.nose.time.guess = (0.0, 1.0)
+    problem.phases.nose.r  # type: ignore[attr-defined]
+    problem.solve().phases[problem.phases.nose].r  # type: ignore[attr-defined]
+    problem.solve().phases[problem.phases.nose].hamiltonain  # type: ignore[attr-defined]
 
 
 def mistakes(
@@ -267,7 +263,7 @@ def registration_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -
 def solution_mistakes(problem: yapss.Problem[Phases, Discrete, Parameter]) -> None:
     """Each line is a mistake in reading a solution that the checker must report."""
     solution = problem.solve()
-    ps = solution[problem.phases.slide]
+    ps = solution.phases[problem.phases.slide]
     solution.objectiv  # type: ignore[attr-defined]
     solution.parameter.gg  # type: ignore[attr-defined]
     solution.multiplier.discrete.landin  # type: ignore[attr-defined]
@@ -301,14 +297,3 @@ def any_problem(problem: yapss.Problem) -> Any:
 
 def wrong_role(arg: yapss.ContinuousArg[Control]) -> None:  # type: ignore[type-var]
     """A control named where the state belongs is reported: each parameter is bounded by its role."""
-
-
-def swapped() -> None:
-    """A role swap is an incompatible override of the base class's annotation.
-
-    Inside a function because the runtime refuses the class where it is defined.
-    """
-
-    class Swapped(yapss.Phase):
-        state: Control  # type: ignore[assignment]
-        time: yapss.Independent

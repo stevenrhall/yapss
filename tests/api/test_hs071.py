@@ -55,7 +55,7 @@ def test_there_are_no_phases_to_reach(problem):
     solution = problem.solve()
     assert list(problem.phases) == []
     with pytest.raises(KeyError, match="has no phase 'slide'. The problem declared no phases"):
-        _ = solution["slide"]
+        _ = solution.phases["slide"]
 
 
 def test_the_declarations_are_what_they_look_like():

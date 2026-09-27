@@ -41,7 +41,6 @@ def problem():
     class SlidePhase(yapss.Phase):
         state: slide_class
         control: angle_class
-        time: yapss.Independent
 
     class Phases(yapss.Phases):
         slide: SlidePhase
@@ -104,7 +103,7 @@ def test_a_block_keeps_its_axis_in_the_callback(problem):
 def test_a_block_keeps_its_axis_in_the_solution(problem):
     problem, _ = problem
     solution = problem.solve()
-    ps = solution[problem.phases.slide]
+    ps = solution.phases[problem.phases.slide]
     npoints = ps.state.x.shape[0]
     assert ps.state.y.shape == (1, npoints)
     assert ps.state.spare.shape == (0, npoints)

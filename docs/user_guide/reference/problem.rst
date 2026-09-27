@@ -188,9 +188,8 @@ helpful.
 Once the vector definitions are complete, the phases of the problem can be defined, in two
 steps. First, the shape of a phase is a subclass of `yapss.Phase`, whose annotations say which
 vector class plays each role. A ``state`` is required; ``control``, ``path``, and ``integral``
-are optional, and a phase that omits one has none of it. One more annotation, of type
-`yapss.Independent`, names the phase's independent variable. This problem has no path
-constraints or integrals, and runs over time:
+are optional, and a phase that omits one has none of it. The independent variable is not
+annotated: it is ``time`` in every phase. This problem has no path constraints or integrals:
 
 .. doctest:: example
 
@@ -199,7 +198,6 @@ constraints or integrals, and runs over time:
     ...
     ...     state: RocketState
     ...     control: Thrust
-    ...     time: yapss.Independent
 
 Then the phases themselves are named in a subclass of `yapss.Phases`, each annotated with its
 shape. This problem has only one:
@@ -215,11 +213,9 @@ A shape is not a phase, so two phases may share one: in the three-phase version 
 problem, the boost and coast arcs are both annotated with one shape, and only the singular arc
 between them, which adds a path constraint, has its own.
 
-The independent variable is named like everything else about a phase, and YAPSS does not
-choose the name: ``time`` is what most problems call it, but a phase that runs over a radius
-declares ``r: yapss.Independent``, and its extent is then set as :samp:`{ph}.{r}.initial` and
-:samp:`{ph}.{r}.final`. A shape that names none is refused, because a phase has one whether or
-not it is written down, and a shape a reader cannot see whole is worth less than a line saved.
+Every phase's independent variable is ``time``, whatever it measures. A phase that runs over
+a radius sets its extent as ``ph.time.initial`` and ``ph.time.final``, and a script can read
+it into a name of its own where its formulas use it, as ``r = arg.time``.
 
 Then instantiate the problem, by providing the name of the problem and the phase information:
 

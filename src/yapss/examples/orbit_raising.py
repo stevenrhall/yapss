@@ -73,7 +73,6 @@ class Transfer(yapss.Phase):
     state: State
     control: Control
     path: Path
-    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -164,7 +163,7 @@ def plot_solution(problem: OrbitRaisingProblem, solution: yapss.Solution) -> Non
     solution : yapss.Solution
         The solution to plot.
     """
-    ps = solution[problem.phases.raise_]
+    ps = solution.phases[problem.phases.raise_]
     time = ps.time
 
     plt.figure()

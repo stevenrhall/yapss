@@ -20,8 +20,8 @@ below is the message mypy prints for its line:
    :start-after: # -- shown on the page
    :end-before: # -- end of what the page shows
 
-A shape that puts a vector in the wrong role is reported too, since `yapss.Phase` annotates
-each slot with its role: ``state: Control`` is an incompatible override.
+A shape that puts a vector in the wrong role, ``state: Control``,
+is refused when its class statement runs, with a message naming the slot it belongs in.
 
 Annotating callbacks
 --------------------
@@ -90,7 +90,7 @@ A phase's solution is ``yapss.PhaseSolution[State, Control, Path, Integral]``, a
 on it is typed from those four: ``ps.state``, ``ps.dynamics``, ``ps.costate`` and
 ``ps.multiplier.dynamics`` as the state class, ``ps.control`` and ``ps.multiplier.control`` as
 the control class, and so on into the solver's record, where ``ps.nlp.index.variable.state`` is
-the state class too. mypy types ``solution[ph]`` from the handle, as it types ``arg[ph]``, so
+the state class too. mypy types ``solution.phases[ph]`` from the handle, as it types ``arg[ph]``, so
 this needs no annotation:
 
 .. literalinclude:: ../../../tests/typed/typed_problem.py
@@ -116,11 +116,9 @@ These are the limits, stated so that a silent checker is not mistaken for a pass
   both valid -- and a type that is one class plus one more name cannot be written in Python's
   type system. In a solution the typed read is the trajectory's end: ``ps.state.x[-1]`` and
   ``ps.time[-1]``.
-- A misspelled name at the top of a continuous argument or a phase's solution, such as
-  ``arg.stat`` or ``ps.stat``, is caught only at run time. The independent variable is reached by
-  the name the phase gave it, ``arg.r`` for a phase declaring ``r: yapss.Independent``, and no
-  type parameter can carry that name, so both accept any name at their top level. Below it,
-  ``arg.state.xx`` and ``ps.state.xx`` are checked.
+- A phase read by name, ``solution.phases.boost`` or ``solution.phases["boost"]``, is a phase
+  solution of unknown shape: its own names are checked (``ps.hamiltonain`` is reported), but not
+  its fields. The handle, ``solution.phases[ph]``, types the fields too.
 - Nothing checks that a callback's annotation matches the phase it is registered on. The
   classes named are what the checker uses; the runtime gives the callback the phase's own.
 

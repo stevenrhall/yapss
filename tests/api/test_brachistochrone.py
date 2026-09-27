@@ -45,7 +45,7 @@ def test_every_spectral_method_agrees(problem, method):
 
 def test_the_solution_is_reached_by_name(problem):
     solution = problem.solve()
-    phase = solution[problem.phases.slide]
+    phase = solution.phases[problem.phases.slide]
     assert phase.state.x.shape == phase.time.shape
     assert phase.control.u.shape == phase.time.shape
     assert phase.final.x == pytest.approx(1.0)
@@ -57,15 +57,16 @@ def test_the_solution_is_reached_by_name(problem):
 def test_a_solutions_names_are_fixed(problem):
     solution = problem.solve()
     with pytest.raises(AttributeError, match="names are fixed"):
-        solution[problem.phases.slide].state.x = 1.0
+        solution.phases[problem.phases.slide].state.x = 1.0
     with pytest.raises(AttributeError, match="names are fixed"):
         solution.objective = 1.0
 
 
-def test_a_phase_is_reached_by_handle_not_by_index(problem):
+def test_a_phase_is_reached_by_position_too(problem):
     solution = problem.solve()
-    with pytest.raises(KeyError, match="takes a phase handle"):
-        solution[0]
+    assert solution.phases[0] is solution.phases[problem.phases.slide]
+    with pytest.raises(IndexError, match="there is no phase 1"):
+        solution.phases[1]
 
 
 def test_a_later_edit_does_not_alter_an_earlier_solution(problem):
@@ -82,7 +83,7 @@ def test_the_mesh_is_one_value(problem):
     problem.phases.slide.mesh = Mesh.uniform(segments=4, points=6)
     solution = problem.solve()
     assert solution.objective == pytest.approx(ANALYTIC, rel=1e-6)
-    assert solution[problem.phases.slide].mesh.collocation_points == (6, 6, 6, 6)
+    assert solution.phases[problem.phases.slide].mesh.collocation_points == (6, 6, 6, 6)
 
 
 def test_the_phases_declaration_is_reached_by_name_and_index():

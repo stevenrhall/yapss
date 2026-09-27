@@ -94,7 +94,6 @@ class Arc(yapss.Phase):
 
     state: State
     control: Control
-    time: yapss.Independent
 
 
 class Singular(yapss.Phase):
@@ -103,7 +102,6 @@ class Singular(yapss.Phase):
     state: State
     control: Control
     path: SingularArc
-    time: yapss.Independent
 
 
 class Phases(yapss.Phases):
@@ -114,11 +112,17 @@ class Phases(yapss.Phases):
     coast: Arc
 
 
+class Goddard(yapss.Problem):
+    """The Goddard rocket, flown as a boost, a singular arc and a coast."""
+
+    phases: Phases
+    discrete: Discrete
+
+
 # Names for the types the annotations below use.
 RocketArg = yapss.ContinuousArg[State, Control]
 ArcOut = yapss.ContinuousOut[State]
 SingularOut = yapss.ContinuousOut[State, SingularArc]
-GoddardProblem = yapss.Problem[Phases, Discrete]
 
 
 def drag(h: Any, v: Any) -> Any:
@@ -126,7 +130,7 @@ def drag(h: Any, v: Any) -> Any:
     return sigma * v**2 * exp(-h / h0)
 
 
-def setup() -> GoddardProblem:
+def setup() -> Goddard:
     """Set up the Goddard rocket problem.
 
     Returns
@@ -134,7 +138,7 @@ def setup() -> GoddardProblem:
     yapss.Problem
         The problem.
     """
-    problem = yapss.Problem("Goddard rocket with singular arc", phases=Phases, discrete=Discrete)
+    problem = Goddard("Goddard rocket with singular arc")
     phases = problem.phases
     boost, singular, coast = phases.boost, phases.singular, phases.coast
 
@@ -229,7 +233,7 @@ Panel = tuple[str, Callable[[yapss.PhaseSolution], Any]]
 """A plot of one quantity: its axis label, and how to read it from a phase's solution."""
 
 
-def plot_solution(problem: GoddardProblem, solution: yapss.Solution) -> None:
+def plot_solution(problem: Goddard, solution: yapss.Solution) -> None:
     """Plot the thrust, the state histories and the Hamiltonian of every phase.
 
     Parameters
@@ -249,7 +253,7 @@ def plot_solution(problem: GoddardProblem, solution: yapss.Solution) -> None:
     for ylabel, quantity in panels:
         plt.figure()
         for ph in problem.phases:
-            ps = solution[ph]
+            ps = solution.phases[ph]
             plt.plot(ps.time, quantity(ps), label=ph.name)
         plt.xlabel("Time, $t$ (s)")
         plt.ylabel(ylabel)
