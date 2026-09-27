@@ -5,7 +5,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
 from ._api.args import ContinuousArg, ContinuousOut, DiscreteArg, DiscreteOut
-from ._api.declare import Independent, Phase, Phases
+from ._api.declare import Phase, Phases
 from ._api.mesh import Mesh
 from ._api.old_api import OLD_ROOT_NAMES, old_api_message
 from ._api.problem import Problem
@@ -34,7 +34,6 @@ __all__ = [
     "Discrete",
     "DiscreteArg",
     "DiscreteOut",
-    "Independent",
     "Integral",
     "IpoptConvergenceWarning",
     "IpoptOptionSettingWarning",

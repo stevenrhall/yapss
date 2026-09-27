@@ -184,6 +184,10 @@ class Container:
         """Return a setting written the way a user sets one, for a message: the first."""
         return self._settable[0]
 
+    def __repr__(self) -> str:
+        """Return the container's label, as a message names it: ``<phase 'boost' time>``."""
+        return f"<{self._label}>"
+
     def _check(self, name: str, value: Any) -> Any:
         """Validate a settable value and return what to store. Overridden by subclasses."""
         del name

@@ -10,7 +10,7 @@ front ends finish changing places. The 0.3.0 API it replaced is `yapss._legacy`.
 """
 
 from .args import ContinuousArg, ContinuousOut, DiscreteArg, DiscreteOut
-from .declare import Independent, Phase, Phases
+from .declare import Phase, Phases
 from .mesh import Mesh
 from .problem import Problem
 from .sampled import interp
@@ -24,7 +24,6 @@ __all__ = [
     "Discrete",
     "DiscreteArg",
     "DiscreteOut",
-    "Independent",
     "Integral",
     "Mesh",
     "Parameter",

@@ -61,7 +61,7 @@ from .vector import Control, Integral, Path, State, Vector, role_of
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-__all__ = ["AnyPhase", "Independent", "Phase", "Phases"]
+__all__ = ["AnyPhase", "Phase", "Phases"]
 
 # Each parameter is bounded by its role, and each default is `Any`, as `Problem`'s are. The base
 # class declares its slots through these parameters, and a phase class overrides them with its
@@ -496,8 +496,8 @@ class IntegralAspects(Container):
     _held = ("bounds", "guess", "scale")
 
 
-class Independent(Container):
-    """A phase's independent variable: its initial and final values, and the guess for them.
+class Time(Container):
+    """A phase's time, its independent variable: its initial and final values, and their guess.
 
     Every phase has one, ``ph.time``, whatever it measures; a phase class does not declare it.
 
@@ -641,7 +641,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
 
         # Every phase's independent variable is `time`, whatever it measures, so it is declared
         # here once, and the shapes do not annotate it.
-        time: Independent
+        time: Time
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Read the shape from the subclass's annotations, refusing what is not one."""
@@ -758,7 +758,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         self._hold("integral", Fields(integral, declaration.integral, integral._label))
 
         name = declaration.independent
-        self._hold(name, Independent(f"{self._label} {name}"))
+        self._hold(name, Time(f"{self._label} {name}"))
         self._hold("register", PhaseRegistry(self))
         object.__setattr__(self, "_held", (*Phase._held, name, "register"))
 
