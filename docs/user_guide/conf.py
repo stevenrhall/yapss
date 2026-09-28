@@ -15,9 +15,12 @@ from pathlib import Path
 # third party imports
 from docutils import nodes
 from nbsphinx import CodeAreaNode
+from sphinx.util import logging
 
 # project imports
 from yapss import __version__ as version
+
+logger = logging.getLogger(__name__)
 
 # project information
 project = "YAPSS"
@@ -113,17 +116,11 @@ nitpick_ignore = [
     ("py:class", "T"),
     ("py:class", "yapss._backend.input_args.ContinuousPhase"),
     ("py:class", "yapss._backend.input_args.T"),
-    # The example pages render the redesigned corpus, whose `setup` and `plot_solution`
-    # are annotated with `yapss.Problem` and `yapss.Solution`. Autodoc resolves those
-    # annotations to the modules that define them, and `_api` has no reference page yet
-    # for nitpicky mode to resolve them against. Remove these two when the reference
-    # documentation covers the redesigned API.
-    ("py:class", "yapss._api.problem.Problem"),
+    # The example pages render the redesigned corpus, whose `plot_solution` takes a
+    # `yapss.Solution`. Autodoc resolves that annotation to the module that defines it, and
+    # `_api` has no reference page for nitpicky mode to resolve it against. Remove this when
+    # `Solution` is documented under its public name.
     ("py:class", "yapss._api.solution.Solution"),
-    # Likewise the base classes a problem with no phases or no discrete constraints is typed
-    # with, `yapss.Problem[yapss.Phases, yapss.Discrete, Parameter]`, as hs071 and rosenbrock are.
-    ("py:class", "yapss._api.declare.Phases"),
-    ("py:class", "yapss._api.vector.Discrete"),
     # The type variables of `Problem.solve`'s signature, which reads the declaration through a
     # protocol on `self` and returns `Solution[_D_co, _PR_co]`. Type variables have no page to
     # resolve against; typing.rst says what they are in prose.
@@ -132,8 +129,8 @@ nitpick_ignore = [
 ]
 
 # The example scripts are annotated, so `setup` and `plot_solution` name the script's own
-# declaration classes -- `yapss.Problem[Phases, Discrete]` -- which the example pages show in
-# the listed source rather than documenting one by one.
+# problem class, such as `Goddard3Phase`, which the example pages show in the listed source
+# rather than documenting class by class.
 nitpick_ignore_regex = [("py:class", r"yapss\.examples\.\w+\.\w+")]
 
 # options for HTML output
@@ -213,7 +210,40 @@ def _depart_code_area_markdown(_translator, _node):
     pass
 
 
+def _is_vector(obj):
+    """Report whether `obj` is a vector class an example declares."""
+    from yapss._api.vector import Vector
+
+    return isinstance(obj, type) and issubclass(obj, Vector)
+
+
+def _field_rank(_app, what, name, _obj, _options, lines):
+    """Begin a declared field's documentation with its rank, read from the class itself.
+
+    A field's docstring says what it is; whether it is `scalar()` or `vector(3)` is in the
+    declaration, and taking it from there means the page cannot disagree with the class.
+    """
+    if what != "attribute":
+        return
+    module_name, _, rest = name.rpartition(".")
+    module_name, _, class_name = module_name.rpartition(".")
+    module = sys.modules.get(module_name)
+    cls = getattr(module, class_name, None)
+    if not _is_vector(cls):
+        return
+    if rest not in getattr(cls, "_meta", {}):
+        logger.warning("cannot read the rank of %s from its class's declared fields", name)
+        return
+    size = cls._meta[rest].size
+    rank = "``scalar()``" if size is None else f"``vector({size})``"
+    if lines:
+        lines[0] = f"{rank} -- {lines[0]}"
+    else:
+        lines.append(rank)
+
+
 def setup(app):
+    app.connect("autodoc-process-docstring", _field_rank)
     # Connected to "builder-inited" rather than "config-inited" so that `app.builder`
     # is available for the markdown-subprocess guard in run_makefiles below; both
     # events fire once, before any document is read, so nothing regenerated here
