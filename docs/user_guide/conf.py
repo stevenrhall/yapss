@@ -116,11 +116,6 @@ nitpick_ignore = [
     ("py:class", "T"),
     ("py:class", "yapss._backend.input_args.ContinuousPhase"),
     ("py:class", "yapss._backend.input_args.T"),
-    # The example pages render the redesigned corpus, whose `plot_solution` takes a
-    # `yapss.Solution`. Autodoc resolves that annotation to the module that defines it, and
-    # `_api` has no reference page for nitpicky mode to resolve it against. Remove this when
-    # `Solution` is documented under its public name.
-    ("py:class", "yapss._api.solution.Solution"),
     # The type variables of `Problem.solve`'s signature, which reads the declaration through a
     # protocol on `self` and returns `Solution[_D_co, _PR_co]`. Type variables have no page to
     # resolve against; typing.rst says what they are in prose.
@@ -242,8 +237,32 @@ def _field_rank(_app, what, name, _obj, _options, lines):
         lines.append(rank)
 
 
+def _defining_module(_app, modname, attribute):
+    """Name the module whose file defines a public class, for viewcode's source link.
+
+    A public class reports the module a user imports it from, such as ``yapss.Solution``, and
+    that module only imports it. The file its methods were compiled from is where it is defined.
+    """
+    obj = sys.modules.get(modname)
+    for part in attribute.split("."):
+        obj = getattr(obj, part, None)
+    if not isinstance(obj, type):
+        return None
+    for value in vars(obj).values():
+        code = getattr(getattr(value, "fget", value), "__code__", None)
+        if code is not None:
+            break
+    else:
+        return None
+    for name, module in list(sys.modules.items()):
+        if getattr(module, "__file__", None) == code.co_filename:
+            return name
+    return None
+
+
 def setup(app):
     app.connect("autodoc-process-docstring", _field_rank)
+    app.connect("viewcode-follow-imported", _defining_module)
     # Connected to "builder-inited" rather than "config-inited" so that `app.builder`
     # is available for the markdown-subprocess guard in run_makefiles below; both
     # events fire once, before any document is read, so nothing regenerated here

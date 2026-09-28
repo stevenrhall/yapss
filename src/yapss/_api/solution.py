@@ -1397,3 +1397,29 @@ class Solution(Generic[D_co, PR_co]):
     def __repr__(self) -> str:
         """Return a short representation naming the objective and status."""
         return f"<Solution objective={self.objective!r} converged={self.converged!r}>"
+
+
+# Each public class reports the module a user imports it from, so a traceback, a repr of the
+# class, and the documentation all name that module. Pickles record it too, and load through it.
+_public: type
+for _public in (Solution, PhaseSolution):
+    _public.__module__ = "yapss"
+for _public in (
+    ConstraintIndex,
+    Convergence,
+    EndpointMultiplier,
+    Jacobian,
+    NLPIndex,
+    NLPRecord,
+    NLPScale,
+    PhaseIndex,
+    PhaseMultiplier,
+    PhaseNLP,
+    PhasePoint,
+    ProblemConstraintIndex,
+    ProblemMultiplier,
+    ProblemVariableIndex,
+    VariableIndex,
+):
+    _public.__module__ = "yapss.solution"
+del _public
