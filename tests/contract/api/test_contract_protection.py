@@ -94,6 +94,14 @@ def test_a_solution_cannot_be_deleted_from(target: str) -> None:
 # ---------------------------------------------------------------------- the whole tree
 
 
+def _front_end(obj: object) -> bool:
+    """Whether `obj` belongs to YAPSS's front end: its class, or a class it derives from, is
+    defined in `yapss._api` or names the public module a user imports it from. A problem and its
+    phases are instances of the user's own subclasses."""
+    modules = [cls.__module__ for cls in type(obj).__mro__]
+    return any(m.startswith("yapss._api") or m in ("yapss", "yapss.solution") for m in modules)
+
+
 def _reachable() -> list[object]:
     """Every object of YAPSS's front end reachable from a problem, its solution, and the
     arguments its callbacks are given, once each."""
@@ -129,7 +137,7 @@ def _reachable() -> list[object]:
     todo += [obj for objects in given.values() for obj in objects]
     while todo:
         obj = todo.pop()
-        if id(obj) in seen or not type(obj).__module__.startswith("yapss._api"):
+        if id(obj) in seen or not _front_end(obj):
             continue
         seen[id(obj)] = obj
         for name in dir(obj):
@@ -139,7 +147,7 @@ def _reachable() -> list[object]:
                 value = getattr(obj, name)
             except Exception:  # noqa: BLE001, S112 -- a name that cannot be read is not walked
                 continue
-            if not callable(value) or type(value).__module__.startswith("yapss._api"):
+            if not callable(value) or _front_end(value):
                 todo.append(value)
     return list(seen.values())
 
