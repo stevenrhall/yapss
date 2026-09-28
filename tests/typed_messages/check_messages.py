@@ -4,9 +4,10 @@ Run by the tox mypy environments, which pin mypy's version, as
 
     python tests/typed_messages/check_messages.py --python-version 3.15
 
-A comment is the message in full, or its beginning when it ends in "..."; ``# fine`` means no
-error on that line. Both directions fail: a quoted message mypy no longer prints, and an error
-on a line whose comment does not quote it.
+The comment above a line is the message in full, or its beginning when it ends in "...", and
+may run over several comment lines, joined with a space; ``# fine`` means no error on that line.
+Both directions fail: a quoted message mypy no longer prints, and an error on a line whose
+comment does not quote it.
 """
 
 from __future__ import annotations
@@ -27,15 +28,22 @@ def expected() -> dict[int, str | None]:
     found: dict[int, str | None] = {}
     lines = TARGET.read_text(encoding="utf-8").splitlines()
     inside = False
+    comment: list[str] = []
     for number, line in enumerate(lines, start=1):
         if line.startswith("# -- shown on the page"):
             inside = True
             continue
         if line.startswith("# -- end of what the page shows"):
             break
-        if inside and "  # " in line:
-            comment = line.split("  # ", 1)[1].strip()
-            found[number] = None if comment == "fine" else comment
+        if not inside:
+            continue
+        if line.startswith("# "):
+            comment.append(line[2:].strip())
+            continue
+        if line.strip() and comment:
+            quoted = " ".join(comment)
+            found[number] = None if quoted == "fine" else quoted
+        comment = []
     return found
 
 

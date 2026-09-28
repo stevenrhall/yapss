@@ -69,14 +69,14 @@ def setup() -> Brachistochrone:
 
     Returns
     -------
-    yapss.Problem
-        The optimal control problem to find the shape of a wire along which a bead
-        slides without friction from the origin to x = 1 in minimum time
+    Brachistochrone
+        The problem of finding the shape of a wire along which a bead slides without
+        friction from the origin to x = 1 in minimum time.
     """
     problem = Brachistochrone("Brachistochrone")
-    phase = problem.phases.phase
+    ph = problem.phases.phase
 
-    @phase.register.continuous
+    @ph.register.continuous
     def continuous(arg: PhaseArg, out: PhaseOut) -> None:
         """Compute the bead's dynamics."""
         v, u = arg.state.v, arg.control.u
@@ -87,24 +87,24 @@ def setup() -> Brachistochrone:
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the time taken, which is the objective."""
-        return arg[phase].final.time
+        return arg[ph].final.time
 
     # set boundary conditions
-    phase.time.initial = (0.0, 0.0)
-    phase.state.x.initial = (0.0, 0.0)
-    phase.state.y.initial = (0.0, 0.0)
-    phase.state.v.initial = (0.0, 0.0)
-    phase.state.x.final = (1.0, 1.0)
-    phase.state.x.bounds = (0, 10)
-    phase.state.y.bounds = (0, 10)
-    phase.state.v.bounds = (0, 10)
-    phase.control.u.bounds = (-pi / 2, pi / 2)
+    ph.time.initial = (0.0, 0.0)
+    ph.state.x.initial = (0.0, 0.0)
+    ph.state.y.initial = (0.0, 0.0)
+    ph.state.v.initial = (0.0, 0.0)
+    ph.state.x.final = (1.0, 1.0)
+    ph.state.x.bounds = (0, 10)
+    ph.state.y.bounds = (0, 10)
+    ph.state.v.bounds = (0, 10)
+    ph.control.u.bounds = (-pi / 2, pi / 2)
 
     # set guess for solution
-    phase.time.guess = (0.0, 1.0)
-    phase.state.x.guess = (0, 1)
-    phase.state.y.guess = (0, 1)
-    phase.state.v.guess = (0, 5)
+    ph.time.guess = (0.0, 1.0)
+    ph.state.x.guess = (0, 1)
+    ph.state.y.guess = (0, 1)
+    ph.state.v.guess = (0, 5)
 
     # set ipopt options
     problem.ipopt_options.print_level = 3

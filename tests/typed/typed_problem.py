@@ -58,7 +58,7 @@ class Discrete(yapss.Discrete):
     landing = yapss.scalar()
 
 
-class Slide(yapss.Phase):
+class Phase(yapss.Phase):
     """The bead's descent."""
 
     state: State
@@ -70,7 +70,15 @@ class Slide(yapss.Phase):
 class Phases(yapss.Phases):
     """One phase: the bead slides."""
 
-    slide: Slide
+    phase: Phase
+
+
+class Brachistochrone(yapss.Problem):
+    """The problem, declared as a class: its annotations are what a checker reads."""
+
+    phases: Phases
+    discrete: Discrete
+    parameter: Parameter
 
 
 def dynamics(arg: yapss.ContinuousArg[State, Control, Parameter], out: State) -> None:
@@ -81,18 +89,10 @@ def dynamics(arg: yapss.ContinuousArg[State, Control, Parameter], out: State) ->
     out.v = arg.parameter.g * sin(u)
 
 
-class Typed(yapss.Problem):
-    """The problem, declared as a class: its annotations are what a checker reads."""
-
-    phases: Phases
-    discrete: Discrete
-    parameter: Parameter
-
-
-def setup() -> Typed:
+def setup() -> Brachistochrone:
     """Set up the problem, typed by its class."""
-    problem = Typed("typed")
-    ph = problem.phases.slide
+    problem = Brachistochrone("Brachistochrone")
+    ph = problem.phases.phase
 
     @ph.register.continuous
     def continuous(
@@ -143,12 +143,12 @@ def setup() -> Typed:
     return problem
 
 
-# The alias a PyCharm user writes once: its engine does not follow `solution.phases[ph]` to the phase's
-# vectors, which mypy does, so the variable is annotated instead.
-SlideSolution = yapss.PhaseSolution[State, Control, Path, Integral]
+# The alias a PyCharm user writes once. PyCharm completes from annotations, and it does not follow
+# `solution.phases[ph]` to the phase's vectors, as mypy and pyright do.
+Solved = yapss.PhaseSolution[State, Control, Path, Integral]
 
 
-def report(solution: yapss.Solution[Discrete, Parameter], ps: SlideSolution) -> dict[str, Any]:
+def report(solution: yapss.Solution[Discrete, Parameter], ps: Solved) -> dict[str, Any]:
     """Read a solution through every tree, each checked down to the field."""
     nlp = solution.nlp
     var, con = ps.nlp.index.variable, ps.nlp.index.constraint
@@ -179,7 +179,7 @@ def solve_and_report() -> dict[str, Any]:
     its handle."""
     problem = setup()
     solution = problem.solve()
-    ps = solution.phases[problem.phases.slide]
+    ps = solution.phases[problem.phases.phase]
     return report(solution, ps)
 
 
@@ -222,15 +222,15 @@ def independent_mistakes(problem: NoseProblem) -> None:
 
 
 def mistakes(
-    problem: Typed,
+    problem: Brachistochrone,
     arg: yapss.ContinuousArg[State, Control, Parameter],
     out: yapss.ContinuousOut[State, Path, Integral],
     endpoint: yapss.DiscreteArg[Parameter],
     discrete: yapss.DiscreteOut[Discrete],
 ) -> None:
     """Each line is a mistake the checker must report, asserted by its ignore."""
-    ph = problem.phases.slide
-    problem.phases.slid  # type: ignore[attr-defined]
+    ph = problem.phases.phase
+    problem.phases.phas  # type: ignore[attr-defined]
     ph.stat  # type: ignore[attr-defined]
     ph.state.xx.bounds = (0, 1)  # type: ignore[attr-defined]
     ph.state.x.bond = (0, 1)  # type: ignore[attr-defined]
@@ -244,17 +244,17 @@ def mistakes(
     out.integrand.distanse = 0.0  # type: ignore[attr-defined]
     endpoint.parameter.gg  # type: ignore[attr-defined]
     endpoint[ph].integral.distanse  # type: ignore[attr-defined]
-    endpoint["slide"]  # type: ignore[index]
+    endpoint["phase"]  # type: ignore[index]
     discrete.discrete.landin = 0.0  # type: ignore[attr-defined]
     problem.ipopt_options.max_iters = 5000  # type: ignore[attr-defined]
     problem.ipopt_options.max_iter = "5000"  # type: ignore[assignment]
     problem.ipopt_options.hessian_approximation = "exact"  # type: ignore[attr-defined]
 
 
-def registration_mistakes(problem: Typed) -> None:
+def registration_mistakes(problem: Brachistochrone) -> None:
     """A continuous or discrete callback fills `out` and returns nothing; one annotated to
     return something is reported, by the decorator and by the call alike."""
-    ph = problem.phases.slide
+    ph = problem.phases.phase
 
     def returns_out(
         arg: yapss.ContinuousArg[State, Control], out: yapss.ContinuousOut[State, Path, Integral]
@@ -274,10 +274,10 @@ def registration_mistakes(problem: Typed) -> None:
         return out
 
 
-def solution_mistakes(problem: Typed) -> None:
+def solution_mistakes(problem: Brachistochrone) -> None:
     """Each line is a mistake in reading a solution that the checker must report."""
     solution = problem.solve()
-    ps = solution.phases[problem.phases.slide]
+    ps = solution.phases[problem.phases.phase]
     solution.objectiv  # type: ignore[attr-defined]
     solution.parameter.gg  # type: ignore[attr-defined]
     solution.multiplier.discrete.landin  # type: ignore[attr-defined]
