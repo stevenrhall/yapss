@@ -103,7 +103,7 @@ def warn_if_not_converged(solution: Solution, stacklevel: int = 2) -> None:
         message = "Unknown status code."
     _forget_previous_warning(stacklevel)
     warn(
-        f'Ipopt did not converge. Status {status}: "{message}"\n'
+        f'Ipopt did not converge. Status {int(status)}: "{message}"\n'
         f"The returned solution does not satisfy Ipopt's convergence criteria and "
         f"should not be treated as an optimal trajectory. Check "
         f"solution.status and the Ipopt output before using these "
@@ -593,7 +593,7 @@ class Solution:
         return (
             f"<{__name__}.Solution> object\n"
             f"    Name: {self.name}\n"
-            f"    Ipopt Status Code: {self.nlp_info.ipopt_status}\n"
+            f"    Ipopt Status Code: {int(self.nlp_info.ipopt_status)}\n"
             f"    Status Message: {self.nlp_info.ipopt_status_message}\n"
             f"    Objective Value: {self.objective}"
         )
@@ -672,4 +672,4 @@ class NLPInfo:
             raise ValueError(_dataclass_msg)
 
     def __repr__(self) -> str:
-        return f"<{__name__}.NLPInfo: ipopt_status = {self.ipopt_status}>"
+        return f"<{__name__}.NLPInfo: ipopt_status = {int(self.ipopt_status)}>"

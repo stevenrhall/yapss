@@ -52,6 +52,18 @@ class IpoptStatus(IntEnum):
     INSUFFICIENT_MEMORY = -102
     INTERNAL_ERROR = -199
 
+    def __str__(self) -> str:
+        """Return the member's name, which `print` and an f-string show.
+
+        `IntEnum` gives the number, a code to look up; the name says what happened. The
+        number is `int(status)`, and Ipopt's description is `status.message`.
+        """
+        return self.name
+
+    def __format__(self, format_spec: str) -> str:
+        """Format the member's name, so ``f"{status:>30}"`` agrees with ``f"{status}"``."""
+        return format(self.name, format_spec)
+
     @property
     def message(self) -> str:
         """Ipopt's own description of the status, as its ``EXIT:`` line prints it."""
