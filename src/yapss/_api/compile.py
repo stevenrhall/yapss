@@ -583,7 +583,9 @@ def to_transcription_spec(spec: ProblemSpec_) -> ProblemSpec:
     )
 
 
-def solve_problem(spec: ProblemSpec_) -> tuple[Solution, Any]:
+def solve_problem(
+    spec: ProblemSpec_, before_ipopt: Callable[[], None] | None = None
+) -> tuple[Solution, Any, dict[str, Any]]:
     """Solve the problem `spec` describes and return the solution in the new API's shape.
 
     Parameters
@@ -598,7 +600,10 @@ def solve_problem(spec: ProblemSpec_) -> tuple[Solution, Any]:
     record
         The back end's record of the solve, which `Problem.solve` reads to warn about a solve
         that did not converge. The solution does not keep it: the record holds the problem.
+    facts : dict
+        What the back end's solver recorded of the run, for `solution.run`.
     """
     transcription = to_transcription_spec(spec)
-    record = solve(transcription)
-    return Solution._from(spec, record, transcription), record
+    facts: dict[str, Any] = {}
+    record = solve(transcription, run=facts, before_ipopt=before_ipopt)
+    return Solution._from(spec, record, transcription), record, facts

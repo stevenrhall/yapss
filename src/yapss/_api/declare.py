@@ -607,6 +607,10 @@ class PhaseRegistry(Registry):
         self._phase = phase
         self._label = f"{phase._label} callbacks"
 
+    def _registered(self) -> dict[str, Any]:
+        """Return the continuous callback, or None if none is registered."""
+        return {"continuous": self._phase._continuous}
+
     def _register(self, which: str, function: Callable[..., Any] | None) -> Any:
         # See `Problem._register`: registering is setting a value, and the last one wins.
         phase = self._phase

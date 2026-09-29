@@ -274,6 +274,10 @@ class Registry(Container):
         """Return a registration, for a message: the first."""
         return self._registrations[0]
 
+    def _registered(self) -> dict[str, Any]:
+        """Return each registration's callback, or None where none is registered."""
+        raise NotImplementedError
+
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse an assignment to a registration, naming the idiom that works."""
         if not name.startswith("_") and name in self._registrations:

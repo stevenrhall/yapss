@@ -13,7 +13,9 @@ import functools
 import signal
 import sys
 import threading
+import time
 import warnings
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, assert_never
 
 # third party imports
@@ -30,6 +32,7 @@ from .ipopt_options import IpoptOptionSettingWarning, refusal_message
 from .ipopt_status import status_or_raise
 from .mesh import Mesh
 from .mseipopt import bare_np, initialize_ipopt
+from .mseipopt.library import read_ipopt_header
 from .nlp import NLP
 from .setup_check import check_callbacks, check_derivatives
 from .solution import Solution, make_solution_object
@@ -52,7 +55,12 @@ if TYPE_CHECKING:
     from .spec import ProblemSpec
 
 
-def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
+def solve(
+    problem: ProblemSpec,
+    origin: Any = None,
+    run: dict[str, Any] | None = None,
+    before_ipopt: Callable[[], None] | None = None,
+) -> Solution:
     """Create the nonlinear program (NLP) from the user input and solve.
 
     This function does **not** warn when Ipopt fails to converge. The caller is
@@ -64,23 +72,30 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     refinement, say, which solves repeatedly) may need to solve without warning each
     time.
 
-    Every unconverged solve warns, even when repeated from the same line: the
-    `warnings.catch_warnings()` block around the Ipopt call below invalidates Python's
-    per-location warning registry on exit, so the "default" and "once" filter actions
-    do not deduplicate across solves ("ignore" and "error" are unaffected). The same
-    invalidation applies to every other warning in the process.
-
     Any new public entry point that returns a `Solution` should call
     `warn_if_not_converged` itself.
 
     Parameters
     ----------
     problem : ProblemSpec
+    origin : Any, optional
+        Passed to the solution record.
+    run : dict, optional
+        Filled with what was true of this solve beyond the problem: the Ipopt library's file
+        name (``ipopt_library``) and version (``ipopt_version``, a string, or None where its
+        header does not say), the options Ipopt accepted (``ipopt_options``), and
+        `time.perf_counter` readings just before and after Ipopt ran (``ipopt_started``,
+        ``ipopt_finished``).
+    before_ipopt : callable, optional
+        Called with no arguments just before Ipopt runs, after every option is applied. The
+        front end issues the warnings of the setup there, so one the user's filters turn into
+        an error stops the solve before Ipopt starts.
 
     Returns
     -------
     Solution
     """
+    run = {} if run is None else run
     # TODO: Move line below to nlpy.py
     mesh = Mesh(problem.phases)
     mesh.set_matrices(problem.spectral_method)
@@ -142,7 +157,14 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     warn_if_ipopt_source_env_set()
 
     # Resolve, load, verify and configure once per process; idempotent.
-    initialize_ipopt()
+    library = initialize_ipopt()
+    header = read_ipopt_header(library)
+    run["ipopt_library"] = Path(library).name
+    run["ipopt_version"] = (
+        None if header is None or header.version is None else ".".join(map(str, header.version))
+    )
+    used: dict[str, Any] = {}
+    run["ipopt_options"] = used
 
     jacobian_structure = nlp_temp.jacobianstructure()
     hessian_structure = nlp_temp.hessianstructure()
@@ -166,6 +188,7 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     for name, value in problem.ipopt_options.items():
         try:
             ipopt_problem.add_option(name, value)
+            used[name] = value
         except (ValueError, TypeError):
             # Only Ipopt knows which options this build has and which values they take, so a
             # refusal warns and the solve continues with Ipopt's default; see
@@ -179,6 +202,7 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     if "timing_statistics" not in problem.ipopt_options:
         with contextlib.suppress(ValueError, TypeError):
             ipopt_problem.add_option("timing_statistics", "yes")
+            used["timing_statistics"] = "yes"
 
     # CasADi's bundled Ipopt is built with SPRAL and selects it by default on
     # Windows and Linux. macOS has no SPRAL in that build, and Conda's Ipopt
@@ -195,6 +219,7 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     if not _IN_CONDA and "linear_solver" not in problem.ipopt_options:
         with contextlib.suppress(ValueError, TypeError):
             ipopt_problem.add_option("linear_solver", "mumps")
+            used["linear_solver"] = "mumps"
 
     # macOS crash workaround, not performance tuning. CasADi's bundled Ipopt
     # segfaults inside libcoinmetis (METIS 4.0, called by MUMPS for the
@@ -216,9 +241,11 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     ):
         with contextlib.suppress(ValueError, TypeError):
             ipopt_problem.add_option("mumps_pivot_order", 6)
+            used["mumps_pivot_order"] = 6
 
     if problem.derivative_order == "first":
         ipopt_problem.add_option("hessian_approximation", "limited-memory")
+        used["hessian_approximation"] = "limited-memory"
 
     # set NLP scaling
     obj_scale, z_scaling, c_scaling = get_nlp_scaling(problem)
@@ -231,6 +258,7 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
 
     # TODO: add near here the ability to scale as above or to use yapss scaling.
     ipopt_problem.add_option("nlp_scaling_method", "user-scaling")
+    used["nlp_scaling_method"] = "user-scaling"
 
     # solve NLP. If keyboard interrupt is raised, signal IPOPT to stop through the
     # intermediate callback
@@ -243,6 +271,12 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
     # (checked on 2.4.6 and 2.5 across a full solve); if it returns, filter it where
     # `numpy.ctypeslib.as_array` is called, in mseipopt.
     try:
+        # The caller's last word before Ipopt runs: the front end issues the warnings of the
+        # setup here, so a warning filtered into an error stops the solve before it starts.
+        # Inside the `try`, so the native problem is released if it raises.
+        if before_ipopt is not None:
+            before_ipopt()
+        run["ipopt_started"] = time.perf_counter()
         # signal.signal is allowed only on the main thread. A worker thread never
         # receives the keyboard interrupt anyway, so there is nothing to catch there
         # and the solve simply runs without the handler.
@@ -263,6 +297,7 @@ def solve(problem: ProblemSpec, origin: Any = None) -> Solution:
         # Callback exceptions are re-raised only after Ipopt returns. Cleanup
         # must still release the native problem on that propagation path.
         ipopt_problem.close()
+        run["ipopt_finished"] = time.perf_counter()
 
     # A status without an iterate raises here, in the internal solve, so that a loop of
     # solves (mesh refinement) raises too; the convergence warning is for the public boundary.

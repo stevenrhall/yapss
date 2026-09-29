@@ -12,6 +12,7 @@ afterwards never alters what an earlier solution recorded.
 from __future__ import annotations
 
 import inspect
+import time
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, overload
 
 # See `_api.declare`: PEP 696 defaults, which `typing.TypeVar` cannot carry below 3.13.
@@ -19,6 +20,7 @@ from typing_extensions import TypeVar
 
 from yapss._backend.ipopt_options import IpoptOptions
 from yapss._backend.solution import warn_if_not_converged
+from yapss._backend.solver import _IN_CONDA
 
 from .compile import solve_problem
 from .containers import (
@@ -37,6 +39,7 @@ from .declare import Phases, _declaring_scope, declared_role, own_annotations
 from .fields import Fields
 from .kinds import Bounds, ScalarGuess, Scale
 from .old_api import old_api_message
+from .run import Recording, now, run_record
 from .spec import snapshot, validate_problem
 from .vector import Discrete, Parameter, Vector
 from .warm import guess_from_solution
@@ -304,6 +307,11 @@ class ProblemRegistry(Registry):
     def __init__(self, problem: Problem) -> None:
         self._problem = problem
 
+    def _registered(self) -> dict[str, Any]:
+        """Return the objective and discrete callbacks, each None if none is registered."""
+        problem = self._problem
+        return {"objective": problem._objective_function, "discrete": problem._discrete_function}
+
     @overload
     def objective(self, function: CallbackT, /) -> CallbackT: ...
     @overload
@@ -373,6 +381,9 @@ class Problem(HasRegistry):
     ----------
     name : str
         The problem's name. It may be changed; each solve records the name in force.
+    comment : str
+        Free text recorded with each solution as ``solution.settings.comment``, such as a
+        description of the variant solved. Default ``""``.
     phases
         The phases, by the names the ``phases`` class declared: ``problem.phases.<name>``.
     objective
@@ -407,7 +418,7 @@ class Problem(HasRegistry):
         "ipopt_options",
         "register",
     )
-    _settable = ("name", "spectral_method", "catch_keyboard_interrupt")
+    _settable = ("name", "comment", "spectral_method", "catch_keyboard_interrupt")
 
     if TYPE_CHECKING:
         # `Any` here, and the classes a problem class annotates there. A checker holds a mutable
@@ -421,6 +432,7 @@ class Problem(HasRegistry):
         ipopt_options: IpoptOptions
         register: ProblemRegistry
         name: str
+        comment: str
         spectral_method: Literal["lgl", "lgr", "lg"]
         catch_keyboard_interrupt: bool
 
@@ -515,6 +527,7 @@ class Problem(HasRegistry):
         self._hold("derivatives", Derivatives())
         self._hold("ipopt_options", IpoptOptions())
         self._hold("name", name)
+        self._hold("comment", "")
         self._hold("spectral_method", "lgl")
         self._hold("catch_keyboard_interrupt", CATCH_KEYBOARD_INTERRUPT)
 
@@ -543,6 +556,11 @@ class Problem(HasRegistry):
             # which variant each solution came from. `snapshot` reads it at each solve, so the
             # solutions of one problem carry the names it had when each was solved.
             _check_name(value)
+            return value
+        if name == "comment":
+            if not is_string(value):
+                msg = f"problem.comment is a string; got {value!r}"
+                raise TypeError(msg)
             return value
         if name == "spectral_method":
             return _one_of(value, SPECTRAL_METHODS, "problem.spectral_method")
@@ -666,13 +684,21 @@ class Problem(HasRegistry):
             deserves attention.
         """
         assert isinstance(self, Problem)
-        self.validate()
-        solution, record = solve_problem(snapshot(self))
-        # The warning belongs at the public boundary, not inside the solve, so that its
-        # stacklevel points at the caller's own `solve()`; a mesh-refinement loop written
-        # against this API calls it once per pass and should hear about each one.
-        # stacklevel=3: warn -> warn_if_not_converged -> this method -> user code.
-        warn_if_not_converged(record, stacklevel=3)
+        started, begin = now()
+        issued: list[tuple[str, str]] = []
+        with Recording(issued) as recording:
+            self.validate()
+            solution, record, facts = solve_problem(
+                snapshot(self), before_ipopt=recording.checkpoint
+            )
+            # The warning belongs at the public boundary, not inside the solve, so that its
+            # stacklevel points at the caller's own `solve()`; a mesh-refinement loop written
+            # against this API calls it once per pass and should hear about each one.
+            # stacklevel=3: warn -> warn_if_not_converged -> this method -> user code.
+            warn_if_not_converged(record, stacklevel=3)
+        end = time.perf_counter()
+        run = run_record(facts, started, (begin, end), issued, in_conda=_IN_CONDA)
+        object.__setattr__(solution, "run", run)
         return solution
 
     def __repr__(self) -> str:

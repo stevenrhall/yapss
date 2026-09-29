@@ -141,6 +141,7 @@ def setup() -> Brachistochrone:
 
     problem.ipopt_options.print_level = 0
     problem.ipopt_options.max_iter = None  # None deletes an option: Ipopt's default
+    problem.comment = "the typed brachistochrone"
     return problem
 
 
@@ -155,6 +156,11 @@ def report(solution: yapss.Solution[Discrete, Parameter], ps: Solved) -> dict[st
     var, con = ps.nlp.index.variable, ps.nlp.index.constraint
     return {
         "objective": solution.objective,
+        "comment": solution.settings.comment,
+        "method": solution.settings.spectral_method,
+        "solve time": solution.run.seconds.total,
+        "ipopt version": solution.run.ipopt_version,
+        "warnings": solution.run.warnings,
         "gravity": solution.parameter.g,
         "landing multiplier": solution.multiplier.discrete.landing,
         "landing": ps.final_state.x,
@@ -258,6 +264,7 @@ def mistakes(
     endpoint["phase"]  # type: ignore[index]
     discrete.discrete.landin = 0.0  # type: ignore[attr-defined]
     problem.ipopt_options.max_iters = 5000  # type: ignore[attr-defined]
+    problem.comment = 3  # type: ignore[assignment]
     problem.ipopt_options.max_iter = "5000"  # type: ignore[assignment]
     problem.ipopt_options.hessian_approximation = "exact"  # type: ignore[attr-defined]
 
@@ -290,6 +297,10 @@ def solution_mistakes(problem: Brachistochrone) -> None:
     solution = problem.solve()
     ps = solution.phases[problem.phases.phase]
     solution.objectiv  # type: ignore[attr-defined]
+    solution.settings.coment  # type: ignore[attr-defined]
+    solution.run.secnds  # type: ignore[attr-defined]
+    solution.run.seconds.totl  # type: ignore[attr-defined]
+    solution.nlp.version  # type: ignore[attr-defined]
     solution.parameter.gg  # type: ignore[attr-defined]
     solution.multiplier.discrete.landin  # type: ignore[attr-defined]
     solution.multiplier.dynamics  # type: ignore[attr-defined]

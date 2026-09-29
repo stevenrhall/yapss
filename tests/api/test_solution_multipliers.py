@@ -21,7 +21,7 @@ from .test_solution_pickling import declared_in_a_function
 def goddard():
     problem = goddard_problem_3_phase.setup()
     problem.ipopt_options.print_level = 0
-    solution, record = solve_problem(snapshot(problem))
+    solution, record, _ = solve_problem(snapshot(problem))
     return problem, solution, record
 
 
@@ -29,7 +29,7 @@ def goddard():
 def local():
     """A problem with every kind of vector: control, path, integral, parameter, discrete."""
     problem = declared_in_a_function()
-    solution, record = solve_problem(snapshot(problem))
+    solution, record, _ = solve_problem(snapshot(problem))
     return problem, solution, record
 
 

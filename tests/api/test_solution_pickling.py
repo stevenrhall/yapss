@@ -8,6 +8,8 @@ sweep or a multiprocessing worker is naturally written.
 
 import importlib
 import pickle
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -117,10 +119,25 @@ def test_a_pickled_solution_keeps_its_names_and_messages(solved):
         copy.objective = 0.0
 
 
-def test_a_solution_holds_neither_the_problem_nor_its_classes(solved):
-    """What pickles is data: nothing in the pickle names the function the problem was made in."""
+def test_a_solution_holds_neither_the_problem_nor_its_classes(solved, tmp_path):
+    """What pickles is data: it unpickles in a process that cannot import where it was made.
+
+    Its callbacks are recorded by name, as strings, so the function's name is in the pickle as
+    text; what must not be is a reference that unpickling would have to import.
+    """
     _, solution = solved
-    assert b"declared_in_a_function" not in pickle.dumps(solution)
+    path = tmp_path / "solution.pickle"
+    path.write_bytes(pickle.dumps(solution))
+    code = "import pickle, sys; print(pickle.loads(open(sys.argv[1], 'rb').read()).objective)"
+    result = subprocess.run(
+        [sys.executable, "-c", code, str(path)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert float(result.stdout) == pytest.approx(solution.objective)
 
 
 def test_one_piece_of_a_solution_pickles_on_its_own(solved):

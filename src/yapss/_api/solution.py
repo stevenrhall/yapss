@@ -48,6 +48,8 @@ if TYPE_CHECKING:
     from yapss._backend.structure import CFStructure, DVStructure
 
     from .mesh import Mesh
+    from .run import Run
+    from .settings import Settings
     from .spec import PhaseSpec, ProblemSpec
     from .vector import Control, Integral, Path, State
 
@@ -676,14 +678,12 @@ class NLPRecord(_Record, Generic[D_co, PR_co]):
     """What Ipopt saw and what it returned: ``solution.nlp``.
 
     The vectors are in the order Ipopt saw them, which is part of what produced the result and
-    is valid for the YAPSS `version` recorded. A position means something through `index` and
-    ``ps.nlp.index``, and not otherwise. The vectors are unscaled -- the problem as posed -- with
-    the scaling beside them.
+    is valid for the YAPSS version that solved it, ``solution.run.yapss_version``. A position
+    means something through `index` and ``ps.nlp.index``, and not otherwise. The vectors are
+    unscaled -- the problem as posed -- with the scaling beside them.
 
     Attributes
     ----------
-    version : str
-        The YAPSS version the order is valid for.
     status : int
         Ipopt's return code.
     objective : float
@@ -720,7 +720,6 @@ class NLPRecord(_Record, Generic[D_co, PR_co]):
         "objective",
         "scale",
         "status",
-        "version",
         "x",
         "x_L",
         "x_U",
@@ -729,7 +728,6 @@ class NLPRecord(_Record, Generic[D_co, PR_co]):
     _label = "the solver's record"
 
     if TYPE_CHECKING:
-        version: str
         status: int
         objective: float
         x_L: NDArray[np.float64]  # noqa: N815 -- Ipopt's names
@@ -751,14 +749,12 @@ class NLPRecord(_Record, Generic[D_co, PR_co]):
     @classmethod
     def _from(cls, info: Any, index: NLPIndex[Any, Any]) -> NLPRecord[Any, Any]:
         """Return the record from the back end's `NLPInfo`, copying every array."""
-        from yapss import __version__  # noqa: PLC0415 -- the package imports this module
 
         def own(name: str) -> Any:
             return np.array(getattr(info, name))
 
         return cls(
             {
-                "version": __version__,
                 "status": int(info.ipopt_status),
                 "objective": float(info.obj_val),
                 **{
@@ -1202,6 +1198,11 @@ class Solution(Generic[D_co, PR_co]):
         What Ipopt saw and returned, with the positions of every variable and constraint.
     phases : PhaseSolutions
         Each phase's solution: ``solution.phases.boost``, ``solution.phases[ph]``.
+    settings : Settings
+        The problem's setup as it stood when solved, every setting under the problem's own
+        names; `name` and `spectral_method` are its values at the root.
+    run : Run
+        What was true of this solve beyond its problem: versions, platform, timing, warnings.
     """
 
     __slots__ = (
@@ -1213,6 +1214,8 @@ class Solution(Generic[D_co, PR_co]):
         "objective",
         "parameter",
         "phases",
+        "run",
+        "settings",
         "spectral_method",
         "status",
     )
@@ -1228,6 +1231,8 @@ class Solution(Generic[D_co, PR_co]):
         multiplier: ProblemMultiplier[D_co, PR_co]
         nlp: NLPRecord[D_co, PR_co]
         phases: PhaseSolutions
+        settings: Settings
+        run: Run
 
     def __init__(self, values: dict[str, Any]) -> None:
         for name, value in values.items():
@@ -1289,8 +1294,9 @@ class Solution(Generic[D_co, PR_co]):
                 "objective": record.objective,
                 "converged": record.converged,
                 "status": record.status,
-                "name": spec.name,
-                "spectral_method": spec.spectral_method,
+                "name": spec.settings.name,
+                "spectral_method": spec.settings.spectral_method,
+                "settings": spec.settings,
                 "parameter": _vector(spec.parameter, record.parameter, "parameter"),
                 "discrete": _vector(spec.discrete, record.discrete, "discrete"),
                 "multiplier": ProblemMultiplier(
@@ -1308,7 +1314,12 @@ class Solution(Generic[D_co, PR_co]):
 
     def __reduce__(self) -> tuple[Any, ...]:
         """Pickle the solution as its values, which are data all the way down."""
-        values = {name: object.__getattribute__(self, name) for name in self.__slots__}
+        values = {}
+        for name in self.__slots__:
+            try:
+                values[name] = object.__getattribute__(self, name)
+            except AttributeError:  # `run`, which `Problem.solve` adds, on an internal solve
+                continue
         return (Solution, (values,))
 
     # Hidden from type checkers: one that sees a reader answering any name stops

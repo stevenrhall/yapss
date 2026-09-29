@@ -35,6 +35,11 @@ def test_each_class_is_the_type_of_what_it_names(solved):
         "VariableIndex": ps.nlp.index.variable,
         "ConstraintIndex": ps.nlp.index.constraint,
         "PhasePoint": ps.nlp.point,
+        "Settings": solution.settings,
+        "SettingsGroup": solution.settings.phases,
+        "Callback": solution.settings.callbacks.objective,
+        "Run": solution.run,
+        "Seconds": solution.run.seconds,
     }
     assert sorted(reads) == sorted(yapss.solution.__all__)
     for name, value in reads.items():

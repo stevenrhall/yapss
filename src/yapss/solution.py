@@ -6,6 +6,8 @@ one: a function that takes a phase's multipliers, say, annotated ``PhaseMultipli
 and `PhaseSolution` are here as well as in `yapss` itself.
 """
 
+from ._api.run import Run, Seconds
+from ._api.settings import Callback, Settings, SettingsGroup
 from ._api.solution import (
     ConstraintIndex,
     Convergence,
@@ -26,6 +28,7 @@ from ._api.solution import (
 )
 
 __all__ = [
+    "Callback",
     "ConstraintIndex",
     "Convergence",
     "Jacobian",
@@ -40,6 +43,10 @@ __all__ = [
     "ProblemConstraintIndex",
     "ProblemMultiplier",
     "ProblemVariableIndex",
+    "Run",
+    "Seconds",
+    "Settings",
+    "SettingsGroup",
     "Solution",
     "VariableIndex",
 ]

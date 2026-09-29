@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from .fields import aspects_of
 from .sampled import Interp, coverage_complaint
+from .settings import settings_of
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from .declare import AnyPhase
     from .mesh import Mesh
     from .problem import Problem
+    from .settings import Settings
     from .vector import Vector
 
 __all__ = ["PhaseSpec", "ProblemSpec", "snapshot", "validate_problem"]
@@ -94,6 +96,7 @@ class ProblemSpec:
     derivative_order: Order
     ipopt_options: dict[str, Any]
     catch_keyboard_interrupt: bool
+    settings: Settings
 
 
 def _values(vector: Vector) -> dict[str, tuple[Any, ...]]:
@@ -274,4 +277,5 @@ def snapshot(problem: Problem) -> ProblemSpec:
         derivative_order=problem.derivatives.order,
         ipopt_options=dict(problem.ipopt_options.get_options()),
         catch_keyboard_interrupt=problem.catch_keyboard_interrupt,
+        settings=settings_of(problem),
     )

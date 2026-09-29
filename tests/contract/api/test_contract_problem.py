@@ -53,6 +53,20 @@ def test_the_name_is_a_string_wherever_it_is_set() -> None:
         p.name = 42  # type: ignore[assignment]
 
 
+def test_the_comment_is_a_string_and_empty_by_default() -> None:
+    """Free text recorded with each solution, such as a description of the variant solved."""
+    ocp = problem()
+    assert ocp.comment == ""
+    ocp.comment = "the heavier variant"
+    assert ocp.comment == "the heavier variant"
+
+
+def test_a_comment_that_is_not_a_string_is_refused() -> None:
+    ocp = problem()
+    with raises(TypeError, "problem.comment is a string", at="ocp.comment ="):
+        ocp.comment = 3
+
+
 def test_a_declaration_cannot_be_replaced() -> None:
     """The shape is said once: `phases=`, `discrete=` and `parameter=` fix it at construction.
 

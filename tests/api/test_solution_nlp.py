@@ -239,7 +239,7 @@ def test_continuity_rows_sit_at_the_segment_ends(solved):
 def test_the_record_reports_the_solve(solved):
     _, _, solution, _ = solved
     nlp = solution.nlp
-    assert nlp.version == yapss.__version__
+    assert solution.run.yapss_version == yapss.__version__
     assert nlp.status == solution.status == 0
     assert nlp.objective == solution.objective
     assert nlp.scale.objective == 1.0
