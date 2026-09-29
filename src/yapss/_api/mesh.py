@@ -59,6 +59,19 @@ class Mesh:
     ----------
     segments : sequence of (float, int)
         One pair per segment. The fractions are positive and sum to 1.
+
+    Raises
+    ------
+    TypeError
+        If a segment is not a pair of a number and a whole number.
+    ValueError
+        If there are no segments, a fraction is not positive and finite, the fractions do not
+        sum to 1, or a segment has fewer than 2 collocation points.
+
+    Warns
+    -----
+    LargeSegmentWarning
+        If a segment has more than 20 collocation points.
     """
 
     segments: tuple[tuple[float, int], ...]
@@ -144,6 +157,18 @@ class Mesh:
         -------
         Mesh
             The mesh.
+
+        Raises
+        ------
+        TypeError
+            If `segments` or `points` is not a whole number.
+        ValueError
+            If `segments` is less than 1, or `points` less than 2.
+
+        Warns
+        -----
+        LargeSegmentWarning
+            If `points` is more than 20.
         """
         if not _is_count(segments):
             msg = f"Mesh.uniform(segments=) must be an integer; got {segments!r}"

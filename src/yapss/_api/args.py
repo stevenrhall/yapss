@@ -144,11 +144,15 @@ class ContinuousArg(_Frozen, Generic[S_co, C_co, PR_co]):
     Attributes
     ----------
     phase : Phase
-        The phase this call is for. A callback shared between phases branches on it.
+        The handle of the phase the call is for, on which a callback shared between phases
+        branches.
     time : numpy.ndarray
-        The points the phase is evaluated at: its independent variable, whatever it measures.
-    state, control, parameter : Vector
-        The values at those points, one row per field.
+        The phase's independent variable at the points the call evaluates, whatever it
+        measures.
+    state, control : Vector
+        The phase's states and controls at the points in `time`, named by their classes.
+    parameter : Vector
+        The problem's parameters, named by the problem's parameter class, one value each.
     """
 
     __slots__ = ("control", "parameter", "phase", "state", "time")
@@ -252,11 +256,12 @@ class Endpoint(_Frozen, Generic[S_co, I_co]):
     Attributes
     ----------
     initial_state, final_state : Vector
-        The phase's state at each end, one value per field.
+        The phase's state at its first and at its last point, one value for each state.
     initial_time, final_time : Any
-        The phase's time at each end: a float, or a symbol under the ``"auto"`` trace.
+        The phase's independent variable at its first and at its last point: a float, or a
+        symbol under the ``"auto"`` trace.
     integral : Vector
-        The phase's integrals, which belong to the phase rather than to either end of it.
+        The values of the phase's integrals, named by its integral class.
     """
 
     __slots__ = ("_data", "_path", "final_state", "initial_state", "integral")

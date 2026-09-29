@@ -322,9 +322,9 @@ class Phases:
             boost: Arc
             coast: Arc
 
-    The subclass is passed to `Problem`, which instantiates it; each name then gives the phase,
-    an instance of its shape, used to set that phase up and to reach it in callbacks and
-    solutions.
+    A problem annotates the subclass as its ``phases``, and each name then gives the phase, an
+    instance of its shape: ``problem.phases.boost`` sets that phase up, and reaches it in
+    callbacks and solutions.
     """
 
     _declared: dict[str, type[AnyPhase]] = {}  # noqa: RUF012
@@ -640,6 +640,12 @@ class PhaseRegistry(Registry):
         -------
         Any
             The callback, or a decorator that registers one.
+
+        Raises
+        ------
+        TypeError
+            If the callback is not callable, or cannot be called with the arguments it is
+            given.
         """
         return self._register("continuous", function)
 
@@ -655,13 +661,11 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
             state: Position
             control: Angle
 
-    The annotations are also what a type checker reads: ``ph.state`` is a ``Position``, and its
-    fields are checked from there. They override annotations of this base class that bound
-    each by its role, so ``state: Angle`` is reported before anything runs, as well as refused
-    when it does.
+    A type checker reads the same annotations, so ``ph.state`` is checked as a ``Position``,
+    down to its fields, and ``state: Angle`` is reported before anything runs.
 
-    A shape is not a phase. The phases are named in a `Phases` class, and each is an instance
-    of its shape, so two phases may share one.
+    A shape is not a phase: the phases are named in a `Phases` class, each an instance of its
+    shape, so two phases may share one.
     """
 
     _held = ("state", "control", "dynamics", "path", "integral", "time", "duration", "register")

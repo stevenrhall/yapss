@@ -206,9 +206,8 @@ class VectorField(_AsValue):
 def scalar() -> ScalarField:
     """Declare a field holding one value: a scalar member of the vector.
 
-    A scalar is read as ``(npoints,)`` in a callback. It is not the same as ``vector(1)``, which
-    is a vector of one component and is read as ``(1, npoints)``: rank is part of the shape,
-    and the two markers say which.
+    In a callback a scalar field is one value. It is not the same as ``vector(1)``, a sequence
+    of one value, since rank is part of the shape.
 
     Returns
     -------
@@ -222,9 +221,9 @@ def scalar() -> ScalarField:
 def vector(size: int) -> VectorField:
     """Declare a field holding `size` values: a vector member, such as a position.
 
-    Any count from 0 up is allowed, so that a declaration built by an algorithm needs no special
-    case at one component or none. A vector keeps its leading axis at every size, so
-    ``vector(1)`` is read as ``(1, npoints)`` and never collapses to a scalar.
+    In a callback a vector field is a sequence of `size` values, one per component, so
+    ``vector(1)`` is a sequence of one and never collapses to a scalar. Any count from 0 up is
+    allowed, so that a declaration built by an algorithm needs no special case.
 
     Parameters
     ----------
@@ -236,6 +235,13 @@ def vector(size: int) -> VectorField:
     VectorField
         A marker recording the shape. YAPSS replaces it when the class is defined, so it is
         never seen again; its type is what a checker reads the field as.
+
+    Raises
+    ------
+    TypeError
+        If `size` is not a whole number.
+    ValueError
+        If `size` is negative.
     """
     if not _is_integer(size):
         msg = f"vector(size) takes a whole number of components; got {size!r}"
@@ -1158,37 +1164,61 @@ class Vector:
 
 
 class State(Vector):
-    """Base of a state declaration: the variables a phase's dynamics govern."""
+    """Base of a state declaration: the variables a phase's dynamics govern.
+
+    Subclass it and declare each field with `scalar` or `vector`; a phase annotates the
+    subclass as its ``state``.
+    """
 
     _role = "state"
 
 
 class Control(Vector):
-    """Base of a control declaration: the variables a phase chooses freely at every point."""
+    """Base of a control declaration: the variables a phase chooses freely at every point.
+
+    Subclass it and declare each field with `scalar` or `vector`; a phase annotates the
+    subclass as its ``control``.
+    """
 
     _role = "control"
 
 
 class Path(Vector):
-    """Base of a path declaration: the constraints a phase holds at every point."""
+    """Base of a path declaration: the constraints a phase holds at every point.
+
+    Subclass it and declare each field with `scalar` or `vector`; a phase annotates the
+    subclass as its ``path``.
+    """
 
     _role = "path"
 
 
 class Integral(Vector):
-    """Base of an integral declaration: the quantities a phase accumulates."""
+    """Base of an integral declaration: the quantities a phase accumulates.
+
+    Subclass it and declare each field with `scalar` or `vector`; a phase annotates the
+    subclass as its ``integral``.
+    """
 
     _role = "integral"
 
 
 class Parameter(Vector):
-    """Base of a parameter declaration: the variables a problem chooses once, for all phases."""
+    """Base of a parameter declaration: the variables a problem chooses once, for all phases.
+
+    Subclass it and declare each field with `scalar` or `vector`; the problem annotates the
+    subclass as its ``parameter``.
+    """
 
     _role = "parameter"
 
 
 class Discrete(Vector):
-    """Base of a discrete declaration: the constraints on a problem's endpoints and parameters."""
+    """Base of a discrete declaration: the constraints on a problem's endpoints and parameters.
+
+    Subclass it and declare each field with `scalar` or `vector`; the problem annotates the
+    subclass as its ``discrete``.
+    """
 
     _role = "discrete"
 

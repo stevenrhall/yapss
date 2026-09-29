@@ -79,7 +79,15 @@ def interp(time: Any, values: Any, /) -> Interp:
     Returns
     -------
     Interp
-        The guess, to be assigned to a guess aspect.
+        The guess, to be assigned to a state's or a control's ``guess``.
+
+    Raises
+    ------
+    TypeError
+        If a time or a value is not a real number.
+    ValueError
+        If a time or a value is not finite, there are fewer than two times, the times do not
+        increase, or the values are not one per time.
     """
     time_array = _samples(time, "times")
     value_array = _samples(values, "values")

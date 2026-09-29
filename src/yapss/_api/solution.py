@@ -315,13 +315,13 @@ class _Record:
 
 
 class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
-    """A phase's multipliers, in the shapes of what they belong to: ``ps.multiplier``.
+    """A phase's multipliers, each shaped as what it belongs to: ``<phase solution>.multiplier``.
 
     Attributes
     ----------
     dynamics : Vector
-        The costate: the multiplier of the dynamics, named by the state's fields. The same
-        object as ``ps.costate``.
+        The costate, the multiplier of the dynamics, named by the phase's state class, each an
+        array over the phase's points.
     state : Vector
         The multipliers of the states' bounds, densities in time over the phase's points, read
         as if the state had no initial or final bound.
@@ -421,8 +421,8 @@ class _MethodOnly(_Record):
 class VariableIndex(_MethodOnly, Generic[S_co, C_co, I_co]):
     """The positions of a phase's decision variables in any vector of Ipopt's length ``n``.
 
-    Each is an integer array shaped like the quantity it locates, so ``nlp.x[var.state.r]`` has
-    the shape of ``ps.state.r``.
+    Each is an integer array shaped like the quantity it locates, so ``nlp.x[variable.state.r]``
+    has the shape of the phase solution's ``state.r``.
 
     Attributes
     ----------
@@ -497,7 +497,7 @@ class ConstraintIndex(_MethodOnly, Generic[S_co, P_co, I_co]):
 
 
 class PhaseIndex(_Record, Generic[S_co, C_co, P_co, I_co]):
-    """A phase's positions in the solver's record: ``ps.nlp.index``.
+    """A phase's positions in the solver's record: ``solution.phases.<phase>.nlp.index``.
 
     Attributes
     ----------
@@ -518,9 +518,9 @@ class PhaseIndex(_Record, Generic[S_co, C_co, P_co, I_co]):
 class PhasePoint(_MethodOnly):
     """The point each row of a group sits at, as an index into the phase's points.
 
-    Given only for the rows whose points cannot be read off ``ps.collocated``: every other
-    per-point entry of the index trees is on ``ps.<time>[ps.collocated]``, or, for the state,
-    on all of ``ps.<time>``.
+    Given only for the rows whose points cannot be read off the phase solution's ``collocated``:
+    every other per-point entry of the index trees is on its ``time[collocated]``, or, for the
+    state, on all of its ``time``.
 
     Attributes
     ----------
@@ -542,7 +542,7 @@ class PhasePoint(_MethodOnly):
 
 
 class PhaseNLP(_Record, Generic[S_co, C_co, P_co, I_co]):
-    """A phase's part of the solver's record: ``ps.nlp``.
+    """A phase's part of the solver's record: ``solution.phases.<phase>.nlp``.
 
     Attributes
     ----------
@@ -566,6 +566,7 @@ class ProblemVariableIndex(_Record, Generic[PR_co]):
     Attributes
     ----------
     parameter : Vector
+        The position of each parameter in ``x``, named by the problem's parameter class.
     """
 
     __slots__ = ("parameter",)
@@ -581,6 +582,7 @@ class ProblemConstraintIndex(_Record, Generic[D_co]):
     Attributes
     ----------
     discrete : Vector
+        The row of each discrete constraint in ``g``, named by the problem's discrete class.
     """
 
     __slots__ = ("discrete",)
@@ -596,7 +598,10 @@ class NLPIndex(_Record, Generic[D_co, PR_co]):
     Attributes
     ----------
     variable : ProblemVariableIndex
+        The positions of the parameters in ``x``; each phase's own are in its ``nlp.index``.
     constraint : ProblemConstraintIndex
+        The rows of the discrete constraints in ``g``; each phase's own are in its
+        ``nlp.index``.
     """
 
     __slots__ = ("constraint", "variable")
@@ -681,8 +686,8 @@ class NLPRecord(_Record, Generic[D_co, PR_co]):
 
     The vectors are in the order Ipopt saw them, which is part of what produced the result and
     is valid for the YAPSS version that solved it, ``solution.run.yapss_version``. A position
-    means something through `index` and ``ps.nlp.index``, and not otherwise. The vectors are
-    unscaled -- the problem as posed -- with the scaling beside them.
+    means something through `index` and each phase's ``nlp.index``, and not otherwise. The
+    vectors are unscaled -- the problem as posed -- with the scaling beside them.
 
     Attributes
     ----------
@@ -971,43 +976,50 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
     Attributes
     ----------
     time : numpy.ndarray
-        The points every quantity of the phase is given on: its independent variable, whatever
-        it measures.
-    state, dynamics : Vector
-        Arrays over `time`, named by the phase's state class.
+        The phase's independent variable at every point the solution is given on, whatever it
+        measures.
+    state : Vector
+        The phase's states, named by its state class, each an array over `time`.
+    dynamics : Vector
+        The state derivatives the continuous callback computed, named by the phase's state
+        class, each an array over `time`.
     control : Vector
-        Arrays over `time`, named by the phase's control class.
+        The phase's controls, named by its control class, each an array over `time`.
     path : Vector
-        Arrays over `time`, named by the phase's path class.
+        The phase's path constraint functions, named by its path class, each an array over
+        `time`.
     integrand : Vector
-        Arrays over `time`, named by the phase's integral class.
+        The integrands of the phase's integrals, named by its integral class, each an array over
+        `time`.
     integral : Vector
-        One value per integral.
+        The values of the phase's integrals, named by its integral class, one number each.
     multiplier : PhaseMultiplier
-        The multipliers, in the same shapes: ``ps.multiplier.path.g``.
+        The Lagrange multipliers of the phase's constraints, each named and shaped as the
+        quantity it multiplies: the multiplier of the path constraint `g` is
+        `multiplier.path.g`, an array over `time`.
     costate : Vector
-        The multiplier of the dynamics, which is ``ps.multiplier.dynamics`` under the name the
-        field uses for it -- the same object.
+        The costate, named by the phase's state class, each an array over `time`; the same
+        object as `multiplier.dynamics`.
     initial_state, final_state : Vector
-        The phase's state at each end, read as an endpoint callback reads it.
+        The phase's state at its first and at its last point, one number for each state.
     initial_time, final_time : float
-        The phase's time at each end.
+        The phase's independent variable at its first and at its last point.
     duration : float
-        The extent of the phase.
+        The phase's duration, `final_time` less `initial_time`.
     hamiltonian : numpy.ndarray
-        The Hamiltonian over `time`.
+        The Hamiltonian, an array over `time`.
     collocated : numpy.ndarray
-        Which points of `time` the solver produced values at. Every per-point quantity is given
-        on every point of `time`; where this is false, the value is the method's polynomial
-        extrapolated there -- close, and fine to plot, but not the solver's, and not bound by
-        anything the solver imposed. Checks and statistics use ``quantity[ps.collocated]``.
+        Which points of `time` the solver computed values at, a boolean array over `time`.
+        Elsewhere a per-point value is the method's polynomial there, not bound by anything the
+        solver imposed.
     weights : numpy.ndarray
-        The quadrature weights over `time`, zero where a point is not collocated, so that
-        ``ps.weights @ f`` is the method's own integral of `f` over the phase.
+        The quadrature weights in time, an array over `time`, zero where a point is not
+        collocated, so that ``weights @ f`` is the method's integral of ``f`` over the phase.
     mesh : Mesh
         The mesh the phase was solved on.
     nlp : PhaseNLP
-        The phase's positions in the solver's record, ``solution.nlp``.
+        The positions of the phase's variables and constraints in the solver's record,
+        ``solution.nlp``.
     """
 
     __slots__ = (
@@ -1294,28 +1306,33 @@ class Solution(Generic[D_co, PR_co]):
     Attributes
     ----------
     objective : float
-        The objective value.
+        The objective's value at the solution.
     converged : bool
-        Whether Ipopt reported a converged solve.
+        Whether Ipopt reported the solve as converged.
     status : IpoptStatus
-        What Ipopt reported.
+        The status Ipopt returned.
     name : str
-        The name of the problem this is a solution to.
-    spectral_method : str
-        The spectral method it was solved with: ``"lgl"``, ``"lgr"`` or ``"lg"``.
-    parameter, discrete : Vector
-        The problem-level values, named by the classes the problem declared.
+        The name of the problem solved, as `settings` records it.
+    spectral_method : {"lgl", "lgr", "lg"}
+        The collocation method the problem was solved with, as `settings` records it.
+    parameter : Vector
+        The parameters' values, named by the problem's parameter class.
+    discrete : Vector
+        The discrete constraint functions' values, named by the problem's discrete class.
     multiplier : ProblemMultiplier
-        Their multipliers, in the same shapes: ``solution.multiplier.discrete.d``.
+        The multipliers of the parameters' bounds and of the discrete constraints, each named as
+        what it multiplies: the multiplier of the discrete constraint `d` is
+        `multiplier.discrete.d`.
     nlp : NLPRecord
-        What Ipopt saw and returned, with the positions of every variable and constraint.
+        What Ipopt was given and returned, as flat vectors, with the position of every
+        variable and constraint.
     phases : PhaseSolutions
-        Each phase's solution: ``solution.phases.boost``, ``solution.phases[ph]``.
+        The phases' solutions, each reached by its name or by the problem's handle for it.
     settings : Settings
-        The problem's setup as it stood when solved, every setting under the problem's own
-        names; `name` and `spectral_method` are its values at the root.
+        The problem's setup as it stood when the solve began, under the problem's own names.
     run : Run
-        What was true of this solve beyond its problem: versions, platform, timing, warnings.
+        What was true of the solve beyond the problem: versions, platform, timing, and
+        warnings.
     """
 
     __slots__ = (

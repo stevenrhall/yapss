@@ -190,12 +190,12 @@ class Derivatives(Container):
 
     Attributes
     ----------
-    method : {"auto", "central-difference", "central-difference-full"}
-        How derivatives are computed: automatic differentiation with CasADi (the default), or
-        central differences, with or without sparsity detection.
-    order : {"first", "second"}
-        The order of derivatives Ipopt is given. Under ``"first"``, Ipopt approximates the
-        Hessian of the Lagrangian itself. The default is ``"second"``.
+    method : {"auto", "central-difference", "central-difference-full"}, default "auto"
+        How derivatives are computed: automatic differentiation with CasADi, or central
+        differences, with or without sparsity detection.
+    order : {"first", "second"}, default "second"
+        The order of the derivatives Ipopt is given; under ``"first"``, Ipopt approximates the
+        Hessian of the Lagrangian itself.
     """
 
     _settable = ("method", "order")
@@ -334,6 +334,12 @@ class ProblemRegistry(Registry):
         -------
         Any
             The callback, or a decorator that registers one.
+
+        Raises
+        ------
+        TypeError
+            If the callback is not callable, or cannot be called with the arguments it is
+            given.
         """
         return self._problem._register("objective", function)
 
@@ -354,6 +360,12 @@ class ProblemRegistry(Registry):
         -------
         Any
             The callback, or a decorator that registers one.
+
+        Raises
+        ------
+        TypeError
+            If the callback is not callable, or cannot be called with the arguments it is
+            given.
         """
         return self._problem._register("discrete", function)
 
@@ -377,38 +389,42 @@ class Problem(HasRegistry):
     Parameters
     ----------
     name : str
-        A name for the problem, used in messages and printed output.
+        The problem's name, used in messages and printed output.
+
+    Raises
+    ------
+    TypeError
+        If `name` is not a string, or the class is `yapss.Problem` itself.
+    ValueError
+        If `name` is blank.
 
     Attributes
     ----------
     name : str
-        The problem's name. It may be changed; each solve records the name in force.
-    comment : str
-        Free text recorded with each solution as ``solution.settings.comment``, such as a
-        description of the variant solved. Default ``""``.
+        The problem's name, which may be changed; each solve records the name in force.
+    comment : str, default ""
+        Free text recorded with each solve as ``solution.settings.comment``.
     phases
-        The phases, by the names the ``phases`` class declared: ``problem.phases.<name>``.
+        The problem's phases, each reached by the name its ``phases`` class declared:
+        ``problem.phases.<name>``.
     objective
-        The objective's ``sense`` (``"minimize"``, the default, or ``"maximize"``) and ``scale``
-        (positive, default 1.0).
+        The objective's settings: ``objective.sense``, ``"minimize"`` (the default) or
+        ``"maximize"``, and ``objective.scale``, a positive number, default 1.0.
     discrete, parameter
-        The discrete constraints and parameters, by the names their classes declared, each
-        with its settings: ``problem.discrete.<name>.bounds``, ``problem.parameter.<name>.guess``.
+        The settings of the discrete constraints and of the parameters, each reached by field:
+        ``problem.discrete.<field>.bounds``, ``problem.parameter.<field>.guess``.
     derivatives
-        How derivatives are computed: ``method`` and ``order``.
+        How derivatives are computed: ``derivatives.method`` and ``derivatives.order``.
     ipopt_options
-        Options passed to Ipopt, set by name: ``problem.ipopt_options.max_iter = 500``.
+        The options passed to Ipopt, each set by name: ``problem.ipopt_options.max_iter = 500``.
     register
-        Where the objective and discrete callbacks are registered:
+        Where the objective and discrete callbacks are registered, as
         ``@problem.register.objective``.
-    spectral_method : {"lgl", "lgr", "lg"}
-        The collocation points used in every phase. Default ``"lgl"``.
-    catch_keyboard_interrupt : bool
+    spectral_method : {"lgl", "lgr", "lg"}, default "lgl"
+        The collocation points every phase is solved with.
+    catch_keyboard_interrupt : bool, default True
         Whether Ctrl-C during a solve stops Ipopt at its next iterate and returns that iterate
-        as a `Solution`, with status 5 and an `IpoptConvergenceWarning`, so that a long or
-        stalled solve can be stopped and inspected rather than lost. Default True. With False,
-        Ctrl-C raises `KeyboardInterrupt` as usual. Takes effect only when solving on the main
-        thread, the only thread Python lets install a signal handler.
+        as a `Solution` (status 5, with an `IpoptConvergenceWarning`). Only on the main thread.
     """
 
     _held = (
@@ -686,8 +702,12 @@ class Problem(HasRegistry):
         IpoptConvergenceWarning
             If Ipopt stopped at an iterate but reported a status other than 0 (optimal),
             1 (acceptable level) or 6 (feasible point for a square problem). A `Solution`
-            is returned for each of these; an unconverged solve is valid input that
-            deserves attention.
+            is returned for each of these.
+        IpoptOptionSettingWarning
+            If Ipopt refused an option; the solve continues with Ipopt's default for it.
+        YapssDeprecationWarning
+            If the environment variable ``YAPSS_IPOPT_SOURCE`` is set, which has no effect;
+            once per process. The notice is removed in a release after 2027-09.
         """
         assert isinstance(self, Problem)
         started, begin = now()

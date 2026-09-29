@@ -2,12 +2,11 @@
 
 The math functions that work under every derivative method.
 
-Each name here takes symbolic arguments (the SXW wrapper, under ``"auto"``) as well as real
-ones, where it is numpy's function -- except that ``fmax``, ``fmin`` and ``where`` return NaN
-where numpy's would drop it, because the central-difference methods find the sparsity structure
-by setting a variable to NaN. The module provides nothing else, so a successful import is the
-promise that the function works under every derivative method; the rest of numpy is imported
-from numpy.
+Each is NumPy's function of the same name on real arguments, and also takes the symbolic ones a
+callback is given under ``"auto"``. ``fmax``, ``fmin`` and ``where`` differ from NumPy's: they
+return NaN where NumPy's would drop it, since the central-difference methods find the sparsity
+structure by setting a variable to NaN. The module provides nothing else; the rest of NumPy is
+imported from NumPy.
 
 """
 

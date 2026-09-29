@@ -28,7 +28,8 @@ class IpoptStatus(IntEnum):
     """The status Ipopt reports at the end of a solve.
 
     An `IntEnum`, so it compares equal to Ipopt's integer code: ``solution.status == 0``
-    and ``solution.status == IpoptStatus.SOLVE_SUCCEEDED`` are the same test.
+    and ``solution.status == IpoptStatus.SOLVE_SUCCEEDED`` are the same test. ``str(status)``
+    is the member's name, ``int(status)`` the code.
     """
 
     SOLVE_SUCCEEDED = 0
@@ -71,10 +72,8 @@ class IpoptStatus(IntEnum):
 
     @property
     def converged(self) -> bool:
-        """Whether the solve converged: statuses 0, 1, and 6.
+        """Whether the solve converged: statuses 0 (optimal), 1 (acceptable level), and 6.
 
-        1 ("Solved To Acceptable Level") counts. It is the normal outcome when tolerances
-        are pushed hard, and the answer is routinely correct to more digits than requested.
         6 is the converged outcome of a square problem, which has no objective to optimize.
         """
         return self in _CONVERGED
