@@ -180,34 +180,34 @@ def test_an_endpoint_is_reached_by_phase_handle() -> None:
     p = solvable()
 
     def by_name(arg):
-        return arg["slide"].final.time
+        return arg["slide"].final_time
 
     p.register.objective(by_name)
     with raises(KeyError, "takes a phase handle", "problem.phases.", at='arg["slide"]'):
         p.solve()
 
 
-def test_an_endpoint_holds_the_state_and_the_independent_variable() -> None:
-    """One namespace: the phase's variables at a point, which is what a Jacobian indexes."""
+def test_an_endpoint_holds_the_state_and_the_time_apart() -> None:
+    """Two names at each end, one kind of thing each: the state, a vector, and the time."""
     p = solvable()
 
     def both(arg):
         end = arg[p.phases.slide]
-        return end.final.time + 0.0 * end.final.x
+        return end.final_time + 0.0 * end.final_state.x
 
     p.register.objective(both)
     assert p.solve().converged
 
 
 def test_a_misspelled_endpoint_name_is_refused() -> None:
-    """Checked against the state's own fields, plus the independent variable."""
+    """Checked against the state's own fields."""
     p = solvable()
 
     def wrong(arg):
-        return arg[p.phases.slide].final.nope
+        return arg[p.phases.slide].final_state.nope
 
     p.register.objective(wrong)
-    with raises(AttributeError, "final state has no 'nope'", at="final.nope"):
+    with raises(AttributeError, "final state has no field 'nope'", at="final_state.nope"):
         p.solve()
 
 
@@ -314,7 +314,7 @@ def test_a_discrete_callback_returning_out_is_told_to_delete_the_return() -> Non
     p = solvable()
 
     def returns_out(arg, out):
-        out.discrete.drop = arg[p.phases.slide].final.y
+        out.discrete.drop = arg[p.phases.slide].final_state.y
         return out
 
     p.register.discrete(returns_out)
@@ -360,7 +360,7 @@ def test_a_problem_may_have_no_discrete_constraints() -> None:
 
     @p.register.objective
     def objective(arg):
-        return arg[ph].final.time
+        return arg[ph].final_time
 
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (1.0, 1.0)
@@ -522,7 +522,7 @@ def _block_problem(continuous: Any) -> Any:
     p = P("block rows")
     ph = p.phases.only
     ph.register.continuous(continuous)
-    p.register.objective(lambda arg: arg[ph].final.time)
+    p.register.objective(lambda arg: arg[ph].final_time)
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (1.0, 1.0)
     ph.state.r.initial[:] = (0.0, 0.0)
@@ -593,7 +593,7 @@ def test_the_objective_is_not_a_boolean() -> None:
     ph = p.phases.slide
 
     def compares(arg):
-        return arg[ph].final.time > 1.0
+        return arg[ph].final_time > 1.0
 
     p.register.objective(compares)
     with raises(TypeError, "compares' returned a boolean", "comparison", at="solve"):
@@ -607,10 +607,10 @@ def test_the_objective_is_one_number(returned: str) -> None:
     p = solvable()
     ph = p.phases.slide
     values = {
-        "array": lambda arg: np.array([arg[ph].final.time] * 3),
-        "tuple": lambda arg: (arg[ph].final.time, 1.0),
+        "array": lambda arg: np.array([arg[ph].final_time] * 3),
+        "tuple": lambda arg: (arg[ph].final_time, 1.0),
         "str": lambda arg: "time",
-        "dict": lambda arg: {"time": arg[ph].final.time},
+        "dict": lambda arg: {"time": arg[ph].final_time},
         "complex": lambda arg: 1j,
         "0-d complex": lambda arg: np.array(1j),
     }
@@ -625,7 +625,7 @@ def test_the_objective_is_returned_not_assigned() -> None:
     ph = p.phases.slide
 
     def assigns(arg):
-        arg.objective = arg[ph].final.time
+        arg.objective = arg[ph].final_time
 
     p.register.objective(assigns)
     with raises(AttributeError, "returned from the objective callback", at="arg.objective"):
@@ -665,7 +665,7 @@ def test_a_misspelled_discrete_output_is_suggested() -> None:
     ph = p.phases.slide
 
     def misspelled(arg, out):
-        out.discrete.dropp = arg[ph].final.y
+        out.discrete.dropp = arg[ph].final_state.y
 
     p.register.discrete(misspelled)
     with raises(AttributeError, "'dropp'", "Did you mean 'drop'", at="out.discrete.dropp"):
@@ -694,11 +694,11 @@ def test_an_endpoint_input_cannot_be_written() -> None:
     ph = p.phases.slide
 
     def writes(arg):
-        arg[ph].final.x = 0.0
-        return arg[ph].final.time
+        arg[ph].final_state.x = 0.0
+        return arg[ph].final_time
 
     p.register.objective(writes)
-    with raises(AttributeError, "is an input", at="final.x"):
+    with raises(AttributeError, "is read-only", at="final_state.x"):
         p.solve()
 
 
@@ -728,8 +728,8 @@ def test_inputs_follow_the_point_they_are_read_at() -> None:
         dynamics(arg, out)
 
     def objective(arg):
-        finals.add(float(arg[ph].final.time))
-        return arg[ph].final.time
+        finals.add(float(arg[ph].final_time))
+        return arg[ph].final_time
 
     ph.register.continuous(watch)
     p.register.objective(objective)

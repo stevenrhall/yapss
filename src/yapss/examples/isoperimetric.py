@@ -138,8 +138,8 @@ def setup() -> Isoperimetric:
     def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require the curve to return to where it started."""
         end = arg[ph]
-        out.discrete.closure_x = end.final.x - end.initial.x
-        out.discrete.closure_y = end.final.y - end.initial.y
+        out.discrete.closure_x = end.final_state.x - end.initial_state.x
+        out.discrete.closure_y = end.final_state.y - end.initial_state.y
 
     problem.objective.sense = "maximize"
 

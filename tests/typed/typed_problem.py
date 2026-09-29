@@ -105,16 +105,16 @@ def setup() -> Brachistochrone:
 
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg[Parameter]) -> Any:
-        return arg[ph].final.time
+        return arg[ph].final_time
 
     @problem.register.discrete
     def discrete(arg: yapss.DiscreteArg[Parameter], out: yapss.DiscreteOut[Discrete]) -> None:
-        out.discrete.landing = arg[ph].final.x
+        out.discrete.landing = arg[ph].final_state.x
 
     # the decorator form taking options, which strict mode reports if it returns `Any`
     @problem.register.objective
     def objective_again(arg: yapss.DiscreteArg[Parameter]) -> Any:
-        return arg[ph].final.time + 0.0 * arg[ph].integral.distance
+        return arg[ph].final_time + 0.0 * arg[ph].integral.distance
 
     ph.time.initial = (0.0, 0.0)
     ph.state.x.initial = (0.0, 0.0)
@@ -156,7 +156,10 @@ def report(solution: yapss.Solution[Discrete, Parameter], ps: Solved) -> dict[st
         "objective": solution.objective,
         "gravity": solution.parameter.g,
         "landing multiplier": solution.multiplier.discrete.landing,
-        "landing": ps.state.x[-1],  # the typed read of `ps.final.x`
+        "landing": ps.final_state.x,
+        "start": ps.initial_state.x,
+        "final time": ps.final_time,
+        "final time multiplier": ps.multiplier.final_time,
         "costate": ps.costate.v,
         "same costate": ps.multiplier.dynamics.v,
         "slope": ps.control.u,
@@ -244,6 +247,10 @@ def mistakes(
     out.integrand.distanse = 0.0  # type: ignore[attr-defined]
     endpoint.parameter.gg  # type: ignore[attr-defined]
     endpoint[ph].integral.distanse  # type: ignore[attr-defined]
+    endpoint[ph].final_state.xx  # type: ignore[attr-defined]
+    endpoint[ph].final_state.time  # type: ignore[attr-defined]
+    endpoint[ph].final_tme  # type: ignore[attr-defined]
+    endpoint[ph].final  # type: ignore[attr-defined]
     endpoint["phase"]  # type: ignore[index]
     discrete.discrete.landin = 0.0  # type: ignore[attr-defined]
     problem.ipopt_options.max_iters = 5000  # type: ignore[attr-defined]
@@ -283,6 +290,10 @@ def solution_mistakes(problem: Brachistochrone) -> None:
     solution.multiplier.discrete.landin  # type: ignore[attr-defined]
     solution.multiplier.dynamics  # type: ignore[attr-defined]
     ps.state.xx  # type: ignore[attr-defined]
+    ps.final_state.xx  # type: ignore[attr-defined]
+    ps.initial_state.time  # type: ignore[attr-defined]
+    ps.final  # type: ignore[attr-defined]
+    ps.multiplier.final  # type: ignore[attr-defined]
     ps.costate.xx  # type: ignore[attr-defined]
     ps.control.v  # type: ignore[attr-defined]
     ps.multiplier.path.sped  # type: ignore[attr-defined]

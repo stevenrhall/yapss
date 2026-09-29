@@ -97,8 +97,6 @@ class PhaseDeclaration:
     control: type[Vector]
     path: type[Vector]
     integral: type[Vector]
-    independent: str
-    """What the phase calls its independent variable, which is `time` unless it named it."""
 
 
 def declared_role(
@@ -257,9 +255,7 @@ def _declaring_scope() -> dict[str, Any]:
     return dict(sys._getframe(2).f_locals)
 
 
-def _check_namespace(
-    owner: str, state: type[Vector], control: type[Vector], independent: str
-) -> None:
+def _check_namespace(owner: str, state: type[Vector], control: type[Vector]) -> None:
     """Refuse a phase whose states, controls and independent variable share a name.
 
     Those three are one namespace, because that is what they are: the columns of the phase's
@@ -283,11 +279,10 @@ def _check_namespace(
         )
         raise ValueError(msg)
     for role, declaration in (("state", state), ("control", control)):
-        if independent in declaration._fields:
+        if "time" in declaration._fields:
             msg = (
-                f"{owner}: its {role} {declaration.__name__} declares {independent!r}, which is "
-                f"every phase's independent variable. An endpoint holds both in one namespace "
-                f"(final.{independent}), so rename the {role}'s field."
+                f"{owner}: its {role} {declaration.__name__} declares 'time', which is every "
+                f"phase's independent variable, so rename the {role}'s field."
             )
             raise ValueError(msg)
 
@@ -616,9 +611,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
     of its shape, so two phases may share one.
     """
 
-    # `register` and the independent variable's name are added per instance, since the
-    # latter is whatever the phase called it
-    _held = ("state", "control", "dynamics", "path", "integral")
+    _held = ("state", "control", "dynamics", "path", "integral", "time", "register")
     _settable = ("mesh",)
     _declaration: PhaseDeclaration | None = None
 
@@ -671,16 +664,14 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         if "state" not in roles:
             msg = f"{owner} declares no state. Every phase has one: write 'state: <a yapss.State>'."
             raise TypeError(msg)
-        name = "time"
         state = roles["state"]
         control = roles.get("control", Control)
-        _check_namespace(owner, state, control, name)
+        _check_namespace(owner, state, control)
         cls._declaration = PhaseDeclaration(
             state=state,
             control=control,
             path=roles.get("path", Path),
             integral=roles.get("integral", Integral),
-            independent=name,
         )
 
     def __init__(self, name: str, index: int) -> None:
@@ -695,7 +686,6 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         self._name = name
         self._index = index
         self._continuous: Callable[..., Any] | None = None
-        self._independent = declaration.independent
         self._label = f"phase '{name}'"
         self._hold("mesh", Mesh.uniform())
 
@@ -757,10 +747,8 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         )
         self._hold("integral", Fields(integral, declaration.integral, integral._label))
 
-        name = declaration.independent
-        self._hold(name, Time(f"{self._label} {name}"))
+        self._hold("time", Time(f"{self._label} time"))
         self._hold("register", PhaseRegistry(self))
-        object.__setattr__(self, "_held", (*Phase._held, name, "register"))
 
     @property
     def name(self) -> str:

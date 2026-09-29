@@ -345,19 +345,19 @@ def setup() -> DeltaIII:
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the mass delivered to orbit, which is to be made as large as possible."""
-        return arg[stages[LAST]].final.m
+        return arg[stages[LAST]].final_state.m
 
     @problem.register.discrete
     def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Join the stages, and require the final state to be on the target orbit."""
         s0, s1, s2, s3 = (arg[stage] for stage in stages)
-        out.discrete.stage_0_1_position = s1.initial.r - s0.final.r
-        out.discrete.stage_0_1_velocity = s1.initial.v - s0.final.v
-        out.discrete.stage_1_2_position = s2.initial.r - s1.final.r
-        out.discrete.stage_1_2_velocity = s2.initial.v - s1.final.v
-        out.discrete.stage_2_3_position = s3.initial.r - s2.final.r
-        out.discrete.stage_2_3_velocity = s3.initial.v - s2.final.v
-        final = s3.final
+        out.discrete.stage_0_1_position = s1.initial_state.r - s0.final_state.r
+        out.discrete.stage_0_1_velocity = s1.initial_state.v - s0.final_state.v
+        out.discrete.stage_1_2_position = s2.initial_state.r - s1.final_state.r
+        out.discrete.stage_1_2_velocity = s2.initial_state.v - s1.final_state.v
+        out.discrete.stage_2_3_position = s3.initial_state.r - s2.final_state.r
+        out.discrete.stage_2_3_velocity = s3.initial_state.v - s2.final_state.v
+        final = s3.final_state
         a, e, i, Omega, omega = orbital_elements(final.r, final.v)
         out.discrete.semi_major_axis = a
         out.discrete.eccentricity = e
@@ -506,7 +506,7 @@ def plot_solution(problem: DeltaIII, solution: yapss.Solution) -> None:
     phases = problem.phases
     stages = [phases.stage_0, phases.stage_1, phases.stage_2, phases.stage_3]
     color = ("darkblue", "maroon", "darkorange")
-    tf = solution.phases[stages[LAST]].final.time
+    tf = solution.phases[stages[LAST]].final_time
 
     def panel(
         series: Callable[[yapss.PhaseSolution[State, Control, Path]], list[Any]],

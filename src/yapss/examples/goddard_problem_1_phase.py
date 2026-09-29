@@ -111,7 +111,7 @@ def setup() -> Goddard:
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the altitude reached, which is to be made as large as possible."""
-        return arg[ph].final.h
+        return arg[ph].final_state.h
 
     problem.objective.sense = "maximize"
 

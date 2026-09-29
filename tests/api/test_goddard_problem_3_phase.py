@@ -53,11 +53,11 @@ def test_the_phases_are_joined(problem):
     )
     for name in Discrete._fields:
         assert getattr(solution.discrete, name) == pytest.approx(0.0, abs=1e-8)
-    assert solution.phases[singular].initial.time == pytest.approx(
-        solution.phases[boost].final.time
+    assert solution.phases[singular].initial_time == pytest.approx(
+        solution.phases[boost].final_time
     )
-    assert solution.phases[coast].initial.time == pytest.approx(
-        solution.phases[singular].final.time
+    assert solution.phases[coast].initial_time == pytest.approx(
+        solution.phases[singular].final_time
     )
 
 
@@ -69,8 +69,8 @@ def test_the_path_constraint_holds_on_the_singular_arc(problem):
 
 def test_the_terminal_conditions_are_met(problem):
     solution = problem.solve()
-    assert solution.phases[problem.phases.coast].final.m == pytest.approx(mf)
-    assert solution.phases[problem.phases.coast].final.h == pytest.approx(
+    assert solution.phases[problem.phases.coast].final_state.m == pytest.approx(mf)
+    assert solution.phases[problem.phases.coast].final_state.h == pytest.approx(
         solution.objective, rel=1e-12
     )
 

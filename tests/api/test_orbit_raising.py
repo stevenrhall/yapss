@@ -34,7 +34,7 @@ def test_the_final_orbit_is_circular(problem):
     solution = problem.solve()
     ps = solution.phases[problem.phases.phase]
     assert solution.discrete.circular == pytest.approx(0.0, abs=1e-8)
-    assert ps.final.v_theta == pytest.approx(np.sqrt(1.0 / ps.final.r), rel=1e-6)
+    assert ps.final_state.v_theta == pytest.approx(np.sqrt(1.0 / ps.final_state.r), rel=1e-6)
 
 
 def test_the_callback_is_given_the_time_at_every_point(problem):

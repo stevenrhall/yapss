@@ -49,8 +49,6 @@ class PhaseSpec:
     control: type[Vector]
     path: type[Vector]
     integral: type[Vector]
-    independent: str
-    """The name of the phase's independent variable, which is `time` unless it was renamed."""
     continuous: Callable[..., Any]
     state_bounds: dict[str, Any]
     state_initial: dict[str, Any]
@@ -109,17 +107,16 @@ def validate_problem(problem: Problem) -> None:
         label = f"phase '{phase.name}'"
         if phase._continuous is None:
             complaints.append(f"{label} has no continuous callback")
-        independent = getattr(phase, phase._independent)
-        if independent.guess is None:
-            name = phase._independent
-            complaints.append(f"{label} has no {name} guess; set 'ph.{name}.guess = (start, end)'")
+        time = phase.time
+        if time.guess is None:
+            complaints.append(f"{label} has no time guess; set 'ph.time.guess = (start, end)'")
         complaints.extend(_unbounded(aspects_of(phase.path).bounds, f"{label} path"))
         complaints.extend(_disjoint(aspects_of(phase.state), f"{label} state"))
-        complaints.extend(_backward(independent, label, phase._independent))
-        if independent.guess is not None:
+        complaints.extend(_backward(time, label))
+        if time.guess is not None:
             for what in ("state", "control"):
                 aspect = aspects_of(getattr(phase, what)).guess
-                complaints.extend(_uncovered(aspect, independent.guess, f"{label} {what} guess"))
+                complaints.extend(_uncovered(aspect, time.guess, f"{label} {what} guess"))
     if problem._objective_function is None:
         complaints.append("the problem has no objective callback")
     if problem._discrete_class._fields and problem._discrete_function is None:
@@ -176,18 +173,18 @@ def _disjoint(state: Any, label: str) -> list[str]:
     return complaints
 
 
-def _backward(independent: Any, label: str, name: str) -> list[str]:
+def _backward(time: Any, label: str) -> list[str]:
     """Return a complaint if the final bound lies wholly before the initial bound.
 
     A phase's duration is at least zero, so the pair cannot both hold; the solver would run and
     report the problem infeasible, which says nothing of why.
     """
-    initial_low, _ = independent.initial
-    _, final_high = independent.final
+    initial_low, _ = time.initial
+    _, final_high = time.final
     if final_high < initial_low:
         complaint = (
-            f"{label} {name}: its final bound {independent.final} lies wholly before its "
-            f"initial bound {independent.initial}, and a phase cannot run backward"
+            f"{label} time: its final bound {time.final} lies wholly before its "
+            f"initial bound {time.initial}, and a phase cannot run backward"
         )
         return [complaint]
     return []
@@ -229,7 +226,6 @@ def snapshot(problem: Problem) -> ProblemSpec:
             control=phase._declaration.control,
             path=phase._declaration.path,
             integral=phase._declaration.integral,
-            independent=phase._independent,
             continuous=phase._continuous,
             state_bounds=_values(aspects_of(phase.state).bounds),
             state_initial=_values(aspects_of(phase.state).initial),
@@ -245,10 +241,10 @@ def snapshot(problem: Problem) -> ProblemSpec:
             control_scale=_values(aspects_of(phase.control).scale),
             path_scale=_values(aspects_of(phase.path).scale),
             integral_scale=_values(aspects_of(phase.integral).scale),
-            time_initial=getattr(phase, phase._independent).initial,
-            time_final=getattr(phase, phase._independent).final,
-            time_guess=getattr(phase, phase._independent).guess,
-            time_scale=getattr(phase, phase._independent).scale,
+            time_initial=phase.time.initial,
+            time_final=phase.time.final,
+            time_guess=phase.time.guess,
+            time_scale=phase.time.scale,
             mesh=phase.mesh,
         )
         for phase in problem.phases

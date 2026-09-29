@@ -42,8 +42,8 @@ def _variable_positions(method, solution, ps):
         var.state.y,
         var.control.u,
         [var.integral.effort],
-        [var.initial.time],
-        [var.final.time],
+        [var.initial_time],
+        [var.final_time],
         [solution.nlp.index.variable.parameter.k],
     ]
     if method == "lgl":
@@ -106,7 +106,7 @@ def test_indices_are_shaped_like_what_they_index(solved):
     assert var.state.r.shape == ps.state.r.shape
     assert var.state.y.shape == ps.state.y.shape
     assert var.control.u.shape == ps.control.u[..., ps.collocated].shape
-    assert var.final.r.shape == ps.final.r.shape
+    assert var.final_state.r.shape == ps.final_state.r.shape
 
 
 def test_x_read_through_the_index_is_the_primal_layer(solved):
@@ -116,19 +116,19 @@ def test_x_read_through_the_index_is_the_primal_layer(solved):
     np.testing.assert_array_equal(nlp.x[var.state.y], ps.state.y)
     np.testing.assert_array_equal(nlp.x[var.control.u], ps.control.u[ps.collocated])
     assert nlp.x[var.integral.effort] == ps.integral.effort
-    assert nlp.x[var.initial.time] == ps.initial.time
-    assert nlp.x[var.final.time] == ps.final.time
-    np.testing.assert_array_equal(nlp.x[var.final.r], ps.final.r)
+    assert nlp.x[var.initial_time] == ps.initial_time
+    assert nlp.x[var.final_time] == ps.final_time
+    np.testing.assert_array_equal(nlp.x[var.final_state.r], ps.final_state.r)
     assert nlp.x[solution.nlp.index.variable.parameter.k] == solution.parameter.k
 
 
 def test_endpoint_entries_repeat_the_ends_of_the_state(solved):
     _, _, _, ps = solved
     var = ps.nlp.index.variable
-    np.testing.assert_array_equal(var.initial.r, var.state.r[:, 0])
-    np.testing.assert_array_equal(var.final.r, var.state.r[:, -1])
-    assert var.initial.y == var.state.y[0]
-    assert var.final.y == var.state.y[-1]
+    np.testing.assert_array_equal(var.initial_state.r, var.state.r[:, 0])
+    np.testing.assert_array_equal(var.final_state.r, var.state.r[:, -1])
+    assert var.initial_state.y == var.state.y[0]
+    assert var.final_state.y == var.state.y[-1]
 
 
 def test_g_read_through_the_index_is_the_constraint_values(solved):
@@ -153,8 +153,8 @@ def test_point_multipliers_agree_with_the_multiplier_tree(solved):
     assert nlp.mult_g[solution.nlp.index.constraint.discrete.end] == (
         solution.multiplier.discrete.end
     )
-    assert bound(var.initial.time) == ps.multiplier.initial.time
-    assert bound(var.final.time) == ps.multiplier.final.time
+    assert bound(var.initial_time) == ps.multiplier.initial_time
+    assert bound(var.final_time) == ps.multiplier.final_time
     assert bound(solution.nlp.index.variable.parameter.k) == solution.multiplier.parameter.k
 
 
@@ -293,7 +293,7 @@ def test_the_record_and_its_index_survive_pickling(solved):
     assert copy.nlp.convergence.iterations == solution.nlp.convergence.iterations
     var, var_copy = ps.nlp.index.variable, ps_copy.nlp.index.variable
     np.testing.assert_array_equal(var_copy.state.r, var.state.r)
-    assert var_copy.final.time == var.final.time
+    assert var_copy.final_time == var.final_time
     if method != "lgl":
         with pytest.raises(AttributeError, match="exists only under LGL"):
             var_copy.zero_mode  # noqa: B018

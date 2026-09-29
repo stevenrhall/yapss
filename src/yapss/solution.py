@@ -9,7 +9,6 @@ and `PhaseSolution` are here as well as in `yapss` itself.
 from ._api.solution import (
     ConstraintIndex,
     Convergence,
-    EndpointMultiplier,
     Jacobian,
     NLPIndex,
     NLPRecord,
@@ -29,7 +28,6 @@ from ._api.solution import (
 __all__ = [
     "ConstraintIndex",
     "Convergence",
-    "EndpointMultiplier",
     "Jacobian",
     "NLPIndex",
     "NLPRecord",

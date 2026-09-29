@@ -214,12 +214,12 @@ def solvable(method: str = "auto") -> Any:
     @problem.register.objective
     def objective(arg):
         """Reach the far end quickly, with a little regard for effort."""
-        return arg[ph].final.time + 1e-3 * arg[ph].integral.effort
+        return arg[ph].final_time + 1e-3 * arg[ph].integral.effort
 
     @problem.register.discrete
     def discrete(arg, out):
         """Report the final depth, which is constrained."""
-        out.discrete.drop = arg[ph].final.y
+        out.discrete.drop = arg[ph].final_state.y
 
     ph.time.initial = (0.0, 0.0)
     ph.state.x.initial = (0.0, 0.0)

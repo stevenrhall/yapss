@@ -50,12 +50,11 @@ def test_the_phase_multipliers_are_the_back_end_s(local):
     assert ps.multiplier.duration == data.duration_multiplier
 
 
-def test_the_time_multipliers_are_under_the_phase_s_own_name(local):
-    """The phase runs over `s`, and its endpoint multipliers say `s`, as `ps.initial` does."""
+def test_the_time_multipliers_are_the_back_end_s(local):
     _, solution, record = local
     ps, data = solution.phases["run"], record.phase[0]
-    assert ps.multiplier.initial.time == data.initial_time_multiplier
-    assert ps.multiplier.final.time == data.final_time_multiplier
+    assert ps.multiplier.initial_time == data.initial_time_multiplier
+    assert ps.multiplier.final_time == data.final_time_multiplier
 
 
 def test_the_problem_multipliers_are_the_back_end_s(local):
@@ -83,8 +82,8 @@ def test_the_state_bound_multipliers_are_owed_and_say_so(goddard):
     ps = solution.phases["boost"]
     with pytest.raises(AttributeError, match="state's bounds are not reported yet"):
         ps.multiplier.state  # noqa: B018
-    with pytest.raises(AttributeError, match="multiplier of 'h' at this endpoint is not reported"):
-        ps.multiplier.initial.h  # noqa: B018
+    with pytest.raises(AttributeError, match="state's bounds are not reported yet"):
+        ps.multiplier.initial_state  # noqa: B018
 
 
 def test_a_misspelled_multiplier_is_refused_with_a_suggestion(goddard):
@@ -92,8 +91,8 @@ def test_a_misspelled_multiplier_is_refused_with_a_suggestion(goddard):
     ps = solution.phases["boost"]
     with pytest.raises(AttributeError, match=r"no 'dynamic'\. Did you mean 'dynamics'\?"):
         ps.multiplier.dynamic  # noqa: B018
-    with pytest.raises(AttributeError, match=r"no 'tim'\. Did you mean 'time'\?"):
-        ps.multiplier.initial.tim  # noqa: B018
+    with pytest.raises(AttributeError, match=r"no 'initial_tim'\. Did you mean 'initial_time'\?"):
+        ps.multiplier.initial_tim  # noqa: B018
 
 
 def test_the_old_suffixed_name_is_gone(goddard):
@@ -116,6 +115,6 @@ def test_the_multipliers_pickle_with_the_solution(local):
     copy = pickle.loads(pickle.dumps(solution))
     ps, ps_copy = solution.phases["run"], copy.phases["run"]
     np.testing.assert_array_equal(ps_copy.multiplier.control.u, ps.multiplier.control.u)
-    assert ps_copy.multiplier.final.time == ps.multiplier.final.time
+    assert ps_copy.multiplier.final_time == ps.multiplier.final_time
     assert copy.multiplier.discrete.end == solution.multiplier.discrete.end
     assert ps_copy.costate is ps_copy.multiplier.dynamics

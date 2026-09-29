@@ -167,20 +167,23 @@ def setup() -> Goddard3Phase:
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the altitude reached, which is to be made as large as possible."""
-        return arg[coast].final.h
+        return arg[coast].final_state.h
 
     @problem.register.discrete
     def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require time and state to be continuous where the phases meet."""
-        b, s, e = arg[boost], arg[singular], arg[coast]
-        out.discrete.boost_singular_h = s.initial.h - b.final.h
-        out.discrete.boost_singular_v = s.initial.v - b.final.v
-        out.discrete.boost_singular_m = s.initial.m - b.final.m
-        out.discrete.boost_singular_time = s.initial.time - b.final.time
-        out.discrete.singular_coast_h = e.initial.h - s.final.h
-        out.discrete.singular_coast_v = e.initial.v - s.final.v
-        out.discrete.singular_coast_m = e.initial.m - s.final.m
-        out.discrete.singular_coast_time = e.initial.time - s.final.time
+        xf = arg[boost].final_state
+        x0 = arg[singular].initial_state
+        out.discrete.boost_singular_h = x0.h - xf.h
+        out.discrete.boost_singular_v = x0.v - xf.v
+        out.discrete.boost_singular_m = x0.m - xf.m
+        out.discrete.boost_singular_time = arg[singular].initial_time - arg[boost].final_time
+        xf = arg[singular].final_state
+        x0 = arg[coast].initial_state
+        out.discrete.singular_coast_h = x0.h - xf.h
+        out.discrete.singular_coast_v = x0.v - xf.v
+        out.discrete.singular_coast_m = x0.m - xf.m
+        out.discrete.singular_coast_time = arg[coast].initial_time - arg[singular].final_time
 
     problem.objective.sense = "maximize"
 
@@ -210,10 +213,7 @@ def setup() -> Goddard3Phase:
     problem.discrete.singular_coast_m.bounds = (0.0, 0.0)
     problem.discrete.singular_coast_time.bounds = (0.0, 0.0)
 
-    # Over the handles rather than over `phases`: iterating the container yields a phase of
-    # unknown shape, which has no `time` -- the name of the independent variable is the shape's.
-    # A tuple of the handles keeps both shapes, and both of them name it `time`.
-    for ph in (boost, singular, coast):
+    for ph in phases:
         k = ph.index
         ph.time.guess = (15.0 * k, 15.0 * (k + 1))
         ph.state.h.guess = (6000 * k, 6000 * (k + 1))

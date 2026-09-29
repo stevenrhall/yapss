@@ -120,12 +120,12 @@ def setup() -> OrbitRaising:
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the final radius, which is to be made as large as possible."""
-        return arg[ph].final.r
+        return arg[ph].final_state.r
 
     @problem.register.discrete
     def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require the final orbit to be circular."""
-        final = arg[ph].final
+        final = arg[ph].final_state
         out.discrete.circular = final.v_theta - sqrt(mu / final.r)
 
     problem.objective.sense = "maximize"

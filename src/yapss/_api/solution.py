@@ -34,7 +34,7 @@ from yapss._backend.layout import problem_layout
 from yapss._backend.quadrature import lg, lgl, lgr
 from yapss._backend.structure import get_nlp_cf_structure, get_nlp_dv_structure
 
-from .args import C_co, D_co, EndpointValues, I_co, P_co, PR_co, S_co
+from .args import C_co, D_co, I_co, P_co, PR_co, S_co
 from .containers import suggest
 from .kinds import ReadOnlyRows, is_bool
 from .vector import ROLES, Vector, role_of, scalar, vector
@@ -54,7 +54,6 @@ if TYPE_CHECKING:
 __all__ = [
     "ConstraintIndex",
     "Convergence",
-    "EndpointMultiplier",
     "Jacobian",
     "NLPIndex",
     "NLPRecord",
@@ -255,28 +254,6 @@ class _Grid:
         return out
 
 
-class _Fixed:
-    """A value read at an endpoint of a solution, which does not change, unlike a callback's."""
-
-    __slots__ = ("value",)
-
-    def __init__(self, value: Any) -> None:
-        self.value = value
-
-    def __call__(self) -> Any:
-        return self.value
-
-    def __reduce__(self) -> tuple[Any, ...]:
-        return (_Fixed, (self.value,))
-
-
-def _endpoint(phase: PhaseSpec, rows: Any, independent: Any, label: str) -> EndpointValues:
-    """Return one end of a phase, read as an endpoint callback reads it."""
-    return EndpointValues(
-        _vector(phase.state, rows, f"{label} state"), _Fixed(independent), phase.independent
-    )
-
-
 class _Record:
     """Base of the groups a solution holds: named slots, fixed, pickled as their values."""
 
@@ -333,38 +310,6 @@ _STATE_BOUNDS_OWED = (
 )
 
 
-class EndpointMultiplier(_Record):
-    """The multipliers at one end of a phase, in the namespace `ps.initial` and `ps.final` use.
-
-    The independent variable's is reported, under the phase's name for it. A state's -- the
-    multiplier of its initial or final condition -- is owed, and asking for one says so rather
-    than calling the name unknown.
-    """
-
-    __slots__ = ("_fields", "_independent", "_value")
-    _label = "the endpoint multipliers"
-
-    # Hidden from type checkers: one that sees a reader answering any name stops
-    # reporting misspellings. The names are declared for them instead.
-    if not TYPE_CHECKING:
-
-        def __getattr__(self, name):
-            """Return the independent variable's multiplier, or explain a state's absence."""
-            if name.startswith("_"):
-                raise AttributeError(name)
-            independent = object.__getattribute__(self, "_independent")
-            if name == independent:
-                return object.__getattribute__(self, "_value")
-            fields: tuple[str, ...] = object.__getattribute__(self, "_fields")
-            if name in fields:
-                msg = f"the multiplier of '{name}' at this endpoint is not reported yet. " + (
-                    _STATE_BOUNDS_OWED
-                )
-                raise AttributeError(msg)
-            msg = f"{self._label} have no '{name}'.{suggest(name, (*fields, independent))}"
-            raise AttributeError(msg)
-
-
 class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
     """A phase's multipliers, in the shapes of what they belong to: ``ps.multiplier``.
 
@@ -379,25 +324,35 @@ class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
         The multipliers of the path constraints, densities in time.
     integral : Vector
         One multiplier per integral.
-    initial, final : EndpointMultiplier
-        The multipliers at each end of the phase.
+    initial_time, final_time : float
+        The multipliers of the bounds on the phase's initial and final time.
     duration : float
         The multiplier of the phase's extent.
     """
 
-    __slots__ = ("control", "duration", "dynamics", "final", "initial", "integral", "path")
+    __slots__ = (
+        "control",
+        "duration",
+        "dynamics",
+        "final_time",
+        "initial_time",
+        "integral",
+        "path",
+    )
     _label = "the phase multipliers"
 
     if TYPE_CHECKING:
         dynamics: S_co
-        # Reserved and owed: reading it raises, saying so. Declared so that it checks when it
-        # is delivered, and a stub may be permissive.
+        # Reserved and owed: reading one raises, saying so. Declared so that they check when
+        # they are delivered, and a stub may be permissive.
         state: S_co
+        initial_state: S_co
+        final_state: S_co
         control: C_co
         path: P_co
         integral: I_co
-        initial: Any
-        final: Any
+        initial_time: float
+        final_time: float
         duration: float
 
     # Hidden from type checkers: one that sees a reader answering any name stops
@@ -406,7 +361,7 @@ class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
 
         def __getattr__(self, name):
             """Explain the owed state-bound multipliers, or refuse an unknown name."""
-            if name == "state":
+            if name in ("state", "initial_state", "final_state"):
                 msg = (
                     "the multipliers of the state's bounds are not reported yet. "
                     f"{_STATE_BOUNDS_OWED}"
@@ -476,12 +431,22 @@ class VariableIndex(_MethodOnly, Generic[S_co, C_co, I_co]):
         Each control, on the collocated points.
     integral : Vector
         One per integral.
-    initial, final : EndpointValues
-        The state at each end, and the phase's independent variable under its own name. A
-        state's entries repeat the first and last of `state`.
+    initial_state, final_state : Vector
+        The state at each end, which repeat the first and last entries of `state`.
+    initial_time, final_time : int
+        The phase's initial and final time.
     """
 
-    __slots__ = ("control", "final", "initial", "integral", "state", "zero_mode")
+    __slots__ = (
+        "control",
+        "final_state",
+        "final_time",
+        "initial_state",
+        "initial_time",
+        "integral",
+        "state",
+        "zero_mode",
+    )
     _label = "the variable index"
     _method_only = MappingProxyType({"zero_mode": "LGL"})
 
@@ -490,8 +455,10 @@ class VariableIndex(_MethodOnly, Generic[S_co, C_co, I_co]):
         zero_mode: S_co
         control: C_co
         integral: I_co
-        initial: Any
-        final: Any
+        initial_state: S_co
+        initial_time: int
+        final_state: S_co
+        final_time: int
 
 
 class ConstraintIndex(_MethodOnly, Generic[S_co, P_co, I_co]):
@@ -862,8 +829,10 @@ def _phase_nlp(phase: PhaseSpec, dv_phase: Any, cf_phase: Any, layout: Any) -> P
         "integral": _vector(
             phase.integral, np.array(dv_phase.q, dtype=np.intp), f"{label} integral"
         ),
-        "initial": _endpoint(phase, state[:, 0], int(dv_phase.t0[0]), f"{label} initial"),
-        "final": _endpoint(phase, state[:, -1], int(dv_phase.tf[0]), f"{label} final"),
+        "initial_state": _vector(phase.state, state[:, 0], f"{label} initial_state"),
+        "initial_time": int(dv_phase.t0[0]),
+        "final_state": _vector(phase.state, state[:, -1], f"{label} final_state"),
+        "final_time": int(dv_phase.tf[0]),
     }
     constraint: dict[str, Any] = {
         "dynamics": _vector(
@@ -938,8 +907,8 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
     Attributes
     ----------
     time : numpy.ndarray
-        The points every quantity of the phase is given on, under whatever the phase calls
-        its independent variable -- `time` unless it was named otherwise.
+        The points every quantity of the phase is given on: its independent variable, whatever
+        it measures.
     state, dynamics : Vector
         Arrays over `time`, named by the phase's state class.
     control : Vector
@@ -955,8 +924,10 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
     costate : Vector
         The multiplier of the dynamics, which is ``ps.multiplier.dynamics`` under the name the
         field uses for it -- the same object.
-    initial, final : EndpointValues
-        The phase's variables at each end, read as a callback reads them.
+    initial_state, final_state : Vector
+        The phase's state at each end, read as an endpoint callback reads it.
+    initial_time, final_time : float
+        The phase's time at each end.
     duration : float
         The extent of the phase.
     hamiltonian : numpy.ndarray
@@ -976,16 +947,16 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
     """
 
     __slots__ = (
-        "_independent",
-        "_points",
         "collocated",
         "control",
         "costate",
         "duration",
         "dynamics",
-        "final",
+        "final_state",
+        "final_time",
         "hamiltonian",
-        "initial",
+        "initial_state",
+        "initial_time",
         "integral",
         "integrand",
         "mesh",
@@ -993,6 +964,7 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         "nlp",
         "path",
         "state",
+        "time",
         "weights",
     )
 
@@ -1006,10 +978,10 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         integrand: I_co
         integral: I_co
         multiplier: PhaseMultiplier[S_co, C_co, P_co, I_co]
-        # The state and the independent variable in one namespace, which is an intersection
-        # Python's typing cannot write; see `args.Endpoint`. `ps.state.h[0]` is the typed read.
-        initial: Any
-        final: Any
+        initial_state: S_co
+        initial_time: float
+        final_state: S_co
+        final_time: float
         duration: float
         hamiltonian: NDArray[np.float64]
         collocated: NDArray[np.bool_]
@@ -1017,8 +989,7 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         mesh: Mesh
         nlp: PhaseNLP[S_co, C_co, P_co, I_co]
 
-    def __init__(self, independent: str, values: dict[str, Any]) -> None:
-        object.__setattr__(self, "_independent", independent)
+    def __init__(self, values: dict[str, Any]) -> None:
         for name, value in values.items():
             object.__setattr__(self, name, value)
 
@@ -1032,12 +1003,6 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         grid = _Grid(method, phase.mesh.collocation_points, data.time, data.time_c)
         fill = grid.fill
         costate = _vector(phase.state, fill(data.costate), f"{label} costate")
-        fields = phase.state._fields
-
-        def at_end(value: float) -> EndpointMultiplier:
-            return EndpointMultiplier(
-                {"_fields": fields, "_independent": phase.independent, "_value": value}
-            )
 
         multiplier = PhaseMultiplier(
             {
@@ -1049,15 +1014,14 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
                 "integral": _vector(
                     phase.integral, data.integral_multiplier, f"{label} integral multiplier"
                 ),
-                "initial": at_end(data.initial_time_multiplier),
-                "final": at_end(data.final_time_multiplier),
+                "initial_time": data.initial_time_multiplier,
+                "final_time": data.final_time_multiplier,
                 "duration": data.duration_multiplier,
             }
         )
         return cls(
-            phase.independent,
             {
-                "_points": data.time,
+                "time": data.time,
                 "collocated": grid.collocated,
                 "weights": _weights(method, phase.mesh, data.time[-1] - data.time[0]),
                 "state": _vector(phase.state, state, f"{label} state"),
@@ -1068,8 +1032,10 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
                 "path": _vector(phase.path, fill(data.path), f"{label} path"),
                 "integrand": _vector(phase.integral, fill(data.integrand), f"{label} integrand"),
                 "integral": _vector(phase.integral, data.integral, f"{label} integral"),
-                "initial": _endpoint(phase, state[:, 0], data.time[0], f"{label} initial"),
-                "final": _endpoint(phase, state[:, -1], data.time[-1], f"{label} final"),
+                "initial_state": _vector(phase.state, state[:, 0], f"{label} initial_state"),
+                "initial_time": data.time[0],
+                "final_state": _vector(phase.state, state[:, -1], f"{label} final_state"),
+                "final_time": data.time[-1],
                 "duration": data.time[-1] - data.time[0],
                 "hamiltonian": fill(data.hamiltonian),
                 "mesh": phase.mesh,
@@ -1078,29 +1044,21 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         )
 
     def _values(self) -> dict[str, Any]:
-        return {
-            name: object.__getattribute__(self, name)
-            for name in self.__slots__
-            if name != "_independent"
-        }
+        return {name: object.__getattribute__(self, name) for name in self.__slots__}
 
     def __reduce__(self) -> tuple[Any, ...]:
-        """Pickle the phase solution as its independent variable's name and its values."""
-        return (PhaseSolution, (object.__getattribute__(self, "_independent"), self._values()))
+        """Pickle the phase solution as its values."""
+        return (PhaseSolution, (self._values(),))
 
-    # Hidden from type checkers: every name a phase solution holds is declared above, `time`
-    # included, so a misspelling is reported.
+    # Hidden from type checkers: every name a phase solution holds is declared above, so a
+    # misspelling is reported.
     if not TYPE_CHECKING:
 
         def __getattr__(self, name):
-            """Return the points under the independent variable's name, or refuse the name."""
+            """Refuse an unknown name with a suggestion."""
             if name.startswith("_"):
                 raise AttributeError(name)
-            independent = object.__getattribute__(self, "_independent")
-            if name == independent:
-                return object.__getattribute__(self, "_points")
-            names = (*(n for n in self.__slots__ if not n.startswith("_")), independent)
-            msg = f"the phase solution has no '{name}'.{suggest(name, names)}"
+            msg = f"the phase solution has no '{name}'.{suggest(name, self.__slots__)}"
             raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -1407,7 +1365,6 @@ for _public in (Solution, PhaseSolution):
 for _public in (
     ConstraintIndex,
     Convergence,
-    EndpointMultiplier,
     Jacobian,
     NLPIndex,
     NLPRecord,

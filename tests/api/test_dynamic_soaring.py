@@ -45,8 +45,8 @@ def test_the_circuit_closes(solved):
     assert solution.discrete.gamma_periodic == pytest.approx(0.0, abs=1e-8)
     assert solution.discrete.psi_periodic == pytest.approx(np.radians(360), abs=1e-8)
     for name in ("x", "y", "h"):
-        assert getattr(ps.initial, name) == pytest.approx(0.0, abs=1e-6)
-        assert getattr(ps.final, name) == pytest.approx(0.0, abs=1e-6)
+        assert getattr(ps.initial_state, name) == pytest.approx(0.0, abs=1e-6)
+        assert getattr(ps.final_state, name) == pytest.approx(0.0, abs=1e-6)
 
 
 def test_the_vehicle_flies_within_its_limits(solved):

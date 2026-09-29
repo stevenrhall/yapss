@@ -141,7 +141,7 @@ def test_a_phase_without_a_time_guess_is_incomplete() -> None:
 
     @p.register.objective
     def objective(arg):
-        return arg[ph].final.x
+        return arg[ph].final_state.x
 
     with raises(ValueError, "has no time guess", "ph.time.guess = (start, end)", at="validate"):
         p.validate()

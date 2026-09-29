@@ -135,7 +135,7 @@ and annotate the callbacks with the names:
 .. literalinclude:: ../../../src/yapss/examples/brachistochrone.py
    :language: python
    :start-at: @ph.register.continuous
-   :end-at: return arg[ph].final.time
+   :end-at: return arg[ph].final_time
    :dedent: 4
 
 A callback used by several phases of one shape needs the names written only once.
@@ -236,14 +236,6 @@ What Is Not Checked
 
 These are the limits, stated so that a silent checker is not mistaken for a passing one.
 
-- ``arg[ph].initial`` and ``arg[ph].final`` are not typed,
-  nor are a solution's ``ps.initial``, ``ps.final``,
-  ``ps.multiplier.initial``, and ``ps.multiplier.final``.
-  Each holds the phase's states and its time,
-  so that ``arg[ph].final.time`` and ``arg[ph].final.x`` are both valid,
-  and Python's type annotations cannot describe a value
-  that combines a class's names with one more.
-  In a solution the typed read is the trajectory's end: ``ps.state.x[-1]`` and ``ps.time[-1]``.
 - A phase of a solution selected by name, as `Using a Solution`_ describes.
 - A phase selected by iterating over ``problem.phases`` is one the checker cannot identify,
   so its state and control names are not checked.

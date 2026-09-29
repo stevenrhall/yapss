@@ -151,8 +151,8 @@ def _refuse(mismatches: list[str]) -> None:
 
 def _write_phase(ps: PhaseSolution, ph: Any) -> None:
     """Write one phase's time, state, control and integral guesses from its solution."""
-    time = np.asarray(object.__getattribute__(ps, "_points"), dtype=float)
-    getattr(ph, ph._independent).guess = (float(time[0]), float(time[-1]))
+    time = np.asarray(ps.time, dtype=float)
+    ph.time.guess = (float(time[0]), float(time[-1]))
     for role in ("state", "control"):
         solved = getattr(ps, role)
         for name in type(solved)._fields:

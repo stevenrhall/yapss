@@ -247,7 +247,7 @@ def _check_parameters(parameter: type[Vector], phases: Any) -> None:
         variables = {
             **dict.fromkeys(declaration.state._fields, "a state"),
             **dict.fromkeys(declaration.control._fields, "a control"),
-            declaration.independent: "its independent variable",
+            "time": "its independent variable",
         }
         for shared in sorted(names & set(variables)):
             msg = (

@@ -181,9 +181,9 @@ def setup() -> DynamicSoaring:
     def discrete(arg: yapss.DiscreteArg, out: yapss.DiscreteOut[Discrete]) -> None:
         """Require the flight to come back to the state it started in, one turn later."""
         end = arg[ph]
-        out.discrete.v_periodic = end.final.v - end.initial.v
-        out.discrete.gamma_periodic = end.final.gamma - end.initial.gamma
-        out.discrete.psi_periodic = end.final.psi - end.initial.psi
+        out.discrete.v_periodic = end.final_state.v - end.initial_state.v
+        out.discrete.gamma_periodic = end.final_state.gamma - end.initial_state.gamma
+        out.discrete.psi_periodic = end.final_state.psi - end.initial_state.psi
 
     # ------------------------------------------------------------------- setup
 

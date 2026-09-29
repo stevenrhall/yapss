@@ -41,7 +41,7 @@ def test_a_phase_that_declares_nothing_still_has_its_own_times():
 
     @problem.register.objective
     def objective(arg):
-        return arg[ph].final.time
+        return arg[ph].final_time
 
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (1.0, 2.0)
@@ -77,7 +77,7 @@ def test_the_endpoints_alone_make_an_optimization_problem():
 
     @problem.register.objective
     def objective(arg):
-        return (arg[ph].initial.time - 0.3) ** 2 + (arg[ph].final.time - 1.7) ** 2
+        return (arg[ph].initial_time - 0.3) ** 2 + (arg[ph].final_time - 1.7) ** 2
 
     ph.time.initial = (0.0, 1.0)
     ph.time.final = (1.0, 2.0)
@@ -86,8 +86,8 @@ def test_the_endpoints_alone_make_an_optimization_problem():
 
     solution = problem.solve()
     assert solution.objective == pytest.approx(0.0, abs=1e-16)
-    assert solution.phases[ph].initial.time == pytest.approx(0.3)
-    assert solution.phases[ph].final.time == pytest.approx(1.7)
+    assert solution.phases[ph].initial_time == pytest.approx(0.3)
+    assert solution.phases[ph].final_time == pytest.approx(1.7)
 
 
 def test_a_parameter_of_no_rows_is_not_a_variable():

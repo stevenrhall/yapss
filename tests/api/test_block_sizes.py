@@ -66,7 +66,7 @@ def problem():
 
     @problem.register.objective
     def minimum_time(arg):
-        return arg[ph].final.time
+        return arg[ph].final_time
 
     ph.time.initial = (0.0, 0.0)
     ph.state.x.initial = (0.0, 0.0)

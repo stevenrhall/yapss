@@ -81,9 +81,9 @@ def test_the_ends_of_a_phase_are_reported_as_a_callback_sees_them() -> None:
     """`initial` and `final` hold the state there and the independent variable there."""
     problem, result = solution()
     ps = result.phases[problem.phases.slide]
-    assert ps.initial.time == 0.0
-    assert abs(ps.final.x - 1.0) < 1e-6
-    assert ps.duration == ps.final.time - ps.initial.time
+    assert ps.initial_time == 0.0
+    assert abs(ps.final_state.x - 1.0) < 1e-6
+    assert ps.duration == ps.final_time - ps.initial_time
 
 
 def test_the_problem_level_values_read_back_too() -> None:

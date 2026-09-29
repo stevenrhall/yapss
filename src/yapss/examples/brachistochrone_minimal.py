@@ -88,7 +88,7 @@ def setup() -> Brachistochrone:
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the time taken, which is the objective."""
-        return arg[ph].final.time
+        return arg[ph].final_time
 
     ph.time.initial = (0.0, 0.0)
     ph.state.x.initial = (0.0, 0.0)

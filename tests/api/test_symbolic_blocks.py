@@ -103,16 +103,16 @@ def build(seen: dict[str, Any]) -> yapss.Problem:
     @problem.register.discrete
     def discrete(arg, out):
         end = arg[ph]
-        record(seen, "endpoint scalar", end.final.h)
-        record(seen, "endpoint block", end.final.r)
+        record(seen, "endpoint scalar", end.final_state.h)
+        record(seen, "endpoint block", end.final_state.r)
         record(seen, "endpoint parameter block", arg.parameter.k)
-        out.discrete.gap = end.final.h - end.initial.h
-        out.discrete.vec_gap = end.final.r - end.initial.r
+        out.discrete.gap = end.final_state.h - end.initial_state.h
+        out.discrete.vec_gap = end.final_state.r - end.initial_state.r
 
     @problem.register.objective
     def objective(arg):
         record(seen, "objective parameter block", arg.parameter.k)
-        return arg[ph].final.h
+        return arg[ph].final_state.h
 
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (1.0, 1.0)

@@ -23,7 +23,6 @@ def test_each_class_is_the_type_of_what_it_names(solved):
         "PhaseSolution": ps,
         "ProblemMultiplier": solution.multiplier,
         "PhaseMultiplier": ps.multiplier,
-        "EndpointMultiplier": ps.multiplier.initial,
         "NLPRecord": solution.nlp,
         "NLPIndex": solution.nlp.index,
         "ProblemVariableIndex": solution.nlp.index.variable,

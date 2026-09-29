@@ -33,8 +33,6 @@ from .args import (
     DiscreteArg,
     DiscreteOut,
     Endpoint,
-    EndpointValues,
-    phase_arg_class,
 )
 from .kinds import ReadOnlyRows, Rows, is_bool, is_real
 from .solution import Solution
@@ -116,7 +114,6 @@ class _PhaseMakers:
         "_label",
         "_outputs",
         "_phase",
-        "arg_class",
         "callback",
         "control",
         "handle",
@@ -138,7 +135,7 @@ class _PhaseMakers:
         """
         cached = self._arg
         if cached is None:
-            cached = self.arg_class(
+            cached = ContinuousArg(
                 self.handle,
                 data.time,
                 self.state.over(data.state),
@@ -148,7 +145,7 @@ class _PhaseMakers:
             self._arg = cached
             return cached
         setattr_ = object.__setattr__
-        setattr_(cached, "_points", data.time)
+        setattr_(cached, "time", data.time)
         setattr_(cached.state, "_source", data.state)
         setattr_(cached.control, "_source", data.control)
         setattr_(cached.parameter, "_source", parameter)
@@ -177,7 +174,6 @@ class _PhaseMakers:
     def __init__(self, spec: ProblemSpec_, phase: PhaseSpec_) -> None:
         label = f"phase '{phase.name}'"
         self.handle = phase.handle
-        self.arg_class = phase_arg_class(phase.independent)
         self.callback = phase.continuous
         self.what = f"continuous callback for {label}"
         self.state = Maker(phase.state, ReadOnlyRows, f"{label} state")
@@ -245,7 +241,6 @@ class _EndpointMakers:
     __slots__ = (
         "_built",
         "final_state",
-        "independent",
         "indices",
         "initial_state",
         "integral",
@@ -258,32 +253,21 @@ class _EndpointMakers:
         self.initial_state = {}
         self.final_state = {}
         self.integral = {}
-        self.independent = {}
         for phase in spec.phases:
             label = f"phase '{phase.name}'"
             handle = phase.handle
             self.initial_state[handle] = Maker(phase.state, ReadOnlyRows, f"{label} initial state")
             self.final_state[handle] = Maker(phase.state, ReadOnlyRows, f"{label} final state")
             self.integral[handle] = Maker(phase.integral, ReadOnlyRows, f"{label} integral")
-            self.independent[handle] = phase.independent
         self.parameter = Maker(spec.parameter, ReadOnlyRows, "parameter")
 
     def build(self, handle: Any, arg: Any) -> Endpoint:
         """Return the endpoint values of one phase, from what the solver passed."""
         data = arg.phase[self.indices[handle]]
-        name = self.independent[handle]
         return Endpoint(
             data,
-            EndpointValues(
-                self.initial_state[handle].over(data.initial_state),
-                lambda: data.initial_time,
-                name,
-            ),
-            EndpointValues(
-                self.final_state[handle].over(data.final_state),
-                lambda: data.final_time,
-                name,
-            ),
+            self.initial_state[handle].over(data.initial_state),
+            self.final_state[handle].over(data.final_state),
             self.integral[handle].over(data.integral),
         )
 
@@ -308,8 +292,8 @@ class _Endpoints:
     """The endpoints of every phase, each built when it is first asked for and then kept.
 
     An `Endpoint` holds read-only views of the transcription's own arrays, so once built it
-    keeps reading the current point. Its `duration` is the one value computed rather than read,
-    so it is recomputed on each access.
+    keeps reading the current point; its times are read from the transcription's argument on
+    each access.
     """
 
     __slots__ = ("_arg", "_built", "_makers")

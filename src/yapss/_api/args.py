@@ -28,7 +28,6 @@ with the bare class, is exactly as unchecked as before and never falsely reporte
 
 from __future__ import annotations
 
-from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, Protocol
 
 # `TypeVar` from typing_extensions for PEP 696 defaults, as in `declare`.
@@ -46,7 +45,6 @@ __all__ = [
     "DiscreteArg",
     "DiscreteOut",
     "Endpoint",
-    "EndpointValues",
     "Endpoints",
 ]
 
@@ -66,17 +64,20 @@ D_co = TypeVar("D_co", bound="Discrete", covariant=True, default=Any)
 I_co = TypeVar("I_co", bound="Integral", covariant=True, default=Any)
 """A phase's integral declaration."""
 
+_S_co = TypeVar("_S_co", bound="State", covariant=True)
 _V_co = TypeVar("_V_co", bound="Integral", covariant=True)
 
 
-class _HasIntegral(Protocol[_V_co]):
-    """A phase handle, as far as its integrals: what ``integral: Effort`` in a shape satisfies.
+class _HasEndpoints(Protocol[_S_co, _V_co]):
+    """A phase handle, as far as its endpoints: what a shape's ``state`` and ``integral`` satisfy.
 
     The one place a protocol is still matched against a shape. ``arg[ph]`` differs by phase,
     so nothing written on the callback could type it; the handle can. Where a checker does not
-    follow the match -- PyCharm's engine does not -- ``arg[ph].integral`` is merely unchecked.
+    follow the match -- PyCharm's engine does not -- ``arg[ph]`` is merely unchecked.
     """
 
+    @property
+    def state(self) -> _S_co: ...
     @property
     def integral(self) -> _V_co: ...
 
@@ -132,25 +133,17 @@ class ContinuousArg(_Frozen, Generic[S_co, C_co, PR_co]):
     control, and the problem's parameters -- a type checker follows ``arg.state``,
     ``arg.control`` and ``arg.parameter`` to their declarations. Trailing ones may be left out.
 
-    The independent variable is reached by the name the phase gave it, so this class is
-    generated per name by `phase_arg_class`: a subclass with the points under a property of
-    that name. Generating rather than intercepting keeps it an ordinary attribute read, which
-    is what a callback that uses it does at every point of every call.
-
     Attributes
     ----------
     phase : Phase
         The phase this call is for. A callback shared between phases branches on it.
     time : numpy.ndarray
-        The points the phase is evaluated at, under whatever the phase calls its independent
-        variable -- ``time`` unless it was named otherwise.
+        The points the phase is evaluated at: its independent variable, whatever it measures.
     state, control, parameter : Vector
         The values at those points, one row per field.
     """
 
-    __slots__ = ("_points", "control", "parameter", "phase", "state")
-
-    _independent = "time"
+    __slots__ = ("control", "parameter", "phase", "state", "time")
 
     if TYPE_CHECKING:
         phase: AnyPhase
@@ -159,35 +152,19 @@ class ContinuousArg(_Frozen, Generic[S_co, C_co, PR_co]):
         parameter: PR_co
         time: Any
 
+    _names = ("phase", "time", "state", "control", "parameter")
+
     def __init__(
-        self, phase: Any, points: Any, state: Vector, control: Vector, parameter: Vector
+        self, phase: Any, time: Any, state: Vector, control: Vector, parameter: Vector
     ) -> None:
         for name, value in (
             ("phase", phase),
-            ("_points", points),
+            ("time", time),
             ("state", state),
             ("control", control),
             ("parameter", parameter),
         ):
             object.__setattr__(self, name, value)
-
-    @property
-    def _names(self) -> tuple[str, ...]:
-        return ("phase", "state", "control", "parameter", type(self)._independent)
-
-
-@cache
-def phase_arg_class(name: str) -> type[ContinuousArg[Any, Any, Any]]:
-    """Return the `ContinuousArg` subclass whose independent variable is called `name`."""
-    return type(
-        f"ContinuousArg_{name}",
-        (ContinuousArg,),
-        {
-            "__slots__": (),
-            "_independent": name,
-            name: property(lambda self: object.__getattribute__(self, "_points")),
-        },
-    )
 
 
 class ContinuousOut(_Frozen, Generic[S_co, P_co, I_co]):
@@ -251,94 +228,50 @@ class Endpoints(Protocol):
         ...
 
 
-class EndpointValues(_Frozen):
-    """One end of a phase: its state there, and its independent variable there.
-
-    The two are one namespace, because that is what they are -- the phase's variables at a
-    point, which is also what the endpoint columns of a Jacobian index. The state vector reads
-    the transcription's own array where it is, so it is built once and keeps reading the
-    current point; the independent variable is a number, read afresh on each access, since a
-    cached copy of one would go stale.
-
-    A name is looked for on the state first and then matched against the independent variable,
-    so the state's own error message is what a misspelling gets. Positions address the state's
-    rows, which the independent variable is not one of: it is a scalar in the same namespace,
-    reached by name.
-    """
-
-    __slots__ = ("_independent", "_name", "_state")
-
-    def __init__(self, state: Vector, independent: Any, name: str) -> None:
-        object.__setattr__(self, "_state", state)
-        object.__setattr__(self, "_independent", independent)
-        object.__setattr__(self, "_name", name)
-
-    def __reduce__(self) -> tuple[Any, ...]:
-        """Pickle as the constructor's arguments. Only a solution's endpoints are ever pickled."""
-        return (
-            EndpointValues,
-            tuple(object.__getattribute__(self, n) for n in ("_state", "_independent", "_name")),
-        )
-
-    def __getattr__(self, name: str) -> Any:
-        """Return a state by name, or the independent variable by its own name."""
-        if name.startswith("_"):
-            raise AttributeError(name)
-        independent = object.__getattribute__(self, "_name")
-        if name == independent:
-            return object.__getattribute__(self, "_independent")()
-        state = object.__getattribute__(self, "_state")
-        try:
-            return getattr(state, name)
-        except AttributeError:
-            # the state's own message would offer only the state's names, and this namespace
-            # holds one more: the independent variable
-            names = (*type(state)._fields, independent)
-            msg = f"{type(state)._label} has no '{name}'.{suggest(name, names)}"
-            raise AttributeError(msg) from None
-
-    def __getitem__(self, index: Any) -> Any:
-        """Return the state's rows by position."""
-        return object.__getattribute__(self, "_state")[index]
-
-    def __len__(self) -> int:
-        """Return the number of state rows."""
-        return len(object.__getattribute__(self, "_state"))
-
-
-class Endpoint(_Frozen, Generic[I_co]):
+class Endpoint(_Frozen, Generic[S_co, I_co]):
     """The endpoint values of one phase, as an endpoint callback sees them.
 
-    Typed by the phase's integral declaration, which `DiscreteArg` reads from the handle's
-    shape. ``initial`` and ``final`` are not typed: each holds the state's fields *and* the
-    independent variable, one namespace at run time, and a type that is one class plus one more
-    name is an intersection, which Python's typing cannot write. Typing them as the state would
-    report ``arg[ph].final.time`` as an error, and that is working code.
+    Typed by the phase's state and integral declarations, which `DiscreteArg` reads from the
+    handle's shape. The state vectors read the transcription's own arrays where they are, so the
+    endpoint is built once and keeps reading the current point; a time is a number, read afresh
+    on each access, since a cached copy of one would go stale.
 
     Attributes
     ----------
-    initial, final : EndpointValues
-        The phase's variables at each end: its state there, and its independent variable.
+    initial_state, final_state : Vector
+        The phase's state at each end, one value per field.
+    initial_time, final_time : Any
+        The phase's time at each end: a float, or a symbol under the ``"auto"`` trace.
     integral : Vector
         The phase's integrals, which belong to the phase rather than to either end of it.
     """
 
-    __slots__ = ("_data", "final", "initial", "integral")
+    __slots__ = ("_data", "final_state", "initial_state", "integral")
 
-    _names = ("final", "initial", "integral")
+    _names = ("initial_state", "initial_time", "final_state", "final_time", "integral")
 
     if TYPE_CHECKING:
-        initial: Any
-        final: Any
+        initial_state: S_co
+        final_state: S_co
         integral: I_co
 
     def __init__(
-        self, data: Any, initial: EndpointValues, final: EndpointValues, integral: Vector
+        self, data: Any, initial_state: Vector, final_state: Vector, integral: Vector
     ) -> None:
         object.__setattr__(self, "_data", data)
-        object.__setattr__(self, "initial", initial)
-        object.__setattr__(self, "final", final)
+        object.__setattr__(self, "initial_state", initial_state)
+        object.__setattr__(self, "final_state", final_state)
         object.__setattr__(self, "integral", integral)
+
+    @property
+    def initial_time(self) -> Any:
+        """The phase's time at its start."""
+        return object.__getattribute__(self, "_data").initial_time
+
+    @property
+    def final_time(self) -> Any:
+        """The phase's time at its end."""
+        return object.__getattribute__(self, "_data").final_time
 
 
 class DiscreteArg(_Frozen, Generic[PR_co]):
@@ -361,7 +294,7 @@ class DiscreteArg(_Frozen, Generic[PR_co]):
         object.__setattr__(self, "_endpoints", endpoints)
         object.__setattr__(self, "parameter", parameter)
 
-    def __getitem__(self, phase: _HasIntegral[_V_co]) -> Endpoint[_V_co]:
+    def __getitem__(self, phase: _HasEndpoints[_S_co, _V_co]) -> Endpoint[_S_co, _V_co]:
         """Return the endpoint values of `phase`, which is a phase handle."""
         endpoints: Endpoints = object.__getattribute__(self, "_endpoints")
         try:

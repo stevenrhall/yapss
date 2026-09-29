@@ -103,7 +103,7 @@ def test_a_float_only_function_on_the_symbolic_trace_is_pointed_to_yapss_math():
     problem = solvable("auto")
 
     def my_objective(arg):
-        return math.sin(arg[problem.phases.slide].final.time)
+        return math.sin(arg[problem.phases.slide].final_time)
 
     problem.register.objective(my_objective)
     with pytest.raises(TypeError) as info:

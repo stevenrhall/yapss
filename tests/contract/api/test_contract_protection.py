@@ -122,13 +122,13 @@ def _reachable() -> list[object]:
 
     @p.register.objective
     def objective(arg):
-        given.setdefault("objective", (arg, arg[ph], arg[ph].initial, arg[ph].final))
-        return arg[ph].final.time + 1e-3 * arg[ph].integral.effort
+        given.setdefault("objective", (arg, arg[ph], arg[ph].initial_state, arg[ph].final_state))
+        return arg[ph].final_time + 1e-3 * arg[ph].integral.effort
 
     @p.register.discrete
     def discrete(arg, out):
         given.setdefault("discrete", (arg, out))
-        out.discrete.drop = arg[ph].final.y
+        out.discrete.drop = arg[ph].final_state.y
 
     solution = p.solve()
     assert set(given) == {"continuous", "objective", "discrete"}

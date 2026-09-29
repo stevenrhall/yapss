@@ -155,7 +155,7 @@ def setup2(y_max: float = 1.0) -> Newton:
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:
         """Return the drag of the curve plus the drag of the flat tip."""
-        return arg[ph].integral.drag + 4 * arg[ph].initial.time**2
+        return arg[ph].integral.drag + 4 * arg[ph].initial_time ** 2
 
     ph.time.initial = (0.0, 1.0)
     return problem
@@ -200,7 +200,7 @@ def main() -> None:
 
     problem2 = setup2()
     solution2 = problem2.solve()
-    r0 = solution2.phases[problem2.phases.phase].initial.time
+    r0 = solution2.phases[problem2.phases.phase].initial_time
     print(f"drag, with the flat tip free           = {solution2.objective:.6f}")
     print(f"radius of the flat tip, r0 = {r0:.6f}")
     plt.figure()

@@ -67,7 +67,7 @@ def declared_in_a_function():
 
     @problem.register.discrete
     def discrete(arg, out):
-        out.discrete.end = arg[ph].final.y
+        out.discrete.end = arg[ph].final_state.y
 
     ph.time.initial = (0.0, 0.0)
     ph.time.final = (1.0, 1.0)
@@ -103,8 +103,8 @@ def test_a_solution_to_a_problem_declared_in_a_function_pickles(solved):
     np.testing.assert_array_equal(ps_copy.control.u, ps.control.u)
     np.testing.assert_array_equal(ps_copy.costate.y, ps.costate.y)
     assert ps_copy.integral.effort == ps.integral.effort
-    assert ps_copy.final.y == ps.final.y
-    assert ps_copy.final.time == ps.final.time
+    assert ps_copy.final_state.y == ps.final_state.y
+    assert ps_copy.final_time == ps.final_time
     assert ps_copy.mesh == ps.mesh
 
 
@@ -127,21 +127,21 @@ def test_one_piece_of_a_solution_pickles_on_its_own(solved):
     problem, solution = solved
     ps = solution.phases[problem.phases.run]
     np.testing.assert_array_equal(pickle.loads(pickle.dumps(ps.state)).r, ps.state.r)
-    assert pickle.loads(pickle.dumps(ps.final)).y == ps.final.y
+    assert pickle.loads(pickle.dumps(ps.final_state)).y == ps.final_state.y
 
 
 def test_a_solution_is_read_with_the_handles_of_a_rebuilt_problem(solved):
     """Handles are matched by position and name, so a solution outlives the problem object."""
     _, solution = solved
     rebuilt = declared_in_a_function()
-    assert solution.phases[rebuilt.phases.run].final.y == pytest.approx(1.0)
+    assert solution.phases[rebuilt.phases.run].final_state.y == pytest.approx(1.0)
 
 
 def test_a_pickled_solution_is_read_by_phase_name_with_no_problem_at_all(solved):
     """What makes pickling useful in a worker: nothing from the problem is needed to read it."""
     problem, solution = solved
     copy = pickle.loads(pickle.dumps(solution))
-    assert copy.phases["run"].final.y == solution.phases[problem.phases.run].final.y
+    assert copy.phases["run"].final_state.y == solution.phases[problem.phases.run].final_state.y
 
 
 def test_a_misspelled_phase_name_is_refused_with_a_suggestion(solved):

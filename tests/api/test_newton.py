@@ -48,8 +48,8 @@ def test_the_alternate_formulation_frees_the_initial_radius():
     problem = setup2()
     problem.ipopt_options.print_level = 0
     ps = problem.solve().phases[problem.phases.phase]
-    assert ps.initial.time > 0.3
-    assert ps.final.time == pytest.approx(1.0)
+    assert ps.initial_time > 0.3
+    assert ps.final_time == pytest.approx(1.0)
 
 
 def test_the_radius_is_the_phase_s_time(problem):
@@ -57,15 +57,15 @@ def test_the_radius_is_the_phase_s_time(problem):
     ps = solution.phases[problem.phases.phase]
     assert ps.time.shape == ps.state.y.shape
     assert ps.time[0] == pytest.approx(0.0)
-    assert ps.final.time == pytest.approx(1.0)
-    assert ps.initial.time == pytest.approx(0.0)
+    assert ps.final_time == pytest.approx(1.0)
+    assert ps.initial_time == pytest.approx(0.0)
     assert ps.duration == pytest.approx(1.0)
 
 
 def test_a_misspelled_endpoint_name_is_answered(problem):
     ps = problem.solve().phases[problem.phases.phase]
-    with pytest.raises(AttributeError, match="Did you mean 'time'"):
-        _ = ps.final.tim
+    with pytest.raises(AttributeError, match="Did you mean 'final_time'"):
+        _ = ps.final_tim
 
 
 def test_the_callback_reads_the_independent_variable_by_name(problem):
@@ -87,4 +87,4 @@ def test_the_callback_reads_the_independent_variable_by_name(problem):
 def test_the_declaration_names_what_it_holds():
     phases = Phases()
     assert [phase.name for phase in phases] == ["phase"]
-    assert phases.phase._independent == "time"
+    assert repr(phases.phase.time) == "<phase 'phase' time>"

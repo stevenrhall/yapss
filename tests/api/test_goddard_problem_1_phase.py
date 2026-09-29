@@ -33,9 +33,9 @@ def test_every_derivative_method_agrees(problem, method):
 
 def test_the_rocket_burns_to_the_dry_mass(problem):
     ps = problem.solve().phases[problem.phases.phase]
-    assert ps.initial.m == pytest.approx(m0, abs=1e-8)
-    assert ps.final.m == pytest.approx(mf, abs=1e-8)
-    assert ps.final.h == pytest.approx(RELEASED, rel=1e-6)
+    assert ps.initial_state.m == pytest.approx(m0, abs=1e-8)
+    assert ps.final_state.m == pytest.approx(mf, abs=1e-8)
+    assert ps.final_state.h == pytest.approx(RELEASED, rel=1e-6)
 
 
 def test_the_singular_arc_chatters(problem):

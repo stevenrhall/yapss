@@ -200,7 +200,7 @@ to the ultimate solution and reduces computation time.
 
     @problem.register.objective  # replaces the objective callback
     def objective_2(arg):
-        return arg[ph].final.mass  # final vehicle mass
+        return arg[ph].final_state.mass  # final vehicle mass
 
 
     problem.guess_from_solution(solution)  # use prior solution as a guess

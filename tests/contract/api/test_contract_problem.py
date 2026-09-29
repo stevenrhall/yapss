@@ -282,7 +282,7 @@ def test_a_replaced_callback_is_the_one_that_solves() -> None:
 
     @p.register.objective
     def objective(arg):
-        return arg[p.phases.slide].final.time
+        return arg[p.phases.slide].final_time
 
     assert p.solve().converged
 
@@ -324,7 +324,7 @@ def test_a_phase_with_no_continuous_callback_is_incomplete() -> None:
 
     @p.register.objective
     def objective(arg):
-        return arg[p.phases.first].final.x
+        return arg[p.phases.first].final_state.x
 
     for ph in p.phases:
         ph.time.guess = (0.0, 1.0)
@@ -360,7 +360,7 @@ def test_declared_discrete_constraints_need_a_callback() -> None:
 
     @p.register.objective
     def objective(arg):
-        return arg[ph].final.x
+        return arg[ph].final_state.x
 
     ph.time.guess = (0.0, 1.0)
     p.discrete.d.bounds = (0.0, 0.0)
@@ -669,11 +669,11 @@ def test_maximizing_gives_the_negated_optimum_of_minimizing_the_negation() -> No
     minimize = solvable()
     minimize.ipopt_options.print_level = 0
     ph = minimize.phases.slide
-    minimize.register.objective(lambda arg: arg[ph].final.time)
+    minimize.register.objective(lambda arg: arg[ph].final_time)
     maximize = solvable()
     maximize.ipopt_options.print_level = 0
     qh = maximize.phases.slide
-    maximize.register.objective(lambda arg: -arg[qh].final.time)
+    maximize.register.objective(lambda arg: -arg[qh].final_time)
     maximize.objective.sense = "maximize"
     low, high = minimize.solve().objective, maximize.solve().objective
     assert abs(low + high) < 1e-6 * abs(low)
