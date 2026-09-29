@@ -4,8 +4,7 @@ The YAPSS API.
 
 This package holds the front end that `yapss` itself exports: `Problem`, the declarations a
 problem is written in, and the solution it returns. Nothing imports from here directly --
-``import yapss`` reaches all of it -- and the package keeps its own name only until the two
-front ends finish changing places. The 0.3.0 API it replaced is `yapss._legacy`.
+``import yapss`` reaches all of it.
 
 """
 

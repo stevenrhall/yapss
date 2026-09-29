@@ -24,4 +24,3 @@ want to contribute to the project
    yapss.math
    yapss._api
    yapss._backend
-   yapss._legacy

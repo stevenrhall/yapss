@@ -54,7 +54,7 @@ def test_render_groups_by_area_and_type():
             "test": "u",
         },
     ]
-    page = error_catalog.render(records)
+    page = error_catalog.render(records, front="legacy")
     assert page.startswith("Error Catalogue")
     assert "Bounds" in page and "Guess" in page
     # shown as the user sees it: the type on the message line, inside a traceback, which is

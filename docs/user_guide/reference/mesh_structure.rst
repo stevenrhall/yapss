@@ -129,19 +129,16 @@ fuel required to reach a specific orbit. The vehicle has four stages, and hence 
 four phases. The default mesh results in a very large number of decision variables, and hence the
 problem is slow to solve. We can speed up the solution by reducing the number of collocation points:
 
-.. testsetup:: group3
+.. code-block:: python
 
-   from yapss._legacy.examples.delta_iii_ascent import setup
+   import yapss
+   from yapss.examples.delta_iii_ascent import setup
 
    problem = setup()
 
-.. testcode:: group3
-
    # set the mesh structure for the Delta III ascent problem
-   m, n = 5, 5  # 5 segments, each with 5 collocation points
-   for p_ in range(4):
-       problem.mesh.phase[p_].collocation_points = m * (n,)
-       problem.mesh.phase[p_].fraction = m * (1.0 / m,)
+   for ph in problem.phases:
+       ph.mesh = yapss.Mesh.uniform(segments=5, points=5)
 
 Or consider the `dynamic soaring problem <../notebooks/dynamic_soaring.ipynb>`_, where the objective
 is to find the trajectory that allows a bird or glider to fly continuously using dynamic soaring,
@@ -150,18 +147,15 @@ upper bound on the lift coefficient that is active only for part of the soaring 
 To give a good solution even in the vicinity of the discontinuity, we can use a segmented mesh with
 many segments:
 
-.. testsetup:: group4
+.. code-block:: python
 
-   from yapss._legacy.examples.dynamic_soaring import setup
+   import yapss
+   from yapss.examples.dynamic_soaring import setup
 
    problem = setup()
 
-.. testcode:: group4
-
    # set the mesh structure for the dynamic soaring problem
-   m, n = 50, 6  # 50 segments, each with 6 collocation points
-   problem.mesh.phase[0].collocation_points = m * (n,)
-   problem.mesh.phase[0].fraction = m * (1.0 / m,)
+   problem.phases.phase.mesh = yapss.Mesh.uniform(segments=50, points=6)
    problem.spectral_method = "lgl"
 
 It would be better to refine the mesh only in the vicinity of the discontinuities, but YAPSS does not

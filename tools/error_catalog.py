@@ -83,12 +83,12 @@ def as_user_wrote_it(statement: str) -> str:
     return text
 
 
-def render(records: list[dict[str, str]], *, front: str = "legacy") -> str:
+def render(records: list[dict[str, str]], *, front: str = "api") -> str:
     """Return the reStructuredText page for the harvested records.
 
-    `front` selects the section order and the voice: the development page lists the areas of
-    the 0.3.0 suite and names the clause that states each message, and the user page lists the
-    reference's own pages in the reference's order.
+    `front` selects the section order and the voice: ``"api"``, the default, lists the
+    reference's own pages in the reference's order, and ``"legacy"`` lists the areas of the
+    0.3.0 suite kept under `tests/` and names the clause that states each message.
     """
     areas = API_AREAS if front == "api" else AREAS
     name_the_clause = front != "api"
@@ -189,7 +189,7 @@ def render(records: list[dict[str, str]], *, front: str = "legacy") -> str:
     return "\n".join(lines) + "\n"
 
 
-def main(path: str, out: Path = PAGE, front: str = "legacy") -> int:
+def main(path: str, out: Path = PAGE, front: str = "api") -> int:
     """Read the harvested records of one front end and write its page."""
     source = Path(path)
     if not source.exists():
@@ -219,6 +219,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("records", nargs="?", default="build/errors.jsonl")
     parser.add_argument("--out", type=Path, default=None, help="the page to write")
-    parser.add_argument("--front", default="legacy", choices=("legacy", "api"))
+    parser.add_argument("--front", default="api", choices=("api", "legacy"))
     args = parser.parse_args()
     raise SystemExit(main(args.records, args.out or PAGE, args.front))

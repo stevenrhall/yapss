@@ -26,12 +26,23 @@ To initialize the guess for the parameter array, assign a one-dimensional array-
 ``guess.parameter`` attribute, with length equal to the number of parameters in the optimization.
 For example, in the Rosenbrock problem, we might have:
 
-.. doctest:: guess-rosenbrock
+.. code-block:: python
 
-    >>> from yapss._legacy import Problem
-    >>>
-    >>> problem = Problem(name="Rosenbrock", nx=[], ns=2)
-    >>> problem.guess.parameter = [-2.0, 2.0]
+    import yapss
+
+
+    class Parameter(yapss.Parameter):
+        x = yapss.scalar()
+        y = yapss.scalar()
+
+
+    class Rosenbrock(yapss.Problem):
+        parameter: Parameter
+
+
+    problem = Rosenbrock("Rosenbrock")
+    problem.parameter.x.guess = -2.0
+    problem.parameter.y.guess = 2.0
 
 ``guess.parameter`` accepts real numbers --- Python ``int`` and ``float``, NumPy integers and
 floats, and any sequence or array of them --- with length ``ns``. A string, a bool, a complex
@@ -42,10 +53,20 @@ The initial guess array is stored as a NumPy array in the ``guess.parameter`` at
 individual elements can be modified using indexing or slicing. The example above could also be
 written as:
 
-.. doctest:: guess-rosenbrock
+.. code-block:: python
 
-    >>> problem.guess.parameter[0] = -2.0
-    >>> problem.guess.parameter[1] = 2.0
+    class Parameter(yapss.Parameter):
+        point = yapss.vector(2)
+
+
+    class Rosenbrock(yapss.Problem):
+        parameter: Parameter
+
+
+    problem = Rosenbrock("Rosenbrock")
+    problem.parameter.point.guess[:] = [-2.0, 2.0]
+    problem.parameter.point.guess[0] = -2.0
+    problem.parameter.point.guess[1] = 2.0
 
 The default initial guess for the parameters is an array of zeros.
 
@@ -57,12 +78,15 @@ array-like object to ``guess.phase[p].integral``, where ``p`` is the phase index
 array-like object should match the number of integrals in the phase. For instance, in the
 isoperimetric problem, we might have:
 
-.. doctest:: guess-isoperimetric
+.. code-block:: python
 
-    >>> from yapss._legacy import Problem
-    >>>
-    >>> problem = Problem(name="Isoperimetric Problem", nx=[2], nu=[2], nq=[3], nh=[1], nd=4)
-    >>> problem.guess.phase[0].integral = [0.0, 0.0, 0.0]
+    from yapss.examples.isoperimetric import setup
+
+    problem = setup()
+    ph = problem.phases.phase
+    ph.integral.area.guess = 0.0
+    ph.integral.x_moment.guess = 0.0
+    ph.integral.y_moment.guess = 0.0
 
 ``guess.phase[p].integral`` accepts the same forms, with length ``nq[p]``, and refuses the same
 values.
@@ -102,30 +126,31 @@ longer matches.
 
 Below is an example from the Dynamic Soaring problem:
 
-.. doctest:: guess-dynamic-soaring
+.. code-block:: python
 
-    >>> import numpy as np
-    >>> from yapss._legacy import Problem
-    >>>
-    >>> problem = Problem(name="Dynamic Soaring", nx=[6], nu=[2], nh=[1], ns=1, nd=3)
-    >>>
-    >>> pi = np.pi
-    >>> tf = 24
-    >>> one = np.ones(50, dtype=float)
-    >>> t = np.linspace(0, tf, num=50, dtype=float)
-    >>> y = -200 * np.sin(2 * pi * t / tf)
-    >>> x = 600 * (np.cos(2 * pi * t / tf) - 1)
-    >>> h = -0.7 * x
-    >>> v = 150 * one
-    >>> gamma = 0 * one
-    >>> psi = np.radians(t / tf * 360)
-    >>> cl = 0.5 * one
-    >>> phi = np.radians(45) * one
-    >>>
-    >>> problem.guess.phase[0].time = t
-    >>> problem.guess.phase[0].state = x, y, h, v, gamma, psi
-    >>> problem.guess.phase[0].control = cl, phi
-    >>> problem.guess.parameter = 0.08,
+    import numpy as np
+
+    import yapss
+    from yapss.examples.dynamic_soaring import setup
+    from yapss.math import cos, pi, radians, sin
+
+    problem = setup()
+    ph = problem.phases.phase
+
+    tf = 24.0
+    t = np.linspace(0.0, tf, num=50)
+    turn = 2 * pi * t / tf
+    x = 600 * (cos(turn) - 1)
+    ph.time.guess = (0.0, tf)
+    ph.state.x.guess = yapss.interp(t, x)
+    ph.state.y.guess = yapss.interp(t, -200 * sin(turn))
+    ph.state.h.guess = yapss.interp(t, -0.7 * x)
+    ph.state.v.guess = (150.0, 150.0)
+    ph.state.gamma.guess = (0.0, 0.0)
+    ph.state.psi.guess = yapss.interp(t, radians(t / tf * 360))
+    ph.control.cl.guess = (0.5, 0.5)
+    ph.control.phi.guess = (radians(45), radians(45))
+    problem.parameter.beta.guess = 0.08
 
 The ``reset()`` Method
 ----------------------
@@ -134,14 +159,12 @@ To start a guess over, call the ``reset()`` method of the guess or of one of its
 guess is then as it was when the problem was created: the time, state, and control guesses
 are unset, and the integral and parameter guesses are zeros. Continuing the example above:
 
-.. doctest:: guess-dynamic-soaring
+.. code-block:: python
 
-    >>> problem.guess.phase[0].reset()  # Resets the guess for phase 0
-    >>> print(problem.guess.phase[0].time)
-    None
-    >>> problem.guess.reset()  # Resets the whole guess
-    >>> problem.guess.parameter
-    array([0.])
+    # a guess starts over by assigning the default again
+    for field in (ph.state.x, ph.state.y, ph.state.h):
+        field.guess = (0.0, 0.0)
+    problem.parameter.beta.guess = 0.0
 
 Initial Guess from Previous Solution
 ------------------------------------
@@ -164,29 +187,30 @@ to the ultimate solution and reduces computation time.
 
 .. code-block:: python
 
-    from yapss._legacy import Problem
+    from yapss.examples.minimum_time_to_climb import setup
 
-    problem = Problem(name="Bryson Minimum Time to Climb", nx=[4], nu=[1])
-
-    # more code here to define the problem ...
+    problem = setup()
+    ph = problem.phases.phase
 
     solution = problem.solve()  # solve the minimum time to climb problem
 
     # modify the problem to solve the minimum fuel to climb problem:
-    problem.sense = "maximize"
+    problem.objective.sense = "maximize"
 
+
+    @problem.register.objective  # replaces the objective callback
     def objective_2(arg):
-        arg.objective = arg.phase[0].final_state[3]  # final vehicle mass
+        return arg[ph].final.mass  # final vehicle mass
 
-    problem.functions.objective = objective_2   # change only the objective function
-    problem.guess(solution)   # use prior solution as a guess
+
+    problem.guess_from_solution(solution)  # use prior solution as a guess
     solution_2 = problem.solve()  # solve the minimum fuel to climb problem
 
 Alternatively, the initial guess can be set explicitly using the ``from_solution`` method:
 
 .. code-block:: python
 
-    problem.guess.from_solution(solution)
+    problem.guess_from_solution(solution, solution_phase="phase", guess_phase=ph)
 
 Both methods achieve the same result. The first syntax (``problem.guess(solution)``) is
 concise, while the second (``from_solution``) may enhance readability.
@@ -200,11 +224,3 @@ solution. A poor initial guess may cause the algorithm to converge to a local mi
 find a feasible solution. A common approach is to start with a simple guess, using only two time
 points per phase. If this is unsuccessful, a more refined initial guess may be needed to bring it
 closer to a feasible solution.
-
-Class Reference
----------------
-
-.. autoclass:: yapss._legacy.guess.Guess
-   :members:
-   :no-special-members:
-   :no-undoc-members:

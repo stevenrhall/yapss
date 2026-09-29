@@ -109,7 +109,6 @@ nitpick_ignore = [
     ("py:class", "NDArray"),
     ("py:class", "np.float64"),
     ("py:class", "yapss._backend.types_.LimitOptions"),
-    ("py:class", "yapss._legacy.guess.PhaseGuess"),
     ("py:class", "SolutionPhases"),
     ("py:class", "NLPInfo"),
     ("py:class", "DVStructure"),
