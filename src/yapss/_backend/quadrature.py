@@ -8,6 +8,11 @@ Provides functions and classes for LGL and LGR integration and differentiation.
 
 * :class:`Mesh` instances represent the mesh structure of the NLP
 
+The arithmetic is on NumPy arrays of mpmath numbers. In a product of such an array and an mpmath
+number, the array goes on the left: that is NumPy's elementwise loop. With the mpmath number on
+the left, mpmath first tries to convert the whole array, formatting it as text, and only then
+hands the product back to NumPy, which in the Legendre recurrences doubled the time taken.
+
 """
 
 # future imports
@@ -37,14 +42,22 @@ if TYPE_CHECKING:
 
     LG_func = Callable[[int], tuple[Array, ...]]
 
-mp.dps = 30
+DIGITS = 30
+"""The working precision of the computation, in decimal digits.
+
+Twenty digits already give every node, weight and matrix entry to within half an ulp of a
+60-digit reference for all three methods up to 100 points, and 22 exactly; 30 leaves margin and
+costs little, since the time goes to Python-level arithmetic on mpmath numbers, not to digits.
+"""
 
 
 def memoize(f: LG_func) -> LG_func:
-    """Memoize the `lgl` and `lgr` functions.
+    """Memoize the `lgl`, `lgr` and `lg` functions, computing each at `DIGITS` digits.
 
     We could use `functools.cache`, except that the returned tuple has mutable arrays, and
-    so copies of the arrays are returned instead.
+    so copies of the arrays are returned instead. The precision is set for the computation
+    only, with `mpmath.mp.workdps`, so that importing YAPSS leaves mpmath's global precision,
+    which is the user's, as it was.
 
     Parameters
     ----------
@@ -61,7 +74,8 @@ def memoize(f: LG_func) -> LG_func:
     @wraps(f)
     def function(n: int) -> tuple[Array, ...]:
         if n not in memo:
-            memo[n] = f(n)
+            with mp.workdps(DIGITS):
+                memo[n] = f(n)
         return tuple(item.copy() for item in memo[n])
 
     return function
@@ -114,8 +128,9 @@ def lgl(
         p[:, 1] = t
 
         for j in range(2, n + 1):
+            # the array on the left of each product: see the module docstring
             fj = mp.mpf(j)
-            p[:, j] = ((2 * fj - 1) * t * p[:, j - 1] - (fj - 1) * p[:, j - 2]) / fj
+            p[:, j] = (t * p[:, j - 1] * (2 * fj - 1) - p[:, j - 2] * (fj - 1)) / fj
 
         # do newton raphson step to drive t to zero of g_{n}(t)
         t = t - (p[:, n] - p[:, n - 2]) / ((2 * n - 1) * p[:, n - 1])
@@ -283,8 +298,9 @@ def lg(
         p[:, 1] = t
 
         for j in range(2, n + 1):
+            # the array on the left of each product: see the module docstring
             fj = mp.mpf(j)
-            p[:, j] = ((2 * fj - 1) * t * p[:, j - 1] - (fj - 1) * p[:, j - 2]) / fj
+            p[:, j] = (t * p[:, j - 1] * (2 * fj - 1) - p[:, j - 2] * (fj - 1)) / fj
 
         # do newton raphson step to drive t to zero of g_{n}(t)
         d_pn_d_t = n * (p[:, n - 1] - t * p[:, n]) / (1 - t**2)
