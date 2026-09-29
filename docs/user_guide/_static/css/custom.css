@@ -27,13 +27,47 @@
     margin-bottom: 13px; /* increase this to add space below */
 }
 
-/* The default text color for ``literals`` is too light */
-code.docutils.literal.notranslate {
-    color: #1d649f;
+/* Inline ``literals`` in the body's color on a faint gray, with no border. The theme's red
+   text in a white box, and any colored or bold treatment, turns a paragraph with several
+   names in it into a run of boxes and color; the monospace face on a quiet ground marks a
+   name without competing with the prose, and leaves color to mean a link. */
+.rst-content code.docutils.literal.notranslate {
+    color: inherit;
     white-space: normal;
-    font-weight: bold;
-    font-size: 90%;
-    background-color: inherit;
+    font-weight: normal;
+    font-size: 88%;
+    background: #eef0f2;
+    border: none;
+    border-radius: 3px;
+    padding: 1px 3px;
+}
+
+/* In a heading or the breadcrumb the name is the subject, not a word inside a sentence, and
+   at heading size the gray becomes a large block; the monospace face alone marks it there.
+   A name in a heading or the breadcrumb takes its weight and size, so it reads as part of
+   the title. */
+.rst-content :is(h1, h2, h3, h4, h5, h6) code.docutils.literal.notranslate,
+.rst-content .wy-breadcrumbs code.docutils.literal.notranslate {
+    background: none;
+    padding: 0;
+}
+
+.rst-content :is(h1, h2, h3, h4, h5, h6) code.docutils.literal.notranslate,
+.rst-content .wy-breadcrumbs code.docutils.literal.notranslate {
+    font-weight: inherit;
+    font-size: 100%;
+}
+
+/* The same in the sidebar, where a page title is an entry: the theme shrinks any code there
+   to 75% of the entry's text, which leaves a name in a title visibly smaller than the words
+   around it. */
+.wy-menu code.docutils.literal.notranslate {
+    font-size: 100%;
+    font-weight: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
 }
 
 /* Increase spacing between bullet items a bit. */
