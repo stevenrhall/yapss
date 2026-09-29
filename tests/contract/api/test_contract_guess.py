@@ -20,28 +20,25 @@ from ._api import Angle, Control, State, problem, raises, solvable
 
 
 def test_a_pair_is_linear_from_one_end_to_the_other() -> None:
-    """The commonest guess: where the row starts and where it ends.
-
-    It reads back tagged with what kind of guess it is, since the three forms have to be told
-    apart later, and a pair of numbers cannot say which of them it is.
-    """
+    """The commonest guess: where the row starts and where it ends. It reads back as written."""
     ph = problem().phases.first
     ph.state.x.guess = (0.0, 10.0)
-    assert ph.state.x.guess == ("linear", 0.0, 10.0)
+    assert ph.state.x.guess == (0.0, 10.0)
 
 
 def test_samples_carry_their_own_times() -> None:
     """A sampled guess is pure data on its own grid, so rows need not share one."""
     ph = problem().phases.first
-    ph.state.x.guess = yapss.interp([0.0, 0.5, 1.0], [0.0, 2.0, 1.0])
-    assert ph.state.x.guess is not None
+    samples = yapss.interp([0.0, 0.5, 1.0], [0.0, 2.0, 1.0])
+    ph.state.x.guess = samples
+    assert ph.state.x.guess is samples
 
 
 def test_a_block_field_takes_one_guess_per_row() -> None:
     """Rows of a block are guessed as the rows of any other aspect are written."""
     ph = problem().phases.first
     ph.state.y.guess[:] = [(0.0, 1.0), (2.0, 3.0)]
-    assert list(ph.state.y.guess) == [("linear", 0.0, 1.0), ("linear", 2.0, 3.0)]
+    assert ph.state.y.guess == ((0.0, 1.0), (2.0, 3.0))
 
 
 # ------------------------------------------------------------------------ what is refused
@@ -396,3 +393,12 @@ def test_one_phase_may_be_paired_with_another() -> None:
     p.guess_from_solution(solution, solution_phase="slide", guess_phase=p.phases.slide)
     with raises(TypeError, "give both", at="guess_from_solution"):
         p.guess_from_solution(solution, solution_phase="slide")
+
+
+def test_a_time_guess_cannot_be_unset() -> None:
+    """Reading an unset time guess gives None, but None is not a value to write: the time guess
+    is the one guess a solve requires."""
+    ph = problem().phases.first
+    assert ph.time.guess is None
+    with raises(TypeError, "time guess is required", "Write (t0, tf)", at="time.guess ="):
+        ph.time.guess = None

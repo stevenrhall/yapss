@@ -892,6 +892,9 @@ class Vector:
             raise AttributeError(kind.refusal(self._label, name))
         spec = cls._meta[name]
         count = spec.rows
+        if isinstance(value, BlockRows):
+            # the rows read back from a setting, written to one: ``r.guess[:] = r.guess``
+            value = tuple(value)
 
         if isinstance(index, slice):
             rows = list(range(*index.indices(count)))

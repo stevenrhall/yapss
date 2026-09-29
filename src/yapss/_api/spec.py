@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 from .fields import aspects_of
-from .sampled import coverage_complaint
+from .sampled import Interp, coverage_complaint
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -144,9 +144,9 @@ def _uncovered(guess: Vector, time_guess: tuple[float, float], label: str) -> li
     for name in guess._fields:
         # Every row, not just the first: a block field can be given one sampled guess per row.
         for element in guess._elements(name):
-            if element[0] != "sampled":
+            if not isinstance(element, Interp):
                 continue
-            complaint = coverage_complaint(element[1], time_guess, label, name)
+            complaint = coverage_complaint(element, time_guess, label, name)
             if complaint is not None:
                 complaints.append(complaint)
                 break

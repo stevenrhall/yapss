@@ -234,7 +234,7 @@ def test_a_two_row_block_is_not_ambiguous_any_more():
 
 def test_an_unset_guess_is_zero():
     guess = Rocket._new(Guess, "phase 'boost' state guess")
-    assert guess.h == ("constant", 0.0)
+    assert guess.h == (0.0, 0.0)
 
 
 def test_a_state_guess_is_a_pair():
@@ -242,8 +242,8 @@ def test_a_state_guess_is_a_pair():
     guess = Rocket._new(Guess, "phase 'boost' state guess")
     guess.h = (5.0, 5.0)
     guess.v = (0, 100)
-    assert guess.h == ("linear", 5.0, 5.0)
-    assert guess.v == ("linear", 0.0, 100.0)
+    assert guess.h == (5.0, 5.0)
+    assert guess.v == (0.0, 100.0)
     with pytest.raises(TypeError, match="a guess is a \\(first, last\\) pair, and 5.0 is one"):
         guess.h = 5.0
 

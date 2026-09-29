@@ -296,12 +296,14 @@ class Guess(Kind):
     `yapss.interp` gives samples on a grid of the field's own, and is one element however many
     rows of samples it carries.
 
-    A field that is never assigned is guessed as zero.
+    A guess is stored, and read back, in the form it is written: the pair as a pair of floats,
+    and the `yapss.interp` object itself. A field that is never assigned is guessed as zero, and
+    reads back as ``(0.0, 0.0)``.
     """
 
     by_row = False
     per_row = True
-    default = ("constant", 0.0)
+    default = (0.0, 0.0)
 
     @classmethod
     def is_element(cls, value: object) -> bool:
@@ -317,7 +319,7 @@ class Guess(Kind):
         if is_bool(value):
             raise TypeError(_bool_message(label, name))
         if isinstance(value, Interp):
-            return ("sampled", value)
+            return value
         if is_real(value):
             msg = (
                 f"{label} '{name}': a guess is a (first, last) pair, and {value!r} is one "
@@ -343,7 +345,7 @@ class Guess(Kind):
         if not (math.isfinite(first) and math.isfinite(last)):
             msg = f"{label} '{name}': a guess must be finite; got ({first}, {last})"
             raise ValueError(msg)
-        return ("linear", first, last)
+        return (first, last)
 
 
 class Rows(Kind):

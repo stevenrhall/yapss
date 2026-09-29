@@ -538,6 +538,12 @@ class Time(Container):
         Not a bound: `t0` and `tf` are where the phase is guessed to start and end, so each
         side is one number rather than an interval of its own.
         """
+        if value is None:
+            msg = (
+                f"{self._label}.guess: a phase's time guess is required, so it cannot be unset. "
+                f"Write (t0, tf)."
+            )
+            raise TypeError(msg)
         if not is_pair(value):
             msg = f"{self._label} guess is a (t0, tf) pair; got {value!r}"
             raise TypeError(msg)

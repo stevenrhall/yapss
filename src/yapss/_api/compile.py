@@ -34,6 +34,7 @@ from .args import (
     Endpoint,
 )
 from .kinds import ReadOnlyRows, Rows, is_bool, is_real
+from .sampled import Interp
 from .solution import Solution
 from .vector import Maker
 
@@ -450,8 +451,8 @@ def _guess_grid(
             # Every row of a field, not just the first: a block field may be given one sampled
             # guess per row, each with its own sample times.
             for guess in values[name]:
-                if guess[0] == "sampled":
-                    times.update(t for t in guess[1].time.tolist() if t0 < t < tf)
+                if isinstance(guess, Interp):
+                    times.update(t for t in guess.time.tolist() if t0 < t < tf)
     return np.array(sorted(times), dtype=float)
 
 
@@ -460,24 +461,22 @@ def _guess_rows(
 ) -> Any:
     """Return one row of guessed values per declared row, on `grid`.
 
-    A constant holds over the phase; a pair is linear from one end to the other; samples are
-    interpolated linearly, holding their end values where they do not reach the ends of the
-    phase, which is what `numpy.interp` does.
+    A pair is linear from one end of the phase to the other; samples are interpolated linearly,
+    holding their end values where they do not reach the ends of the phase, which is what
+    `numpy.interp` does.
     """
     t0, tf = span
     rows = []
     for name, member in declaration._rows:
         index = 0 if member is None else member
         guess = values[name][index]
-        if guess[0] == "constant":
-            rows.append(np.full(grid.shape, guess[1]))
-        elif guess[0] == "linear":
-            rows.append(np.interp(grid, [t0, tf], [guess[1], guess[2]]))
-        else:
-            sampled = guess[1]
+        if isinstance(guess, Interp):
             size = declaration._meta[name].rows
-            row = sampled.rows(size, "guess", name)[index]
-            rows.append(np.interp(grid, sampled.time, row))
+            row = guess.rows(size, "guess", name)[index]
+            rows.append(np.interp(grid, guess.time, row))
+        else:
+            first, last = guess
+            rows.append(np.interp(grid, [t0, tf], [first, last]))
     return np.array(rows, dtype=float) if rows else np.zeros((0, grid.size))
 
 
