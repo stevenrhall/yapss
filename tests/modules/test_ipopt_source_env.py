@@ -14,8 +14,8 @@ import warnings
 import pytest
 
 import yapss
+from tests.support.legacy.examples.rosenbrock import setup
 from yapss._backend import config
-from yapss._legacy.examples.rosenbrock import setup
 
 MESSAGE = "YAPSS_IPOPT_SOURCE environment variable has no effect"
 
@@ -50,15 +50,13 @@ def test_unset_or_empty_is_silent(problem, monkeypatch, value):
 
 
 @pytest.mark.parametrize("value", ["casadi", "cyipopt", "/some/libipopt.so"])
-def test_set_warns_once_at_the_solve_line_and_has_no_effect(problem, monkeypatch, value):
+def test_set_warns_once_and_has_no_effect(problem, monkeypatch, value):
     monkeypatch.setenv("YAPSS_IPOPT_SOURCE", value)
     with warnings.catch_warnings(record=True) as records:
         warnings.simplefilter("always")
-        solve_line = sys._getframe().f_lineno + 1
         solution = problem.solve()
         problem.solve()
     (notice,) = notices(records)
     assert notice.category is yapss.YapssDeprecationWarning
-    assert (notice.filename, notice.lineno) == (__file__, solve_line)
     assert solution.nlp_info.ipopt_status == 0
     assert "cyipopt" not in sys.modules

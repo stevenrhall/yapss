@@ -8,7 +8,9 @@ from pathlib import Path
 
 import pytest
 
-WORKER = Path(__file__).parent / "_mseipopt_hardening_worker.py"
+ROOT = Path(__file__).resolve().parents[2]
+# Run as a module from the repository root, so the worker can import the test support package.
+WORKER = "tests.modules._mseipopt_hardening_worker"
 PASS, SKIP = 0, 2
 
 pytestmark = pytest.mark.isolation
@@ -17,7 +19,8 @@ pytestmark = pytest.mark.isolation
 def run_check(name: str) -> str:
     """Run one hazardous check without risking the main pytest process."""
     process = subprocess.run(
-        [sys.executable, str(WORKER), name],
+        [sys.executable, "-m", WORKER, name],
+        cwd=ROOT,
         capture_output=True,
         text=True,
         timeout=300,

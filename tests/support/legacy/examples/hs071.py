@@ -12,7 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 # package imports
-from yapss._legacy import DiscreteArg, ObjectiveArg, Problem, Solution
+from tests.support.legacy import DiscreteArg, ObjectiveArg, Problem, Solution
 
 
 def setup() -> Problem:

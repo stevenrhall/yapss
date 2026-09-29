@@ -7,6 +7,7 @@ renderer broke or if `_harness.raises` stopped feeding it the shape it expects.
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -134,4 +135,4 @@ def test_the_contract_helper_still_feeds_the_expected_fields(tmp_path, monkeypat
     assert entry["area"] == "scale"
     assert entry["front"] == "legacy"
     assert entry["kind"] == "error"
-    assert entry["site"].startswith("_legacy/")
+    assert re.fullmatch(r"[\w/]+\.py:\d+", entry["site"]), entry["site"]

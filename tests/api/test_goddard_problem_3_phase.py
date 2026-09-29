@@ -24,7 +24,7 @@ def test_it_solves_to_the_released_answer(problem):
 
 
 def test_it_agrees_with_the_same_problem_in_the_released_api(problem):
-    from yapss._legacy.examples.goddard_problem_3_phase import setup as legacy_setup
+    from tests.support.legacy.examples.goddard_problem_3_phase import setup as legacy_setup
 
     legacy = legacy_setup()
     legacy.ipopt_options.print_level = 0

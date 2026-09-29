@@ -1,6 +1,6 @@
 """
 
-Test that yapss._legacy.examples.minimum_time_to_climb works properly.
+Test that tests.support.legacy.examples.minimum_time_to_climb works properly.
 
 """
 
@@ -8,7 +8,7 @@ Test that yapss._legacy.examples.minimum_time_to_climb works properly.
 import pytest
 
 # package imports
-from yapss._legacy.examples import minimum_time_to_climb as optimal_control_problem
+from tests.support.legacy.examples import minimum_time_to_climb as optimal_control_problem
 
 J = 320.45
 tol = 5e-5

@@ -21,7 +21,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 # package imports
-from yapss._legacy import Problem
+from tests.support.legacy import Problem
 
 
 def test_guess_parameter():

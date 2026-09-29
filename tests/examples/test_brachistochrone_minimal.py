@@ -1,6 +1,6 @@
 """
 
-Test that yapss._legacy.examples.brachistochrone_minimal works properly.
+Test that tests.support.legacy.examples.brachistochrone_minimal works properly.
 
 """
 
@@ -8,7 +8,7 @@ Test that yapss._legacy.examples.brachistochrone_minimal works properly.
 import pytest
 
 # package imports
-from yapss._legacy.examples import brachistochrone_minimal as optimal_control_problem
+from tests.support.legacy.examples import brachistochrone_minimal as optimal_control_problem
 
 J = 0.312480130
 tol = 1e-8

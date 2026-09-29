@@ -12,7 +12,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 # package imports
-from yapss._legacy import ObjectiveArg, Problem
+from tests.support.legacy import ObjectiveArg, Problem
 
 
 def setup() -> Problem:

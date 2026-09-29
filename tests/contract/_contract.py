@@ -25,7 +25,7 @@ from typing import Any
 
 import numpy as np
 
-from yapss._legacy import Problem
+from tests.support.legacy import Problem
 
 from ._harness import not_yet, proposed, raises, warns
 

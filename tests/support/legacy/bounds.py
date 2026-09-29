@@ -3,7 +3,7 @@
 Setting bounds on a 0.3.0 problem.
 
 The interface that lets a user set bounds on the decision variables and the constraints of a
-`yapss._legacy.Problem`, reset them, and check that they are consistent -- that no lower bound
+`tests.support.legacy.Problem`, reset them, and check that they are consistent -- that no lower bound
 is above its upper bound. Laying them out for the transcription is
 `yapss._backend.bounds`, which takes a `ProblemSpec` and knows nothing about any of this.
 

@@ -16,8 +16,8 @@ from typing import Any
 import numpy as np
 import pytest
 
+from tests.support.legacy.examples import goddard_problem_3_phase
 from yapss._backend.types_ import Protected
-from yapss._legacy.examples import goddard_problem_3_phase
 
 CALLBACKS = (
     "objective",
@@ -39,7 +39,7 @@ def _subclasses(cls: type) -> set[type]:
     return out
 
 
-FRONT_AND_BACK = ("yapss._backend", "yapss._legacy")
+FRONT_AND_BACK = ("yapss._backend", "tests.support.legacy")
 """Where `Protected` containers live: the shared back end, and the 0.3.0 front end.
 
 The redesigned front end is not here. Its containers are built on `_api.containers.Container`

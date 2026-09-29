@@ -9,10 +9,10 @@ import warnings
 import numpy as np
 import pytest
 
+from tests.support.legacy import IpoptConvergenceWarning, IpoptOptionSettingWarning
+from tests.support.legacy.examples.rosenbrock import setup
 from yapss._backend.ipopt_options import IpoptOptions, refusal_message
 from yapss._backend.mseipopt import library
-from yapss._legacy import IpoptConvergenceWarning, IpoptOptionSettingWarning
-from yapss._legacy.examples.rosenbrock import setup
 
 
 @pytest.mark.filterwarnings("ignore::yapss._backend.solver.IpoptOptionSettingWarning")
@@ -173,11 +173,10 @@ def test_an_option_this_ipopt_build_has_is_accepted_at_the_solve():
         ocp.solve()
 
 
-def test_refused_option_warning_points_at_the_caller():
-    """The warning is attributed to the line that called solve(), not to YAPSS, and is one.
-
-    An unknown name is not warned about where it is written, so the refusal at the solve is
-    the only warning it produces.
+def test_refused_option_warns_once_at_the_solve():
+    """An unknown name is not warned about where it is written, so the refusal at the solve is
+    the only warning it produces. Where the warning points is pinned through the public API,
+    in `tests/api/test_warning_locations.py`.
     """
     ocp = setup()
     ocp.ipopt_options.print_level = 0
@@ -187,7 +186,6 @@ def test_refused_option_warning_points_at_the_caller():
         ocp.solve()
     refused = [w for w in caught if issubclass(w.category, IpoptOptionSettingWarning)]
     assert len(refused) == 1
-    assert refused[0].filename == __file__
     assert "Ipopt refused option 'not_a_real_option' with value 1" in str(refused[0].message)
 
 

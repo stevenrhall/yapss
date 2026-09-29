@@ -144,7 +144,6 @@ def test_the_line_between_yapss_and_its_user():
     package = Path(yapss.__file__).absolute().parent
     assert in_yapss(str(package / "_api" / "compile.py"))
     assert in_yapss(str(package / "_backend" / "input_args.py"))
-    assert in_yapss(str(package / "_legacy" / "problem.py"))
     assert not in_yapss(str(package / "examples" / "brachistochrone.py"))
     assert not in_yapss(str(Path(__file__).absolute()))
 

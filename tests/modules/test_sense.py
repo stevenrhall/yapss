@@ -11,8 +11,12 @@ from __future__ import annotations
 
 import pytest
 
-from yapss import _legacy as yapss
-from yapss._legacy.examples import goddard_problem_1_phase, goddard_problem_3_phase, orbit_raising
+from tests.support import legacy as yapss
+from tests.support.legacy.examples import (
+    goddard_problem_1_phase,
+    goddard_problem_3_phase,
+    orbit_raising,
+)
 
 
 def _tiny_problem() -> yapss.Problem:

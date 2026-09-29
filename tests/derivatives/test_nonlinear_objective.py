@@ -6,7 +6,7 @@ import sys
 import pytest
 
 #  package imports
-from yapss._legacy import Problem
+from tests.support.legacy import Problem
 
 pytestmark = pytest.mark.filterwarnings(
     # These tests exist to exercise Ipopt's built-in derivative checker, so they cap

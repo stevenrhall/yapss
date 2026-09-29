@@ -3,11 +3,11 @@
 import numpy as np
 import pytest
 
+from tests.support.legacy import Problem
 from yapss._backend.finite_difference import get_continuous_jacobian_structure_nan
 from yapss._backend.input_args import ContinuousArg, ContinuousStore
 from yapss._backend.mesh import Mesh
 from yapss._backend.structure import get_nlp_dv_structure
-from yapss._legacy import Problem
 
 
 @pytest.mark.parametrize("spectral_method", ("lg", "lgr", "lgl"))
@@ -123,8 +123,8 @@ def test_symbolic_time_is_built_in_place() -> None:
 
 def _goddard_point(spectral_method: str):
     """Goddard's three-phase problem, its mesh, and a perturbed initial point."""
+    from tests.support.legacy.examples import goddard_problem_3_phase
     from yapss._backend.guess import make_initial_guess_nlp
-    from yapss._legacy.examples import goddard_problem_3_phase
 
     problem = goddard_problem_3_phase.setup()
     problem.spectral_method = spectral_method

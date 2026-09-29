@@ -11,7 +11,7 @@ import warnings
 
 import pytest
 
-from yapss import _legacy as yapss
+from tests.support import legacy as yapss
 from yapss._backend import solver
 
 ARG_TYPES = [

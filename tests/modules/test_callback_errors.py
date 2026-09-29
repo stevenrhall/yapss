@@ -7,8 +7,8 @@ import warnings
 import numpy as np
 import pytest
 
+from tests.support.legacy.examples import brachistochrone, brachistochrone_minimal
 from yapss._backend.assembly import over_points
-from yapss._legacy.examples import brachistochrone, brachistochrone_minimal
 
 HINT = "Use the functions of yapss.math instead."
 

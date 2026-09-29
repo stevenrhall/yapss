@@ -1,18 +1,13 @@
 """
 
-The API of 0.3.0, under a name of its own.
+The API of 0.3.0, kept as test support.
 
-Everything here was reached as ``yapss.X`` up to 0.3.0, and is reached as
-``yapss._legacy.X`` now that the top-level package carries the redesigned API. The module
-exists so that the old front end, and the tests and examples written against it, keep working
-while the new one takes over the public name -- most of what `tests/modules` checks is really
-the shared back end, reached through this front end, and that coverage is worth keeping until
-it is re-anchored on the new one.
+Everything here was reached as ``yapss.X`` up to 0.3.0. It lives under `tests/` so that the
+tests written against it keep exercising the shared back end until they are re-anchored on
+the new front end, and so that no copy of the old front end ships in the package. Nothing here
+carries a compatibility promise. Import it as::
 
-Nothing here carries a compatibility promise. Import it the way the prototype of the new API
-was imported::
-
-    from yapss import _legacy as yapss
+    from tests.support import legacy as yapss
 
 """
 

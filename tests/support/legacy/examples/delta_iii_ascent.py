@@ -22,7 +22,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 # package imports
-from yapss._legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
+from tests.support.legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
 from yapss.math import arccos, cos, exp, pi, sin, sqrt
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     # package imports
-    from yapss._legacy import Solution
+    from tests.support.legacy import Solution
 
 
 # Dynamic Model Parameters

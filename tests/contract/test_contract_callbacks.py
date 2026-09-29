@@ -61,9 +61,9 @@ import numpy as np
 import pytest
 
 import yapss.math as ym
-from yapss import _legacy as yapss
-from yapss._legacy import Problem
-from yapss._legacy.examples import brachistochrone, goddard_problem_3_phase
+from tests.support import legacy as yapss
+from tests.support.legacy import Problem
+from tests.support.legacy.examples import brachistochrone, goddard_problem_3_phase
 
 from ._contract import G0, METHODS, callback_problem, default_continuous, not_yet, raises
 

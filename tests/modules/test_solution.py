@@ -9,7 +9,7 @@ parameter-only phase. Through 0.2.2 a warm start from such a solution raised.
 import numpy as np
 import pytest
 
-from yapss._legacy import Problem
+from tests.support.legacy import Problem
 
 METHODS = ["lg", "lgr", "lgl"]
 
@@ -107,8 +107,8 @@ def test_initial_and_final_state_are_the_endpoint_variables(spectral_method: str
     The mesh is multi-segment and non-uniform so that LG, which stores its endpoint and
     segment-boundary states after the collocation states, is exercised.
     """
+    from tests.support.legacy.examples import goddard_problem_3_phase
     from yapss._backend.structure import get_nlp_dv_structure
-    from yapss._legacy.examples import goddard_problem_3_phase
 
     problem = goddard_problem_3_phase.setup()
     problem.spectral_method = spectral_method
@@ -131,7 +131,7 @@ def test_initial_and_final_state_are_the_endpoint_variables(spectral_method: str
 
 
 def test_initial_and_final_state_are_copies() -> None:
-    from yapss._legacy.examples import brachistochrone_minimal
+    from tests.support.legacy.examples import brachistochrone_minimal
 
     problem = brachistochrone_minimal.setup()
     problem.ipopt_options.print_level = 0

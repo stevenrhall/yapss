@@ -20,14 +20,14 @@ import casadi as ca
 import numpy as np
 import pytest
 
-from yapss import _legacy as yapss
+from tests.support import legacy as yapss
+from tests.support.legacy import UnsupportedMathFunctionError
 from yapss import math as ym
 from yapss._backend.auto import make_auto_functions
 from yapss._backend.central_difference import make_cd_functions
 from yapss._backend.guess import make_initial_guess_nlp
 from yapss._backend.mesh import Mesh
 from yapss._backend.nlp import NLP
-from yapss._legacy import UnsupportedMathFunctionError
 from yapss.math.wrapper import SXW, SXArray, sx_array
 
 # ------------------------------------------------------------------------------------

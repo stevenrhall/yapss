@@ -61,8 +61,8 @@ import types
 
 import pytest
 
+from tests.support.legacy.examples.rosenbrock import setup
 from yapss._backend import solver
-from yapss._legacy.examples.rosenbrock import setup
 
 pytestmark = pytest.mark.skipif(
     solver._IN_CONDA,

@@ -1,6 +1,6 @@
 """
 
-Test that yapss._legacy.examples.delta_iii_ascent works properly.
+Test that tests.support.legacy.examples.delta_iii_ascent works properly.
 
 """
 
@@ -8,7 +8,7 @@ Test that yapss._legacy.examples.delta_iii_ascent works properly.
 import pytest
 
 # package imports
-from yapss._legacy.examples import delta_iii_ascent as optimal_control_problem
+from tests.support.legacy.examples import delta_iii_ascent as optimal_control_problem
 
 J = 7529.712287
 tol = 1e-8

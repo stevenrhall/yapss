@@ -25,15 +25,11 @@ import textwrap
 
 import pytest
 
+from tests.support.legacy import Problem
+from tests.support.legacy.examples import brachistochrone_minimal
 from yapss._backend.ipopt_options import DEFAULT_IPOPT_OPTIONS
-from yapss._backend.setup_check import (
-    _constraint_label,
-    _labels,
-    _variable_label,
-)
+from yapss._backend.setup_check import _constraint_label, _labels, _variable_label
 from yapss._backend.structure import nlp_constraint_keys, nlp_variable_keys
-from yapss._legacy import Problem
-from yapss._legacy.examples import brachistochrone_minimal
 from yapss.math import cos, sin, sqrt
 
 METHODS = ["auto", "central-difference", "central-difference-full"]

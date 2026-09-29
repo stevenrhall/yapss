@@ -8,7 +8,7 @@ Test that yapss.example.hs071 works properly.
 import pytest
 
 # package imports
-from yapss._legacy.examples import hs071 as optimal_control_problem
+from tests.support.legacy.examples import hs071 as optimal_control_problem
 
 J = 17.014017140224176
 tol = 1e-8

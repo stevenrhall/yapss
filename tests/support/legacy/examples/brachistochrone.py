@@ -10,7 +10,7 @@ __all__ = ["main", "plot_solution", "setup"]
 import matplotlib.pyplot as plt
 
 # package imports
-from yapss._legacy import (
+from tests.support.legacy import (
     ContinuousArg,
     ContinuousHessianArg,
     ContinuousJacobianArg,

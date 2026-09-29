@@ -50,13 +50,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from yapss._backend.auto import make_auto_functions
-from yapss._backend.central_difference import make_cd_functions
-from yapss._backend.guess import make_initial_guess_nlp
-from yapss._backend.mesh import Mesh
-from yapss._backend.nlp import NLP
-from yapss._backend.user import make_user_functions
-from yapss._legacy.examples import (
+from tests.support.legacy.examples import (
     brachistochrone,
     dynamic_soaring,
     goddard_problem_3_phase,
@@ -64,6 +58,12 @@ from yapss._legacy.examples import (
     isoperimetric,
     orbit_raising,
 )
+from yapss._backend.auto import make_auto_functions
+from yapss._backend.central_difference import make_cd_functions
+from yapss._backend.guess import make_initial_guess_nlp
+from yapss._backend.mesh import Mesh
+from yapss._backend.nlp import NLP
+from yapss._backend.user import make_user_functions
 
 GOLDEN_PATH = Path(__file__).parent / "data" / "nlp_golden.json"
 
@@ -82,7 +82,7 @@ def kitchen_sink_setup():
     ``test_golden_cases_reach_every_assembler_branch`` fails if an arm of the
     assembler stops being exercised.
     """
-    from yapss import _legacy as yapss
+    from tests.support import legacy as yapss
 
     problem = yapss.Problem(name="kitchen_sink", nx=[2], nu=[1], nq=[2], nh=[1], ns=2, nd=2)
 

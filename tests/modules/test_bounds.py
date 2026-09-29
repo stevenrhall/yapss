@@ -13,8 +13,8 @@ import numpy as np
 import pytest
 
 # package imports
-from yapss._legacy import Problem
-from yapss._legacy.examples import dynamic_soaring, goddard_problem_3_phase
+from tests.support.legacy import Problem
+from tests.support.legacy.examples import dynamic_soaring, goddard_problem_3_phase
 
 
 def test_array_bound_class():

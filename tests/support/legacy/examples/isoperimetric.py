@@ -16,7 +16,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 
-from yapss._legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
+from tests.support.legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
 
 
 def setup() -> Problem:

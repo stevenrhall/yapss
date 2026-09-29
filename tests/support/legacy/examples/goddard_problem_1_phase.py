@@ -12,7 +12,7 @@ __all__ = ["main", "plot_solution", "setup"]
 # third party imports
 import matplotlib.pyplot as plt
 
-from yapss._legacy import (
+from tests.support.legacy import (
     ContinuousArg,
     ContinuousHessianArg,
     ContinuousJacobianArg,

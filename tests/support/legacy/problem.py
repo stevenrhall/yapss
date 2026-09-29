@@ -409,7 +409,7 @@ class Problem(Protected):
     def __repr__(self) -> str:
         """Return the problem as it would be constructed.
 
-        The default repr says only ``<yapss._legacy.problem.Problem object at 0x...>``,
+        The default repr says only ``<tests.support.legacy.problem.Problem object at 0x...>``,
         which in a debugger or a notebook does not even say which problem it is.
         """
         counts = ", ".join(

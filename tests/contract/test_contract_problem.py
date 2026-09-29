@@ -29,7 +29,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from yapss._legacy import Problem
+from tests.support.legacy import Problem
 
 from ._contract import callback_problem, not_yet, raises
 

@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # package imports
-from yapss._legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
+from tests.support.legacy import ContinuousArg, DiscreteArg, ObjectiveArg, Problem, Solution
 from yapss.math import sqrt
 
 # initial (nondimensional) mass, radius, and gravitational parameter

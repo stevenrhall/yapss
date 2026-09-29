@@ -4,10 +4,10 @@ import re
 
 import pytest
 
-from yapss import _legacy as yapss
+from tests.support import legacy as yapss
+from tests.support.legacy import IpoptStatus
 from yapss._backend.ipopt_status import status_or_raise
 from yapss._backend.solution import QUIET_IPOPT_STATUSES, warn_if_not_converged
-from yapss._legacy import IpoptStatus
 
 # `ApplicationReturnStatus` in Ipopt 3.14.11's IpReturnCodes_inc.h, copied by hand: the enum
 # must name every code Ipopt can return, with Ipopt's own spelling in upper case.
