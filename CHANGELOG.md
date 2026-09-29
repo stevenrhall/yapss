@@ -424,6 +424,10 @@ below give the details.
   method, now works; it raised `TypeError` about a truth value. A bound of `None` in
   `yapss.math.clip`, which NumPy accepts as no bound, now means no bound on a symbolic value too; it
   raised a CasADi error.
+- Importing YAPSS no longer changes `mpmath`'s global precision. The quadrature rules set
+  `mp.dps = 30` when the module was imported, which altered the precision of the user's own `mpmath`
+  code; they are now computed inside `mp.workdps`. The rules are unchanged, bit for bit, and are
+  computed in about half the time.
 
 ## [0.2.3] - 2026-09-13
 
