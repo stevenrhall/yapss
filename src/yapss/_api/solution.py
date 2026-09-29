@@ -306,12 +306,6 @@ class _Record:
         raise AttributeError(msg)
 
 
-_STATE_BOUNDS_OWED = (
-    "A state's bound multiplier has to be divided by the quadrature weight and, at a collocated "
-    "endpoint, folded into the costate, and that is still to be done."
-)
-
-
 class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
     """A phase's multipliers, in the shapes of what they belong to: ``ps.multiplier``.
 
@@ -320,12 +314,21 @@ class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
     dynamics : Vector
         The costate: the multiplier of the dynamics, named by the state's fields. The same
         object as ``ps.costate``.
+    state : Vector
+        The multipliers of the states' bounds, densities in time over the phase's points, read
+        as if the state had no initial or final bound.
+    initial_state, final_state : Vector
+        The multipliers of the states' bounds at each end, one per state row, read as if the
+        state had no bound but its initial or final one.
     control : Vector
         The multipliers of the controls' bounds, densities in time.
     path : Vector
         The multipliers of the path constraints, densities in time.
-    integral : Vector
-        One multiplier per integral.
+    integral_defect : Vector
+        One multiplier per integral, of the row that makes each integral its quadrature: the
+        one the Hamiltonian uses.
+    integral_bound : Vector
+        One multiplier per integral, of its bounds.
     initial_time, final_time : float
         The multipliers of the bounds on the phase's initial and final time.
     duration : float
@@ -336,40 +339,29 @@ class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
         "control",
         "duration",
         "dynamics",
+        "final_state",
         "final_time",
+        "initial_state",
         "initial_time",
-        "integral",
+        "integral_bound",
+        "integral_defect",
         "path",
+        "state",
     )
     _label = "the phase multipliers"
 
     if TYPE_CHECKING:
         dynamics: S_co
-        # Reserved and owed: reading one raises, saying so. Declared so that they check when
-        # they are delivered, and a stub may be permissive.
         state: S_co
         initial_state: S_co
         final_state: S_co
         control: C_co
         path: P_co
-        integral: I_co
+        integral_defect: I_co
+        integral_bound: I_co
         initial_time: float
         final_time: float
         duration: float
-
-    # Hidden from type checkers: one that sees a reader answering any name stops
-    # reporting misspellings. The names are declared for them instead.
-    if not TYPE_CHECKING:
-
-        def __getattr__(self, name):
-            """Explain the owed state-bound multipliers, or refuse an unknown name."""
-            if name in ("state", "initial_state", "final_state"):
-                msg = (
-                    "the multipliers of the state's bounds are not reported yet. "
-                    f"{_STATE_BOUNDS_OWED}"
-                )
-                raise AttributeError(msg)
-            return super().__getattr__(name)
 
 
 class ProblemMultiplier(_Record, Generic[D_co, PR_co]):
@@ -805,6 +797,58 @@ def _positions_of(transcription: Any) -> tuple[Any, Any, Any]:
     return dv, cf, problem_layout(transcription)
 
 
+def _flat_bounds(declaration: type[Vector], values: dict[str, Any]) -> NDArray[np.float64]:
+    """Return a vector's bounds as a (rows, 2) array, one (lower, upper) per declared row."""
+    return np.array(
+        [values[name][0 if member is None else member] for name, member in declaration._rows],
+        dtype=np.float64,
+    ).reshape(-1, 2)
+
+
+def _state_bound_multipliers(
+    phase: PhaseSpec, at_points: NDArray[np.float64]
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    """Return a state's bound multipliers read three ways: general, initial and final.
+
+    The NLP bounds the state at each end by the tighter of its general bound and its end's own,
+    so the one multiplier there belongs to whichever of the two is the active side. The
+    general bound's multiplier is read as if the state had no end bounds, and an end's as if
+    it had no general bound: each takes the multiplier where its own side is the one active,
+    and zero where the other's is. Where the two sides coincide both take it; one number
+    cannot be split between them.
+
+    Parameters
+    ----------
+    phase : PhaseSpec
+        The phase, whose bounds say which side is whose.
+    at_points : numpy.ndarray
+        The multiplier of the state's bounds at every stored point, upper less lower.
+    """
+    general = at_points.copy()
+    general_side = _flat_bounds(phase.state, phase.state_bounds)
+    rows = np.arange(len(general_side))
+    ends: list[NDArray[np.float64]] = []
+    for column, own in ((0, phase.state_initial), (-1, phase.state_final)):
+        raw = at_points[:, column]
+        end_side = _flat_bounds(phase.state, own)
+        upper = raw > 0
+        # the active side: the upper bound where the multiplier is positive, else the lower
+        side = np.where(upper, 1, 0)
+        active = np.where(
+            upper,
+            np.minimum(general_side[:, 1], end_side[:, 1]),
+            np.maximum(general_side[:, 0], end_side[:, 0]),
+        )
+        general[:, column] = np.where(general_side[rows, side] == active, raw, 0.0)
+        ends.append(np.where(end_side[rows, side] == active, raw, 0.0))
+    return general, ends[0], ends[1]
+
+
+def _rows_of(index: Any) -> NDArray[np.intp]:
+    """Return an index vector's positions as one integer array, a row per declared row."""
+    return np.asarray(index[:], dtype=np.intp)
+
+
 def _positions(views: Any, npoints: int) -> Any:
     """Stack a structure's per-row views of positions into a (rows, npoints) integer array."""
     return np.array([np.asarray(v) for v in views], dtype=np.intp).reshape(len(views), npoints)
@@ -991,14 +1035,34 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
 
     @classmethod
     def _from(
-        cls, phase: PhaseSpec, data: Any, method: str, nlp: PhaseNLP[Any, Any, Any, Any]
+        cls,
+        phase: PhaseSpec,
+        data: Any,
+        method: str,
+        nlp: PhaseNLP[Any, Any, Any, Any],
+        bound: NDArray[np.float64],
     ) -> PhaseSolution[Any, Any, Any, Any]:
-        """Return the solution of `phase` from the back end's record of it."""
+        """Return the solution of `phase` from the back end's record of it.
+
+        `bound` is the multiplier of every variable's bounds, in Ipopt's order, upper less
+        lower, as the back end forms the control's.
+        """
         label = f"phase '{phase.name}' solution"
         state = np.asarray(data.state)
         grid = _Grid(method, phase.mesh.collocation_points, data.time, data.time_c)
         fill = grid.fill
         costate = _vector(phase.state, fill(data.costate), f"{label} costate")
+        weights = _weights(method, phase.mesh, data.time[-1] - data.time[0])
+        variable = nlp.index.variable
+        at_points = bound[_rows_of(variable.state)]
+        general, initial, final = _state_bound_multipliers(phase, at_points)
+        # A general bound's multiplier at each stored point, over that point's weight in time,
+        # is a density; at a point that is not collocated the density is the method's
+        # polynomial, as every per-point quantity's is.
+        if weights[grid.collocated].size and np.all(weights[grid.collocated] > 0):
+            density = fill(general[:, grid.collocated] / weights[grid.collocated])
+        else:  # a zero-duration phase: the bound holds on a set of measure zero
+            density = np.full(at_points.shape, np.nan)
 
         multiplier = PhaseMultiplier(
             {
@@ -1007,9 +1071,19 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
                     phase.control, fill(data.control_multiplier), f"{label} control multiplier"
                 ),
                 "path": _vector(phase.path, fill(data.path_multiplier), f"{label} path multiplier"),
-                "integral": _vector(
-                    phase.integral, data.integral_multiplier, f"{label} integral multiplier"
+                "integral_defect": _vector(
+                    phase.integral,
+                    data.integral_multiplier,
+                    f"{label} integral_defect multiplier",
                 ),
+                "integral_bound": _vector(
+                    phase.integral,
+                    bound[_rows_of(variable.integral)],
+                    f"{label} integral_bound multiplier",
+                ),
+                "state": _vector(phase.state, density, f"{label} state multiplier"),
+                "initial_state": _vector(phase.state, initial, f"{label} initial_state multiplier"),
+                "final_state": _vector(phase.state, final, f"{label} final_state multiplier"),
                 "initial_time": data.initial_time_multiplier,
                 "final_time": data.final_time_multiplier,
                 "duration": data.duration_multiplier,
@@ -1019,7 +1093,7 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
             {
                 "time": data.time,
                 "collocated": grid.collocated,
-                "weights": _weights(method, phase.mesh, data.time[-1] - data.time[0]),
+                "weights": weights,
                 "state": _vector(phase.state, state, f"{label} state"),
                 "costate": costate,
                 "multiplier": multiplier,
@@ -1247,6 +1321,10 @@ class Solution(Generic[D_co, PR_co]):
         callbacks, or the classes it was declared with.
         """
         dv, cf, layouts = _positions_of(transcription)
+        info = record.nlp_info
+        bound = np.asarray(info.mult_x_U, dtype=np.float64) - np.asarray(
+            info.mult_x_L, dtype=np.float64
+        )
         return cls(
             {
                 "phases": PhaseSolutions(
@@ -1262,6 +1340,7 @@ class Solution(Generic[D_co, PR_co]):
                                 cf.phase[phase.index],
                                 layouts[phase.index],
                             ),
+                            bound,
                         )
                         for phase in spec.phases
                     ),

@@ -46,7 +46,7 @@ def test_the_phase_multipliers_are_the_back_end_s(local):
     np.testing.assert_array_equal(ps.multiplier.dynamics[:], data.costate)
     np.testing.assert_array_equal(ps.multiplier.control.u, data.control_multiplier[0])
     np.testing.assert_array_equal(ps.multiplier.path.size, data.path_multiplier[0])
-    assert ps.multiplier.integral.effort == data.integral_multiplier[0]
+    assert ps.multiplier.integral_defect.effort == data.integral_multiplier[0]
     assert ps.multiplier.duration == data.duration_multiplier
 
 
@@ -76,14 +76,20 @@ def test_the_solution_names_its_problem_and_method(goddard):
     assert solution.spectral_method == problem.spectral_method
 
 
-def test_the_state_bound_multipliers_are_owed_and_say_so(goddard):
-    """Reserved names, not unknown ones: the message says what is outstanding."""
+def test_the_state_bound_multipliers_are_named_by_the_state(goddard):
+    """A density over the points, and one value per row at each end."""
     _, solution, _ = goddard
     ps = solution.phases["boost"]
-    with pytest.raises(AttributeError, match="state's bounds are not reported yet"):
-        ps.multiplier.state  # noqa: B018
-    with pytest.raises(AttributeError, match="state's bounds are not reported yet"):
-        ps.multiplier.initial_state  # noqa: B018
+    assert ps.multiplier.state.h.shape == ps.time.shape
+    assert np.shape(ps.multiplier.initial_state.h) == ()
+    assert np.shape(ps.multiplier.final_state.m) == ()
+
+
+def test_the_integral_has_no_bare_multiplier(local):
+    """Two multipliers belong to an integral, so neither is `integral`: each says which."""
+    _, solution, _ = local
+    with pytest.raises(AttributeError, match="no 'integral'"):
+        solution.phases["run"].multiplier.integral  # noqa: B018
 
 
 def test_a_misspelled_multiplier_is_refused_with_a_suggestion(goddard):

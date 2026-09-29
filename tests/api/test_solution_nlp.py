@@ -148,7 +148,7 @@ def test_point_multipliers_agree_with_the_multiplier_tree(solved):
     def bound(position):
         return nlp.mult_x_U[position] - nlp.mult_x_L[position]
 
-    assert nlp.mult_g[con.integral.effort] == ps.multiplier.integral.effort
+    assert nlp.mult_g[con.integral.effort] == ps.multiplier.integral_defect.effort
     assert nlp.mult_g[con.duration] == ps.multiplier.duration
     assert nlp.mult_g[solution.nlp.index.constraint.discrete.end] == (
         solution.multiplier.discrete.end
