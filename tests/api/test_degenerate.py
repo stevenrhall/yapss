@@ -147,5 +147,5 @@ def test_a_problem_with_no_variables_is_refused_at_construction():
         class P(yapss.Problem):
             """Nothing at all."""
 
-    assert "declare a phase or a parameter" in str(info.value)
+    assert "Declare a phase or a parameter" in str(info.value)
     assert "not ready to solve" not in str(info.value)

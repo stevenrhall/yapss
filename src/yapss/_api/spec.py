@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 from .fields import aspects_of
+from .kinds import at
 from .sampled import Interp, coverage_complaint
 from .settings import settings_of
 
@@ -108,24 +109,33 @@ def validate_problem(problem: Problem) -> None:
     """Check that a problem is complete. See `Problem.validate`."""
     complaints: list[str] = []
     for phase in problem.phases:
-        label = f"phase '{phase.name}'"
+        label = f"phases.{phase.name}"
         if phase._continuous is None:
-            complaints.append(f"{label} has no continuous callback")
+            complaints.append(
+                f"{label} has no continuous callback; register one with "
+                f"'@<problem>.{label}.register.continuous'"
+            )
         time = phase.time
         if time.guess is None:
-            complaints.append(f"{label} has no time guess; set 'ph.time.guess = (start, end)'")
-        complaints.extend(_unbounded(aspects_of(phase.path).bounds, f"{label} path"))
-        complaints.extend(_disjoint(aspects_of(phase.state), f"{label} state"))
+            complaints.append(f"{label}.time.guess is not set; set it to (start, end)")
+        complaints.extend(_unbounded(aspects_of(phase.path).bounds, f"{label}.path"))
+        complaints.extend(_disjoint(aspects_of(phase.state), f"{label}.state"))
         complaints.extend(_backward(time, label))
         if time.guess is not None:
             for what in ("state", "control"):
                 aspect = aspects_of(getattr(phase, what)).guess
-                complaints.extend(_uncovered(aspect, time.guess, f"{label} {what} guess"))
+                complaints.extend(_uncovered(aspect, time.guess))
     if problem._objective_function is None:
-        complaints.append("the problem has no objective callback")
+        complaints.append(
+            "the problem has no objective callback; register one with "
+            "'@<problem>.register.objective'"
+        )
     if problem._discrete_class._fields and problem._discrete_function is None:
-        complaints.append("discrete constraints are declared but there is no discrete callback")
-    complaints.extend(_unbounded(aspects_of(problem.discrete).bounds, "discrete constraint"))
+        complaints.append(
+            "discrete constraints are declared but there is no discrete callback; register one "
+            "with '@<problem>.register.discrete'"
+        )
+    complaints.extend(_unbounded(aspects_of(problem.discrete).bounds, "discrete"))
     if complaints:
         # Numbered once there is more than one, because several complaints of the same shape
         # read as one paragraph otherwise, and the count is the first thing a reader wants.
@@ -136,7 +146,7 @@ def validate_problem(problem: Problem) -> None:
         raise ValueError(msg)
 
 
-def _uncovered(guess: Vector, time_guess: tuple[float, float], label: str) -> list[str]:
+def _uncovered(guess: Vector, time_guess: tuple[float, float]) -> list[str]:
     """Return a complaint for every sampled guess that does not reach far enough into the phase.
 
     Samples that fall well short of the phase are a mistake -- the wrong units, the wrong
@@ -149,7 +159,7 @@ def _uncovered(guess: Vector, time_guess: tuple[float, float], label: str) -> li
         for element in guess._elements(name):
             if not isinstance(element, Interp):
                 continue
-            complaint = coverage_complaint(element, time_guess, label, name)
+            complaint = coverage_complaint(element, time_guess, at(guess._label, name))
             if complaint is not None:
                 complaints.append(complaint)
                 break
@@ -171,8 +181,9 @@ def _disjoint(state: Any, label: str) -> list[str]:
                 if max(low, end_low) > min(high, end_high):
                     where = f"{name}[{row}]" if len(path) > 1 else name
                     complaints.append(
-                        f"{label} '{where}': its {which} bound ({end_low}, {end_high}) does not "
-                        f"overlap its bound ({low}, {high}), so no {which} value satisfies both"
+                        f"{label}.{where}.{which} ({end_low}, {end_high}) does not overlap "
+                        f"{label}.{where}.bounds ({low}, {high}), so no {which} value satisfies "
+                        f"both"
                     )
     return complaints
 
@@ -187,8 +198,8 @@ def _backward(time: Any, label: str) -> list[str]:
     _, final_high = time.final
     if final_high < initial_low:
         complaint = (
-            f"{label} time: its final bound {time.final} lies wholly before its "
-            f"initial bound {time.initial}, and a phase cannot run backward"
+            f"{label}.time.final {time.final} lies wholly before {label}.time.initial "
+            f"{time.initial}, and a phase cannot run backward"
         )
         return [complaint]
     return []
@@ -201,7 +212,7 @@ def _unbounded(bounds: Vector, label: str) -> list[str]:
     ignored, which is a mistake rather than a choice, so it is refused rather than warned about.
     """
     return [
-        f"{label} '{name}' has no bound; a declared constraint must be bounded"
+        f"{label}.{name}.bounds is not set; a declared constraint must be bounded"
         for name in bounds._fields
         # A field declared with size=0 holds no rows, so there is nothing to bound.
         if name not in bounds._values and bounds._meta[name].rows

@@ -92,5 +92,5 @@ def test_the_phases_declaration_is_reached_by_name_and_index():
     assert phases.phase.index == 0
     assert len(phases) == 1
     assert phases[0] is phases.phase
-    with pytest.raises(AttributeError, match=r"has no phase 'phas'\. Did you mean 'phase'\?"):
+    with pytest.raises(AttributeError, match=r"has no phase named 'phas'\. Did you mean 'phase'\?"):
         phases.phas

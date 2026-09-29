@@ -183,7 +183,7 @@ For example, trying to set ``hessian_approximation`` directly raises an error:
     Traceback (most recent call last):
         ...
     ValueError: 'hessian_approximation' is managed by YAPSS and cannot be set directly.
-    YAPSS chooses this based on 'problem.derivatives.order'; set that instead.
+    YAPSS chooses this based on '<problem>.derivatives.order'; set that instead.
 
 ``IpoptOptions`` Class Reference
 --------------------------------

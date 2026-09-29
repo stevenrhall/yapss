@@ -32,6 +32,7 @@ __all__ = [
     "Rows",
     "ScalarGuess",
     "Scale",
+    "at",
 ]
 
 PAIR = 2
@@ -95,9 +96,32 @@ def is_pair(value: object) -> TypeGuard[list[Any] | tuple[Any, ...]]:
     return is_sequence(value) and len(value) == PAIR
 
 
+def at(label: str, name: str) -> str:
+    """Return the attribute path of the field `name` in a vector labelled `label`.
+
+    A label is the path the user writes to reach the vector's fields, as a template with
+    ``{}`` where the field goes when a setting follows it (``"phases.boost.state.{}.bounds"``),
+    or as the prefix the field follows (``"out.dynamics"``). A field reached by row carries its
+    index in `name` (``"r[1]"``).
+
+    Parameters
+    ----------
+    label : str
+        The vector's label.
+    name : str
+        The field, or the field and its row.
+
+    Returns
+    -------
+    str
+        The path, such as ``"phases.boost.state.h.bounds"``.
+    """
+    return label.format(name) if "{}" in label else f"{label}.{name}"
+
+
 def _bool_message(label: str, name: str) -> str:
     return (
-        f"{label} '{name}': a boolean is not a number. If this came from a comparison, "
+        f"{at(label, name)}: a boolean is not a number. If this came from a comparison, "
         f"the comparison is probably the mistake."
     )
 
@@ -143,8 +167,8 @@ class Kind:
         "deleted".
         """
         if name is None:
-            return f"{label} is read-only"
-        return f"{label} is read-only; '{name}' cannot be {verb}"
+            return f"{label} is an input, and its rows cannot be {verb}"
+        return f"{at(label, name)} is an input and cannot be {verb}"
 
     @classmethod
     def is_element(cls, value: object) -> bool:
@@ -222,23 +246,23 @@ class Bounds(Kind):
             raise TypeError(_bool_message(label, name))
         if is_real(value):
             msg = (
-                f"{label} '{name}': a bound is a pair, and {value!r} is one number. To fix the "
-                f"value, write ({value!r}, {value!r}); for an interval, write its two ends."
+                f"{at(label, name)}: a bound is a (lower, upper) pair, and {value!r} is one "
+                f"number. For a fixed value, write ({value!r}, {value!r})."
             )
             raise TypeError(msg)
         if value is None:
             msg = (
-                f"{label} '{name}': a bound is a pair. For no bound at either end, write "
+                f"{at(label, name)}: a bound is a pair. For no bound at either end, write "
                 f"(None, None)."
             )
             raise TypeError(msg)
         if not is_sequence(value):
-            msg = f"{label} '{name}': a bound is a (lower, upper) pair; got {value!r}"
+            msg = f"{at(label, name)}: a bound is a (lower, upper) pair; got {value!r}"
             raise TypeError(msg)
         pair = tuple(value)
         if len(pair) != PAIR:
             msg = (
-                f"{label} '{name}': a bound is a (lower, upper) pair; got {len(pair)} "
+                f"{at(label, name)}: a bound is a (lower, upper) pair; got {len(pair)} "
                 f"values, {value!r}"
             )
             raise ValueError(msg)
@@ -249,18 +273,18 @@ class Bounds(Kind):
         # and so names no field: an infinite side on the wrong end leaves nothing feasible.
         if lower == math.inf:
             msg = (
-                f"{label} '{name}': a lower bound of +inf leaves nothing feasible; for no lower "
+                f"{at(label, name)}: a lower bound of +inf leaves nothing feasible; for no lower "
                 f"bound, write None."
             )
             raise ValueError(msg)
         if upper == -math.inf:
             msg = (
-                f"{label} '{name}': an upper bound of -inf leaves nothing feasible; for no upper "
+                f"{at(label, name)}: an upper bound of -inf leaves nothing feasible; for no upper "
                 f"bound, write None."
             )
             raise ValueError(msg)
         if lower > upper:
-            msg = f"{label} '{name}': lower {lower} > upper {upper}"
+            msg = f"{at(label, name)}: lower {lower} > upper {upper}"
             raise ValueError(msg)
         return (lower, upper)
 
@@ -275,12 +299,12 @@ class Bounds(Kind):
             value = float(side)
             if math.isnan(value):
                 msg = (
-                    f"{label} '{name}': a side of a bound cannot be NaN; for no bound on that "
+                    f"{at(label, name)}: a side of a bound cannot be NaN; for no bound on that "
                     f"side, write None."
                 )
                 raise ValueError(msg)
             return value
-        msg = f"{label} '{name}': each side of a bound is a number or None; got {side!r}"
+        msg = f"{at(label, name)}: each side of a bound is a number or None; got {side!r}"
         raise TypeError(msg)
 
 
@@ -322,28 +346,28 @@ class Guess(Kind):
             return value
         if is_real(value):
             msg = (
-                f"{label} '{name}': a guess is a (first, last) pair, and {value!r} is one "
+                f"{at(label, name)}: a guess is a (first, last) pair, and {value!r} is one "
                 f"number. To hold it there, write ({value!r}, {value!r})."
             )
             raise TypeError(msg)
         if not is_sequence(value):
             msg = (
-                f"{label} '{name}': a guess is a (first, last) pair or yapss.interp(...); "
+                f"{at(label, name)}: a guess is a (first, last) pair or yapss.interp(...); "
                 f"got {value!r}"
             )
             raise TypeError(msg)
         pair = tuple(value)
         if len(pair) != PAIR:
-            msg = f"{label} '{name}': a guess is (first, last); got {len(pair)} values, {value!r}"
+            msg = f"{at(label, name)}: a guess is (first, last); got {len(pair)} values, {value!r}"
             raise ValueError(msg)
         first, last = pair
         for side in (first, last):
             if not is_real(side):
-                msg = f"{label} '{name}': a (first, last) guess takes two numbers; got {side!r}"
+                msg = f"{at(label, name)}: a (first, last) guess takes two numbers; got {side!r}"
                 raise TypeError(msg)
         first, last = float(first), float(last)
         if not (math.isfinite(first) and math.isfinite(last)):
-            msg = f"{label} '{name}': a guess must be finite; got ({first}, {last})"
+            msg = f"{at(label, name)}: a guess must be finite; got ({first}, {last})"
             raise ValueError(msg)
         return (first, last)
 
@@ -396,19 +420,19 @@ class Rows(Kind):
         if isinstance(value, np.ndarray):
             if value.ndim != 1:
                 msg = (
-                    f"{label} '{name}': a row is a scalar or one value per time point; got an "
+                    f"{at(label, name)}: a row is a scalar or one value per time point; got an "
                     f"array of shape {value.shape}"
                 )
                 raise ValueError(msg)
             if npoints is not None and value.shape[0] != npoints:
                 msg = (
-                    f"{label} '{name}': a row needs one value per time point, {npoints}; "
+                    f"{at(label, name)}: a row needs one value per time point, {npoints}; "
                     f"got {value.shape[0]}"
                 )
                 raise ValueError(msg)
             return value
         msg = (
-            f"{label} '{name}': a row is a scalar or one value per time point; "
+            f"{at(label, name)}: a row is a scalar or one value per time point; "
             f"got {type(value).__name__}"
         )
         raise TypeError(msg)
@@ -445,16 +469,16 @@ class ScalarGuess(Kind):
         if is_real(value):
             number = float(value)
             if not math.isfinite(number):
-                msg = f"{label} '{name}': a guess must be finite; got {number}"
+                msg = f"{at(label, name)}: a guess must be finite; got {number}"
                 raise ValueError(msg)
             return number
         if isinstance(value, tuple):
             msg = (
-                f"{label} '{name}': this is guessed as one number, not a trajectory; "
+                f"{at(label, name)}: this is guessed as one number, not a trajectory; "
                 f"got {value!r}"
             )
             raise TypeError(msg)
-        msg = f"{label} '{name}': must be a number; got {value!r}"
+        msg = f"{at(label, name)}: must be a number; got {value!r}"
         raise TypeError(msg)
 
 
@@ -483,20 +507,19 @@ class Scale(Kind):
         if is_bool(value):
             raise TypeError(_bool_message(label, name))
         if not is_real(value):
-            msg = f"{label} '{name}': a scale is a positive number; got {value!r}"
+            msg = f"{at(label, name)}: a scale is a positive number; got {value!r}"
             raise TypeError(msg)
         scaled = float(value)
         if not math.isfinite(scaled):
             msg = (
-                f"{label} '{name}': a scale must be a finite number; got {scaled}. It says how "
-                f"large the quantity typically is, and the solver divides by it."
+                f"{at(label, name)}: a scale must be a finite number, since the solver divides "
+                f"by it; got {scaled}"
             )
             raise ValueError(msg)
         if scaled <= 0:
             msg = (
-                f"{label} '{name}': a scale must be positive; got {scaled}. A scale conditions "
-                f"the problem and never changes what it means; to maximize, set "
-                f"problem.objective.sense."
+                f"{at(label, name)}: a scale must be positive; got {scaled}. To maximize, set "
+                f"<problem>.objective.sense = 'maximize'."
             )
             raise ValueError(msg)
         return scaled

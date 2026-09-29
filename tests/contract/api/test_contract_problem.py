@@ -63,7 +63,7 @@ def test_the_comment_is_a_string_and_empty_by_default() -> None:
 
 def test_a_comment_that_is_not_a_string_is_refused() -> None:
     ocp = problem()
-    with raises(TypeError, "problem.comment is a string", at="ocp.comment ="):
+    with raises(TypeError, "comment is a string", at="ocp.comment ="):
         ocp.comment = 3
 
 
@@ -115,7 +115,7 @@ def test_a_problem_with_no_decision_variables_is_refused() -> None:
     fix. It is not incompleteness -- nothing is missing from a constant objective over no
     variables -- so it is not reported as one.
     """
-    with raises(ValueError, "no decision variables", "declare a phase", at="class Empty"):
+    with raises(ValueError, "no decision variables", "Declare a phase", at="class Empty"):
 
         class Empty(yapss.Problem):
             """Nothing to choose."""
@@ -186,7 +186,7 @@ def test_the_message_names_the_phase_the_parameter_collided_in() -> None:
     class TwoPhases(yapss.Phases):
         early: Early
 
-    with raises(ValueError, "phase 'early'", at="class P"):
+    with raises(ValueError, "phases.early", at="class P"):
 
         class P(yapss.Problem):
             phases: TwoPhases
@@ -246,7 +246,7 @@ def test_a_choice_is_a_string_not_an_array_holding_one(
 def test_the_settings_object_is_not_a_decorator() -> None:
     """`@problem.objective` is the settings, not the registry, and says so."""
     p = problem()
-    with raises(TypeError, "@problem.register.objective", at="@p.objective"):
+    with raises(TypeError, "@<problem>.register.objective", at="@p.objective"):
 
         @p.objective
         def objective(arg):
@@ -256,7 +256,7 @@ def test_the_settings_object_is_not_a_decorator() -> None:
 def test_the_discrete_settings_object_is_not_a_decorator() -> None:
     """The same for the discrete constraints' settings."""
     p = problem()
-    with raises(TypeError, "@problem.register.discrete", at="@p.discrete"):
+    with raises(TypeError, "@<problem>.register.discrete", at="@p.discrete"):
 
         @p.discrete
         def discrete(arg, out):
@@ -344,7 +344,7 @@ def test_a_phase_with_no_continuous_callback_is_incomplete() -> None:
         ph.time.guess = (0.0, 1.0)
     with raises(
         ValueError,
-        "phase 'first' has no continuous callback",
+        "phases.first has no continuous callback",
         at="validate",
     ):
         p.validate()
@@ -412,7 +412,7 @@ def test_the_complaints_are_reported_together() -> None:
     assert message.count("\n") >= 2, message
     assert "(1) " in message and "(2) " in message, message
     assert "no objective callback" in message
-    assert "phase 'first' has no continuous callback" in message
+    assert "phases.first has no continuous callback" in message
 
 
 def test_one_complaint_is_not_numbered() -> None:
@@ -428,7 +428,7 @@ def test_one_complaint_is_not_numbered() -> None:
     with pytest.raises(ValueError) as info:
         p.validate()
     message = str(info.value)
-    assert message.endswith("the problem has no objective callback"), message
+    assert message.endswith("'@<problem>.register.objective'"), message
     assert "(1)" not in message
 
 
@@ -561,7 +561,9 @@ def test_a_phases_declaration_holds_only_phases() -> None:
 def test_a_phase_cannot_be_assigned_after_declaration() -> None:
     """Phases are declared, so the set of them is fixed once the class is written."""
     p = problem()
-    with raises(AttributeError, "cannot be assigned; phases are declared", at="p.phases.first"):
+    with raises(
+        AttributeError, "cannot be assigned; a problem's phases are declared", at="p.phases.first"
+    ):
         p.phases.first = None
 
 
@@ -571,7 +573,7 @@ def test_a_registration_is_called_not_assigned() -> None:
     with raises(
         AttributeError,
         "is not assigned",
-        "register.objective(callback)",
+        "'@<problem>.register.objective'",
         at="p.register.objective =",
     ):
         p.register.objective = lambda arg: 0.0
@@ -598,7 +600,7 @@ def test_a_phase_is_annotated_not_assigned_among_phases() -> None:
 def test_a_phase_callback_must_be_callable() -> None:
     """The phase's own registry checks what it is handed, as the problem's does."""
     p = problem()
-    with raises(TypeError, "callback must be callable", at="register.continuous"):
+    with raises(TypeError, "must be callable", at="register.continuous"):
         p.phases.first.register.continuous(3)
 
 
@@ -635,7 +637,9 @@ def test_the_name_is_not_blank(name: str) -> None:
 def test_a_callback_of_the_wrong_arity_is_refused_where_it_is_registered() -> None:
     """The solve would otherwise fail inside YAPSS's call, in Python's own words."""
     p = problem()
-    with raises(TypeError, "continuous callback for phase 'first'", "(arg, out)", at="register"):
+    with raises(
+        TypeError, "continuous callback of phases.first", "line", "(arg, out)", at="register"
+    ):
         p.phases.first.register.continuous(lambda arg: None)
     with raises(TypeError, "objective callback", "(arg)", at="register"):
         p.register.objective(lambda arg, out: 0.0)
@@ -651,10 +655,10 @@ def test_a_callback_may_take_extra_parameters_with_defaults() -> None:
 @pytest.mark.parametrize(
     ("target", "example"),
     [
-        ("objective", "'objective.sense = ...'"),
-        ("derivatives", "'derivatives.method = ...'"),
-        ("ipopt_options", "'ipopt_options.max_iter = ...'"),
-        ("register", "'@register.objective'"),
+        ("objective", "'<problem>.objective.sense = ...'"),
+        ("derivatives", "'<problem>.derivatives.method = ...'"),
+        ("ipopt_options", "'<problem>.ipopt_options.max_iter = ...'"),
+        ("register", "'@<problem>.register.objective'"),
     ],
 )
 def test_replacing_a_held_object_names_a_real_example(target: str, example: str) -> None:
@@ -674,7 +678,7 @@ def test_every_held_object_can_be_named_in_the_advice() -> None:
         for name in getattr(type(owner), "_held", ()):  # only containers hold objects
             advice = owner._advice(name)  # type: ignore[attr-defined]
             assert "cannot be replaced" in advice
-            assert "<" not in advice, advice
+            assert "<" not in advice.replace("<problem>.", ""), advice
             todo.append(object.__getattribute__(owner, name))
 
 
@@ -741,7 +745,9 @@ def test_too_few_degrees_of_freedom_raises() -> None:
 def test_a_problem_is_not_copied(copier: Any) -> None:
     """A copy would share the callbacks, which refer to this problem; build it again instead."""
     p = problem()
-    with raises(TypeError, "a problem is not copied", "call the function that builds", at="copier"):
+    with raises(
+        TypeError, "a problem cannot be copied", "call the function that builds", at="copier"
+    ):
         copier(p)
 
 
@@ -772,7 +778,7 @@ def test_a_phase_is_reached_by_name_as_by_attribute() -> None:
 def test_an_unknown_phase_name_is_suggested() -> None:
     """A misspelled name is told what is there, as the solution's name lookup is."""
     p = problem()
-    with raises(KeyError, "no phase 'frist'", "Did you mean 'first'", at='p.phases["frist"]'):
+    with raises(KeyError, "no phase named 'frist'", "Did you mean 'first'", at='p.phases["frist"]'):
         p.phases["frist"]  # noqa: B018
 
 

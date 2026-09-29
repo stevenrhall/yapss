@@ -81,7 +81,7 @@ def test_a_misspelled_input_names_the_vector_it_is_not_in() -> None:
         return arg.state.zz
 
     p.phases.slide.register.continuous(misread)
-    with raises(AttributeError, "phase 'slide' state has no field 'zz'", at="arg.state.zz"):
+    with raises(AttributeError, "arg.state has no field 'zz'", at="arg.state.zz"):
         p.solve()
 
 
@@ -93,7 +93,7 @@ def test_a_misspelled_output_names_the_output_it_is_not_in() -> None:
         out.dynamics.zz = 0.0
 
     p.phases.slide.register.continuous(miswrite)
-    with raises(AttributeError, "phase 'slide' dynamics has no field 'zz'", at="out.dynamics.zz"):
+    with raises(AttributeError, "out.dynamics has no field 'zz'", at="out.dynamics.zz"):
         p.solve()
 
 
@@ -168,7 +168,7 @@ def test_the_objective_returns_its_value() -> None:
         return None
 
     p.register.objective(empty)
-    with raises(ValueError, "returned nothing", "must return the objective", at="solve"):
+    with raises(ValueError, "returned nothing", "Return the objective's value", at="solve"):
         p.solve()
 
 
@@ -183,7 +183,7 @@ def test_an_endpoint_is_reached_by_phase_handle() -> None:
         return arg["slide"].final_time
 
     p.register.objective(by_name)
-    with raises(KeyError, "takes a phase handle", "problem.phases.", at='arg["slide"]'):
+    with raises(KeyError, "takes a phase handle", "<problem>.phases.", at='arg["slide"]'):
         p.solve()
 
 
@@ -207,7 +207,9 @@ def test_a_misspelled_endpoint_name_is_refused() -> None:
         return arg[p.phases.slide].final_state.nope
 
     p.register.objective(wrong)
-    with raises(AttributeError, "final state has no field 'nope'", at="final_state.nope"):
+    with raises(
+        AttributeError, "arg[phases.slide].final_state has no field 'nope'", at="final_state.nope"
+    ):
         p.solve()
 
 
@@ -228,7 +230,7 @@ def test_a_callback_must_be_pointwise() -> None:
         "continuous callback",
         "summed (",
         "not pointwise",
-        "phase 'slide' dynamics.x",
+        "out.dynamics.x of phases.slide",
         at="solve",
     ):
         p.solve()
@@ -257,7 +259,7 @@ def test_the_note_names_the_callback_the_user_wrote() -> None:
         raise RuntimeError(msg)
 
     p.phases.slide.register.continuous(my_dynamics)
-    with raises(RuntimeError, "my_dynamics", "phase 'slide'", at="raise RuntimeError"):
+    with raises(RuntimeError, "my_dynamics", "phases.slide", at="raise RuntimeError"):
         p.solve()
 
 
@@ -274,7 +276,7 @@ def test_a_non_finite_value_is_reported_by_name() -> None:
         out.integrand.effort = arg.control.theta / 0.0
 
     p.phases.slide.register.continuous(infinite)
-    with raises(ValueError, "not finite", "phase 'slide'", "effort", at="solve"):
+    with raises(ValueError, "not finite", "phases.slide", "effort", at="solve"):
         p.solve()
 
 
@@ -305,7 +307,7 @@ def test_a_continuous_callback_returning_out_is_told_to_delete_the_return() -> N
         return out
 
     p.phases.slide.register.continuous(returns_out)
-    with raises(TypeError, "returns_out'", "returned 'out'", "delete the return", at="solve"):
+    with raises(TypeError, "returns_out (", "returned 'out'", "delete the return", at="solve"):
         p.solve()
 
 
@@ -332,7 +334,7 @@ def test_a_callback_returning_its_rows_is_refused() -> None:
 
     p.phases.slide.register.continuous(returns_rows)
     with raises(
-        TypeError, "returns_rows'", "returned (", "Fill 'out' and return nothing", at="solve"
+        TypeError, "returns_rows (", "returned a tuple of 3", "returns nothing", at="solve"
     ):
         p.solve()
 
@@ -387,7 +389,7 @@ def test_an_output_row_cannot_be_read_before_it_is_written() -> None:
         return dynamics(arg, out)
 
     p.phases.slide.register.continuous(peek)
-    with raises(AttributeError, "'x' has not been assigned", at="out.dynamics.x"):
+    with raises(AttributeError, "out.dynamics.x has not been assigned", at="out.dynamics.x"):
         p.solve()
 
 
@@ -400,7 +402,7 @@ def test_an_input_cannot_be_assigned() -> None:
         return dynamics(arg, out)
 
     p.phases.slide.register.continuous(overwrite)
-    with raises(AttributeError, "is read-only", "'v' cannot be assigned", at="arg.state.v"):
+    with raises(AttributeError, "arg.state.v is an input and cannot be assigned", at="arg.state.v"):
         p.solve()
 
 
@@ -493,7 +495,7 @@ def test_a_row_of_the_wrong_length_is_told_how_many_are_needed() -> None:
         out.dynamics.x = np.zeros(3)
 
     p.phases.slide.register.continuous(short)
-    with raises(ValueError, "one value per time point", "dynamics 'x'", at="out.dynamics.x"):
+    with raises(ValueError, "one value per time point", "out.dynamics.x", at="out.dynamics.x"):
         p.solve()
 
 
@@ -596,7 +598,7 @@ def test_the_objective_is_not_a_boolean() -> None:
         return arg[ph].final_time > 1.0
 
     p.register.objective(compares)
-    with raises(TypeError, "compares' returned a boolean", "comparison", at="solve"):
+    with raises(TypeError, "compares (", "returned a boolean", "comparison", at="solve"):
         p.solve()
 
 
@@ -615,7 +617,7 @@ def test_the_objective_is_one_number(returned: str) -> None:
         "0-d complex": lambda arg: np.array(1j),
     }
     p.register.objective(values[returned])
-    with raises(TypeError, "objective callback", "must return one number", at="solve"):
+    with raises(TypeError, "objective callback", "it returns one number", at="solve"):
         p.solve()
 
 
@@ -698,7 +700,7 @@ def test_an_endpoint_input_cannot_be_written() -> None:
         return arg[ph].final_time
 
     p.register.objective(writes)
-    with raises(AttributeError, "is read-only", at="final_state.x"):
+    with raises(AttributeError, "is an input", at="final_state.x"):
         p.solve()
 
 

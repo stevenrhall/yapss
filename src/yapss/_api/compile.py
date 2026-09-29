@@ -65,15 +65,27 @@ def _check_return(result: Any, out: Any, callback: Callable[..., Any], what: str
     """
     if result is None:
         return
-    name = getattr(callback, "__qualname__", repr(callback))
+    where = callback_location(callback)
     if result is out:
         msg = (
-            f"the {what}, '{name}', returned 'out'. A callback fills 'out' and returns "
-            f"nothing: delete the return."
+            f"the {what}, {where}, returned 'out'. A callback fills 'out' and returns nothing: "
+            f"delete the return."
         )
     else:
-        msg = f"the {what}, '{name}', returned {result!r}. Fill 'out' and return nothing."
+        msg = (
+            f"the {what}, {where}, returned {_described(result)}. A callback fills 'out' and "
+            f"returns nothing."
+        )
     raise TypeError(msg)
+
+
+def _described(value: Any) -> str:
+    """Return what `value` is, for a message, without printing all of it."""
+    if isinstance(value, np.ndarray):
+        return f"an array of shape {value.shape}" if value.ndim else f"an array of {value.dtype}"
+    if isinstance(value, tuple | list):
+        return f"a {type(value).__name__} of {len(value)}"
+    return f"a {type(value).__name__}"
 
 
 def _call(callback: Callable[..., Any], what: str, arg: Any, *args: Any) -> Any:
@@ -99,8 +111,8 @@ def _check_complete(output: Any, callback: Callable[..., Any], what: str) -> Non
     """Refuse an output with any field left unassigned."""
     if output._is_complete():
         return
-    name = getattr(callback, "__qualname__", repr(callback))
-    msg = f"the {what}, '{name}', returned without assigning {', '.join(output._missing())}"
+    missing = ", ".join(f"out.{name}" for name in output._missing())
+    msg = f"the {what}, {callback_location(callback)}, returned without assigning {missing}"
     raise ValueError(msg)
 
 
@@ -161,24 +173,24 @@ class _PhaseMakers:
         """
         makers = self._outputs.get(npoints)
         if makers is None:
-            phase, label = self._phase, self._label
+            phase = self._phase
             makers = (
-                Maker(phase.state, Rows, f"{label} dynamics", npoints),
-                Maker(phase.path, Rows, f"{label} path", npoints),
-                Maker(phase.integral, Rows, f"{label} integrand", npoints),
+                Maker(phase.state, Rows, "out.dynamics", npoints),
+                Maker(phase.path, Rows, "out.path", npoints),
+                Maker(phase.integral, Rows, "out.integrand", npoints),
             )
             self._outputs[npoints] = makers
         dynamics, path, integrand = makers
         return ContinuousOut(dynamics.make(), path.make(), integrand.make())
 
     def __init__(self, spec: ProblemSpec_, phase: PhaseSpec_) -> None:
-        label = f"phase '{phase.name}'"
+        label = f"phases.{phase.name}"
         self.handle = phase.handle
         self.callback = phase.continuous
-        self.what = f"continuous callback for {label}"
-        self.state = Maker(phase.state, ReadOnlyRows, f"{label} state")
-        self.control = Maker(phase.control, ReadOnlyRows, f"{label} control")
-        self.parameter = Maker(spec.parameter, ReadOnlyRows, "parameter")
+        self.what = f"continuous callback of {label}"
+        self.state = Maker(phase.state, ReadOnlyRows, "arg.state")
+        self.control = Maker(phase.control, ReadOnlyRows, "arg.control")
+        self.parameter = Maker(spec.parameter, ReadOnlyRows, "arg.parameter")
         self._phase = phase
         self._label = label
         self._outputs: dict[int, tuple[Maker, Maker, Maker]] = {}
@@ -245,6 +257,7 @@ class _EndpointMakers:
         "initial_state",
         "integral",
         "parameter",
+        "paths",
     )
 
     def __init__(self, spec: ProblemSpec_) -> None:
@@ -253,13 +266,15 @@ class _EndpointMakers:
         self.initial_state = {}
         self.final_state = {}
         self.integral = {}
+        self.paths: dict[Any, str] = {}
         for phase in spec.phases:
-            label = f"phase '{phase.name}'"
+            label = f"arg[phases.{phase.name}]"
             handle = phase.handle
-            self.initial_state[handle] = Maker(phase.state, ReadOnlyRows, f"{label} initial state")
-            self.final_state[handle] = Maker(phase.state, ReadOnlyRows, f"{label} final state")
-            self.integral[handle] = Maker(phase.integral, ReadOnlyRows, f"{label} integral")
-        self.parameter = Maker(spec.parameter, ReadOnlyRows, "parameter")
+            self.initial_state[handle] = Maker(phase.state, ReadOnlyRows, f"{label}.initial_state")
+            self.final_state[handle] = Maker(phase.state, ReadOnlyRows, f"{label}.final_state")
+            self.integral[handle] = Maker(phase.integral, ReadOnlyRows, f"{label}.integral")
+            self.paths[handle] = label
+        self.parameter = Maker(spec.parameter, ReadOnlyRows, "arg.parameter")
 
     def build(self, handle: Any, arg: Any) -> Endpoint:
         """Return the endpoint values of one phase, from what the solver passed."""
@@ -269,6 +284,7 @@ class _EndpointMakers:
             self.initial_state[handle].over(data.initial_state),
             self.final_state[handle].over(data.final_state),
             self.integral[handle].over(data.integral),
+            self.paths[handle],
         )
 
     def arg(self, arg: Any) -> DiscreteArg:
@@ -314,10 +330,14 @@ class _Endpoints:
         return endpoint
 
 
-def _row_labels(declaration: type[Vector], owner: str) -> tuple[str, ...]:
-    """Return each flat row of `declaration` by name: ``owner.x``, or ``owner.r[1]`` in a block."""
+def _row_labels(declaration: type[Vector], owner: str, phase: str = "") -> tuple[str, ...]:
+    """Return each flat row of `declaration` by its path, and the phase it belongs to if any.
+
+    A row is ``owner.x``, or ``owner.r[1]`` in a block.
+    """
+    after = f" of {phase}" if phase else ""
     return tuple(
-        f"{owner}.{name}" if member is None else f"{owner}.{name}[{member}]"
+        (f"{owner}.{name}" if member is None else f"{owner}.{name}[{member}]") + after
         for name, member in declaration._rows
     )
 
@@ -329,13 +349,13 @@ def _user_names(spec: ProblemSpec_) -> UserNames:
         objective=spec.objective_function,
         outputs=tuple(
             {
-                "dynamics": _row_labels(phase.state, f"phase '{phase.name}' dynamics"),
-                "path": _row_labels(phase.path, f"phase '{phase.name}' path"),
-                "integrand": _row_labels(phase.integral, f"phase '{phase.name}' integrand"),
+                "dynamics": _row_labels(phase.state, "out.dynamics", f"phases.{phase.name}"),
+                "path": _row_labels(phase.path, "out.path", f"phases.{phase.name}"),
+                "integrand": _row_labels(phase.integral, "out.integrand", f"phases.{phase.name}"),
             }
             for phase in spec.phases
         ),
-        discrete=_row_labels(spec.discrete, "discrete"),
+        discrete=_row_labels(spec.discrete, "out.discrete"),
     )
 
 
@@ -360,22 +380,17 @@ def _check_objective(value: Any, callback: Callable[..., Any]) -> None:
     """
     if _is_one_number(value):
         return
-    name = getattr(callback, "__qualname__", repr(callback))
+    where = callback_location(callback)
     if value is None:
-        msg = f"the objective callback '{name}' returned nothing; it must return the objective"
+        msg = f"the objective callback, {where}, returned nothing. Return the objective's value."
         raise ValueError(msg)
     if is_bool(value) or (isinstance(value, np.ndarray) and value.dtype == np.bool_):
         msg = (
-            f"the objective callback '{name}' returned a boolean; it must return the "
-            f"objective's value. If this came from a comparison, the comparison is probably "
-            f"the mistake."
+            f"the objective callback, {where}, returned a boolean, not the objective's value. "
+            f"If this came from a comparison, the comparison is probably the mistake."
         )
         raise TypeError(msg)
-    if isinstance(value, np.ndarray):
-        got = f"an array of shape {value.shape}" if value.ndim else f"an array of {value.dtype}"
-    else:
-        got = f"a {type(value).__name__}"
-    msg = f"the objective callback '{name}' returned {got}; it must return one number"
+    msg = f"the objective callback, {where}, returned {_described(value)}; it returns one number"
     raise TypeError(msg)
 
 
@@ -394,7 +409,7 @@ def _make_discrete(
     spec: ProblemSpec_, makers: _EndpointMakers, callback: Callable[..., Any]
 ) -> Callable[[Any], None]:
     """Return the 0.3.0 discrete callback that drives the user's discrete callback."""
-    discrete_maker = Maker(spec.discrete, Rows, "discrete")
+    discrete_maker = Maker(spec.discrete, Rows, "out.discrete")
 
     def discrete(arg: Any) -> None:
         out = DiscreteOut(discrete_maker.make())

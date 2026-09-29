@@ -90,23 +90,29 @@ def interp(time: Any, values: Any, /) -> Interp:
     Interp
         The guess, to be assigned to a guess aspect.
     """
-    time_array = _samples(time, "time")
+    time_array = _samples(time, "times")
     value_array = _samples(values, "values")
     if time_array.ndim != 1 or time_array.size < 2:  # noqa: PLR2004
-        msg = f"interp(time=) must be at least two increasing times; got {time!r}"
+        shape = "none" if time_array.size == 0 else f"shape {time_array.shape}"
+        msg = f"interp: the times are a sequence of two or more; got {shape}"
         raise ValueError(msg)
     if np.any(np.diff(time_array) <= 0):
-        msg = "interp(time=) must be strictly increasing"
+        k = int(np.flatnonzero(np.diff(time_array) <= 0)[0])
+        msg = (
+            f"interp: the times must be strictly increasing; times[{k + 1}] is "
+            f"{time_array[k + 1]}, after {time_array[k]}"
+        )
         raise ValueError(msg)
     if value_array.ndim not in (1, 2):
         msg = (
-            f"interp(values=) must be one row, or one row per member; got shape {value_array.shape}"
+            f"interp: the values are one row, or one row per member of a block field; got "
+            f"shape {value_array.shape}"
         )
         raise ValueError(msg)
     if value_array.shape[-1] != time_array.size:
         msg = (
-            f"interp: {time_array.size} times but {value_array.shape[-1]} values; there must be "
-            f"one value per time"
+            f"interp: {time_array.size} times but {value_array.shape[-1]} values. Give one "
+            f"value per time."
         )
         raise ValueError(msg)
     return Interp(time_array, value_array)
@@ -120,25 +126,36 @@ def _samples(given: Any, what: str) -> Any:
     ``np.asarray(..., dtype=float)`` would turn "2", True and None into 2.0, 1.0 and NaN, and
     drop the imaginary part of a complex number.
     """
+    # the first bad sample is named by its index: the whole argument could be thousands of numbers
     array = np.array(given)
     if array.dtype.kind not in "iuf":
-        msg = f"interp({what}=) takes real numbers; got {given!r}"
+        msg = f"interp: the {what} must be real numbers; {_first_not_real(array, what)}"
         raise TypeError(msg)
     array = array.astype(float)
     bad = np.argwhere(~np.isfinite(array))
     if bad.size:
-        # the first bad sample, by index: the whole argument could be thousands of numbers
         first = tuple(int(i) for i in bad[0])
         where = ", ".join(str(i) for i in first)
-        msg = f"interp({what}=) must be finite; {what}[{where}] is {array[first]}"
+        msg = f"interp: the {what} must be finite; {what}[{where}] is {array[first]}"
         raise ValueError(msg)
     array.flags.writeable = False
     return array
 
 
-def coverage_complaint(
-    sampled: Interp, guess: tuple[float, float], label: str, name: str
-) -> str | None:
+def _first_not_real(array: Any, what: str) -> str:
+    """Return which sample is the first that is not a real number, and what it is."""
+    if array.dtype.kind in "OUSb" or array.dtype.kind == "c":
+        for index, value in np.ndenumerate(array):
+            if isinstance(value, bool | np.bool_) or not isinstance(
+                value, int | float | np.integer | np.floating
+            ):
+                where = ", ".join(str(i) for i in index)
+                shown = value.item() if isinstance(value, np.generic) else value
+                return f"{what}[{where}] is {shown!r}"
+    return f"got an array of {array.dtype}"
+
+
+def coverage_complaint(sampled: Interp, guess: tuple[float, float], path: str) -> str | None:
     """Return a complaint if the samples do not reach far enough into the phase.
 
     The samples must reach within `COVERAGE` of the phase's duration at each end, so that they
@@ -152,10 +169,8 @@ def coverage_complaint(
         The sampled guess.
     guess : tuple of float
         The phase's ``(t0, tf)`` time guess.
-    label : str
-        What to call the field's owner in a message.
-    name : str
-        The field's name.
+    path : str
+        The guess's path, such as ``"phases.boost.state.h.guess"``.
 
     Returns
     -------
@@ -167,12 +182,12 @@ def coverage_complaint(
     first, last = float(sampled.time[0]), float(sampled.time[-1])
     if first > t0 + margin:
         return (
-            f"{label} '{name}': samples start at {first}; the time guess starts at {t0} "
-            f"(samples must reach {t0 + margin})"
+            f"{path}: the samples start at {first}, and the time guess at {t0}; they must "
+            f"reach {t0 + margin}"
         )
     if last < tf - margin:
         return (
-            f"{label} '{name}': samples end at {last}; the time guess ends at {tf} "
-            f"(samples must reach {tf - margin})"
+            f"{path}: the samples end at {last}, and the time guess at {tf}; they must "
+            f"reach {tf - margin}"
         )
     return None

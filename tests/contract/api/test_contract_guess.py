@@ -94,7 +94,7 @@ def test_interp_times_must_increase() -> None:
 
 def test_interp_needs_at_least_two_times() -> None:
     """One sample is a constant, which the pair form already says."""
-    with raises(ValueError, "at least two increasing times", at="yapss.interp"):
+    with raises(ValueError, "the times are a sequence of two or more", at="yapss.interp"):
         yapss.interp([], [])
 
 
@@ -140,7 +140,7 @@ def test_a_phase_without_a_time_guess_is_incomplete() -> None:
     def objective(arg):
         return arg[ph].final_state.x
 
-    with raises(ValueError, "has no time guess", "ph.time.guess = (start, end)", at="validate"):
+    with raises(ValueError, "phases.only.time.guess is not set", at="validate"):
         p.validate()
 
 
@@ -246,7 +246,7 @@ def test_interp_keeps_its_own_copy() -> None:
 @pytest.mark.parametrize("values", [["1", "2"], [True, False], [0.0, None], np.array([1 + 1j, 2])])
 def test_interp_takes_real_numbers_only(values: object) -> None:
     """Converting would turn "2", True and None into numbers, and drop an imaginary part."""
-    with raises(TypeError, "interp(values=) takes real numbers", at="interp"):
+    with raises(TypeError, "interp: the values must be real numbers", at="interp"):
         yapss.interp([0.0, 1.0], values)
 
 
@@ -255,15 +255,15 @@ def test_interp_takes_real_numbers_only(values: object) -> None:
     [
         ([0.0, 1.0], [0.0, np.nan], "values[1] is nan"),
         ([0.0, 1.0], [0.0, np.inf], "values[1] is inf"),
-        ([0.0, 1.0, np.inf], [0.0, 1.0, 5.0], "time[2] is inf"),
-        ([0.0, np.nan, 1.0], [0.0, 1.0, 5.0], "time[1] is nan"),
+        ([0.0, 1.0, np.inf], [0.0, 1.0, 5.0], "times[2] is inf"),
+        ([0.0, np.nan, 1.0], [0.0, 1.0, 5.0], "times[1] is nan"),
         ([0.0, 1.0], [[0.0, 1.0], [2.0, np.nan]], "values[1, 1] is nan"),
     ],
 )
 def test_interp_samples_are_finite(time: list[float], values: object, bad: str) -> None:
     """A NaN or infinite sample is refused where it is given, naming the first bad sample."""
     what = bad.split("[")[0]
-    with raises(ValueError, f"interp({what}=) must be finite", bad, at="interp"):
+    with raises(ValueError, f"interp: the {what} must be finite", bad, at="interp"):
         yapss.interp(time, values)
 
 
@@ -292,14 +292,16 @@ def test_the_row_count_of_samples_is_checked_where_they_are_assigned() -> None:
 def test_a_pair_guess_is_finite(pair: tuple[float, float]) -> None:
     """Accepted, it would reach the callbacks or Ipopt, and be reported as the callbacks' fault."""
     ph = solvable().phases.slide
-    with raises(ValueError, "control guess 'theta'", "must be finite", at="theta.guess"):
+    with raises(ValueError, "phases.slide.control.theta.guess", "must be finite", at="theta.guess"):
         ph.control.theta.guess = pair
 
 
 def test_a_one_number_guess_is_finite() -> None:
     """Integrals and parameters are guessed as one number, held to the same rule."""
     ph = solvable().phases.slide
-    with raises(ValueError, "integral guess 'effort'", "must be finite", at="effort.guess"):
+    with raises(
+        ValueError, "phases.slide.integral.effort.guess", "must be finite", at="effort.guess"
+    ):
         ph.integral.effort.guess = np.inf
 
 
@@ -307,7 +309,7 @@ def test_a_one_number_guess_is_finite() -> None:
 def test_the_time_guess_is_finite(guess: tuple[float, float]) -> None:
     """Refused for what it is, not for the order its ends happen to compare in."""
     ph = solvable().phases.slide
-    with raises(ValueError, "time guess", "must be finite", at="time.guess"):
+    with raises(ValueError, "phases.slide.time.guess", "must be finite", at="time.guess"):
         ph.time.guess = guess
 
 

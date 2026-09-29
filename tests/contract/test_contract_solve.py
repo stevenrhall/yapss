@@ -228,9 +228,9 @@ def test_option_of_the_wrong_kind_raises_at_the_assignment(value):
 @pytest.mark.parametrize(
     ("name", "knob"),
     [
-        ("obj_scaling_factor", "problem.objective.scale"),
+        ("obj_scaling_factor", "<problem>.objective.scale"),
         ("nlp_scaling_method", "scales set on"),
-        ("hessian_approximation", "problem.derivatives.order"),
+        ("hessian_approximation", "<problem>.derivatives.order"),
     ],
 )
 def test_option_managed_by_yapss_raises_at_the_assignment_naming_the_knob(name, knob):

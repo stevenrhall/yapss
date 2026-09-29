@@ -87,4 +87,4 @@ def test_the_callback_reads_the_independent_variable_by_name(problem):
 def test_the_declaration_names_what_it_holds():
     phases = Phases()
     assert [phase.name for phase in phases] == ["phase"]
-    assert repr(phases.phase.time) == "<phase 'phase' time>"
+    assert repr(phases.phase.time) == "<phases.phase.time>"

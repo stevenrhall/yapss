@@ -61,9 +61,14 @@ def test_registering_again_replaces(problem, phase):
 def test_a_registration_is_not_assigned(problem, phase):
     # the released API assigns -- `ocp.functions.continuous = continuous` -- so this is the
     # form a user arriving from 0.3.0 reaches for first
-    with pytest.raises(AttributeError, match=r"Decorate the callback with 'register.objective'"):
+    with pytest.raises(
+        AttributeError, match=r"Decorate the callback with '@<problem>.register.objective'"
+    ):
         problem.register.objective = lambda arg: 0.0
-    with pytest.raises(AttributeError, match=r"Decorate the callback with 'register.continuous'"):
+    with pytest.raises(
+        AttributeError,
+        match=r"Decorate the callback with '@<problem>.phases.\w+.register.continuous'",
+    ):
         phase.register.continuous = lambda arg, out: out
 
 
@@ -87,5 +92,7 @@ def test_reaching_for_a_callback_on_its_owner_says_where_it_lives(phase):
 def test_decorating_the_aspect_instead_of_the_registry_is_answered(problem, which, callback):
     # the natural slip: problem.objective is the sense and the scale, not the callback
     aspect = getattr(problem, which)
-    with pytest.raises(TypeError, match=rf"Register the callback with '@problem.register.{which}'"):
+    with pytest.raises(
+        TypeError, match=rf"Register the callback with '@<problem>.register.{which}'"
+    ):
         aspect(callback)

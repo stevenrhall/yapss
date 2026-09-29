@@ -23,7 +23,7 @@ def test_a_bound_is_a_pair_not_a_number() -> None:
     ph = problem().phases.first
     with raises(
         TypeError,
-        "a bound is a pair",
+        "a bound is a (lower, upper) pair",
         "write (500.0, 500.0)",
         at="x.bounds",
     ):
@@ -83,7 +83,9 @@ def test_a_side_is_a_number_or_none() -> None:
 def test_a_side_cannot_be_nan(bound: tuple[float, float]) -> None:
     """Refused where it is written, rather than by the solver, which names no field."""
     ph = problem().phases.first
-    with raises(ValueError, "state bounds 'x'", "cannot be NaN", "write None", at="x.bounds"):
+    with raises(
+        ValueError, "phases.first.state.x.bounds", "cannot be NaN", "write None", at="x.bounds"
+    ):
         ph.state.x.bounds = bound
 
 
@@ -194,7 +196,12 @@ def test_a_misspelled_field_is_refused_with_a_suggestion() -> None:
 
 def test_a_declaration_is_not_a_value() -> None:
     """Building one says where the values go instead."""
-    with raises(TypeError, "is a declaration, not a value", "phase.state.x.bounds", at="State("):
+    with raises(
+        TypeError,
+        "is a declaration, not a value",
+        "<problem>.phases.<phase>.state.x.bounds",
+        at="State(",
+    ):
         State(x=(0.0, 1.0))
 
 
@@ -240,7 +247,12 @@ def test_a_slice_takes_one_element_or_one_per_row() -> None:
     than a general one about slices.
     """
     ph = problem().phases.first
-    with raises(TypeError, "a bound is a pair, and 5 is one number", "(5, 5)", at="y.bounds[:]"):
+    with raises(
+        TypeError,
+        "a bound is a (lower, upper) pair, and 5 is one number",
+        "(5, 5)",
+        at="y.bounds[:]",
+    ):
         ph.state.y.bounds[:] = 5
 
 
@@ -249,7 +261,9 @@ def test_a_row_written_with_a_bad_value_is_told_what_is_wrong_with_it() -> None:
     ph = problem().phases.first
     with raises(TypeError, "a boolean is not a number", at="y.bounds[0]"):
         ph.state.y.bounds[0] = (0.0, True)
-    with raises(TypeError, "a bound is a pair, and 5.0 is one number", at="y.bounds[0]"):
+    with raises(
+        TypeError, "a bound is a (lower, upper) pair, and 5.0 is one number", at="y.bounds[0]"
+    ):
         ph.state.y.bounds[0] = 5.0
     with raises(TypeError, "is one row, so it takes one element", at="y.bounds[0]"):
         ph.state.y.bounds[0] = [(0.0, 1.0), (2.0, 3.0)]
@@ -258,14 +272,16 @@ def test_a_row_written_with_a_bad_value_is_told_what_is_wrong_with_it() -> None:
 def test_a_setting_is_reached_through_its_field() -> None:
     """A bound belongs to a field, so the field is named first, and the old order says so."""
     ph = problem().phases.first
-    with raises(AttributeError, "has no field 'bounds'", "named first", at="ph.state.bounds"):
+    with raises(
+        AttributeError, "has no field 'bounds'", "A setting follows its field", at="ph.state.bounds"
+    ):
         _ = ph.state.bounds
 
 
 def test_a_vector_has_no_positions() -> None:
     """Positions are what this API replaced: a field is reached by name, never by index."""
     ph = problem().phases.first
-    with raises(TypeError, "a vector has no positions", "reached by name", at="ph.state[0]"):
+    with raises(TypeError, "a vector has no positions", "Reach a field by name", at="ph.state[0]"):
         _ = ph.state[0]
 
 
@@ -286,7 +302,11 @@ def test_a_field_takes_no_index_of_its_own() -> None:
 def test_a_row_out_of_range_names_the_setting_and_its_rows() -> None:
     """Reading a row by position is allowed, and a bad one says how many rows there are."""
     ph = problem().phases.first
-    with raises(IndexError, "'y'[9] is out of range for 2 rows", at="ph.state.y.bounds[9]"):
+    with raises(
+        IndexError,
+        "phases.first.state.y.bounds[9] is out of range for 2 rows",
+        at="ph.state.y.bounds[9]",
+    ):
         _ = ph.state.y.bounds[9]
 
 
@@ -358,8 +378,8 @@ def test_a_boundary_bound_must_overlap_the_bound() -> None:
     with raises(
         ValueError,
         "not ready to solve",
-        "state 'v'",
-        "initial bound",
+        "phases.slide.state.v.initial",
+        "phases.slide.state.v.bounds",
         "does not overlap",
         at="validate",
     ):
@@ -382,7 +402,13 @@ def test_a_final_boundary_bound_must_overlap_the_bound_too() -> None:
     ph = p.phases.slide
     ph.state.v.bounds = (0.0, 1.0)
     ph.state.v.final = (5.0, 6.0)
-    with raises(ValueError, "state 'v'", "final bound", "does not overlap", at="validate"):
+    with raises(
+        ValueError,
+        "phases.slide.state.v.final",
+        "phases.slide.state.v.bounds",
+        "does not overlap",
+        at="validate",
+    ):
         p.validate()
 
 

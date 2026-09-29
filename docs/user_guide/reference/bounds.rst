@@ -76,8 +76,8 @@ field's rows. A refused write leaves the bound as it was.
     >>> ph.state.x.bounds = 5.0
     Traceback (most recent call last):
         ...
-    TypeError: phase 'phase' state bounds 'x': a bound is a pair, and 5.0 is one number. To fix
-    the value, write (5.0, 5.0); for an interval, write its two ends.
+    TypeError: phases.phase.state.x.bounds: a bound is a (lower, upper) pair, and 5.0 is one
+    number. For a fixed value, write (5.0, 5.0).
 
 Bounds that are each valid but contradict one another depend on more than one assignment, so
 they are reported by ``problem.validate()``, which ``problem.solve()`` runs before Ipopt starts:
@@ -93,7 +93,7 @@ is refused until then, bounds can be set in any order.
     Traceback (most recent call last):
         ...
     ValueError: the problem is not ready to solve:
-      phase 'phase' state 'v': its initial bound (20.0, 20.0) does not overlap its bound
+      phases.phase.state.v.initial (20.0, 20.0) does not overlap phases.phase.state.v.bounds
       (0.0, 10.0), so no initial value satisfies both
 
 Special Considerations for State Bounds

@@ -83,9 +83,17 @@ class _HasEndpoints(Protocol[_S_co, _V_co]):
 
 
 class _Frozen:
-    """Base of the argument objects: named slots, read-only, with suggestions on a typo."""
+    """Base of the argument objects: named slots, read-only, with suggestions on a typo.
+
+    A message names the object by what the callback calls it, ``arg`` or ``out``, as the style
+    of every message is to spell the path the user wrote.
+    """
 
     __slots__: tuple[str, ...] = ()
+    _root = "arg"
+
+    def _where(self) -> str:
+        return type(self)._root
 
     # Hidden from type checkers, as `Container`'s is: one that sees a reader answering any name
     # stops reporting misspellings. `ContinuousArg` declares its own, for the one name it cannot
@@ -99,13 +107,13 @@ class _Frozen:
             names = getattr(self, "_names", None) or tuple(
                 n for n in self.__slots__ if not n.startswith("_")
             )
-            msg = f"{type(self).__name__} has no '{name}'.{suggest(name, names)}"
+            msg = f"{self._where()} has no '{name}'.{suggest(name, names)}"
             raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment, saying why: an input, the objective, or no such name."""
         del value
-        kind = type(self).__name__
+        kind = self._where()
         if hasattr(self, name):
             msg = f"{kind}.{name} is an input and cannot be assigned"
         elif name == "objective":
@@ -122,7 +130,7 @@ class _Frozen:
 
     def __delattr__(self, name: str) -> None:
         """Refuse every deletion."""
-        msg = f"{type(self).__name__}.{name} is an input and cannot be deleted"
+        msg = f"{self._where()}.{name} is an input and cannot be deleted"
         raise AttributeError(msg)
 
 
@@ -176,6 +184,7 @@ class ContinuousOut(_Frozen, Generic[S_co, P_co, I_co]):
     """
 
     __slots__ = ("dynamics", "integrand", "path")
+    _root = "out"
 
     if TYPE_CHECKING:
         dynamics: S_co
@@ -246,9 +255,13 @@ class Endpoint(_Frozen, Generic[S_co, I_co]):
         The phase's integrals, which belong to the phase rather than to either end of it.
     """
 
-    __slots__ = ("_data", "final_state", "initial_state", "integral")
+    __slots__ = ("_data", "_path", "final_state", "initial_state", "integral")
 
     _names = ("initial_state", "initial_time", "final_state", "final_time", "integral")
+
+    def _where(self) -> str:
+        path: str = object.__getattribute__(self, "_path")
+        return path
 
     if TYPE_CHECKING:
         initial_state: S_co
@@ -256,9 +269,15 @@ class Endpoint(_Frozen, Generic[S_co, I_co]):
         integral: I_co
 
     def __init__(
-        self, data: Any, initial_state: Vector, final_state: Vector, integral: Vector
+        self,
+        data: Any,
+        initial_state: Vector,
+        final_state: Vector,
+        integral: Vector,
+        path: str = "arg[...]",
     ) -> None:
         object.__setattr__(self, "_data", data)
+        object.__setattr__(self, "_path", path)
         object.__setattr__(self, "initial_state", initial_state)
         object.__setattr__(self, "final_state", final_state)
         object.__setattr__(self, "integral", integral)
@@ -301,7 +320,8 @@ class DiscreteArg(_Frozen, Generic[PR_co]):
             return endpoints[phase]
         except (KeyError, TypeError):
             msg = (
-                f"arg[...] takes a phase handle, such as 'problem.phases.<name>'; " f"got {phase!r}"
+                f"arg[...] takes a phase handle, such as '<problem>.phases.<name>'; "
+                f"got {phase!r}"
             )
             raise KeyError(msg) from None
 
@@ -313,6 +333,7 @@ class DiscreteOut(_Frozen, Generic[D_co]):
     """
 
     __slots__ = ("discrete",)
+    _root = "out"
 
     if TYPE_CHECKING:
         discrete: D_co

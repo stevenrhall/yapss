@@ -48,11 +48,11 @@ RESERVED_IPOPT_OPTIONS = {
         "the problem's variables, constraints and objective; set those instead."
     ),
     "obj_scaling_factor": (
-        "YAPSS manages objective scaling itself; set 'problem.objective.sense' (sign) and "
-        "'problem.objective.scale' (magnitude) instead."
+        "YAPSS manages objective scaling itself; set '<problem>.objective.sense' (sign) and "
+        "'<problem>.objective.scale' (magnitude) instead."
     ),
     "hessian_approximation": (
-        "YAPSS chooses this based on 'problem.derivatives.order'; set that instead."
+        "YAPSS chooses this based on '<problem>.derivatives.order'; set that instead."
     ),
     "warm_start_init_point": (
         "YAPSS does not pass warm-start dual/bound information to Ipopt, so this "

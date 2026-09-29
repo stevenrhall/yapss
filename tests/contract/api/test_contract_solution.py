@@ -36,7 +36,9 @@ def test_a_phase_is_also_reached_by_its_name() -> None:
 def test_a_misspelled_phase_name_is_refused_with_a_suggestion() -> None:
     """The name is checked against the phases the problem declared."""
     _, result = solution()
-    with raises(KeyError, "has no phase 'slid'", "Did you mean 'slide'?", at="result.phases["):
+    with raises(
+        KeyError, "has no phase named 'slid'", "Did you mean 'slide'?", at="result.phases["
+    ):
         result.phases["slid"]
 
 
@@ -101,7 +103,7 @@ def test_the_problem_level_values_read_back_too() -> None:
 def test_a_solution_has_no_name_that_was_not_declared() -> None:
     """Checked against what the record holds, with a suggestion."""
     _, result = solution()
-    with raises(AttributeError, "the solution has no 'nope'", at="result.nope"):
+    with raises(AttributeError, "solution has no 'nope'", at="result.nope"):
         _ = result.nope
 
 
@@ -109,7 +111,7 @@ def test_a_phase_solution_has_no_name_that_was_not_declared() -> None:
     """The same for a phase's own record."""
     problem, result = solution()
     ps = result.phases[problem.phases.slide]
-    with raises(AttributeError, "the phase solution has no 'nope'", at="ps.nope"):
+    with raises(AttributeError, "solution.phases.slide has no 'nope'", at="ps.nope"):
         _ = ps.nope
 
 
@@ -117,7 +119,7 @@ def test_a_misspelled_field_names_the_vector() -> None:
     """Inside a vector, the message says which vector of which phase was asked."""
     problem, result = solution()
     ps = result.phases[problem.phases.slide]
-    with raises(AttributeError, "phase 'slide' solution state has no field 'nope'", at="state."):
+    with raises(AttributeError, "solution.phases.slide.state has no field 'nope'", at="state."):
         _ = ps.state.nope
 
 
@@ -141,7 +143,12 @@ def test_a_solutions_fields_are_fixed() -> None:
     """Down to the fields: a field names its array, and the array is edited, not replaced."""
     problem, result = solution()
     ps = result.phases[problem.phases.slide]
-    with raises(AttributeError, "'x' cannot be assigned", "names are fixed", at="ps.state.x"):
+    with raises(
+        AttributeError,
+        "solution.phases.slide.state.x cannot be assigned",
+        "names are fixed",
+        at="ps.state.x",
+    ):
         ps.state.x = np.zeros(3)
 
 
@@ -205,5 +212,5 @@ def test_the_0_3_0_name_nlp_info_points_to_nlp() -> None:
     p = solvable()
     p.ipopt_options.print_level = 0
     solution = p.solve()
-    with raises(AttributeError, "'nlp'", at="nlp_info"):
+    with raises(AttributeError, "solution.nlp", at="nlp_info"):
         _ = solution.nlp_info  # type: ignore[attr-defined]

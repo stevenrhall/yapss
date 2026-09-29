@@ -108,7 +108,7 @@ def test_a_declaration_cannot_be_instantiated():
 
 
 def test_empty_has_no_fields_and_says_so():
-    empty = Path._new(Rows, "phase 'boost' path")
+    empty = Path._new(Rows, "phases.boost.path")
     with pytest.raises(AttributeError, match=r"has no fields"):
         empty.switching = 1.0
 
@@ -118,7 +118,7 @@ def test_empty_has_no_fields_and_says_so():
 
 @pytest.fixture
 def bounds():
-    return Rocket._new(Bounds, "phase 'boost' state bounds")
+    return Rocket._new(Bounds, "phases.boost.state.{}.bounds")
 
 
 def test_a_bound_defaults_to_free(bounds):
@@ -150,7 +150,7 @@ def test_a_bound_is_stored_normalized(bounds, written, stored):
         ((0, 1, 2), ValueError, "a bound is a \\(lower, upper\\) pair; got 3"),
         ((2, False), TypeError, "a boolean is not a number"),
         (True, TypeError, "a boolean is not a number"),
-        (3.0, TypeError, "a bound is a pair, and 3.0 is one number"),
+        (3.0, TypeError, r"a bound is a \(lower, upper\) pair, and 3.0 is one number"),
         (None, TypeError, "For no bound at either end, write"),
         (..., TypeError, "a bound is a \\(lower, upper\\) pair"),
         ((2, ...), TypeError, "each side of a bound is a number or None"),
@@ -173,7 +173,7 @@ def test_bounds_cannot_be_set_by_position(bounds):
 
 def test_one_bound_covers_every_row_of_a_block_field():
     """`[:]` is how a block field says every row, and one element covers them all."""
-    bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
+    bounds = Ascent._new(Bounds, "phases.ascent.state.{}.bounds")
     bounds.r[:] = (-1.0, 1.0)
     assert tuple(bounds.r) == ((-1.0, 1.0),) * 3
     assert bounds._elements("r") == ((-1.0, 1.0),) * 3
@@ -181,13 +181,13 @@ def test_one_bound_covers_every_row_of_a_block_field():
 
 def test_a_block_field_refuses_the_bare_name():
     """The one spelling in which a reader cannot see whether one value or many was meant."""
-    bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
+    bounds = Ascent._new(Bounds, "phases.ascent.state.{}.bounds")
     with pytest.raises(TypeError, match=r"has 3 rows, so say which"):
         bounds.r = (-1.0, 1.0)
 
 
 def test_a_row_of_a_block_field_is_set_on_its_own():
-    bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
+    bounds = Ascent._new(Bounds, "phases.ascent.state.{}.bounds")
     bounds.r[:] = (-1.0, 1.0)
     bounds.r[1] = (0.0, 2.0)
     assert bounds._elements("r") == ((-1.0, 1.0), (0.0, 2.0), (-1.0, 1.0))
@@ -197,7 +197,7 @@ def test_a_row_of_a_block_field_is_set_on_its_own():
 
 def test_a_sequence_of_bounds_gives_a_block_field_one_per_row():
     """Depth tells one element from a sequence of them, and the bracket type carries nothing."""
-    bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
+    bounds = Ascent._new(Bounds, "phases.ascent.state.{}.bounds")
     bounds.r[:] = [(1.0, 1.0), (0, 2), (None, None)]
     assert bounds._elements("r") == ((1.0, 1.0), (0.0, 2.0), (-math.inf, math.inf))
     bounds.r[:] = ((1, 2), [3, 4], (5, 6))
@@ -205,7 +205,7 @@ def test_a_sequence_of_bounds_gives_a_block_field_one_per_row():
 
 
 def test_a_per_row_sequence_must_match_the_rows_it_covers():
-    bounds = Ascent._new(Bounds, "phase 'ascent' state bounds")
+    bounds = Ascent._new(Bounds, "phases.ascent.state.{}.bounds")
     with pytest.raises(ValueError, match=r"covers 3 rows; got 2 values"):
         bounds.r[:] = [(1.0, 1.0), (2.0, 2.0)]
     with pytest.raises(ValueError, match=r"covers 2 rows; got 3 values"):
@@ -233,13 +233,13 @@ def test_a_two_row_block_is_not_ambiguous_any_more():
 
 
 def test_an_unset_guess_is_zero():
-    guess = Rocket._new(Guess, "phase 'boost' state guess")
+    guess = Rocket._new(Guess, "phases.boost.state.{}.guess")
     assert guess.h == (0.0, 0.0)
 
 
 def test_a_state_guess_is_a_pair():
     """A guess is a pair for the same reason a bound is; a constant is a pair that agrees."""
-    guess = Rocket._new(Guess, "phase 'boost' state guess")
+    guess = Rocket._new(Guess, "phases.boost.state.{}.guess")
     guess.h = (5.0, 5.0)
     guess.v = (0, 100)
     assert guess.h == (5.0, 5.0)
@@ -253,7 +253,7 @@ def test_a_state_guess_is_a_pair():
     [(None, TypeError), ("x", TypeError), ((0, "x"), TypeError), ((0, 1, 2), ValueError)],
 )
 def test_a_bad_guess_is_refused(written, error):
-    guess = Rocket._new(Guess, "phase 'boost' state guess")
+    guess = Rocket._new(Guess, "phases.boost.state.{}.guess")
     with pytest.raises(error):
         guess.h = written
 
@@ -291,14 +291,14 @@ def test_rows_can_be_set_by_index_and_slice(out):
 
 
 def test_reading_an_unassigned_field_is_an_error(out):
-    with pytest.raises(AttributeError, match=r"'v' has not been assigned"):
+    with pytest.raises(AttributeError, match=r"dynamics.v has not been assigned"):
         out.v
 
 
 @pytest.mark.parametrize(
     ("statement", "error", "match"),
     [
-        ("out.r = np.ones((2, 4))", ValueError, r"'r' needs 3 rows; got 2"),
+        ("out.r = np.ones((2, 4))", ValueError, r"dynamics.r needs 3 rows; got 2"),
         ("out.m = np.ones(3)", ValueError, "one value per time point, 4"),
         ("out.m = np.ones((2, 4))", ValueError, r"got an array of shape \(2, 4\)"),
         ("out[0:2] = np.ones(4)", ValueError, "needs 2 values; got 4"),
@@ -330,13 +330,13 @@ def test_the_last_write_of_a_field_wins(out):
 
 
 def test_inputs_refuse_writes():
-    state = Rocket._new(ReadOnlyRows, "phase 'boost' state", npoints=4)
-    with pytest.raises(AttributeError, match="is read-only"):
+    state = Rocket._new(ReadOnlyRows, "arg.state", npoints=4)
+    with pytest.raises(AttributeError, match="is an input"):
         state.h = 1.0
 
 
 def test_inputs_read_by_name_index_and_slice():
-    state = Rocket._new(ReadOnlyRows, "phase 'boost' state", npoints=3)
+    state = Rocket._new(ReadOnlyRows, "arg.state", npoints=3)
     for row, value in enumerate([np.zeros(3), np.ones(3), 2 * np.ones(3)]):
         state._values[row] = value
     assert state.v.tolist() == [1.0, 1.0, 1.0]
@@ -406,8 +406,8 @@ def test_an_empty_block_needs_no_assignment_to_be_complete():
 
 
 def test_messages_name_the_aspect_they_came_from():
-    bounds = Rocket._new(Bounds, "phase 'coast' state bounds")
-    with pytest.raises(TypeError, match=re.escape("phase 'coast' state bounds 'h'")):
+    bounds = Rocket._new(Bounds, "phases.coast.state.{}.bounds")
+    with pytest.raises(TypeError, match=re.escape("phases.coast.state.h.bounds")):
         bounds.h = "fast"
 
 

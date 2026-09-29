@@ -109,7 +109,7 @@ def test_registering_a_second_callback_replaces(problem):
 def test_an_unbounded_discrete_group_is_refused():
     problem = setup()
     aspects_of(problem.discrete).bounds._values.pop("singular_coast_time")
-    with pytest.raises(ValueError, match="'singular_coast_time' has no bound"):
+    with pytest.raises(ValueError, match="discrete.singular_coast_time.bounds is not set"):
         problem.validate()
 
 

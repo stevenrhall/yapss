@@ -53,7 +53,7 @@ import numpy as np
 
 from yapss.math.wrapper import SXArray
 
-from .kinds import MISSING, Kind, is_sequence
+from .kinds import MISSING, Kind, at, is_sequence
 from .sampled import Interp
 
 if TYPE_CHECKING:
@@ -307,7 +307,7 @@ class NumberRows(np.ndarray[Any, np.dtype[np.float64]]):
         where = _show_slice(index) if isinstance(index, slice) else repr(index)
         msg = (
             f"these rows of '{self._target}' are a copy, so a write into them would be lost; "
-            f"assign to the setting instead: '{self._target}[{where}] = ...'"
+            f"assign to the setting instead: '<problem>.{self._target}[{where}] = ...'"
         )
         raise ValueError(msg)
 
@@ -352,26 +352,25 @@ class BlockRows(Sequence[Any]):
             rows = self._rows[index]
         except IndexError:
             msg = (
-                f"{self._owner._label} '{self._name}'[{index!r}] is out of range for "
+                f"{at(self._owner._label, self._name)}[{index!r}] is out of range for "
                 f"{len(self._rows)} rows"
             )
             raise IndexError(msg) from None
         except TypeError:
             msg = (
-                f"{self._owner._label} '{self._name}' is read by row, with a whole number or a "
+                f"{at(self._owner._label, self._name)} is read by row, with a whole number or a "
                 f"slice; got {index!r}"
             )
             raise TypeError(msg) from None
         owner = self._owner
         if isinstance(index, slice) and owner._kind_or_raise().numeric:
-            aspect = owner._aspect
-            target = f"{self._name}.{aspect}" if aspect else self._name
+            target = at(owner._label, self._name)
             if any(row is None for row in rows):
                 # NumPy would read None as NaN, and arithmetic on the rows would carry it on
                 msg = (
-                    f"{owner._label} '{self._name}': YAPSS chooses the scale of a row that is "
+                    f"{at(owner._label, self._name)}: YAPSS chooses the scale of a row that is "
                     f"None, so there is no number to compute with; set the rows first, as in "
-                    f"'{target}[:] = ...'"
+                    f"'<problem>.{target}[:] = ...'"
                 )
                 raise ValueError(msg)
             return NumberRows(rows, target)
@@ -436,7 +435,7 @@ def _field_property(name: str, row: int, size: int | None, kind: type[Kind]) -> 
         def get_whole(self: Any) -> Any:
             value = self._values.get(name, default)
             if value is MISSING:
-                msg = f"{type(self)._label} '{name}' has not been assigned"
+                msg = f"{at(type(self)._label, name)} has not been assigned"
                 raise AttributeError(msg)
             return value
 
@@ -450,7 +449,7 @@ def _field_property(name: str, row: int, size: int | None, kind: type[Kind]) -> 
                 return source[row]
             value = self._values.get(row, default)
             if value is MISSING:
-                msg = f"{type(self)._label} '{name}' has not been assigned"
+                msg = f"{at(type(self)._label, name)} has not been assigned"
                 raise AttributeError(msg)
             return value
 
@@ -478,7 +477,7 @@ def _field_property(name: str, row: int, size: int | None, kind: type[Kind]) -> 
         for i in range(rows):
             value = values.get(row + i, default)
             if value is MISSING:
-                msg = f"{type(self)._label} '{name}' has not been assigned"
+                msg = f"{at(type(self)._label, name)} has not been assigned"
                 raise AttributeError(msg)
             block.append(value)
         return _stack(block)
@@ -496,6 +495,11 @@ def _is_integer(value: object) -> bool:
     if isinstance(value, bool | np.bool_):
         return False
     return isinstance(value, int | np.integer)
+
+
+def owner_of(label: str) -> str:
+    """Return the path of the vector a label names: the label up to where its field goes."""
+    return label.split(".{}", maxsplit=1)[0]
 
 
 def _suggest(name: str, candidates: tuple[str, ...]) -> str:
@@ -628,8 +632,8 @@ class Vector:
         del values
         example = self._fields[0] if self._fields else "x"
         msg = (
-            f"{type(self).__name__} is a declaration, not a value. Set fields on the aspect "
-            f"that holds them, for example 'phase.state.{example}.bounds = (0, 1)'."
+            f"{type(self).__name__} is a declaration, not a value. Set its fields' settings on "
+            f"the problem: '<problem>.phases.<phase>.state.{example}.bounds = (0, 1)'."
         )
         raise TypeError(msg)
 
@@ -717,10 +721,11 @@ class Vector:
         return kind
 
     def _no_field(self, name: str) -> AttributeError:
+        owner = owner_of(self._label)
         if not self._fields:
-            msg = f"{self._label} has no fields: none were declared for it"
+            msg = f"{owner} has no fields: none were declared for it"
             return AttributeError(msg)
-        msg = f"{self._label} has no field '{name}'.{_suggest(name, self._fields)}"
+        msg = f"{owner} has no field '{name}'.{_suggest(name, self._fields)}"
         return AttributeError(msg)
 
     def _read_row(self, row: int, name: str) -> Any:
@@ -730,7 +735,7 @@ class Vector:
         kind = self._kind_or_raise()
         value = self._values.get(row, kind.default)
         if value is MISSING:
-            msg = f"{self._label} '{name}' has not been assigned"
+            msg = f"{at(self._label, name)} has not been assigned"
             raise AttributeError(msg)
         return value
 
@@ -772,7 +777,7 @@ class Vector:
                 return BlockRows(self._elements(name), self, name)
             value = self._values.get(name, kind.default)
             if value is MISSING:
-                msg = f"{self._label} '{name}' has not been assigned"
+                msg = f"{at(self._label, name)} has not been assigned"
                 raise AttributeError(msg)
             return value
 
@@ -836,7 +841,7 @@ class Vector:
             kind = type(self)._kind
             if kind is not None and kind.read_only:
                 raise AttributeError(kind.refusal(self._label, name, "deleted"))
-            msg = f"{type(self)._label} '{name}' cannot be deleted"
+            msg = f"{at(type(self)._label, name)} cannot be deleted"
             raise AttributeError(msg)
 
     def _one_or_per_row(self, kind: type[Kind], spec: Field, name: str, value: Any) -> Any:
@@ -848,13 +853,11 @@ class Vector:
         if spec.size is not None:
             # A setting is written field first, `r.bounds[:]`, so the form shown is that one;
             # the bare `r[:]` would name the field alone, which takes no index.
-            target = f"{name}.{self._aspect}" if self._aspect else name
+            target = at(self._label, name)
             example = f"{target}[:]" if spec.size != 1 else f"{target}[0]"
             msg = (
-                f"{self._label} '{name}' has {spec.size} rows, so say which: "
-                f"'{example} = ...' gives every row the same, and an index or a slice gives "
-                f"rows their own. Assigning it whole is refused because that cannot show which "
-                f"was meant."
+                f"{at(self._label, name)}: the field has {spec.size} rows, so say which. Write "
+                f"'<problem>.{example} = ...' for every row alike, or index the rows."
             )
             raise TypeError(msg)
         self._check_sample_rows(value, name, covered=1, whole=True)
@@ -872,14 +875,14 @@ class Vector:
         given = value.values.shape[0]
         if whole and given == covered:
             return
-        target = f"{name}.{self._aspect}" if self._aspect else name
+        target = at(self._label, name)
         size = type(self)._meta[name].rows
         msg = (
-            f"{self._label} '{name}': the interp values have {given} rows, and the assignment "
+            f"{at(self._label, name)}: the interp values have {given} rows, and the assignment "
             f"covers {covered} of the field's {size}; give one row of samples, or {size} rows "
-            f"to '{target}[:]'"
+            f"to '<problem>.{target}[:]'"
             if size > 1
-            else f"{self._label} '{name}': the interp values have {given} rows, and the field "
+            else f"{at(self._label, name)}: the interp values have {given} rows, and the field "
             f"has one; give one row of samples"
         )
         raise ValueError(msg)
@@ -914,19 +917,19 @@ class Vector:
                 values = list(value)
                 if len(values) != len(rows):
                     msg = (
-                        f"{self._label} '{name}'[{_show_slice(index)}] covers {len(rows)} "
+                        f"{at(self._label, name)}[{_show_slice(index)}] covers {len(rows)} "
                         f"rows; got {len(values)} values"
                     )
                     raise ValueError(msg)
         else:
             row = index if index >= 0 else index + count
             if not 0 <= row < count:
-                msg = f"{self._label} '{name}' has {count} rows; there is no row {index}"
+                msg = f"{at(self._label, name)} has {count} rows; there is no row {index}"
                 raise IndexError(msg)
             if not kind.is_element(value):
                 if _holds_elements(kind, value):
                     msg = (
-                        f"{self._label} '{name}'[{index}] is one row, so it takes one element, "
+                        f"{at(self._label, name)}[{index}] is one row, so it takes one element, "
                         f"not a sequence of them; got {value!r}"
                     )
                     raise TypeError(msg)
@@ -950,7 +953,7 @@ class Vector:
         kind = self._kind_or_raise()
         value = self._values.get(name, kind.default)
         if value is MISSING:
-            msg = f"{self._label} '{name}' has not been assigned"
+            msg = f"{at(self._label, name)} has not been assigned"
             raise AttributeError(msg)
         if isinstance(value, PerRow):
             return tuple(value)
@@ -966,10 +969,10 @@ class Vector:
         try:
             given = list(value)
         except TypeError:
-            msg = f"{self._label} '{name}' needs {rows} rows; got a " f"{type(value).__name__}"
+            msg = f"{at(self._label, name)} needs {rows} rows; got a " f"{type(value).__name__}"
             raise TypeError(msg) from None
         if len(given) != rows:
-            msg = f"{self._label} '{name}' needs {rows} rows; got {len(given)}"
+            msg = f"{at(self._label, name)} needs {rows} rows; got {len(given)}"
             raise ValueError(msg)
         return given
 
@@ -989,12 +992,15 @@ class Vector:
     def _row_index(self, index: int) -> int:
         cls = type(self)
         if not _is_integer(index):
-            msg = f"{self._label} indices are integers or slices, not " f"{type(index).__name__}"
+            msg = (
+                f"{owner_of(self._label)} indices are integers or slices, not "
+                f"{type(index).__name__}"
+            )
             raise TypeError(msg)
         index = int(index)
         if not -cls._nrows <= index < cls._nrows:
             msg = (
-                f"{self._label} index {index} is out of range for {cls._nrows} rows "
+                f"{owner_of(self._label)} index {index} is out of range for {cls._nrows} rows "
                 f"({', '.join(cls._fields)})"
             )
             raise IndexError(msg)
@@ -1006,7 +1012,7 @@ class Vector:
         cls = type(self)
         if isinstance(index, slice):
             if not kind.slice_read:
-                msg = f"{self._label} cannot be read by slice; read its fields by name"
+                msg = f"{owner_of(self._label)} cannot be read by slice; read its fields by name"
                 raise TypeError(msg)
             start, stop, step = index.indices(cls._nrows)
             source = self._source
@@ -1028,7 +1034,7 @@ class Vector:
         if kind.read_only:
             raise AttributeError(kind.refusal(self._label, None))
         if not kind.positional:
-            msg = f"{self._label} cannot be set by position; set its fields by name"
+            msg = f"{owner_of(self._label)} cannot be set by position; set its fields by name"
             if cls._fields:
                 msg = f"{msg}, for example '{cls._fields[0]} = ...'"
             raise TypeError(msg)
@@ -1046,13 +1052,13 @@ class Vector:
                     values = list(value)
                 except TypeError:
                     msg = (
-                        f"{self._label}: assigning to {label} needs {len(rows)} values; "
+                        f"{owner_of(self._label)}: assigning to {label} needs {len(rows)} values; "
                         f"got a {type(value).__name__}"
                     )
                     raise TypeError(msg) from None
                 if len(values) != len(rows):
                     msg = (
-                        f"{self._label}: assigning to {label} needs {len(rows)} values; "
+                        f"{owner_of(self._label)}: assigning to {label} needs {len(rows)} values; "
                         f"got {len(values)}"
                     )
                     raise ValueError(msg)

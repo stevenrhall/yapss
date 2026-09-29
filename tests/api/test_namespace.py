@@ -81,7 +81,9 @@ def test_a_name_may_be_a_control_in_one_phase_and_a_state_in_another():
     [("h", "a state"), ("u", "a control"), ("time", "its independent variable")],
 )
 def test_a_parameter_may_not_share_a_phase_variable_s_name(name, role):
-    with pytest.raises(ValueError, match=rf"declares '{name}'.*phase 'only' also has as {role}"):
+    with pytest.raises(
+        ValueError, match=rf"declares '{name}', which phases\.only also has as {role}"
+    ):
         problem_of(phases=Phases, parameter=made(yapss.Parameter, name))
 
 

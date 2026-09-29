@@ -42,7 +42,7 @@ def test_a_continuous_callback_is_named_with_its_phase(method):
     with pytest.raises(KeyError, match="user error") as info:
         problem.solve()
     assert _notes(info.value) == [
-        f"Raised in the continuous callback for phase 'slide': {_location(my_dynamics)}."
+        f"Raised in the continuous callback of phases.slide: {_location(my_dynamics)}."
     ]
 
 
@@ -95,7 +95,7 @@ def test_a_failure_during_the_solve_is_noted_once():
         problem.solve()
     assert calls["n"] > 20
     assert _notes(info.value) == [
-        f"Raised in the continuous callback for phase 'slide': {_location(my_dynamics)}."
+        f"Raised in the continuous callback of phases.slide: {_location(my_dynamics)}."
     ]
 
 

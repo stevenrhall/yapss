@@ -163,7 +163,7 @@ def test_a_pickled_solution_is_read_by_phase_name_with_no_problem_at_all(solved)
 
 def test_a_misspelled_phase_name_is_refused_with_a_suggestion(solved):
     _, solution = solved
-    with pytest.raises(KeyError, match=r"has no phase 'rn'\. Did you mean 'run'\?"):
+    with pytest.raises(KeyError, match=r"has no phase named 'rn'\. Did you mean 'run'\?"):
         solution.phases["rn"]
 
 

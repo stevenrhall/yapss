@@ -25,7 +25,7 @@ def test_an_option_yapss_manages_is_refused() -> None:
     with raises(
         ValueError,
         "is managed by YAPSS",
-        "problem.derivatives",
+        "<problem>.derivatives",
         at="ipopt_options",
     ):
         p.ipopt_options.hessian_approximation = "limited-memory"
@@ -44,8 +44,8 @@ def test_the_objective_scaling_factor_points_at_the_scale() -> None:
     with raises(
         ValueError,
         "is managed by YAPSS",
-        "problem.objective.sense",
-        "problem.objective.scale",
+        "<problem>.objective.sense",
+        "<problem>.objective.scale",
         at="ipopt_options",
     ):
         p.ipopt_options.obj_scaling_factor = 2.0

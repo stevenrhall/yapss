@@ -96,10 +96,9 @@ SPECTRAL_METHODS = ("lgl", "lgr", "lg")
 DERIVATIVE_METHODS = ("auto", "central-difference", "central-difference-full")
 
 _NO_USER_METHOD = (
-    "derivatives.method = 'user' is not offered: derivatives written by hand were feasible "
-    "only for problems small enough that 'auto' differentiates them instantly. Use 'auto'; "
-    "for a model that cannot be traced, use 'central-difference', or "
-    "'central-difference-full' where its sparsity cannot be detected."
+    "derivatives.method = 'user' is not offered: 'auto' differentiates any problem small enough "
+    "to differentiate by hand. Use 'auto', or 'central-difference' for a model that cannot be "
+    "traced."
 )
 ORDERS = ("first", "second")
 SENSES = ("minimize", "maximize")
@@ -108,9 +107,8 @@ CATCH_KEYBOARD_INTERRUPT = True
 
 
 _NOT_COPIED = (
-    "a problem is not copied: its callbacks refer to this problem, so a copy could not be "
-    "complete. To make a variant, call the function that builds the problem again and change "
-    "what differs; to keep a result, keep the solution, which copies and pickles."
+    "a problem cannot be copied, because its callbacks refer to it. To make a variant, call the "
+    "function that builds the problem again and change what differs."
 )
 
 
@@ -160,8 +158,8 @@ def _not_a_decorator(which: str, phrase: str) -> str:
     not callable".
     """
     return (
-        f"problem.{which} holds the settings of {phrase}, not the callback. Register the "
-        f"callback with '@problem.register.{which}'."
+        f"{which} holds the settings of {phrase}, not the callback. Register the callback "
+        f"with '@<problem>.register.{which}'."
     )
 
 
@@ -229,7 +227,7 @@ def _check_name(name: object) -> None:
         raise ValueError(msg)
 
 
-def _check_parameters(parameter: type[Vector], phases: Any) -> None:
+def _check_parameters(owner: str, parameter: type[Vector], phases: Any) -> None:
     """Refuse a parameter whose name is also a variable of some phase.
 
     A phase's states, controls and independent variable are one namespace, and the parameters
@@ -254,10 +252,9 @@ def _check_parameters(parameter: type[Vector], phases: Any) -> None:
         }
         for shared in sorted(names & set(variables)):
             msg = (
-                f"Problem(parameter={parameter.__name__}) declares {shared!r}, which phase "
-                f"'{phase.name}' also has as {variables[shared]}. Parameters are the "
-                f"problem's, so their names must differ from every phase's variables; they "
-                f"are one namespace."
+                f"{owner}.parameter: {parameter.__name__} declares {shared!r}, which "
+                f"phases.{phase.name} also has as {variables[shared]}. Rename one: parameters "
+                f"share one namespace with every phase's variables."
             )
             raise ValueError(msg)
 
@@ -292,8 +289,8 @@ def _check_decision_variables(phases: Any, parameter: type[Vector]) -> None:
     """
     if not phases and not parameter._nrows:
         msg = (
-            "the problem has no decision variables, so there is nothing to choose:\n"
-            "Ipopt requires at least one variable, so declare a phase or a parameter"
+            "the problem has no decision variables, so Ipopt has nothing to choose. Declare a "
+            "phase or a parameter."
         )
         raise ValueError(msg)
 
@@ -302,7 +299,7 @@ class ProblemRegistry(Registry):
     """The problem's callbacks. Reached as ``problem.register``."""
 
     _registrations = ("objective", "discrete")
-    _label = "problem callbacks"
+    _label = "register"
 
     def __init__(self, problem: Problem) -> None:
         self._problem = problem
@@ -489,7 +486,7 @@ class Problem(HasRegistry):
             members[name] = value
         # Both are decided by the declaration alone, so they are refused at the class statement.
         handles = members["phases"]()
-        _check_parameters(members["parameter"], handles)
+        _check_parameters(cls.__name__, members["parameter"], handles)
         _check_decision_variables(handles, members["parameter"])
         cls._members = members
 
@@ -516,7 +513,7 @@ class Problem(HasRegistry):
         _check_name(name)
         phases, discrete, parameter = members["phases"], members["discrete"], members["parameter"]
 
-        self._label = "problem"
+        self._label = ""
         self._objective_function: Callable[..., Any] | None = None
         self._discrete_function: Callable[..., Any] | None = None
         self._discrete_class = discrete
@@ -532,20 +529,24 @@ class Problem(HasRegistry):
         self._hold("catch_keyboard_interrupt", CATCH_KEYBOARD_INTERRUPT)
 
         discrete_aspects = DiscreteAspects()
-        discrete_aspects._label = "problem discrete"
-        discrete_aspects._hold("bounds", discrete._new(Bounds, "discrete bounds", aspect="bounds"))
-        discrete_aspects._hold("scale", discrete._new(Scale, "discrete scale", aspect="scale"))
+        discrete_aspects._label = "discrete"
+        discrete_aspects._hold(
+            "bounds", discrete._new(Bounds, "discrete.{}.bounds", aspect="bounds")
+        )
+        discrete_aspects._hold("scale", discrete._new(Scale, "discrete.{}.scale", aspect="scale"))
         self._hold("discrete", Fields(discrete_aspects, discrete, discrete_aspects._label))
 
         parameter_aspects = ParameterAspects()
-        parameter_aspects._label = "problem parameter"
+        parameter_aspects._label = "parameter"
         parameter_aspects._hold(
-            "bounds", parameter._new(Bounds, "parameter bounds", aspect="bounds")
+            "bounds", parameter._new(Bounds, "parameter.{}.bounds", aspect="bounds")
         )
         parameter_aspects._hold(
-            "guess", parameter._new(ScalarGuess, "parameter guess", aspect="guess")
+            "guess", parameter._new(ScalarGuess, "parameter.{}.guess", aspect="guess")
         )
-        parameter_aspects._hold("scale", parameter._new(Scale, "parameter scale", aspect="scale"))
+        parameter_aspects._hold(
+            "scale", parameter._new(Scale, "parameter.{}.scale", aspect="scale")
+        )
         self._hold("parameter", Fields(parameter_aspects, parameter, parameter_aspects._label))
         self._hold("register", ProblemRegistry(self))
 
@@ -559,13 +560,13 @@ class Problem(HasRegistry):
             return value
         if name == "comment":
             if not is_string(value):
-                msg = f"problem.comment is a string; got {value!r}"
+                msg = f"comment is a string; got {value!r}"
                 raise TypeError(msg)
             return value
         if name == "spectral_method":
-            return _one_of(value, SPECTRAL_METHODS, "problem.spectral_method")
+            return _one_of(value, SPECTRAL_METHODS, "spectral_method")
         if not isinstance(value, bool):
-            msg = f"problem.catch_keyboard_interrupt must be True or False; got {value!r}"
+            msg = f"catch_keyboard_interrupt must be True or False; got {value!r}"
             raise TypeError(msg)
         return value
 

@@ -130,12 +130,14 @@ class SettingsGroup:
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment: each name is one setting as it was solved."""
         del value
-        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
+        label = object.__getattribute__(self, "_label")
+        msg = f"{label}.{name} cannot be assigned; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
         """Refuse every deletion."""
-        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
+        label = object.__getattribute__(self, "_label")
+        msg = f"{label}.{name} cannot be deleted; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __dir__(self) -> list[str]:

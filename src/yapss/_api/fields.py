@@ -86,8 +86,8 @@ class Fields:
             # 0.4.0 will reach for first, so it gets the exact rewrite rather than a suggestion
             field = declaration._fields[0] if declaration._fields else "<field>"
             msg = (
-                f"{label} has no field '{name}'. A setting belongs to a field, so the field is "
-                f"named first: '{field}.{name}', not '{name}.{field}'."
+                f"{label} has no field '{name}'. A setting follows its field: "
+                f"'<problem>.{label}.{field}.{name}', not '<problem>.{label}.{name}.{field}'."
             )
             raise AttributeError(msg)
         msg = f"{label} has no field '{name}'.{suggest(name, declaration._fields)}"
@@ -98,15 +98,15 @@ class Fields:
         del value
         label: str = object.__getattribute__(self, "_label")
         msg = (
-            f"{label} {name!r} cannot be assigned. A field is set one setting at a time, for "
-            f"example '{self._example()} = ...'."
+            f"{label}.{name} cannot be assigned. Set one setting at a time: "
+            f"'<problem>.{label}.{self._example()} = ...'."
         )
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
         """Refuse deleting a field."""
         label: str = object.__getattribute__(self, "_label")
-        msg = f"{label} {name!r} cannot be deleted; its fields are declared"
+        msg = f"{label}.{name} cannot be deleted; its fields are declared"
         raise AttributeError(msg)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -134,8 +134,8 @@ class Fields:
     def _no_positions(self, index: Any) -> str:
         label: str = object.__getattribute__(self, "_label")
         return (
-            f"{label}[{index!r}]: a vector has no positions. Its fields are reached by name, "
-            f"and a setting after the field, for example '{self._example()}'."
+            f"{label}[{index!r}]: a vector has no positions. Reach a field by name, then its "
+            f"setting: '<problem>.{label}.{self._example()}'."
         )
 
     def __dir__(self) -> list[str]:
@@ -174,7 +174,7 @@ class FieldSettings:
         aspects: Container = object.__getattribute__(self, "_aspects")
         label: str = object.__getattribute__(self, "_label")
         name: str = object.__getattribute__(self, "_name")
-        msg = f"{label} {name!r} has no setting {setting!r}.{suggest(setting, aspects._held)}"
+        msg = f"{label}.{name} has no setting '{setting}'.{suggest(setting, aspects._held)}"
         return AttributeError(msg)
 
     def __getattr__(self, setting: str) -> Any:
@@ -196,7 +196,8 @@ class FieldSettings:
     def __delattr__(self, setting: str) -> None:
         """Refuse deleting a setting; assigning a new value is how one is changed."""
         name = object.__getattribute__(self, "_name")
-        msg = f"'{name}.{setting}' cannot be deleted; assign it a new value instead"
+        label = object.__getattribute__(self, "_label")
+        msg = f"{label}.{name}.{setting} cannot be deleted; assign it a new value instead"
         raise AttributeError(msg)
 
     def __getitem__(self, index: Any) -> Any:
@@ -213,8 +214,8 @@ class FieldSettings:
         label: str = object.__getattribute__(self, "_label")
         name: str = object.__getattribute__(self, "_name")
         return (
-            f"{label} {name!r}[{index!r}]: a field has no rows of its own. Index one of its "
-            f"settings, for example '{name}.{aspects._held[0]}[{index!r}]'."
+            f"{label}.{name}[{index!r}]: a field has no rows of its own. Index one of its "
+            f"settings: '<problem>.{label}.{name}.{aspects._held[0]}[{index!r}]'."
         )
 
     def __dir__(self) -> list[str]:
@@ -225,4 +226,4 @@ class FieldSettings:
     def __repr__(self) -> str:
         """Return the field's label and name."""
         label: str = object.__getattribute__(self, "_label")
-        return f"<{label} {object.__getattribute__(self, '_name')!r}>"
+        return f"<{label}.{object.__getattribute__(self, '_name')}>"

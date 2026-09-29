@@ -36,7 +36,7 @@ from yapss._backend.structure import get_nlp_cf_structure, get_nlp_dv_structure
 
 from .args import C_co, D_co, I_co, P_co, PR_co, S_co
 from .containers import suggest
-from .kinds import ReadOnlyRows, is_bool
+from .kinds import ReadOnlyRows, at, is_bool
 from .vector import ROLES, Vector, role_of, scalar, vector
 
 if TYPE_CHECKING:
@@ -124,7 +124,7 @@ class SolutionRows(ReadOnlyRows):
     @classmethod
     def refusal(cls, label: str, name: str | None, verb: str = "assigned") -> str:
         """Return the message refusing to rebind `name`, or, for None, the rows by position."""
-        what = f"{label}'s rows" if name is None else f"{label} '{name}'"
+        what = f"{label}'s rows" if name is None else at(label, name)
         return f"{what} cannot be {verb}; {_NAMES_FIXED}"
 
 
@@ -260,7 +260,15 @@ class _Record:
     """Base of the groups a solution holds: named slots, fixed, pickled as their values."""
 
     __slots__: tuple[str, ...] = ()
-    _label = "the solution"
+    _label = "solution"
+
+    def _path(self) -> str:
+        """Return the record's path from the solution: its own if it has one, else its class's."""
+        try:
+            path: str = object.__getattribute__(self, "_at")
+        except AttributeError:
+            return self._label
+        return path
 
     def __init__(self, values: dict[str, Any]) -> None:
         for name, value in values.items():
@@ -291,18 +299,18 @@ class _Record:
             """Refuse an unknown name with a suggestion."""
             if name.startswith("_"):
                 raise AttributeError(name)
-            msg = f"{self._label} has no '{name}'.{suggest(name, self._names())}"
+            msg = f"{self._path()} has no '{name}'.{suggest(name, self._names())}"
             raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment: each name is one solved quantity."""
         del value
-        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
+        msg = f"{self._path()}.{name} cannot be assigned; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
         """Refuse every deletion: each name is one solved quantity."""
-        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
+        msg = f"{self._path()}.{name} cannot be deleted; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
 
@@ -336,6 +344,7 @@ class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
     """
 
     __slots__ = (
+        "_at",
         "control",
         "duration",
         "dynamics",
@@ -348,7 +357,7 @@ class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
         "path",
         "state",
     )
-    _label = "the phase multipliers"
+    _label = "solution.phases.<phase>.multiplier"
 
     if TYPE_CHECKING:
         dynamics: S_co
@@ -376,7 +385,7 @@ class ProblemMultiplier(_Record, Generic[D_co, PR_co]):
     """
 
     __slots__ = ("discrete", "parameter")
-    _label = "the problem multipliers"
+    _label = "solution.multiplier"
 
     if TYPE_CHECKING:
         parameter: PR_co
@@ -404,7 +413,7 @@ class _MethodOnly(_Record):
         def __getattr__(self, name):
             """Explain a slot this method does not have, or refuse an unknown name."""
             if name in self._method_only:
-                msg = f"'{name}' exists only under {self._method_only[name]}"
+                msg = f"{self._path()}.{name} exists only under {self._method_only[name]}"
                 raise AttributeError(msg)
             return super().__getattr__(name)
 
@@ -432,6 +441,7 @@ class VariableIndex(_MethodOnly, Generic[S_co, C_co, I_co]):
     """
 
     __slots__ = (
+        "_at",
         "control",
         "final_state",
         "final_time",
@@ -441,7 +451,7 @@ class VariableIndex(_MethodOnly, Generic[S_co, C_co, I_co]):
         "state",
         "zero_mode",
     )
-    _label = "the variable index"
+    _label = "solution.phases.<phase>.nlp.index.variable"
     _method_only = MappingProxyType({"zero_mode": "LGL"})
 
     if TYPE_CHECKING:
@@ -474,8 +484,8 @@ class ConstraintIndex(_MethodOnly, Generic[S_co, P_co, I_co]):
         The row bounding the phase's extent.
     """
 
-    __slots__ = ("continuity", "duration", "dynamics", "integral", "path")
-    _label = "the constraint index"
+    __slots__ = ("_at", "continuity", "duration", "dynamics", "integral", "path")
+    _label = "solution.phases.<phase>.nlp.index.constraint"
     _method_only = MappingProxyType({"continuity": "LG"})
 
     if TYPE_CHECKING:
@@ -497,8 +507,8 @@ class PhaseIndex(_Record, Generic[S_co, C_co, P_co, I_co]):
         Positions in ``g`` and every vector of its length.
     """
 
-    __slots__ = ("constraint", "variable")
-    _label = "the phase index"
+    __slots__ = ("_at", "constraint", "variable")
+    _label = "solution.phases.<phase>.nlp.index"
 
     if TYPE_CHECKING:
         variable: VariableIndex[S_co, C_co, I_co]
@@ -522,8 +532,8 @@ class PhasePoint(_MethodOnly):
         The segment end each continuity row ties the state at; LG only.
     """
 
-    __slots__ = ("continuity", "dynamics")
-    _label = "the phase's row points"
+    __slots__ = ("_at", "continuity", "dynamics")
+    _label = "solution.phases.<phase>.nlp.point"
     _method_only = MappingProxyType({"continuity": "LG"})
 
     if TYPE_CHECKING:
@@ -542,8 +552,8 @@ class PhaseNLP(_Record, Generic[S_co, C_co, P_co, I_co]):
         The point each defect and continuity row sits at.
     """
 
-    __slots__ = ("index", "point")
-    _label = "the phase's solver record"
+    __slots__ = ("_at", "index", "point")
+    _label = "solution.phases.<phase>.nlp"
 
     if TYPE_CHECKING:
         index: PhaseIndex[S_co, C_co, P_co, I_co]
@@ -559,7 +569,7 @@ class ProblemVariableIndex(_Record, Generic[PR_co]):
     """
 
     __slots__ = ("parameter",)
-    _label = "the variable index"
+    _label = "solution.nlp.index.variable"
 
     if TYPE_CHECKING:
         parameter: PR_co
@@ -574,7 +584,7 @@ class ProblemConstraintIndex(_Record, Generic[D_co]):
     """
 
     __slots__ = ("discrete",)
-    _label = "the constraint index"
+    _label = "solution.nlp.index.constraint"
 
     if TYPE_CHECKING:
         discrete: D_co
@@ -590,7 +600,7 @@ class NLPIndex(_Record, Generic[D_co, PR_co]):
     """
 
     __slots__ = ("constraint", "variable")
-    _label = "the problem index"
+    _label = "solution.nlp.index"
 
     if TYPE_CHECKING:
         variable: ProblemVariableIndex[PR_co]
@@ -609,7 +619,7 @@ class Jacobian(_Record):
     """
 
     __slots__ = ("col", "row", "value")
-    _label = "the Jacobian"
+    _label = "solution.nlp.jac_g"
 
     if TYPE_CHECKING:
         row: NDArray[np.intp]
@@ -630,7 +640,7 @@ class NLPScale(_Record):
     """
 
     __slots__ = ("g", "objective", "x")
-    _label = "the scaling"
+    _label = "solution.nlp.scale"
 
     if TYPE_CHECKING:
         objective: float
@@ -657,7 +667,7 @@ class Convergence(_Record):
     """
 
     __slots__ = ("complementarity", "inf_du", "inf_pr", "iterations")
-    _label = "the convergence measures"
+    _label = "solution.nlp.convergence"
 
     if TYPE_CHECKING:
         inf_pr: float
@@ -717,7 +727,7 @@ class NLPRecord(_Record, Generic[D_co, PR_co]):
         "x_U",
         "z0",
     )
-    _label = "the solver's record"
+    _label = "solution.nlp"
 
     if TYPE_CHECKING:
         status: int
@@ -860,48 +870,62 @@ def _phase_nlp(phase: PhaseSpec, dv_phase: Any, cf_phase: Any, layout: Any) -> P
     `layout` is the phase's `PhaseLayout`, which fixes every size here, and whose time order
     puts LG's stored state, collocation values first, back in time order.
     """
-    label = f"phase '{phase.name}' index"
+    label = f"solution.phases.{phase.name}.nlp.index"
     n_eval = layout.n_eval
     state = _positions([x[layout.time_order] for x in dv_phase.x], layout.n_time)
     variable: dict[str, Any] = {
-        "state": _vector(phase.state, state, f"{label} state"),
-        "control": _vector(phase.control, _positions(dv_phase.u, n_eval), f"{label} control"),
-        "integral": _vector(
-            phase.integral, np.array(dv_phase.q, dtype=np.intp), f"{label} integral"
+        "state": _vector(phase.state, state, f"{label}.variable.state"),
+        "control": _vector(
+            phase.control, _positions(dv_phase.u, n_eval), f"{label}.variable.control"
         ),
-        "initial_state": _vector(phase.state, state[:, 0], f"{label} initial_state"),
+        "integral": _vector(
+            phase.integral, np.array(dv_phase.q, dtype=np.intp), f"{label}.variable.integral"
+        ),
+        "initial_state": _vector(phase.state, state[:, 0], f"{label}.variable.initial_state"),
         "initial_time": int(dv_phase.t0[0]),
-        "final_state": _vector(phase.state, state[:, -1], f"{label} final_state"),
+        "final_state": _vector(phase.state, state[:, -1], f"{label}.variable.final_state"),
         "final_time": int(dv_phase.tf[0]),
     }
     constraint: dict[str, Any] = {
         "dynamics": _vector(
-            phase.state, _positions(cf_phase.defect, layout.n_collocation), f"{label} dynamics"
+            phase.state,
+            _positions(cf_phase.defect, layout.n_collocation),
+            f"{label}.constraint.dynamics",
         ),
-        "path": _vector(phase.path, _positions(cf_phase.path, n_eval), f"{label} path"),
+        "path": _vector(phase.path, _positions(cf_phase.path, n_eval), f"{label}.constraint.path"),
         "integral": _vector(
-            phase.integral, np.array(cf_phase.integral, dtype=np.intp), f"{label} integral"
+            phase.integral,
+            np.array(cf_phase.integral, dtype=np.intp),
+            f"{label}.constraint.integral",
         ),
         "duration": int(cf_phase.duration[0]),
     }
     n_zero_modes = layout.n_state_storage - layout.n_time
     if n_zero_modes:
         variable["zero_mode"] = _vector(
-            phase.state, _positions(dv_phase.xs, n_zero_modes), f"{label} zero_mode"
+            phase.state, _positions(dv_phase.xs, n_zero_modes), f"{label}.variable.zero_mode"
         )
     if layout.n_boundary_defect:
         constraint["continuity"] = _vector(
             phase.state,
             _positions(cf_phase.lg_defect, layout.n_boundary_defect),
-            f"{label} continuity",
+            f"{label}.constraint.continuity",
         )
+    variable["_at"] = f"{label}.variable"
+    constraint["_at"] = f"{label}.constraint"
     index = PhaseIndex(
-        {"variable": VariableIndex(variable), "constraint": ConstraintIndex(constraint)}
+        {
+            "_at": label,
+            "variable": VariableIndex(variable),
+            "constraint": ConstraintIndex(constraint),
+        }
     )
-    return PhaseNLP({"index": index, "point": _row_points(layout)})
+    nlp = label.removesuffix(".index")
+    points = _row_points(layout, f"{nlp}.point")
+    return PhaseNLP({"_at": nlp, "index": index, "point": points})
 
 
-def _row_points(layout: Any) -> PhasePoint:
+def _row_points(layout: Any, path: str) -> PhasePoint:
     """Return the point each defect and continuity row sits at, as indices into the points.
 
     The state is stored at the evaluation points first, so time point ``t`` is an evaluation
@@ -911,7 +935,7 @@ def _row_points(layout: Any) -> PhasePoint:
     """
     time_of = np.empty(layout.n_time, dtype=np.intp)
     time_of[layout.time_order] = np.arange(layout.n_time)
-    points: dict[str, Any] = {"dynamics": time_of[layout.defect_index]}
+    points: dict[str, Any] = {"_at": path, "dynamics": time_of[layout.defect_index]}
     if layout.n_boundary_defect:
         points["continuity"] = np.flatnonzero(layout.time_order >= layout.n_eval)[1:]
     return PhasePoint(points)
@@ -987,6 +1011,7 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
     """
 
     __slots__ = (
+        "_at",
         "collocated",
         "control",
         "costate",
@@ -1047,11 +1072,11 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         `bound` is the multiplier of every variable's bounds, in Ipopt's order, upper less
         lower, as the back end forms the control's.
         """
-        label = f"phase '{phase.name}' solution"
+        label = f"solution.phases.{phase.name}"
         state = np.asarray(data.state)
         grid = _Grid(method, phase.mesh.collocation_points, data.time, data.time_c)
         fill = grid.fill
-        costate = _vector(phase.state, fill(data.costate), f"{label} costate")
+        costate = _vector(phase.state, fill(data.costate), f"{label}.costate")
         weights = _weights(method, phase.mesh, data.time[-1] - data.time[0])
         variable = nlp.index.variable
         at_points = bound[_rows_of(variable.state)]
@@ -1066,24 +1091,25 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
 
         multiplier = PhaseMultiplier(
             {
+                "_at": f"{label}.multiplier",
                 "dynamics": costate,
                 "control": _vector(
-                    phase.control, fill(data.control_multiplier), f"{label} control multiplier"
+                    phase.control, fill(data.control_multiplier), f"{label}.multiplier.control"
                 ),
-                "path": _vector(phase.path, fill(data.path_multiplier), f"{label} path multiplier"),
+                "path": _vector(phase.path, fill(data.path_multiplier), f"{label}.multiplier.path"),
                 "integral_defect": _vector(
                     phase.integral,
                     data.integral_multiplier,
-                    f"{label} integral_defect multiplier",
+                    f"{label}.multiplier.integral_defect",
                 ),
                 "integral_bound": _vector(
                     phase.integral,
                     bound[_rows_of(variable.integral)],
-                    f"{label} integral_bound multiplier",
+                    f"{label}.multiplier.integral_bound",
                 ),
-                "state": _vector(phase.state, density, f"{label} state multiplier"),
-                "initial_state": _vector(phase.state, initial, f"{label} initial_state multiplier"),
-                "final_state": _vector(phase.state, final, f"{label} final_state multiplier"),
+                "state": _vector(phase.state, density, f"{label}.multiplier.state"),
+                "initial_state": _vector(phase.state, initial, f"{label}.multiplier.initial_state"),
+                "final_state": _vector(phase.state, final, f"{label}.multiplier.final_state"),
                 "initial_time": data.initial_time_multiplier,
                 "final_time": data.final_time_multiplier,
                 "duration": data.duration_multiplier,
@@ -1091,20 +1117,21 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
         )
         return cls(
             {
+                "_at": label,
                 "time": data.time,
                 "collocated": grid.collocated,
                 "weights": weights,
-                "state": _vector(phase.state, state, f"{label} state"),
+                "state": _vector(phase.state, state, f"{label}.state"),
                 "costate": costate,
                 "multiplier": multiplier,
-                "dynamics": _vector(phase.state, fill(data.dynamics), f"{label} dynamics"),
-                "control": _vector(phase.control, fill(data.control), f"{label} control"),
-                "path": _vector(phase.path, fill(data.path), f"{label} path"),
-                "integrand": _vector(phase.integral, fill(data.integrand), f"{label} integrand"),
-                "integral": _vector(phase.integral, data.integral, f"{label} integral"),
-                "initial_state": _vector(phase.state, state[:, 0], f"{label} initial_state"),
+                "dynamics": _vector(phase.state, fill(data.dynamics), f"{label}.dynamics"),
+                "control": _vector(phase.control, fill(data.control), f"{label}.control"),
+                "path": _vector(phase.path, fill(data.path), f"{label}.path"),
+                "integrand": _vector(phase.integral, fill(data.integrand), f"{label}.integrand"),
+                "integral": _vector(phase.integral, data.integral, f"{label}.integral"),
+                "initial_state": _vector(phase.state, state[:, 0], f"{label}.initial_state"),
                 "initial_time": data.time[0],
-                "final_state": _vector(phase.state, state[:, -1], f"{label} final_state"),
+                "final_state": _vector(phase.state, state[:, -1], f"{label}.final_state"),
                 "final_time": data.time[-1],
                 "duration": data.time[-1] - data.time[0],
                 "hamiltonian": fill(data.hamiltonian),
@@ -1128,18 +1155,19 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
             """Refuse an unknown name with a suggestion."""
             if name.startswith("_"):
                 raise AttributeError(name)
-            msg = f"the phase solution has no '{name}'.{suggest(name, self.__slots__)}"
+            names = tuple(n for n in self.__slots__ if not n.startswith("_"))
+            msg = f"{self._at} has no '{name}'.{suggest(name, names)}"
             raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment: each name is one solved quantity."""
         del value
-        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
+        msg = f"{object.__getattribute__(self, '_at')}.{name} cannot be assigned; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
         """Refuse every deletion: each name is one solved quantity."""
-        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
+        msg = f"{object.__getattribute__(self, '_at')}.{name} cannot be deleted; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
 
@@ -1186,7 +1214,7 @@ class PhaseSolutions:
             if key in names:
                 return phases[names.index(key)]
             hint = suggest(key, names) if names else " The problem declared no phases."
-            msg = f"the solution has no phase {key!r}.{hint}"
+            msg = f"the solution has no phase named {key!r}.{hint}"
             raise KeyError(msg)
         position: object = key  # the annotation is the promise; this checks what arrived
         if not is_bool(position) and isinstance(position, numbers.Integral):
@@ -1201,7 +1229,7 @@ class PhaseSolutions:
         if isinstance(index_, int) and 0 <= index_ < len(names) and names[index_] == name:
             return phases[index_]
         msg = (
-            f"solution.phases[...] takes a phase handle, such as 'problem.phases.<name>', a "
+            f"solution.phases[...] takes a phase handle, such as '<problem>.phases.<name>', a "
             f"phase's name, or its position; got {key!r}"
         )
         raise KeyError(msg)
@@ -1234,18 +1262,18 @@ class PhaseSolutions:
             if name in names:
                 return object.__getattribute__(self, "_phases")[names.index(name)]
             hint = suggest(name, names) if names else " The problem declared no phases."
-            msg = f"the solution has no phase '{name}'.{hint}"
+            msg = f"the solution has no phase named '{name}'.{hint}"
             raise AttributeError(msg)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment: each name is one solved phase."""
         del value
-        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
+        msg = f"solution.phases.{name} cannot be assigned; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
         """Refuse every deletion: each name is one solved phase."""
-        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
+        msg = f"solution.phases.{name} cannot be deleted; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
 
@@ -1354,7 +1382,7 @@ class Solution(Generic[D_co, PR_co]):
                                     "parameter": _vector(
                                         spec.parameter,
                                         np.array(dv.s, dtype=np.intp),
-                                        "parameter index",
+                                        "solution.nlp.index.variable.parameter",
                                     )
                                 }
                             ),
@@ -1363,7 +1391,7 @@ class Solution(Generic[D_co, PR_co]):
                                     "discrete": _vector(
                                         spec.discrete,
                                         np.array(cf.discrete, dtype=np.intp),
-                                        "discrete index",
+                                        "solution.nlp.index.constraint.discrete",
                                     )
                                 }
                             ),
@@ -1376,15 +1404,19 @@ class Solution(Generic[D_co, PR_co]):
                 "name": spec.settings.name,
                 "spectral_method": spec.settings.spectral_method,
                 "settings": spec.settings,
-                "parameter": _vector(spec.parameter, record.parameter, "parameter"),
-                "discrete": _vector(spec.discrete, record.discrete, "discrete"),
+                "parameter": _vector(spec.parameter, record.parameter, "solution.parameter"),
+                "discrete": _vector(spec.discrete, record.discrete, "solution.discrete"),
                 "multiplier": ProblemMultiplier(
                     {
                         "parameter": _vector(
-                            spec.parameter, record.parameter_multiplier, "parameter multiplier"
+                            spec.parameter,
+                            record.parameter_multiplier,
+                            "solution.multiplier.parameter",
                         ),
                         "discrete": _vector(
-                            spec.discrete, record.discrete_multiplier, "discrete multiplier"
+                            spec.discrete,
+                            record.discrete_multiplier,
+                            "solution.multiplier.discrete",
                         ),
                     }
                 ),
@@ -1412,15 +1444,15 @@ class Solution(Generic[D_co, PR_co]):
             names = tuple(n for n in self.__slots__ if not n.startswith("_"))
             if name == "nlp_info":
                 # the 0.3.0 name, which a script being ported reaches for
-                msg = "the solution has no 'nlp_info'; what 0.3.0 called nlp_info is 'nlp'."
+                msg = "solution has no 'nlp_info'. What 0.3.0 called nlp_info is solution.nlp."
             elif name == "phase":
                 # the 0.3.0 name, `solution.phase[k]`
                 msg = (
-                    "the solution has no 'phase'; its phases are 'phases': "
-                    "solution.phases.<name>, or solution.phases[k]."
+                    "solution has no 'phase'. Its phases are solution.phases: "
+                    "solution.phases.<name>."
                 )
             else:
-                msg = f"the solution has no '{name}'.{suggest(name, names)}"
+                msg = f"solution has no '{name}'.{suggest(name, names)}"
             raise AttributeError(msg)
 
         def __getitem__(self, key):
@@ -1434,12 +1466,12 @@ class Solution(Generic[D_co, PR_co]):
     def __setattr__(self, name: str, value: Any) -> None:
         """Refuse every assignment: each name is one solved quantity."""
         del value
-        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
+        msg = f"solution.{name} cannot be assigned; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
         """Refuse every deletion: each name is one solved quantity."""
-        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
+        msg = f"solution.{name} cannot be deleted; {_NAMES_FIXED}"
         raise AttributeError(msg)
 
     def __repr__(self) -> str:

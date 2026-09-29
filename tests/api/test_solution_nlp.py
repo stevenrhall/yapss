@@ -168,7 +168,7 @@ def test_zero_modes_exist_under_lgl_only(solved):
         assert var.zero_mode.r.shape == (2, 3)
         assert var.zero_mode.y.shape == (3,)
     else:
-        with pytest.raises(AttributeError, match="'zero_mode' exists only under LGL"):
+        with pytest.raises(AttributeError, match="zero_mode exists only under LGL"):
             var.zero_mode  # noqa: B018
 
 
@@ -179,7 +179,7 @@ def test_continuity_exists_under_lg_only(solved):
         assert con.continuity.r.shape == (2, 3)
         assert con.continuity.y.shape == (3,)
     else:
-        with pytest.raises(AttributeError, match="'continuity' exists only under LG"):
+        with pytest.raises(AttributeError, match="continuity exists only under LG"):
             con.continuity  # noqa: B018
 
 
@@ -210,7 +210,7 @@ def test_row_points_are_the_hand_worked_ones(solved):
     dynamics, continuity = ROW_POINTS[method]
     np.testing.assert_array_equal(ps.nlp.point.dynamics, dynamics)
     if continuity is None:
-        with pytest.raises(AttributeError, match="'continuity' exists only under LG"):
+        with pytest.raises(AttributeError, match="continuity exists only under LG"):
             ps.nlp.point.continuity  # noqa: B018
     else:
         np.testing.assert_array_equal(ps.nlp.point.continuity, continuity)

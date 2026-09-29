@@ -60,7 +60,7 @@ def test_the_time_settings_class_is_not_exported():
 def test_a_settings_container_prints_its_label(solved):
     """A container prints the label its messages use, not the default object repr."""
     problem, _ = solved
-    assert repr(problem.phases.boost.time) == "<phase 'boost' time>"
+    assert repr(problem.phases.boost.time) == "<phases.boost.time>"
     assert repr(problem.derivatives) == "<derivatives>"
     assert repr(problem.objective) == "<objective>"
-    assert repr(problem.register) == "<problem callbacks>"
+    assert repr(problem.register) == "<register>"

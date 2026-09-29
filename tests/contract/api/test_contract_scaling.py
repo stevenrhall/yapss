@@ -44,7 +44,7 @@ def test_a_scale_may_not_be_negative() -> None:
     with raises(
         ValueError,
         "must be positive",
-        "never changes what it means",
+        "To maximize, set <problem>.objective.sense",
         at="x.scale",
     ):
         ph.state.x.scale = -1.0
@@ -54,7 +54,7 @@ def test_a_scale_may_not_be_negative() -> None:
 def test_a_scale_must_be_finite(value: float) -> None:
     """Refused where it is written, rather than by the solver, which names no field."""
     ph = problem().phases.first
-    with raises(ValueError, "state scale 'x'", "must be a finite number", at="x.scale"):
+    with raises(ValueError, "phases.first.state.x.scale", "must be a finite number", at="x.scale"):
         ph.state.x.scale = value
 
 
@@ -101,7 +101,7 @@ def test_the_dynamics_scale_is_yapss_s_choice_until_set() -> None:
 def test_the_dynamics_have_a_scale_and_nothing_else() -> None:
     """A defect is an equality, so there is nothing to bound."""
     ph = problem().phases.first
-    with raises(AttributeError, "dynamics 'x' has no setting 'bounds'", at="bounds"):
+    with raises(AttributeError, "phases.first.dynamics.x has no setting 'bounds'", at="bounds"):
         ph.dynamics.x.bounds = (0.0, 1.0)
 
 
@@ -191,7 +191,9 @@ def test_a_write_into_scale_rows_read_back_is_refused() -> None:
     message names the assignment that changes the setting."""
     ph = problem().phases.first
     rows = ph.state.y.scale[:]
-    with raises(ValueError, "a copy", "'y.scale[0] = ...'", at="rows[0]"):
+    with raises(
+        ValueError, "a copy", "'<problem>.phases.first.state.y.scale[0] = ...'", at="rows[0]"
+    ):
         rows[0] = 5.0
 
 
@@ -205,7 +207,7 @@ def test_a_bounds_rows_still_read_as_bounds() -> None:
 def test_the_objective_scale_message_points_to_sense() -> None:
     """A negative objective scale is almost always an attempt to maximize."""
     p = problem()
-    with raises(ValueError, "problem.objective.sense", at="objective.scale"):
+    with raises(ValueError, "objective.sense = 'maximize'", at="objective.scale"):
         p.objective.scale = -1.0
 
 

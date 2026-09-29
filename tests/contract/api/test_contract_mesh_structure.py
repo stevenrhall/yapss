@@ -22,7 +22,7 @@ def test_a_phase_takes_a_mesh_object() -> None:
 def test_a_mesh_is_not_a_number() -> None:
     """A count alone does not say which of the two it is, and the message shows both."""
     ph = problem().phases.first
-    with raises(TypeError, "must be a Mesh", "yapss.Mesh.uniform(", at="ph.mesh"):
+    with raises(TypeError, "is a yapss.Mesh", "yapss.Mesh.uniform(", at="ph.mesh"):
         ph.mesh = 5
 
 

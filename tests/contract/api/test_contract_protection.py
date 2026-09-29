@@ -25,7 +25,7 @@ def test_a_setting_that_does_not_exist_is_refused() -> None:
 def test_a_phase_setting_that_does_not_exist_is_refused() -> None:
     """The same on a phase, and the message names which phase."""
     p = problem()
-    with raises(AttributeError, "phase 'first' has no setting 'nope'", at="ph.nope"):
+    with raises(AttributeError, "phases.first has no setting 'nope'", at="ph.nope"):
         ph = p.phases.first
         ph.nope = 1
 
@@ -33,7 +33,7 @@ def test_a_phase_setting_that_does_not_exist_is_refused() -> None:
 def test_a_phase_that_was_not_declared_is_refused() -> None:
     """Phases answer for the names the declaration gave them."""
     p = problem()
-    with raises(AttributeError, "Phases has no phase 'nope'", at="p.phases.nope"):
+    with raises(AttributeError, "has no phase named 'nope'", at="p.phases.nope"):
         _ = p.phases.nope
 
 

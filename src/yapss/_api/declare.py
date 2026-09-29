@@ -283,8 +283,8 @@ def _check_namespace(owner: str, state: type[Vector], control: type[Vector]) -> 
     if shared:
         msg = (
             f"{owner}: its state {state.__name__} and its control {control.__name__} both "
-            f"declare {shared[0]!r}. A phase's states, controls and independent variable are one "
-            f"namespace, so their names must differ; rename it in one of the two classes."
+            f"declare {shared[0]!r}, and a phase's variables share one namespace. Rename it in "
+            f"one of the two classes."
         )
         raise ValueError(msg)
     for role, declaration in (("state", state), ("control", control)):
@@ -384,22 +384,19 @@ class Phases:
                 raise AttributeError(name)
             handles = object.__getattribute__(self, "_handles")
             if name not in handles:
-                msg = (
-                    f"{type(self).__name__} has no phase '{name}'."
-                    f"{suggest(name, tuple(handles))}"
-                )
+                msg = f"the problem has no phase named '{name}'.{suggest(name, tuple(handles))}"
                 raise AttributeError(msg)
             return handles[name]
 
         def __setattr__(self, name, value):
             """Refuse every assignment: phases are declared, not assigned."""
             del value
-            msg = f"{type(self).__name__}.{name} cannot be assigned; phases are declared"
+            msg = f"phases.{name} cannot be assigned; a problem's phases are declared"
             raise AttributeError(msg)
 
         def __delattr__(self, name):
             """Refuse every deletion: phases are declared, not assigned."""
-            msg = f"{type(self).__name__}.{name} cannot be deleted; phases are declared"
+            msg = f"phases.{name} cannot be deleted; a problem's phases are declared"
             raise AttributeError(msg)
 
     def _all(self) -> dict[str, AnyPhase]:
@@ -440,7 +437,7 @@ class Phases:
             if key in phases:
                 return phases[key]
             hint = suggest(key, tuple(phases)) if phases else " The problem declares no phases."
-            msg = f"the problem has no phase {key!r}.{hint}"
+            msg = f"the problem has no phase named {key!r}.{hint}"
             raise KeyError(msg)
         position: object = key  # the annotation is the promise; this checks what arrived
         if is_bool(position) or not isinstance(position, numbers.Integral):
@@ -545,18 +542,18 @@ class Time(Container):
             )
             raise TypeError(msg)
         if not is_pair(value):
-            msg = f"{self._label} guess is a (t0, tf) pair; got {value!r}"
+            msg = f"{self._label}.guess: a time guess is a (t0, tf) pair; got {value!r}"
             raise TypeError(msg)
         for side in value:
             if is_bool(side) or not is_real(side):
-                msg = f"{self._label} guess: t0 and tf are numbers; got {side!r}"
+                msg = f"{self._label}.guess: t0 and tf are numbers; got {side!r}"
                 raise TypeError(msg)
         t0, tf = (float(side) for side in value)
         if not (math.isfinite(t0) and math.isfinite(tf)):
-            msg = f"{self._label} guess: t0 and tf must be finite; got ({t0}, {tf})"
+            msg = f"{self._label}.guess: t0 and tf must be finite; got ({t0}, {tf})"
             raise ValueError(msg)
         if not t0 < tf:
-            msg = f"{self._label} guess: t0 {t0} is not less than tf {tf}"
+            msg = f"{self._label}.guess: t0 {t0} is not less than tf {tf}"
             raise ValueError(msg)
         return (t0, tf)
 
@@ -585,13 +582,13 @@ class Duration(Container):
         lower, upper = Bounds.check(value, label=self._label, name=name, npoints=None)
         if lower == -math.inf:
             msg = (
-                f"{self._label} bounds: a duration is never negative, so its lower bound is a "
+                f"{self._label}.bounds: a duration is never negative, so its lower bound is a "
                 f"number. For no lower bound, write 0.0."
             )
             raise ValueError(msg)
         if lower < 0:
             msg = (
-                f"{self._label} bounds: the lower bound is {lower}, and a duration is never "
+                f"{self._label}.bounds: the lower bound is {lower}, and a duration is never "
                 f"negative. Write 0.0 or more."
             )
             raise ValueError(msg)
@@ -605,7 +602,7 @@ class PhaseRegistry(Registry):
 
     def __init__(self, phase: AnyPhase) -> None:
         self._phase = phase
-        self._label = f"{phase._label} callbacks"
+        self._label = f"{phase._label}.register"
 
     def _registered(self) -> dict[str, Any]:
         """Return the continuous callback, or None if none is registered."""
@@ -618,9 +615,9 @@ class PhaseRegistry(Registry):
 
         def register(callback: Callable[..., Any]) -> Callable[..., Any]:
             if not is_callable(callback):
-                msg = f"{phase._label} {which} callback must be callable; got {callback!r}"
+                msg = f"the {which} callback of {phase._label} must be callable; got {callback!r}"
                 raise TypeError(msg)
-            check_arity(callback, 2, f"{which} callback for {phase._label}")
+            check_arity(callback, 2, f"{which} callback of {phase._label}")
             object.__setattr__(phase, attribute, callback)
             return callback
 
@@ -743,11 +740,11 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         self._name = name
         self._index = index
         self._continuous: Callable[..., Any] | None = None
-        self._label = f"phase '{name}'"
+        self._label = f"phases.{name}"
         self._hold("mesh", Mesh.uniform())
 
         state = StateAspects()
-        state._label = f"{self._label} state"
+        state._label = f"{self._label}.state"
         for aspect, kind in (
             ("bounds", Bounds),
             ("initial", Bounds),
@@ -756,56 +753,60 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
             ("scale", Scale),
         ):
             state._hold(
-                aspect, declaration.state._new(kind, f"{state._label} {aspect}", aspect=aspect)
+                aspect, declaration.state._new(kind, f"{state._label}.{{}}.{aspect}", aspect=aspect)
             )
         self._hold("state", Fields(state, declaration.state, state._label))
 
         dynamics = DynamicsAspects()
-        dynamics._label = f"{self._label} dynamics"
+        dynamics._label = f"{self._label}.dynamics"
         dynamics._hold(
             "scale",
-            declaration.state._new(DynamicsScale, f"{dynamics._label} scale", aspect="scale"),
+            declaration.state._new(DynamicsScale, f"{dynamics._label}.{{}}.scale", aspect="scale"),
         )
         self._hold("dynamics", Fields(dynamics, declaration.state, dynamics._label))
 
         control = ControlAspects()
-        control._label = f"{self._label} control"
+        control._label = f"{self._label}.control"
         control._hold(
-            "bounds", declaration.control._new(Bounds, f"{control._label} bounds", aspect="bounds")
+            "bounds",
+            declaration.control._new(Bounds, f"{control._label}.{{}}.bounds", aspect="bounds"),
         )
         control._hold(
-            "guess", declaration.control._new(Guess, f"{control._label} guess", aspect="guess")
+            "guess", declaration.control._new(Guess, f"{control._label}.{{}}.guess", aspect="guess")
         )
         control._hold(
-            "scale", declaration.control._new(Scale, f"{control._label} scale", aspect="scale")
+            "scale", declaration.control._new(Scale, f"{control._label}.{{}}.scale", aspect="scale")
         )
         self._hold("control", Fields(control, declaration.control, control._label))
 
         path = PathAspects()
-        path._label = f"{self._label} path"
+        path._label = f"{self._label}.path"
         path._hold(
-            "bounds", declaration.path._new(Bounds, f"{path._label} bounds", aspect="bounds")
+            "bounds", declaration.path._new(Bounds, f"{path._label}.{{}}.bounds", aspect="bounds")
         )
-        path._hold("scale", declaration.path._new(Scale, f"{path._label} scale", aspect="scale"))
+        path._hold(
+            "scale", declaration.path._new(Scale, f"{path._label}.{{}}.scale", aspect="scale")
+        )
         self._hold("path", Fields(path, declaration.path, path._label))
 
         integral = IntegralAspects()
-        integral._label = f"{self._label} integral"
+        integral._label = f"{self._label}.integral"
         integral._hold(
             "bounds",
-            declaration.integral._new(Bounds, f"{integral._label} bounds", aspect="bounds"),
+            declaration.integral._new(Bounds, f"{integral._label}.{{}}.bounds", aspect="bounds"),
         )
         integral._hold(
             "guess",
-            declaration.integral._new(ScalarGuess, f"{integral._label} guess", aspect="guess"),
+            declaration.integral._new(ScalarGuess, f"{integral._label}.{{}}.guess", aspect="guess"),
         )
         integral._hold(
-            "scale", declaration.integral._new(Scale, f"{integral._label} scale", aspect="scale")
+            "scale",
+            declaration.integral._new(Scale, f"{integral._label}.{{}}.scale", aspect="scale"),
         )
         self._hold("integral", Fields(integral, declaration.integral, integral._label))
 
-        self._hold("time", Time(f"{self._label} time"))
-        self._hold("duration", Duration(f"{self._label} duration"))
+        self._hold("time", Time(f"{self._label}.time"))
+        self._hold("duration", Duration(f"{self._label}.duration"))
         self._hold("register", PhaseRegistry(self))
 
     @property
@@ -822,7 +823,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         del name
         if not isinstance(value, Mesh):
             msg = (
-                f"{self._label} mesh must be a Mesh, for example "
+                f"{self._label}.mesh is a yapss.Mesh, such as "
                 f"'yapss.Mesh.uniform(segments=10, points=10)'; got {value!r}"
             )
             raise TypeError(msg)

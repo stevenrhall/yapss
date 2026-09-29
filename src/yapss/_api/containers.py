@@ -97,10 +97,14 @@ def check_arity(callback: Any, count: int, what: str) -> None:
     try:
         signature.bind(*(None,) * count)
     except TypeError:
-        name = getattr(callback, "__qualname__", repr(callback))
+        # imported here: the back end imports nothing of the front end, so there is no cycle,
+        # but the containers module is otherwise free of it
+        from yapss._backend.input_args import callback_location  # noqa: PLC0415
+
         form = "(arg)" if count == 1 else "(arg, out)"
         msg = (
-            f"the {what} is called as {name}{form}, and its signature {signature} does not allow it"
+            f"the {what}, {callback_location(callback)}, is called as {form}, which its "
+            f"signature {signature} does not allow"
         )
         raise TypeError(msg) from None
 
@@ -170,15 +174,29 @@ class Container:
         registration.
         """
         held = object.__getattribute__(self, name)
+        path = self._child(name)
         if isinstance(held, Registry):
             return (
-                f"{self._label} {name} cannot be replaced; register a callback through it, "
-                f"for example '@{name}.{held._example()}'."
+                f"{path} cannot be replaced. Register a callback through it: "
+                f"'@<problem>.{path}.{held._example()}'."
             )
         return (
-            f"{self._label} {name} cannot be replaced; it is changed one setting at a time, "
-            f"for example '{name}.{held._example()} = ...'."
+            f"{path} cannot be replaced. Set one setting at a time: "
+            f"'<problem>.{path}.{held._example()} = ...'."
         )
+
+    def _child(self, name: str) -> str:
+        """Return the path of `name` from the problem, which has no root of its own.
+
+        A message cannot know what the user called their problem, and their line is in the
+        traceback, so a label starts below it; code a message offers is rooted at
+        ``<problem>``.
+        """
+        return f"{self._label}.{name}" if self._label else name
+
+    def _owner(self) -> str:
+        """Return how a message names this container: its path, or "the problem"."""
+        return self._label or "the problem"
 
     def _example(self) -> str:
         """Return a setting written the way a user sets one, for a message: the first."""
@@ -210,7 +228,7 @@ class Container:
                 return
             if name in self._held:
                 raise AttributeError(self._advice(name))
-            msg = f"{self._label} has no setting '{name}'.{suggest(name, self._names())}"
+            msg = f"{self._owner()} has no setting '{name}'.{suggest(name, self._names())}"
             raise AttributeError(msg)
 
         def __delattr__(self, name):
@@ -219,14 +237,14 @@ class Container:
                 object.__delattr__(self, name)
                 return
             advice = "; assign it a new value instead" if name in self._settable else ""
-            msg = f"{self._label} '{name}' cannot be deleted{advice}"
+            msg = f"{self._child(name)} cannot be deleted{advice}"
             raise AttributeError(msg)
 
         def __getattr__(self, name):
             """Refuse an unknown name with a suggestion."""
             if name.startswith("_"):
                 raise AttributeError(name)
-            msg = f"{self._label} has no setting '{name}'.{suggest(name, self._names())}"
+            msg = f"{self._owner()} has no setting '{name}'.{suggest(name, self._names())}"
             raise AttributeError(msg)
 
 
@@ -282,8 +300,8 @@ class Registry(Container):
         """Refuse an assignment to a registration, naming the idiom that works."""
         if not name.startswith("_") and name in self._registrations:
             msg = (
-                f"{self._label} '{name}' is not assigned. Decorate the callback with "
-                f"'register.{name}', or call 'register.{name}(callback)'."
+                f"{self._label}.{name} is not assigned. Decorate the callback with "
+                f"'@<problem>.{self._label}.{name}'."
             )
             raise AttributeError(msg)
         super().__setattr__(name, value)
