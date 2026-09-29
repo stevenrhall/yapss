@@ -290,6 +290,8 @@ def mistakes(
     endpoint[ph].final  # type: ignore[attr-defined]
     endpoint["phase"]  # type: ignore[index]
     discrete.discrete.landin = 0.0  # type: ignore[attr-defined]
+    arg.stat = arg.state  # type: ignore[attr-defined]
+    out.dynamic = out.dynamics  # type: ignore[attr-defined]
     problem.ipopt_options.max_iters = 5000  # type: ignore[attr-defined]
     problem.comment = 3  # type: ignore[assignment]
     problem.ipopt_options.max_iter = "5000"  # type: ignore[assignment]
@@ -324,6 +326,9 @@ def solution_mistakes(problem: Brachistochrone) -> None:
     solution = problem.solve()
     ps = solution.phases[problem.phases.phase]
     solution.objectiv  # type: ignore[attr-defined]
+    solution.objectiv = 0.0  # type: ignore[attr-defined]
+    ps.hamiltonain = ps.hamiltonian  # type: ignore[attr-defined]
+    solution.settings.coment = ""  # type: ignore[attr-defined]
     solution.settings.coment  # type: ignore[attr-defined]
     solution.run.secnds  # type: ignore[attr-defined]
     solution.run.seconds.totl  # type: ignore[attr-defined]

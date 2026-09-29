@@ -2,11 +2,11 @@
 
 What a callback is given and what it fills in.
 
-Every callback receives a fresh argument object, and the ones that produce several named
-results receive a fresh output object as well. Neither exposes an array, so there is nothing
-to write into out of turn, nothing held across calls, and nothing to reset. Inputs are
-read-only; an output is filled field by field and checked for completeness when the callback
-returns.
+Every callback receives an argument whose inputs are read-only views of the current point, and
+the ones that produce several named results receive a fresh output object as well, so there is
+nothing to write into out of turn, nothing an earlier call wrote to read, and nothing to reset.
+An argument may be reused from call to call, pointed at the new point's values; an output never
+is, and is filled field by field and checked for completeness when the callback returns.
 
 Each class is generic in the declarations it carries, so a callback can be annotated and
 checked, down to the field:
@@ -95,9 +95,8 @@ class _Frozen:
     def _where(self) -> str:
         return type(self)._root
 
-    # Hidden from type checkers, as `Container`'s is: one that sees a reader answering any name
-    # stops reporting misspellings. `ContinuousArg` declares its own, for the one name it cannot
-    # know statically.
+    # Hidden from type checkers, as `Container`'s are: one that sees them stops reporting a
+    # misspelled name, read or assigned. Every name an argument holds is declared for them.
     if not TYPE_CHECKING:
 
         def __getattr__(self, name):
@@ -110,28 +109,29 @@ class _Frozen:
             msg = f"{self._where()} has no '{name}'.{suggest(name, names)}"
             raise AttributeError(msg)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment, saying why: an input, the objective, or no such name."""
-        del value
-        kind = self._where()
-        if hasattr(self, name):
-            msg = f"{kind}.{name} is an input and cannot be assigned"
-        elif name == "objective":
-            # 0.3.0 wrote `arg.objective = ...`; the 0.4 objective callback returns it
-            msg = (
-                "the objective is returned from the objective callback, not assigned: 'return ...'"
-            )
-        else:
-            names = getattr(self, "_names", None) or tuple(
-                n for n in self.__slots__ if not n.startswith("_")
-            )
-            msg = f"{kind} has no '{name}'.{suggest(name, names)}"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse every assignment, saying why: an input, the objective, or no such name."""
+            del value
+            kind = self._where()
+            if hasattr(self, name):
+                msg = f"{kind}.{name} is an input and cannot be assigned"
+            elif name == "objective":
+                # 0.3.0 wrote `arg.objective = ...`; the 0.4 objective callback returns it
+                msg = (
+                    "the objective is returned from the objective callback, not assigned: "
+                    "'return ...'"
+                )
+            else:
+                names = getattr(self, "_names", None) or tuple(
+                    n for n in self.__slots__ if not n.startswith("_")
+                )
+                msg = f"{kind} has no '{name}'.{suggest(name, names)}"
+            raise AttributeError(msg)
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse every deletion."""
-        msg = f"{self._where()}.{name} is an input and cannot be deleted"
-        raise AttributeError(msg)
+        def __delattr__(self, name: str) -> None:
+            """Refuse every deletion."""
+            msg = f"{self._where()}.{name} is an input and cannot be deleted"
+            raise AttributeError(msg)
 
 
 class ContinuousArg(_Frozen, Generic[S_co, C_co, PR_co]):
@@ -196,24 +196,28 @@ class ContinuousOut(_Frozen, Generic[S_co, P_co, I_co]):
         object.__setattr__(self, "path", path)
         object.__setattr__(self, "integrand", integrand)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse replacing an output vector, explaining how to fill it."""
-        del value
-        if name in self.__slots__:
-            fields = getattr(getattr(self, name), "_fields", ())
-            example = f"out.{name}.{fields[0]}" if fields else f"out.{name}[:]"
-            msg = (
-                f"out.{name} cannot be replaced; fill it field by field, for example "
-                f"'{example} = ...'."
-            )
-            raise AttributeError(msg)
-        msg = f"out has no '{name}'.{suggest(name, self.__slots__)}"
-        raise AttributeError(msg)
+    # Hidden from type checkers, as `Container`'s are: a checker that can see them accepts an
+    # assignment to any name, a misspelled one included.
+    if not TYPE_CHECKING:
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse deleting an output vector."""
-        msg = f"out.{name} cannot be deleted; it is filled field by field"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse replacing an output vector, explaining how to fill it."""
+            del value
+            if name in self.__slots__:
+                fields = getattr(getattr(self, name), "_fields", ())
+                example = f"out.{name}.{fields[0]}" if fields else f"out.{name}[:]"
+                msg = (
+                    f"out.{name} cannot be replaced; fill it field by field, for example "
+                    f"'{example} = ...'."
+                )
+                raise AttributeError(msg)
+            msg = f"out has no '{name}'.{suggest(name, self.__slots__)}"
+            raise AttributeError(msg)
+
+        def __delattr__(self, name: str) -> None:
+            """Refuse deleting an output vector."""
+            msg = f"out.{name} cannot be deleted; it is filled field by field"
+            raise AttributeError(msg)
 
     def _is_complete(self) -> bool:
         """Report whether every output field has been assigned."""
@@ -341,24 +345,28 @@ class DiscreteOut(_Frozen, Generic[D_co]):
     def __init__(self, discrete: Vector) -> None:
         object.__setattr__(self, "discrete", discrete)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse replacing the discrete vector, explaining how to fill it."""
-        del value
-        if name == "discrete":
-            fields = getattr(getattr(self, "discrete"), "_fields", ())  # noqa: B009
-            example = f"out.discrete.{fields[0]}" if fields else "out.discrete[:]"
-            msg = (
-                f"out.discrete cannot be replaced; fill it field by field, for example "
-                f"'{example} = ...'."
-            )
-            raise AttributeError(msg)
-        msg = f"out has no '{name}'.{suggest(name, self.__slots__)}"
-        raise AttributeError(msg)
+    # Hidden from type checkers, as `Container`'s are: a checker that can see them accepts an
+    # assignment to any name, a misspelled one included.
+    if not TYPE_CHECKING:
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse deleting the discrete vector."""
-        msg = f"out.{name} cannot be deleted; it is filled field by field"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse replacing the discrete vector, explaining how to fill it."""
+            del value
+            if name == "discrete":
+                fields = getattr(getattr(self, "discrete"), "_fields", ())  # noqa: B009
+                example = f"out.discrete.{fields[0]}" if fields else "out.discrete[:]"
+                msg = (
+                    f"out.discrete cannot be replaced; fill it field by field, for example "
+                    f"'{example} = ...'."
+                )
+                raise AttributeError(msg)
+            msg = f"out has no '{name}'.{suggest(name, self.__slots__)}"
+            raise AttributeError(msg)
+
+        def __delattr__(self, name: str) -> None:
+            """Refuse deleting the discrete vector."""
+            msg = f"out.{name} cannot be deleted; it is filled field by field"
+            raise AttributeError(msg)
 
     def _is_complete(self) -> bool:
         """Report whether every group has been assigned."""

@@ -23,6 +23,7 @@ import numpy as np
 
 from .fields import aspects_of
 from .sampled import interp
+from .solution import phase_names
 
 if TYPE_CHECKING:
     from .problem import Problem
@@ -80,7 +81,7 @@ def _pair_by_name(
     problem: Problem, solution: Solution[Any, Any]
 ) -> tuple[list[tuple[PhaseSolution, Any]], list[str]]:
     """Pair every phase of the problem with the solution's phase of the same name."""
-    names = list(object.__getattribute__(solution.phases, "_names"))
+    names = list(phase_names(solution.phases))
     own = {ph._name: ph for ph in problem.phases}
     mismatches = [
         f"phase '{n}' is in the solution but not the problem" for n in names if n not in own

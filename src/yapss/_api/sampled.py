@@ -46,17 +46,13 @@ class Interp:
         """Return a representation naming the number of samples."""
         return f"interp({len(self.time)} samples from {self.time[0]} to {self.time[-1]})"
 
-    def rows(self, size: int, label: str, name: str) -> list[Any]:
+    def rows(self, size: int) -> list[Any]:
         """Return `size` rows of samples, broadcasting a single row across a block field.
 
         Parameters
         ----------
         size : int
             The number of rows the field holds.
-        label : str
-            What to call the field's owner in a message.
-        name : str
-            The field's name.
 
         Returns
         -------
@@ -66,12 +62,7 @@ class Interp:
         values = self.values
         if values.ndim == 1:
             return [values] * size
-        if values.shape[0] != size:
-            msg = (
-                f"{label} '{name}': interp values have {values.shape[0]} rows, but the field "
-                f"holds {size}"
-            )
-            raise ValueError(msg)
+        assert values.shape[0] == size, "the rows are checked where the guess is assigned"
         return [values[row] for row in range(size)]
 
 

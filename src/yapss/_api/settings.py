@@ -19,7 +19,7 @@ from yapss._backend.ipopt_options import IpoptOptions
 
 from .containers import Container, Registry, suggest
 from .declare import Phases
-from .fields import Fields, aspects_of
+from .fields import Fields, aspects_of, declaration_of
 from .vector import BlockRows
 
 if TYPE_CHECKING:
@@ -80,16 +80,20 @@ class Callback:
         """Hash as the three strings."""
         return hash((self.module, self.qualname, self.doc))
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: the record is of what was registered."""
-        del value
-        msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+    # Hidden from type checkers, as `Container`'s are: a checker that can see them accepts an
+    # assignment to any name, a misspelled one included.
+    if not TYPE_CHECKING:
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse every deletion."""
-        msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse every assignment: the record is of what was registered."""
+            del value
+            msg = f"'{name}' cannot be assigned; {_NAMES_FIXED}"
+            raise AttributeError(msg)
+
+        def __delattr__(self, name: str) -> None:
+            """Refuse every deletion."""
+            msg = f"'{name}' cannot be deleted; {_NAMES_FIXED}"
+            raise AttributeError(msg)
 
     def __repr__(self) -> str:
         """Return the callback's qualified name and module."""
@@ -127,18 +131,18 @@ class SettingsGroup:
             msg = f"{label} has no '{name}'.{suggest(name, tuple(values))}"
             raise AttributeError(msg)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: each name is one setting as it was solved."""
-        del value
-        label = object.__getattribute__(self, "_label")
-        msg = f"{label}.{name} cannot be assigned; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse every assignment: each name is one setting as it was solved."""
+            del value
+            label = object.__getattribute__(self, "_label")
+            msg = f"{label}.{name} cannot be assigned; {_NAMES_FIXED}"
+            raise AttributeError(msg)
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse every deletion."""
-        label = object.__getattribute__(self, "_label")
-        msg = f"{label}.{name} cannot be deleted; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __delattr__(self, name: str) -> None:
+            """Refuse every deletion."""
+            label = object.__getattribute__(self, "_label")
+            msg = f"{label}.{name} cannot be deleted; {_NAMES_FIXED}"
+            raise AttributeError(msg)
 
     def __dir__(self) -> list[str]:
         """Offer the recorded names, which is what completion should show."""
@@ -213,7 +217,7 @@ def _value(value: Any) -> Any:
 def _fields(fields: Fields, label: str) -> SettingsGroup:
     """Return a vector's settings, field first, as the problem reaches them."""
     aspects = aspects_of(fields)
-    declaration = object.__getattribute__(fields, "_declaration")
+    declaration = declaration_of(fields)
     return SettingsGroup(
         label,
         {

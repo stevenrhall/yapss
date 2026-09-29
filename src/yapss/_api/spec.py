@@ -2,10 +2,10 @@
 
 The snapshot a solve is run from.
 
-`ProblemSpec` holds everything the transcription needs and nothing else: the declarations, the
-bounds, the guess, the mesh, the callbacks, and the settings. It is taken once per solve, so a
-problem edited afterwards -- during a continuation sweep, say -- never alters what an earlier
-solution was computed from.
+`ProblemSpec` holds everything the transcription needs: the declarations, the bounds, the
+guess, the mesh, the callbacks, and the settings, with the settings also as values alone for the
+solution to record. It is taken once per solve, so a problem edited afterwards -- during a
+continuation sweep, say -- never alters what an earlier solution was computed from.
 
 It is deliberately *not* expressed in terms of the callback protocol of any one front end: it
 carries the user's own per-phase callbacks, and the bridge to the solver builds whatever

@@ -48,14 +48,6 @@ if TYPE_CHECKING:
 __all__ = ["solve_problem", "to_transcription_spec"]
 
 
-def _npoints(time: Any) -> int | None:
-    """Return the number of time points, or None when a symbolic trace makes that meaningless."""
-    try:
-        return len(time)
-    except TypeError:
-        return None
-
-
 def _check_return(result: Any, out: Any, callback: Callable[..., Any], what: str) -> None:
     """Refuse anything but None: a callback fills `out` and ends.
 
@@ -487,7 +479,7 @@ def _guess_rows(
         guess = values[name][index]
         if isinstance(guess, Interp):
             size = declaration._meta[name].rows
-            row = guess.rows(size, "guess", name)[index]
+            row = guess.rows(size)[index]
             rows.append(np.interp(grid, guess.time, row))
         else:
             first, last = guess

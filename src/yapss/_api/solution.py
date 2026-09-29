@@ -302,16 +302,16 @@ class _Record:
             msg = f"{self._path()} has no '{name}'.{suggest(name, self._names())}"
             raise AttributeError(msg)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: each name is one solved quantity."""
-        del value
-        msg = f"{self._path()}.{name} cannot be assigned; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse every assignment: each name is one solved quantity."""
+            del value
+            msg = f"{self._path()}.{name} cannot be assigned; {_NAMES_FIXED}"
+            raise AttributeError(msg)
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse every deletion: each name is one solved quantity."""
-        msg = f"{self._path()}.{name} cannot be deleted; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __delattr__(self, name: str) -> None:
+            """Refuse every deletion: each name is one solved quantity."""
+            msg = f"{self._path()}.{name} cannot be deleted; {_NAMES_FIXED}"
+            raise AttributeError(msg)
 
 
 class PhaseMultiplier(_Record, Generic[S_co, C_co, P_co, I_co]):
@@ -1159,16 +1159,23 @@ class PhaseSolution(Generic[S_co, C_co, P_co, I_co]):
             msg = f"{self._at} has no '{name}'.{suggest(name, names)}"
             raise AttributeError(msg)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: each name is one solved quantity."""
-        del value
-        msg = f"{object.__getattribute__(self, '_at')}.{name} cannot be assigned; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse every assignment: each name is one solved quantity."""
+            del value
+            msg = (
+                f"{object.__getattribute__(self, '_at')}.{name} cannot be assigned; {_NAMES_FIXED}"
+            )
+            raise AttributeError(msg)
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse every deletion: each name is one solved quantity."""
-        msg = f"{object.__getattribute__(self, '_at')}.{name} cannot be deleted; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __delattr__(self, name: str) -> None:
+            """Refuse every deletion: each name is one solved quantity."""
+            msg = f"{object.__getattribute__(self, '_at')}.{name} cannot be deleted; {_NAMES_FIXED}"
+            raise AttributeError(msg)
+
+
+def phase_names(phases: PhaseSolutions) -> tuple[str, ...]:
+    """Return the names of a solution's phases, in declaration order, for YAPSS's own reads."""
+    return phases._names
 
 
 class PhaseSolutions:
@@ -1265,16 +1272,20 @@ class PhaseSolutions:
             msg = f"the solution has no phase named '{name}'.{hint}"
             raise AttributeError(msg)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: each name is one solved phase."""
-        del value
-        msg = f"solution.phases.{name} cannot be assigned; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+    # Hidden from type checkers, as `Container`'s are: a checker that can see them accepts an
+    # assignment to any name, a misspelled one included.
+    if not TYPE_CHECKING:
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse every deletion: each name is one solved phase."""
-        msg = f"solution.phases.{name} cannot be deleted; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse every assignment: each name is one solved phase."""
+            del value
+            msg = f"solution.phases.{name} cannot be assigned; {_NAMES_FIXED}"
+            raise AttributeError(msg)
+
+        def __delattr__(self, name: str) -> None:
+            """Refuse every deletion: each name is one solved phase."""
+            msg = f"solution.phases.{name} cannot be deleted; {_NAMES_FIXED}"
+            raise AttributeError(msg)
 
 
 class Solution(Generic[D_co, PR_co]):
@@ -1463,16 +1474,16 @@ class Solution(Generic[D_co, PR_co]):
             )
             raise TypeError(msg)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse every assignment: each name is one solved quantity."""
-        del value
-        msg = f"solution.{name} cannot be assigned; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse every assignment: each name is one solved quantity."""
+            del value
+            msg = f"solution.{name} cannot be assigned; {_NAMES_FIXED}"
+            raise AttributeError(msg)
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse every deletion: each name is one solved quantity."""
-        msg = f"solution.{name} cannot be deleted; {_NAMES_FIXED}"
-        raise AttributeError(msg)
+        def __delattr__(self, name: str) -> None:
+            """Refuse every deletion: each name is one solved quantity."""
+            msg = f"solution.{name} cannot be deleted; {_NAMES_FIXED}"
+            raise AttributeError(msg)
 
     def __repr__(self) -> str:
         """Return a short representation naming the objective and status."""

@@ -887,6 +887,26 @@ class Vector:
         )
         raise ValueError(msg)
 
+    def _check_row_samples(
+        self, value: Any, name: str, index: slice, position: int, count: int
+    ) -> None:
+        """Refuse sampled values, given as one row's element of a list, of neither size.
+
+        An element is one row of samples, or the whole field's rows, of which its row takes its
+        own: the form a guess reads back in after the whole field was given one `interp`.
+        """
+        if not isinstance(value, Interp) or value.values.ndim == 1:
+            return
+        given = value.values.shape[0]
+        if given == count:
+            return
+        msg = (
+            f"{at(self._label, name)}[{_show_slice(index)}]: element {position} has interp "
+            f"values with {given} rows, and the field has {count}; give one row of samples, "
+            f"or all {count} rows"
+        )
+        raise ValueError(msg)
+
     def _set_field_rows(self, name: str, index: int | slice, value: Any) -> None:
         """Assign to the rows of block field `name` that `index` covers."""
         cls = type(self)
@@ -921,6 +941,8 @@ class Vector:
                         f"rows; got {len(values)} values"
                     )
                     raise ValueError(msg)
+                for position, element in enumerate(values):
+                    self._check_row_samples(element, name, index, position, count)
         else:
             row = index if index >= 0 else index + count
             if not 0 <= row < count:

@@ -148,6 +148,27 @@ def test_a_swapped_annotation_is_named() -> None:
             state: Control
 
 
+def test_a_declaration_with_no_role_is_refused() -> None:
+    """A subclass of the base the six roles share declares fields but no role, so it is refused
+    as any vector class, naming the role to declare. The base is not public, but it is reachable
+    as ``yapss.State.__bases__[0]``.
+    """
+    base = yapss.State.__bases__[0]
+
+    class Roleless(base):  # type: ignore[misc, valid-type]
+        x = yapss.scalar()
+
+    with raises(
+        TypeError,
+        "takes a subclass of yapss.State, but Roleless has no role",
+        "Declare it as 'class Roleless(yapss.State)'",
+        at="class NoRole",
+    ):
+
+        class NoRole(yapss.Phase):
+            state: Roleless
+
+
 def test_a_swapped_argument_is_named() -> None:
     """The likeliest way to get a role wrong is to swap two arguments, so that is what is said.
 
@@ -795,3 +816,49 @@ def test_a_phase_is_reached_by_position_or_name_only(key: object) -> None:
     p = problem()
     with raises(TypeError, "by its position or its name", at="p.phases[key]"):
         p.phases[key]  # type: ignore[index]
+
+
+# ------------------------------------------------------------ what a problem class holds
+
+
+def test_a_problem_class_is_not_subclassed_again() -> None:
+    """A variant's inherited declarations would not carry the setup its instance was given."""
+
+    class First(yapss.Problem):
+        phases: Phases
+
+    with raises(TypeError, "cannot inherit from First", "Subclass yapss.Problem", at="class"):
+
+        class Second(First):
+            pass
+
+
+def test_a_problem_class_holds_its_declarations_only() -> None:
+    """Every other name on a problem is YAPSS's, so a method of the user's would collide."""
+    with raises(TypeError, "is defined in a problem class", at="class"):
+
+        class WithMethod(yapss.Problem):
+            phases: Phases
+
+            def helper(self) -> None:
+                pass
+
+
+def test_the_base_problem_class_is_not_instantiated() -> None:
+    with raises(TypeError, "is subclassed, not instantiated", at="yapss.Problem("):
+        yapss.Problem("bare")
+
+
+def test_an_annotation_naming_nothing_is_refused_naming_the_class() -> None:
+    """A declaration names classes declared before it; the message says which class."""
+    with raises(NameError, "Late: an annotation names 'Undeclared'", at="class"):
+
+        class Late(yapss.Phase):
+            state: Undeclared  # type: ignore[name-defined]  # noqa: F821
+
+
+def test_a_vector_s_settings_are_not_called() -> None:
+    """Only the aspects that answer a call -- the objective's and the discrete's -- take one."""
+    ph = problem().phases.first
+    with raises(TypeError, "holds settings and is not callable", at="ph.state("):
+        ph.state()

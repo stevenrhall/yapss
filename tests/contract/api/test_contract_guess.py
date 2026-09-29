@@ -278,6 +278,25 @@ def test_several_rows_of_samples_fit_only_the_whole_field() -> None:
     ph.state.y.guess[:] = two_rows
 
 
+def test_a_row_of_a_list_takes_one_row_of_samples_or_all_rows() -> None:
+    """A list gives each row its own guess: one row of samples, or the whole field's rows, of
+    which the row takes its own -- the form the guess reads back in after the whole field was
+    given one `interp`, so writing that back works. Any other row count is refused where it is
+    assigned, rather than when the problem is solved."""
+    ph = problem().phases.first
+    two_rows = yapss.interp([0.0, 1.0], np.zeros((2, 2)))
+    three_rows = yapss.interp([0.0, 1.0], np.zeros((3, 2)))
+    ph.state.y.guess[:] = [two_rows, (0.0, 1.0)]
+    ph.state.y.guess[:] = two_rows
+    ph.state.y.guess[1] = (0.0, 1.0)
+    ph.state.y.guess[:] = ph.state.y.guess
+    assert list(ph.state.y.guess) == [two_rows, (0.0, 1.0)]
+    with raises(
+        ValueError, "element 0 has interp values with 3 rows", "field has 2", at="y.guess[:]"
+    ):
+        ph.state.y.guess[:] = [three_rows, (0.0, 1.0)]
+
+
 def test_the_row_count_of_samples_is_checked_where_they_are_assigned() -> None:
     """Three rows for a two-row field were refused only when the problem was solved."""
     ph = problem().phases.first
@@ -395,6 +414,15 @@ def test_one_phase_may_be_paired_with_another() -> None:
     p.guess_from_solution(solution, solution_phase="slide", guess_phase=p.phases.slide)
     with raises(TypeError, "give both", at="guess_from_solution"):
         p.guess_from_solution(solution, solution_phase="slide")
+
+
+def test_a_guess_phase_must_belong_to_the_problem() -> None:
+    """Pairing a solution's phase with a phase of another problem is refused before writing."""
+    p = solvable()
+    solution = p.solve()
+    other = solvable()
+    with raises(KeyError, "guess_phase= must be a phase of this problem", at="guess_from_solution"):
+        p.guess_from_solution(solution, solution_phase="slide", guess_phase=other.phases.slide)
 
 
 def test_a_time_guess_cannot_be_unset() -> None:

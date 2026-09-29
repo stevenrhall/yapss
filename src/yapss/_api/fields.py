@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from .containers import Container
     from .vector import Vector
 
-__all__ = ["FieldSettings", "Fields", "aspects_of"]
+__all__ = ["FieldSettings", "Fields", "aspects_of", "declaration_of"]
 
 
 def aspects_of(fields: Any) -> Any:
@@ -43,6 +43,22 @@ def aspects_of(fields: Any) -> Any:
         The container holding one instance of the declaration per aspect.
     """
     return object.__getattribute__(fields, "_aspects")
+
+
+def declaration_of(fields: Any) -> Any:
+    """Return the vector declaration behind a `Fields`, for YAPSS's own reads.
+
+    Parameters
+    ----------
+    fields : Fields
+        What ``ph.state`` or ``problem.discrete`` is.
+
+    Returns
+    -------
+    type[Vector]
+        The declaration whose fields these are.
+    """
+    return object.__getattribute__(fields, "_declaration")
 
 
 class Fields:
@@ -93,21 +109,25 @@ class Fields:
         msg = f"{label} has no field '{name}'.{suggest(name, declaration._fields)}"
         raise AttributeError(msg)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Refuse an assignment to a field, which is set one setting at a time."""
-        del value
-        label: str = object.__getattribute__(self, "_label")
-        msg = (
-            f"{label}.{name} cannot be assigned. Set one setting at a time: "
-            f"'<problem>.{label}.{self._example()} = ...'."
-        )
-        raise AttributeError(msg)
+    # Hidden from type checkers, as `Container`'s are: a checker that can see them accepts an
+    # assignment to any name, a misspelled one included.
+    if not TYPE_CHECKING:
 
-    def __delattr__(self, name: str) -> None:
-        """Refuse deleting a field."""
-        label: str = object.__getattribute__(self, "_label")
-        msg = f"{label}.{name} cannot be deleted; its fields are declared"
-        raise AttributeError(msg)
+        def __setattr__(self, name: str, value: Any) -> None:
+            """Refuse an assignment to a field, which is set one setting at a time."""
+            del value
+            label: str = object.__getattribute__(self, "_label")
+            msg = (
+                f"{label}.{name} cannot be assigned. Set one setting at a time: "
+                f"'<problem>.{label}.{self._example()} = ...'."
+            )
+            raise AttributeError(msg)
+
+        def __delattr__(self, name: str) -> None:
+            """Refuse deleting a field."""
+            label: str = object.__getattribute__(self, "_label")
+            msg = f"{label}.{name} cannot be deleted; its fields are declared"
+            raise AttributeError(msg)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Pass a call to the aspects, which answer the slip it usually is.
@@ -186,19 +206,23 @@ class FieldSettings:
             raise self._refuse(setting)
         return getattr(getattr(aspects, setting), object.__getattribute__(self, "_name"))
 
-    def __setattr__(self, setting: str, value: Any) -> None:
-        """Set the field's value for `setting`, through the aspect that validates it."""
-        aspects: Container = object.__getattribute__(self, "_aspects")
-        if setting not in aspects._held:
-            raise self._refuse(setting)
-        setattr(getattr(aspects, setting), object.__getattribute__(self, "_name"), value)
+    # Hidden from type checkers, as `Container`'s are: a checker that can see them accepts an
+    # assignment to any name, a misspelled one included.
+    if not TYPE_CHECKING:
 
-    def __delattr__(self, setting: str) -> None:
-        """Refuse deleting a setting; assigning a new value is how one is changed."""
-        name = object.__getattribute__(self, "_name")
-        label = object.__getattribute__(self, "_label")
-        msg = f"{label}.{name}.{setting} cannot be deleted; assign it a new value instead"
-        raise AttributeError(msg)
+        def __setattr__(self, setting: str, value: Any) -> None:
+            """Set the field's value for `setting`, through the aspect that validates it."""
+            aspects: Container = object.__getattribute__(self, "_aspects")
+            if setting not in aspects._held:
+                raise self._refuse(setting)
+            setattr(getattr(aspects, setting), object.__getattribute__(self, "_name"), value)
+
+        def __delattr__(self, setting: str) -> None:
+            """Refuse deleting a setting; assigning a new value is how one is changed."""
+            name = object.__getattribute__(self, "_name")
+            label = object.__getattribute__(self, "_label")
+            msg = f"{label}.{name}.{setting} cannot be deleted; assign it a new value instead"
+            raise AttributeError(msg)
 
     def __getitem__(self, index: Any) -> Any:
         """Refuse an index on the field itself: rows belong to one of its settings."""
