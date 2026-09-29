@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import inspect
 import time
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, overload
 
 # See `_api.declare`: PEP 696 defaults, which `typing.TypeVar` cannot carry below 3.13.
 from typing_extensions import TypeVar
@@ -39,6 +39,16 @@ from .declare import Phases, _declaring_scope, declared_role, own_annotations
 from .fields import Fields
 from .kinds import Bounds, ScalarGuess, Scale
 from .old_api import old_api_message
+from .options import (
+    DERIVATIVE_METHODS,
+    DERIVATIVE_ORDERS,
+    OBJECTIVE_SENSES,
+    SPECTRAL_METHODS,
+    DerivativeMethod,
+    DerivativeOrder,
+    ObjectiveSense,
+    SpectralMethod,
+)
 from .run import Recording, now, run_record
 from .spec import snapshot, validate_problem
 from .vector import Discrete, Parameter, Vector
@@ -92,16 +102,11 @@ _IMPLICIT = frozenset(
 )
 
 
-SPECTRAL_METHODS = ("lgl", "lgr", "lg")
-DERIVATIVE_METHODS = ("auto", "central-difference", "central-difference-full")
-
 _NO_USER_METHOD = (
     "derivatives.method = 'user' is not offered: 'auto' differentiates any problem small enough "
     "to differentiate by hand. Use 'auto', or 'central-difference' for a model that cannot be "
     "traced."
 )
-ORDERS = ("first", "second")
-SENSES = ("minimize", "maximize")
 CATCH_KEYBOARD_INTERRUPT = True
 """Whether a keyboard interrupt stops the solve cleanly, by default."""
 
@@ -130,7 +135,7 @@ class ObjectiveAspects(Container):
     _settable = ("sense", "scale")
 
     if TYPE_CHECKING:
-        sense: Literal["minimize", "maximize"]
+        sense: ObjectiveSense
         scale: float
 
     def __init__(self) -> None:
@@ -141,7 +146,7 @@ class ObjectiveAspects(Container):
     def _check(self, name: str, value: Any) -> Any:
         if name == "scale":
             return Scale.check(value, label="objective", name="scale", npoints=None)
-        return _one_of(value, SENSES, "objective.sense")
+        return _one_of(value, OBJECTIVE_SENSES, "objective.sense")
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Refuse a registration written here, which is a likely slip. See `_not_a_decorator`."""
@@ -196,8 +201,8 @@ class Derivatives(Container):
     _settable = ("method", "order")
 
     if TYPE_CHECKING:
-        method: Literal["auto", "central-difference", "central-difference-full"]
-        order: Literal["first", "second"]
+        method: DerivativeMethod
+        order: DerivativeOrder
 
     def __init__(self) -> None:
         self._label = "derivatives"
@@ -210,7 +215,7 @@ class Derivatives(Container):
             if value == "user":
                 raise ValueError(_NO_USER_METHOD)
             return _one_of(value, DERIVATIVE_METHODS, "derivatives.method")
-        return _one_of(value, ORDERS, "derivatives.order")
+        return _one_of(value, DERIVATIVE_ORDERS, "derivatives.order")
 
 
 def _check_name(name: object) -> None:
@@ -430,7 +435,7 @@ class Problem(HasRegistry):
         register: ProblemRegistry
         name: str
         comment: str
-        spectral_method: Literal["lgl", "lgr", "lg"]
+        spectral_method: SpectralMethod
         catch_keyboard_interrupt: bool
 
     _members: ClassVar[dict[str, type[Any]] | None] = None

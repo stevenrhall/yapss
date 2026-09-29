@@ -11,6 +11,7 @@ problem is written in, and the solution it returns. Nothing imports from here di
 from .args import ContinuousArg, ContinuousOut, DiscreteArg, DiscreteOut
 from .declare import Phase, Phases
 from .mesh import Mesh
+from .options import DerivativeMethod, DerivativeOrder, ObjectiveSense, SpectralMethod
 from .problem import Problem
 from .sampled import interp
 from .solution import PhaseSolution, Solution
@@ -20,11 +21,14 @@ __all__ = [
     "ContinuousArg",
     "ContinuousOut",
     "Control",
+    "DerivativeMethod",
+    "DerivativeOrder",
     "Discrete",
     "DiscreteArg",
     "DiscreteOut",
     "Integral",
     "Mesh",
+    "ObjectiveSense",
     "Parameter",
     "Path",
     "Phase",
@@ -32,6 +36,7 @@ __all__ = [
     "Phases",
     "Problem",
     "Solution",
+    "SpectralMethod",
     "State",
     "interp",
     "scalar",

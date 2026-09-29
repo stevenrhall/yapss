@@ -17,7 +17,7 @@ apart.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from .fields import aspects_of
 from .kinds import at
@@ -29,16 +29,12 @@ if TYPE_CHECKING:
 
     from .declare import AnyPhase
     from .mesh import Mesh
+    from .options import DerivativeMethod, DerivativeOrder, ObjectiveSense, SpectralMethod
     from .problem import Problem
     from .settings import Settings
     from .vector import Vector
 
 __all__ = ["PhaseSpec", "ProblemSpec", "snapshot", "validate_problem"]
-
-Sense = Literal["minimize", "maximize"]
-Method = Literal["lgl", "lgr", "lg"]
-DerivativeMethod = Literal["auto", "central-difference", "central-difference-full"]
-Order = Literal["first", "second"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,10 +87,10 @@ class ProblemSpec:
     discrete_scale: dict[str, Any]
     objective_function: Callable[..., Any]
     objective_scale: float
-    sense: Sense
-    spectral_method: Method
+    sense: ObjectiveSense
+    spectral_method: SpectralMethod
     derivative_method: DerivativeMethod
-    derivative_order: Order
+    derivative_order: DerivativeOrder
     ipopt_options: dict[str, Any]
     catch_keyboard_interrupt: bool
     settings: Settings

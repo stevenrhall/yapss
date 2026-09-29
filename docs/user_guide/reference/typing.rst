@@ -191,6 +191,60 @@ but not the phase's own state and control names.
 So select a phase of a solution with its handle,
 or annotate the result (see `Editors`_).
 
+Option Values
+-------------
+
+``problem.spectral_method``, ``problem.derivatives.method``, ``problem.derivatives.order``,
+and ``problem.objective.sense`` are typed with the values they accept,
+so a misspelled value is reported where it is assigned.
+A value that arrives through a variable typed ``str`` is reported too,
+because the checker cannot tell which string it holds.
+Annotate the variable with the value's type, which YAPSS exports as
+``yapss.SpectralMethod``, ``yapss.DerivativeMethod``,
+``yapss.DerivativeOrder``, and ``yapss.ObjectiveSense``:
+
+.. code-block:: python
+
+    from typing import Final
+
+    import yapss
+
+    METHOD: Final = "lgr"  # Final keeps the value's own type (PEP 586)
+
+
+    def setup(method: yapss.SpectralMethod = "lgl") -> Brachistochrone:
+        problem = Brachistochrone("Brachistochrone")
+        problem.spectral_method = method
+        ...
+        return problem
+
+
+    problem = setup(METHOD)
+
+.. py:data:: yapss.SpectralMethod
+   :type: typing.TypeAlias
+   :value: Literal["lgl", "lgr", "lg"]
+
+   The collocation method, ``problem.spectral_method``.
+
+.. py:data:: yapss.DerivativeMethod
+   :type: typing.TypeAlias
+   :value: Literal["auto", "central-difference", "central-difference-full"]
+
+   How derivatives are computed, ``problem.derivatives.method``.
+
+.. py:data:: yapss.DerivativeOrder
+   :type: typing.TypeAlias
+   :value: Literal["first", "second"]
+
+   The order of the derivatives Ipopt is given, ``problem.derivatives.order``.
+
+.. py:data:: yapss.ObjectiveSense
+   :type: typing.TypeAlias
+   :value: Literal["minimize", "maximize"]
+
+   Whether the objective is minimized or maximized, ``problem.objective.sense``.
+
 Editors
 -------
 

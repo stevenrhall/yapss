@@ -12,7 +12,7 @@ without ``from __future__ import annotations`` each one is evaluated where it is
 ``yapss.ContinuousArg[State, Control]`` has to be a subscriptable class for that to work.
 """
 
-from typing import Any
+from typing import Any, Final
 
 from numpy import pi
 
@@ -229,6 +229,33 @@ def independent_mistakes(problem: NoseProblem) -> None:
     problem.phases.nose.r  # type: ignore[attr-defined]
     problem.solve().phases[problem.phases.nose].r  # type: ignore[attr-defined]
     problem.solve().phases[problem.phases.nose].hamiltonain  # type: ignore[attr-defined]
+
+
+def setup_with(
+    method: yapss.SpectralMethod = "lgl", sense: yapss.ObjectiveSense = "minimize"
+) -> Brachistochrone:
+    """Pass an option's value through a variable: annotated with the alias, it checks."""
+    problem = setup()
+    problem.spectral_method = method
+    problem.objective.sense = sense
+    order: yapss.DerivativeOrder = "first"
+    how: yapss.DerivativeMethod = "central-difference"
+    problem.derivatives.order = order
+    problem.derivatives.method = how
+    return problem
+
+
+METHOD: Final = "lgr"
+"""A module constant keeps its literal type when declared `Final` (PEP 586)."""
+
+
+def options_through_variables() -> None:
+    """A constant declared Final passes; one typed only as a string is reported."""
+    setup_with(METHOD)
+    loose: str = "lgr"
+    setup_with(loose)  # type: ignore[arg-type]
+    setup().spectral_method = loose  # type: ignore[assignment]
+    setup().spectral_method = "lq"  # type: ignore[assignment]
 
 
 def mistakes(

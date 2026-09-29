@@ -8,6 +8,7 @@ from ._api.args import ContinuousArg, ContinuousOut, DiscreteArg, DiscreteOut
 from ._api.declare import Phase, Phases
 from ._api.mesh import Mesh
 from ._api.old_api import OLD_ROOT_NAMES, old_api_message
+from ._api.options import DerivativeMethod, DerivativeOrder, ObjectiveSense, SpectralMethod
 from ._api.problem import Problem
 from ._api.sampled import interp
 from ._api.solution import PhaseSolution, Solution
@@ -31,6 +32,8 @@ __all__ = [
     "ContinuousArg",
     "ContinuousOut",
     "Control",
+    "DerivativeMethod",
+    "DerivativeOrder",
     "Discrete",
     "DiscreteArg",
     "DiscreteOut",
@@ -40,6 +43,7 @@ __all__ = [
     "IpoptStatus",
     "LargeSegmentWarning",
     "Mesh",
+    "ObjectiveSense",
     "Parameter",
     "Path",
     "Phase",
@@ -47,6 +51,7 @@ __all__ = [
     "Phases",
     "Problem",
     "Solution",
+    "SpectralMethod",
     "State",
     "UnsupportedMathFunctionError",
     "YapssDeprecationWarning",
