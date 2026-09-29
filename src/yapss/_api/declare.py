@@ -36,7 +36,16 @@ import math
 import numbers
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeAlias, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Protocol,
+    SupportsFloat,
+    TypeAlias,
+    cast,
+    overload,
+)
 
 # `TypeVar` from typing_extensions, not typing: PEP 696 defaults are native only from
 # Python 3.13, and the floor is 3.11. The defaults are what let `yapss.Phase[Slide, Angle]`
@@ -546,6 +555,43 @@ class Time(Container):
         return (t0, tf)
 
 
+class Duration(Container):
+    """A phase's duration, the constraint ``tf - t0``: its bounds.
+
+    Duration is a constraint row, not a variable, so it is set the way a constraint is, by its
+    ``bounds``, rather than as a bare pair as ``time.initial`` is. The lower bound is never
+    negative, since a phase does not run backward; by default the duration is bounded below by
+    zero and not above.
+    """
+
+    _settable = ("bounds",)
+
+    if TYPE_CHECKING:
+        # The lower side is a number: a duration has no open lower side (None), since it is
+        # never negative. A list cannot type its sides apart, so there the setter refuses it.
+        bounds: tuple[SupportsFloat, SupportsFloat | None] | list[SupportsFloat | None]
+
+    def __init__(self, label: str) -> None:
+        self._label = label
+        self._hold("bounds", (0.0, math.inf))
+
+    def _check(self, name: str, value: Any) -> Any:
+        lower, upper = Bounds.check(value, label=self._label, name=name, npoints=None)
+        if lower == -math.inf:
+            msg = (
+                f"{self._label} bounds: a duration is never negative, so its lower bound is a "
+                f"number. For no lower bound, write 0.0."
+            )
+            raise ValueError(msg)
+        if lower < 0:
+            msg = (
+                f"{self._label} bounds: the lower bound is {lower}, and a duration is never "
+                f"negative. Write 0.0 or more."
+            )
+            raise ValueError(msg)
+        return (lower, upper)
+
+
 class PhaseRegistry(Registry):
     """A phase's callbacks. Reached as ``ph.register``."""
 
@@ -611,7 +657,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
     of its shape, so two phases may share one.
     """
 
-    _held = ("state", "control", "dynamics", "path", "integral", "time", "register")
+    _held = ("state", "control", "dynamics", "path", "integral", "time", "duration", "register")
     _settable = ("mesh",)
     _declaration: PhaseDeclaration | None = None
 
@@ -633,8 +679,9 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         def dynamics(self: _HasState[_S_co]) -> _S_co: ...
 
         # Every phase's independent variable is `time`, whatever it measures, so it is declared
-        # here once, and the shapes do not annotate it.
+        # here once, and the shapes do not annotate it; so is the duration's constraint.
         time: Time
+        duration: Duration
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Read the shape from the subclass's annotations, refusing what is not one."""
@@ -748,6 +795,7 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         self._hold("integral", Fields(integral, declaration.integral, integral._label))
 
         self._hold("time", Time(f"{self._label} time"))
+        self._hold("duration", Duration(f"{self._label} duration"))
         self._hold("register", PhaseRegistry(self))
 
     @property

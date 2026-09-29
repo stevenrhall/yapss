@@ -297,6 +297,55 @@ def test_a_row_index_is_not_a_name() -> None:
         _ = ph.state.y.bounds["a"]
 
 
+# ------------------------------------------------------------------- a phase's duration
+
+
+def test_a_duration_is_bounded_below_by_zero_by_default() -> None:
+    """A phase does not run backward, and nothing else bounds its duration until it is set."""
+    ph = problem().phases.first
+    assert ph.duration.bounds == (0.0, np.inf)
+
+
+def test_a_duration_bound_is_written_as_a_constraint_s() -> None:
+    """Duration is a constraint row, so it takes `bounds`, as a path constraint does."""
+    ph = problem().phases.first
+    ph.duration.bounds = (1.0, None)
+    assert ph.duration.bounds == (1.0, np.inf)
+
+
+@pytest.mark.parametrize("bound", [(float("nan"), 1.0), (0.0, float("nan"))])
+def test_a_duration_bound_cannot_be_nan(bound: tuple[float, float]) -> None:
+    ph = problem().phases.first
+    with raises(ValueError, "cannot be NaN", at="duration.bounds"):
+        ph.duration.bounds = bound
+
+
+def test_a_duration_bound_may_not_be_inverted() -> None:
+    ph = problem().phases.first
+    with raises(ValueError, "lower 2.0 > upper 1.0", at="duration.bounds"):
+        ph.duration.bounds = (2.0, 1.0)
+
+
+def test_a_duration_bound_may_not_be_negative() -> None:
+    """Refused where written: the solver would otherwise accept a bound that means nothing."""
+    ph = problem().phases.first
+    with raises(ValueError, "never negative", "Write 0.0 or more", at="duration.bounds"):
+        ph.duration.bounds = (-1.0, 1.0)
+
+
+def test_a_duration_has_no_open_lower_side() -> None:
+    """None leaves a side open everywhere else; here zero already is the open side."""
+    ph = problem().phases.first
+    with raises(ValueError, "never negative", "write 0.0", at="duration.bounds"):
+        ph.duration.bounds = (None, 1.0)
+
+
+def test_a_duration_is_set_through_its_bounds() -> None:
+    ph = problem().phases.first
+    with raises(AttributeError, "cannot be replaced", "duration.bounds", at="ph.duration ="):
+        ph.duration = (0.0, 1.0)  # type: ignore[assignment]
+
+
 # ----------------------------------------------------- bounds that contradict each other
 
 

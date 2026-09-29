@@ -68,6 +68,7 @@ class PhaseSpec:
     time_final: tuple[float, float]
     time_guess: tuple[float, float]
     time_scale: float
+    duration_bounds: tuple[float, float]
     mesh: Mesh
 
 
@@ -245,6 +246,7 @@ def snapshot(problem: Problem) -> ProblemSpec:
             time_final=phase.time.final,
             time_guess=phase.time.guess,
             time_scale=phase.time.scale,
+            duration_bounds=phase.duration.bounds,
             mesh=phase.mesh,
         )
         for phase in problem.phases

@@ -16,7 +16,6 @@ transcription calls the new callbacks directly.
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -520,8 +519,8 @@ def _phase_spec(phase: PhaseSpec_) -> PhaseSpec:
         initial_time_upper=phase.time_initial[1],
         final_time_lower=phase.time_final[0],
         final_time_upper=phase.time_final[1],
-        duration_lower=0.0,
-        duration_upper=math.inf,
+        duration_lower=phase.duration_bounds[0],
+        duration_upper=phase.duration_bounds[1],
         state_scale=_scale_array(phase.state, phase.state_scale),
         control_scale=_scale_array(phase.control, phase.control_scale),
         integral_scale=_scale_array(phase.integral, phase.integral_scale),
