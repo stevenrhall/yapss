@@ -1,6 +1,6 @@
 """
 
-Package configuration: logging, Conda detection, and the `YAPSS_IPOPT_SOURCE` removal notice.
+Package configuration: logging, Conda detection, the docs' address, the old variable notice.
 
 Imported for its side effect of configuring the ``yapss`` logger. Locating the Ipopt
 library itself lives in `mseipopt.library`, not here.
@@ -13,7 +13,9 @@ from __future__ import annotations
 import logging
 import os
 import platform
+import re
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from warnings import warn
 
@@ -55,6 +57,38 @@ console_handler.setFormatter(formatter)
 
 # Add the handler to the package logger
 _package_logger.addHandler(console_handler)
+
+
+DOCS = "https://yapss.readthedocs.io/en/{}/"
+"""The documentation of one version, by Read the Docs' name for it."""
+
+
+def docs_url(page: str, installed: str | None = None) -> str:
+    """Return the address of `page` in the documentation of the installed version.
+
+    Each release has its own documentation, under its tag (``/en/v0.4.0/``), so a link printed
+    by one release keeps explaining that release whatever a later one renames. A development
+    build or a pre-release has none, and gets the newest release's, ``/en/stable/``.
+
+    Parameters
+    ----------
+    page : str
+        The page's path in the documentation, such as ``"reference/ipopt_backend.html"``.
+    installed : str, optional
+        The version to link, by default the installed one.
+
+    Returns
+    -------
+    str
+        The address.
+    """
+    if installed is None:
+        try:
+            installed = version("yapss")
+        except PackageNotFoundError:
+            installed = ""
+    name = f"v{installed}" if re.fullmatch(r"\d+(\.\d+)*", installed) else "stable"
+    return DOCS.format(name) + page
 
 
 def get_conda_prefix() -> Path | None:

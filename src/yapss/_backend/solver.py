@@ -25,14 +25,14 @@ import numpy as np
 from .auto import make_auto_functions
 from .bounds import get_nlp_constraint_function_bounds, get_nlp_decision_variable_bounds
 from .central_difference import make_cd_functions
-from .config import get_conda_prefix, warn_if_ipopt_source_env_set
+from .config import docs_url, get_conda_prefix, warn_if_ipopt_source_env_set
 from .exceptions import user_stacklevel
 from .guess import make_initial_guess_nlp
 from .ipopt_options import IpoptOptionSettingWarning, refusal_message
 from .ipopt_status import status_or_raise
 from .mesh import Mesh
 from .mseipopt import bare_np, initialize_ipopt
-from .mseipopt.library import read_ipopt_header
+from .mseipopt import library as ipopt_library
 from .nlp import NLP
 from .setup_check import check_callbacks, check_derivatives
 from .solution import Solution, make_solution_object
@@ -157,8 +157,22 @@ def solve(
     warn_if_ipopt_source_env_set()
 
     # Resolve, load, verify and configure once per process; idempotent.
-    library = initialize_ipopt()
-    header = read_ipopt_header(library)
+    try:
+        library = initialize_ipopt()
+    except (
+        ipopt_library.DuplicateIpoptLibraryError,
+        ipopt_library.IpoptAbiError,
+        ipopt_library.IpoptLibraryNotFoundError,
+    ) as exc:
+        # The messages are the vendored package's, which knows nothing of YAPSS's pages; the
+        # page says why the check exists. A failed load re-raises the same object on every
+        # later solve, so the note is added once.
+        page = docs_url("reference/ipopt_backend.html")
+        note = f"Read more about how YAPSS connects to Ipopt: {page}"
+        if note not in getattr(exc, "__notes__", ()):
+            exc.add_note(note)
+        raise
+    header = ipopt_library.read_ipopt_header(library)
     run["ipopt_library"] = Path(library).name
     run["ipopt_version"] = (
         None if header is None or header.version is None else ".".join(map(str, header.version))
