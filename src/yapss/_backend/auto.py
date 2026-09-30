@@ -16,11 +16,12 @@ from typing import TYPE_CHECKING, Any, cast
 
 # third-party imports
 import numpy as np
-from casadi import SX, Function
+from casadi import SX, Function, depends_on
 from casadi import hessian as cd_hessian
 from casadi import jacobian as cd_jacobian
 from casadi import tril, vertcat
 
+from yapss.math._external import coefficients, tracing
 from yapss.math.wrapper import SXW, sx_array
 
 from .input_args import (
@@ -56,6 +57,8 @@ from .structure import DVPhase, DVStructure
 if TYPE_CHECKING:
     # third-party imports
     from numpy.typing import NDArray
+
+    from yapss.math._external import StandIn
 
     from .spec import ProblemSpec
     from .types_ import CHS, CJS, DHS, DJS, OGS, OHS, CHSPhase, CJSPhase
@@ -242,28 +245,32 @@ def make_discrete_derivatives(
         dv_keys += [(p, "t0", 0)]
         dv_keys += [(p, "tf", 0)]
 
+    variables = vertcat(*[item._value for item in sxqt])
+
     # objective function
     objective_function_ = cast(ObjectiveFunctionObject, problem.functions.objective)
-    call_callback(objective_function_, objective_arg)
+    with tracing() as objective_uses:
+        call_callback(objective_function_, objective_arg)
     objective_out = SXW(objective_arg.objective)
+    objective_inputs, objective_stages = stand_in_inputs(variables, objective_uses)
     objective_function = Function(
         "objective",
-        [vertcat(*[item._value for item in sxqt])],
+        objective_inputs,
         [objective_out._value],
     )
 
     # objective gradient
-    gradient = cd_jacobian(objective_out._value, vertcat(*[item._value for item in sxqt]))
+    gradient = cd_jacobian(objective_out._value, variables)
     col = gradient.sparsity().get_col()
     objective_gradient_structure = tuple(dv_keys[i] for i in col)
     gradient = vertcat(*[gradient[0, i] for i in col])
-    gradient_function = Function("gradient", [vertcat(*[item._value for item in sxqt])], [gradient])
+    gradient_function = Function("gradient", objective_inputs, [gradient])
 
     if problem.derivative_order == "second":
         # objective hessian
         casadi_objective_hessian = cd_hessian(
             objective_out._value,
-            vertcat(*[item._value for item in sxqt]),
+            variables,
         )[0]
         casadi_objective_hessian = tril(casadi_objective_hessian, True)  # noqa: FBT003
         rc = tuple(zip(*casadi_objective_hessian.sparsity().get_triplet(), strict=True))
@@ -271,43 +278,46 @@ def make_discrete_derivatives(
         casadi_objective_hessian = vertcat(*[casadi_objective_hessian[i, j] for i, j in rc])
         objective_hessian_function = Function(
             "objective_hessian",
-            [vertcat(*[item._value for item in sxqt])],
+            objective_inputs,
             [casadi_objective_hessian],
         )
 
     discrete_out: NDArray[Any]
     if problem.nd > 0:
         discrete_function_ = cast(DiscreteFunctionObject, problem.functions.discrete)
-        call_callback(discrete_function_, discrete_arg)
+        with tracing() as discrete_uses:
+            call_callback(discrete_function_, discrete_arg)
         discrete_out = discrete_arg._discrete
     else:
+        discrete_uses = []
         discrete_out = np.array([], dtype=object)
+    discrete_inputs, discrete_stages = stand_in_inputs(variables, discrete_uses)
 
     for i, item in enumerate(discrete_out):
         discrete_out[i] = SXW(item)
 
     discrete_function = Function(
         "discrete",
-        [vertcat(*[item._value for item in sxqt])],
+        discrete_inputs,
         [vertcat(*[item._value for item in discrete_out])],
     )
 
     # discrete jacobian
     jac = cd_jacobian(
         vertcat(*[item._value for item in discrete_out]),
-        vertcat(*[item._value for item in sxqt]),
+        variables,
     )
     rc = tuple(zip(*jac.sparsity().get_triplet(), strict=True))
     discrete_jacobian_structure = tuple((i, dv_keys[j]) for i, j in rc)
     jac = vertcat(*[jac[i, j] for i, j in rc])
-    jacobian_function = Function("jacobian", [vertcat(*[item._value for item in sxqt])], [jac])
+    jacobian_function = Function("jacobian", discrete_inputs, [jac])
 
     if problem.derivative_order == "second":
         hessian = []
         dhs = []
 
         for i, f in enumerate([item._value for item in discrete_out]):
-            hessian_i = cd_hessian(f, vertcat(*[item._value for item in sxqt]))[0]
+            hessian_i = cd_hessian(f, variables)[0]
             hessian_i = tril(hessian_i, True)  # noqa: FBT003
             rc = tuple(zip(*hessian_i.sparsity().get_triplet(), strict=True))
             hessian_i = [hessian_i[j, k] for j, k in rc]
@@ -318,11 +328,17 @@ def make_discrete_derivatives(
         hessian = vertcat(*hessian)
         discrete_hessian_functions = Function(
             "discrete_hessian",
-            [vertcat(*[item._value for item in sxqt])],
+            discrete_inputs,
             [hessian],
         )
 
     discrete_jacobian_structure = tuple(discrete_jacobian_structure)
+
+    def objective_tables(point: NDArray[np.float64], order: int) -> list[NDArray[np.float64]]:
+        return stand_in_tables(objective_uses, objective_stages, point[:, None], order)
+
+    def discrete_tables(point: NDArray[np.float64], order: int) -> list[NDArray[np.float64]]:
+        return stand_in_tables(discrete_uses, discrete_stages, point[:, None], order)
 
     # define callback functions
 
@@ -335,7 +351,7 @@ def make_discrete_derivatives(
 
         """
         sxqt_ = make_sxqt(problem, arg)
-        objective_ = objective_function(sxqt_).full()
+        objective_ = objective_function(sxqt_, *objective_tables(sxqt_, 0)).full()
         arg.objective = objective_[0, 0]
 
     def objective_gradient(arg: ObjectiveGradientArg) -> None:
@@ -346,7 +362,7 @@ def make_discrete_derivatives(
         arg: ObjectiveArg
         """
         sxqt_ = make_sxqt(problem, arg)
-        gradient_ = gradient_function(sxqt_).full()[:, 0]
+        gradient_ = gradient_function(sxqt_, *objective_tables(sxqt_, 1)).full()[:, 0]
         for i, key in enumerate(objective_gradient_structure):
             arg.gradient[key] = gradient_[i]
 
@@ -360,7 +376,7 @@ def make_discrete_derivatives(
             arg: ObjectiveArg
             """
             sxqt_ = make_sxqt(problem, arg)
-            discrete_ = discrete_function(sxqt_).full()
+            discrete_ = discrete_function(sxqt_, *discrete_tables(sxqt_, 0)).full()
             arg.discrete = discrete_[:, 0]
 
         def discrete_jacobian(arg_dj: DiscreteJacobianArg) -> None:
@@ -371,7 +387,7 @@ def make_discrete_derivatives(
             arg_dj: DiscreteJacobianArg
             """
             sxqt_ = make_sxqt(problem, arg_dj)
-            jacobian_ = jacobian_function(sxqt_).full()
+            jacobian_ = jacobian_function(sxqt_, *discrete_tables(sxqt_, 1)).full()
             for i, key in enumerate(discrete_jacobian_structure):
                 arg_dj.jacobian[key] = jacobian_[i, 0]
 
@@ -385,7 +401,9 @@ def make_discrete_derivatives(
             arg: ObjectiveArg
             """
             sxqt_ = make_sxqt(problem, arg)
-            hessian_ = objective_hessian_function(sxqt_).full().reshape(-1)
+            hessian_ = (
+                objective_hessian_function(sxqt_, *objective_tables(sxqt_, 2)).full().reshape(-1)
+            )
             assert objective_hessian_structure is not None
             for i, key in enumerate(objective_hessian_structure):
                 arg.hessian[key] = hessian_[i]
@@ -400,7 +418,9 @@ def make_discrete_derivatives(
                 arg: DiscreteArg
                 """
                 sxqt_ = make_sxqt(problem, arg)
-                hessian_ = discrete_hessian_functions(sxqt_).full().reshape(-1)
+                hessian_ = (
+                    discrete_hessian_functions(sxqt_, *discrete_tables(sxqt_, 2)).full().reshape(-1)
+                )
                 assert discrete_hessian_structure is not None
                 for i, key in enumerate(discrete_hessian_structure):
                     arg.hessian[key] = hessian_[i]
@@ -463,7 +483,10 @@ def make_continuous_derivatives(
     # for the functions
     continuous_function_ = cast(ContinuousFunctionObject, problem.functions.continuous)
     arg = store.value_arg
-    call_callback(continuous_function_, arg)
+    with tracing() as uses:
+        call_callback(continuous_function_, arg)
+    stand_ins: list[list[StandIn]] = []
+    stages: list[list[Function]] = []
 
     for p in range(problem.np):
         phase = store.phase[p]
@@ -500,8 +523,13 @@ def make_continuous_derivatives(
 
         # create continuous function that operates on numeric arguments
         sxut = vertcat(*sxut)
+        # the wrapped functions this phase's outputs were traced through
+        mine = [use for use in uses if depends_on(vertcat(*fgh), use.symbols)]
+        inputs, phase_stages = stand_in_inputs(sxut, mine)
+        stand_ins.append(mine)
+        stages.append(phase_stages)
         continuous_functions.append(
-            Function("continuous", [sxut], [vertcat(*f), vertcat(*g), vertcat(*h)]),
+            Function("continuous", inputs, [vertcat(*f), vertcat(*g), vertcat(*h)]),
         )
 
         # create jacobian function that operates on numeric arguments
@@ -510,7 +538,7 @@ def make_continuous_derivatives(
         rc = tuple(zip(*casadi_jacobian.sparsity().get_triplet(), strict=True))
         cjs.append(tuple((cf_keys[i], cv_keys[j]) for i, j in rc))
         casadi_jacobian = vertcat(*[casadi_jacobian[i, j] for i, j in rc])
-        jacobian_functions.append(Function("jacobian", [sxut], [casadi_jacobian]))
+        jacobian_functions.append(Function("jacobian", inputs, [casadi_jacobian]))
 
         # hessian
         if problem.derivative_order == "second":
@@ -527,16 +555,19 @@ def make_continuous_derivatives(
 
             chs.append(tuple(chs_i))
             casadi_hessian = vertcat(*casadi_hessian)
-            hessian_functions.append(Function("hessian", [sxut], [casadi_hessian]))
+            hessian_functions.append(Function("hessian", inputs, [casadi_hessian]))
 
     continuous_jacobian_structure = tuple(cjs)
+
+    def tables(q: int, points: NDArray[np.float64], order: int) -> list[NDArray[np.float64]]:
+        return stand_in_tables(stand_ins[q], stages[q], points, order)
 
     def continuous(continuous_arg: ContinuousArg[np.float64]) -> None:
         """Continuous callback function."""
         sxut_ = make_sxut(problem, continuous_arg)
 
         for q in continuous_arg.phase_list:
-            continuous_ = continuous_functions[q](sxut_[q])
+            continuous_ = continuous_functions[q](sxut_[q], *tables(q, sxut_[q], 0))
             if continuous_[0].shape[0]:
                 continuous_arg.phase[q].dynamics[:] = continuous_[0]
             if continuous_[1].shape[0]:
@@ -551,7 +582,7 @@ def make_continuous_derivatives(
         for q in continuous_arg.phase_list:
             # one dense conversion per phase, then row views: a per-term DM slice and
             # full() cost more than the CasADi evaluation itself
-            jac = jacobian_functions[q](sxut_[q]).full()
+            jac = jacobian_functions[q](sxut_[q], *tables(q, sxut_[q], 1)).full()
             for i, key in enumerate(cjs[q]):
                 continuous_arg.phase[q].jacobian[key] = jac[i]
 
@@ -562,7 +593,7 @@ def make_continuous_derivatives(
             sxut_ = make_sxut(problem, continuous_arg)
 
             for q in continuous_arg.phase_list:
-                hessian = hessian_functions[q](sxut_[q]).full()
+                hessian = hessian_functions[q](sxut_[q], *tables(q, sxut_[q], 2)).full()
                 for i, key in enumerate(chs[q]):
                     continuous_arg.phase[q].hessian[key] = hessian[i]
 
@@ -573,6 +604,54 @@ def make_continuous_derivatives(
         continuous_hessian,
         tuple(chs) if chs is not None else None,
     )
+
+
+def stand_in_inputs(variables: SX, uses: list[StandIn]) -> tuple[list[SX], list[Function]]:
+    """Return the inputs of a traced function, and the stages that fill its coefficients.
+
+    A function traced through `yapss.math.external` takes the coefficients of the stand-ins as
+    a second input. One traced through none takes its variables alone.
+
+    Parameters
+    ----------
+    variables : SX
+        The variables the function was traced in.
+    uses : list of StandIn
+        The stand-ins in the trace, in trace order.
+
+    Returns
+    -------
+    inputs : list of SX
+        The variables, and the coefficients if there are any.
+    stages : list of Function
+        For each stand-in, the function of the inputs that returns its arguments.
+    """
+    inputs = [variables]
+    if uses:
+        inputs.append(vertcat(*[use.symbols for use in uses]))
+    return inputs, [Function("stage", inputs, [use.arguments]) for use in uses]
+
+
+def stand_in_tables(
+    uses: list[StandIn], stages: list[Function], points: NDArray[np.float64], order: int
+) -> list[NDArray[np.float64]]:
+    """Return the second argument of a traced function, as a list to unpack: its coefficients.
+
+    Parameters
+    ----------
+    uses : list of StandIn
+    stages : list of Function
+    points : NDArray
+        The variables, one column for each point.
+    order : int
+        The highest derivative the function being evaluated takes.
+
+    Returns
+    -------
+    list of NDArray
+        The coefficients at every point, or nothing for a function with no stand-ins.
+    """
+    return [coefficients(uses, stages, points, order)] if uses else []
 
 
 def make_sxqt(

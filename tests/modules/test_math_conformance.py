@@ -82,6 +82,7 @@ OUT_OF_SCOPE = {
     "where": "three arguments; symbolic dispatch tested in test_sxw_scrub.py",
     "matmul": "not elementwise",
     "invert": "integer domain",
+    "external": "wraps a function rather than being one; tested in test_math_external.py",
 }
 
 # Exported names that do not round-trip through SXW. Entries are xfail(strict=True), so

@@ -5,8 +5,10 @@ The math functions that work under every derivative method.
 Each is NumPy's function of the same name on real arguments, and also takes the symbolic ones a
 callback is given under ``"auto"``. ``fmax``, ``fmin`` and ``where`` differ from NumPy's: they
 return NaN where NumPy's would drop it, since the central-difference methods find the sparsity
-structure by setting a variable to NaN. The module provides nothing else; the rest of NumPy is
-imported from NumPy.
+structure by setting a variable to NaN. The rest of NumPy is imported from NumPy.
+
+The one name that is not NumPy's is `external`, which wraps a function no derivative method can
+see into, such as a table lookup or a library, so that a callback can call it under ``"auto"``.
 
 """
 
@@ -16,6 +18,7 @@ import numpy as _np  # noqa: ICN001
 
 from yapss._backend.exceptions import REMOVED_NAMES as _REMOVED_NAMES
 from yapss.math import functions
+from yapss.math._external import external
 
 __all__ = [  # noqa: RUF022
     "abs",
@@ -54,6 +57,7 @@ __all__ = [  # noqa: RUF022
     "exp",
     "exp2",
     "expm1",
+    "external",
     "fabs",
     "float_power",
     "floor",
