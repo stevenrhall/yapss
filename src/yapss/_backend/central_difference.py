@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 # package imports
+from .difference_steps import EPS, difference_steps
 from .finite_difference import make_fd_structure
 from .input_args import (
     ContinuousFunctionFloat,
@@ -61,16 +62,8 @@ if TYPE_CHECKING:
 
     Array = NDArray[np.float64]
 
-# EPS should be 2 ** -53, but calculate to be sure
-exponent: int = 1
-while 1 - 2 ** float(-exponent) < 1:
-    exponent += 1
-exponent -= 1
-EPS: float = 2 ** (-exponent)
-
 # step sizes for first and second differences
-DELTA1: np.float64 = (3 * EPS) ** (1 / 3)
-DELTA2: np.float64 = (3 * EPS) ** (1 / 4)
+DELTA1, DELTA2 = (np.float64(step) for step in difference_steps(EPS))
 
 
 def make_cd_functions(
