@@ -52,6 +52,34 @@ def _limited_memory_hessian(*args: Any) -> bool:
 
 
 @dataclass(frozen=True)
+class NonFinite:
+    """A values callback's result that held a NaN or an infinity, reported to Ipopt as a failure.
+
+    Attributes
+    ----------
+    callback : str
+        The callback: ``"eval_f"``, ``"eval_g"``, ``"eval_grad_f"``, ``"eval_jac_g"`` or
+        ``"eval_h"``.
+    count : int
+        How many entries were not finite.
+    size : int
+        How many entries the result has.
+    first : int
+        The position of the first entry that was not finite.
+    """
+
+    callback: str
+    count: int
+    size: int
+    first: int
+
+    def __str__(self) -> str:
+        """Describe the result in the terms of the callback."""
+        where = "value" if self.size == 1 else f"{self.count} of {self.size} entries"
+        return f"{self.callback} returned a NaN or Inf: {where}, the first at index {self.first}"
+
+
+@dataclass(frozen=True)
 class SolveResult:
     """Ipopt status and the exact in/out arrays used by one native solve."""
 
@@ -62,6 +90,8 @@ class SolveResult:
     mult_g: NDArray[np.float64]
     mult_x_L: NDArray[np.float64]
     mult_x_U: NDArray[np.float64]
+    non_finite: NonFinite | None = None
+    """The last values-callback result that was not finite, if any was."""
 
     def copy(self) -> SolveResult:
         """Return a deep snapshot that does not alias any native-call buffer."""
@@ -73,6 +103,7 @@ class SolveResult:
             mult_g=self.mult_g.copy(),
             mult_x_L=self.mult_x_L.copy(),
             mult_x_U=self.mult_x_U.copy(),
+            non_finite=self.non_finite,
         )
 
 
@@ -221,6 +252,7 @@ class Problem:
         self._callback_exception: tuple[BaseException, TracebackType | None, str, str] | None = None
         self._cancel_requested = False
         self._cancellation_context: tuple[str, str] | None = None
+        self._non_finite: NonFinite | None = None
         c_callbacks = {
             "eval_f": wrap_f(eval_f, self._invoke_callback),
             "eval_g": wrap_g(eval_g, self._invoke_callback),
@@ -286,6 +318,7 @@ class Problem:
         operation: Callable[[], Any],
         *,
         allow_invalid_point: bool = True,
+        output: NDArray[np.float64] | None = None,
     ) -> bool:
         if self._termination_pending():
             return False
@@ -296,6 +329,19 @@ class Problem:
                     f"{callback_name} must return bool or numpy.bool_, got "
                     f"{type(result).__name__}"
                 )
+            if result and output is not None:
+                # A NaN or Inf is reported to Ipopt as a failed evaluation, which it treats
+                # as it treats any other: the trial point is rejected and the step shortened.
+                # Ipopt's own check of the derivatives for this (check_derivatives_for_naninf)
+                # is left off: on a failed constraint evaluation it reads a vector that was
+                # never written and crashes (coin-or/Ipopt#865).
+                finite = np.isfinite(output)
+                if not finite.all():
+                    bad = np.flatnonzero(~finite)
+                    self._non_finite = NonFinite(
+                        callback_name, int(bad.size), int(output.size), int(bad[0])
+                    )
+                    return False
             return bool(result)
         except InvalidPoint as error:
             if allow_invalid_point:
@@ -314,6 +360,7 @@ class Problem:
     def _clear_termination(self) -> None:
         self._callback_exception = None
         self._cancel_requested = False
+        self._non_finite = None
         self._cancellation_context = None
 
     def _require_open(self) -> None:
@@ -516,13 +563,14 @@ class Problem:
             self._solving = False
         failure = self._callback_exception
         cancelled = self._cancel_requested
+        non_finite = self._non_finite
         self._clear_termination()
         if failure is not None:
             error, traceback, _, _ = failure
             raise error.with_traceback(traceback)
         if cancelled:
             status = _USER_REQUESTED_STOP
-        return SolveResult(status, x, g, obj_val, mult_g, mult_x_L, mult_x_U)
+        return SolveResult(status, x, g, obj_val, mult_g, mult_x_L, mult_x_U, non_finite)
 
     def __enter__(self) -> Problem:
         self._require_open()
@@ -549,12 +597,13 @@ def wrap_f(f: Any, invoke: Callable[..., bool]) -> Any:
     # happens via decorator syntax or a plain call.
     @functools.wraps(f)
     def wrapper(n: Any, x: Any, new_x: Any, obj_value: Any, user_data: Any) -> Any:
+        obj_value_array = as_array(obj_value, ())
+
         def operation() -> Any:
             x_array = as_array(x, (n,))
-            obj_value_array = as_array(obj_value, ())
             return f(x_array, bool(new_x), obj_value_array)
 
-        return invoke("eval_f", "values", operation)
+        return invoke("eval_f", "values", operation, output=obj_value_array)
 
     return bare.Eval_F_CB(wrapper)
 
@@ -564,12 +613,13 @@ def wrap_grad_f(grad_f: Any, invoke: Callable[..., bool]) -> Any:
 
     @functools.wraps(grad_f)
     def wrapper(n: Any, x: Any, new_x: Any, grad_ptr: Any, user_data: Any) -> Any:
+        grad_f_array = as_array(grad_ptr, (n,))
+
         def operation() -> Any:
             x_array = as_array(x, (n,))
-            grad_f_array = as_array(grad_ptr, (n,))
             return grad_f(x_array, bool(new_x), grad_f_array)
 
-        return invoke("eval_grad_f", "values", operation)
+        return invoke("eval_grad_f", "values", operation, output=grad_f_array)
 
     return bare.Eval_Grad_F_CB(wrapper)
 
@@ -579,12 +629,13 @@ def wrap_g(g: Any, invoke: Callable[..., bool]) -> Any:
 
     @functools.wraps(g)
     def wrapper(n: Any, x: Any, new_x: Any, m: Any, g_ptr: Any, user_data: Any) -> Any:
+        g_array = as_array(g_ptr, (m,)) if m else np.empty(0, dtype=np.float64)
+
         def operation() -> Any:
             x_array = as_array(x, (n,))
-            g_array = as_array(g_ptr, (m,)) if m else np.empty(0, dtype=np.float64)
             return g(x_array, bool(new_x), g_array)
 
-        return invoke("eval_g", "values", operation)
+        return invoke("eval_g", "values", operation, output=g_array)
 
     return bare.Eval_G_CB(wrapper)
 
@@ -624,6 +675,12 @@ def wrap_jac_g(
             and (values_present or nele_jac == 0)
         )
 
+        values_array = (
+            as_array(values, (nele_jac,))
+            if values_request and nele_jac
+            else np.empty(0, dtype=np.float64)
+        )
+
         def operation() -> Any:
             if nele_jac != len(rows):
                 raise RuntimeError("native Jacobian nonzero count does not match the problem")
@@ -633,9 +690,6 @@ def wrap_jac_g(
                     as_array(jCol, (nele_jac,))[...] = columns
                 return True
             if values_request:
-                values_array = (
-                    as_array(values, (nele_jac,)) if nele_jac else np.empty(0, dtype=np.float64)
-                )
                 return jac_g(as_array(x, (n,)), bool(new_x), values_array)
             raise RuntimeError(
                 "invalid native Jacobian callback pointer combination: "
@@ -650,6 +704,7 @@ def wrap_jac_g(
             phase,
             operation,
             allow_invalid_point=phase == "values",
+            output=values_array if values_request else None,
         )
 
     return bare.Eval_Jac_G_CB(wrapper)
@@ -695,6 +750,12 @@ def wrap_h(
             and (values_present or nele_hess == 0)
         )
 
+        values_array = (
+            as_array(values, (nele_hess,))
+            if values_request and nele_hess
+            else np.empty(0, dtype=np.float64)
+        )
+
         def operation() -> Any:
             if nele_hess != len(rows):
                 raise RuntimeError("native Hessian nonzero count does not match the problem")
@@ -704,9 +765,6 @@ def wrap_h(
                     as_array(jCol, (nele_hess,))[...] = columns
                 return True
             if values_request:
-                values_array = (
-                    as_array(values, (nele_hess,)) if nele_hess else np.empty(0, dtype=np.float64)
-                )
                 mult_array = as_array(mult, (m,)) if m else np.empty(0, dtype=np.float64)
                 return h(
                     as_array(x, (n,)),
@@ -724,7 +782,13 @@ def wrap_h(
 
         structure_phase = not values_present and (rows_present or columns_present or not x_present)
         phase = "structure" if structure_phase else "values"
-        return invoke("eval_h", phase, operation, allow_invalid_point=phase == "values")
+        return invoke(
+            "eval_h",
+            phase,
+            operation,
+            allow_invalid_point=phase == "values",
+            output=values_array if values_request else None,
+        )
 
     return bare.Eval_H_CB(wrapper)
 

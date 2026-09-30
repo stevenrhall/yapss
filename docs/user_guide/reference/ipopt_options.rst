@@ -128,19 +128,25 @@ through ``problem.ipopt_options``.
     the same in total time. Setting ``mu_strategy = "monotone"`` is worth trying when a solve is
     slow.
 
-``check_derivatives_for_naninf``
-    ``"yes"`` rather than ``"no"``. Without the check, Ipopt passes a NaN or infinite Jacobian
-    or Hessian entry to its linear solver, which can crash the Python process; with it, Ipopt
-    stops with status -13 ("Invalid number in NLP function or derivative detected"), and
-    ``problem.solve()`` raises ``ValueError`` saying so. The check costs one pass over the
-    derivative values per evaluation. Separately, ``problem.solve()`` raises ``ValueError``
-    before starting Ipopt if the objective, constraints, or their first derivatives are not
-    finite at the initial guess, naming the quantities involved.
-
 ``timing_statistics``
     ``"yes"`` rather than ``"no"``, so that Ipopt measures the time spent in its own components
     and in evaluating the problem's functions; ``print_timing_statistics = "yes"`` prints the
     measurements at the end of a solve.
+
+``check_derivatives_for_naninf``
+    Left at Ipopt's default, ``"no"``, and YAPSS checks instead. Ipopt otherwise passes a NaN
+    or infinite Jacobian or Hessian entry to its linear solver, which can crash the Python
+    process; but with the option on, Ipopt crashes itself whenever a constraint evaluation
+    fails, as one does when a callback raises (`coin-or/Ipopt#865
+    <https://github.com/coin-or/Ipopt/issues/865>`_). So YAPSS looks at every value and
+    derivative a callback returns and, if any is not finite, tells Ipopt the evaluation
+    failed, which is what the option would have done: Ipopt rejects the trial point and
+    shortens its step. If Ipopt cannot recover it stops with status -13 ("Invalid number in
+    NLP function or derivative detected"), and ``problem.solve()`` raises ``ValueError`` naming
+    the callback and the entry. Setting the option to ``"yes"`` yourself is not recommended
+    until the Ipopt fix is released. Separately, ``problem.solve()`` raises ``ValueError``
+    before starting Ipopt if the objective, constraints, or their first derivatives are not
+    finite at the initial guess, naming the quantities involved.
 
 ``linear_solver`` and ``mumps_pivot_order``
     Outside a Conda environment only: MUMPS as the linear solver, and on macOS the QAMD

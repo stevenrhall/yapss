@@ -186,13 +186,16 @@ _WITHOUT_ITERATE: dict[IpoptStatus, tuple[type[Exception], str]] = {
 }
 
 
-def status_or_raise(code: int) -> IpoptStatus:
+def status_or_raise(code: int, non_finite: object = None) -> IpoptStatus:
     """Return Ipopt's status code as an `IpoptStatus`, raising if there is no iterate.
 
     Parameters
     ----------
     code : int
         The status the Ipopt C interface returned.
+    non_finite : object, optional
+        The last callback result that was not finite, if there was one, as the binding
+        records it; it is named in the message when the status is that Ipopt found one.
 
     Raises
     ------
@@ -218,4 +221,6 @@ def status_or_raise(code: int) -> IpoptStatus:
     msg = f'Ipopt stopped without a solution. Status {int(status)}: "{status.message}"'
     if explanation:
         msg += f"\n{explanation}"
+    if status is IpoptStatus.INVALID_NUMBER_DETECTED and non_finite is not None:
+        msg += f"\nThe last such result: {non_finite}."
     raise exception(msg)

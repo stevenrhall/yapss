@@ -34,13 +34,16 @@ class IpoptOptionSettingWarning(YapssWarning):
 
 DEFAULT_IPOPT_OPTIONS = {
     "mu_strategy": "adaptive",
-    # Ipopt otherwise passes a NaN or Inf Jacobian or Hessian to its linear solver, which
-    # can crash the process (MUMPS on some sparsity patterns). With the check on, Ipopt
-    # stops with status -13 (Invalid_Number_Detected) instead. The scan is one pass over
-    # the nonzeros per evaluation, negligible next to a factorization.
-    "check_derivatives_for_naninf": "yes",
 }
-"""Default Ipopt options."""
+"""Default Ipopt options.
+
+``check_derivatives_for_naninf`` is deliberately not among them. Ipopt otherwise passes a NaN
+or Inf Jacobian or Hessian to its linear solver, which can crash the process (MUMPS on some
+sparsity patterns), but with the option on Ipopt crashes itself whenever a constraint
+evaluation reports failure (coin-or/Ipopt#865). The binding checks every callback's result
+instead (`mseipopt.bare_np.Problem._invoke_callback`) and reports a non-finite one to Ipopt as
+a failed evaluation, which is what the option would have done.
+"""
 
 RESERVED_IPOPT_OPTIONS = {
     "nlp_scaling_method": (
