@@ -12,6 +12,13 @@ The problem is originally due to Benson:
     David Benson. A Gauss pseudospectral transcription for optimal control. PhD thesis,
     Massachusetts Institute of Technology, 2005. https://hdl.handle.net/1721.1/28919.
 
+The atmosphere is the one part of the model that `setup` lets the caller choose, to show what
+to do with a function that ``"auto"`` cannot trace. Benson's atmosphere is an exponential,
+which ``"auto"`` traces like everything else. The same exponential can be hidden from it behind
+`yapss.math.external`, with its derivatives supplied or left to be differenced, and the answer
+does not change. The last choice is the case the wrapper is for: a standard atmosphere from a
+library, which has no formula to trace.
+
 """
 
 # The orbital elements are conventionally capitalized.
@@ -30,7 +37,7 @@ from numpy.typing import NDArray
 
 # package imports
 import yapss
-from yapss.math import arccos, arcsin, arctan2, cos, exp, pi, sin, sqrt
+from yapss.math import arccos, arcsin, arctan2, cos, exp, external, pi, sin, sqrt
 
 # the Earth, the atmosphere and the launch site
 
@@ -214,8 +221,118 @@ Vector3 = NDArray[Any] | Sequence[Any]
 Continuous = Callable[[StageArg, StageOut], None]
 """The type of a stage's continuous callback."""
 
+Density = Callable[[Any], Any]
+"""The type of an atmosphere: the air density (kg/m^3) at an altitude (m)."""
 
-def make_dynamics(thrust: float, mass_flow: float) -> Continuous:
+ATMOSPHERES = ("exponential", "supplied", "differenced", "icao")
+"""The atmospheres `setup` offers."""
+
+
+def exponential_density(h: Any) -> Any:
+    """Return the density of the exponential atmosphere at altitude `h`.
+
+    Written with `yapss.math.exp`, so ``"auto"`` traces it with the rest of the model.
+    """
+    return rho0 * exp(-h / h0)
+
+
+def numpy_density(h: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Return the same density, written with NumPy: a function ``"auto"`` cannot trace."""
+    return rho0 * np.exp(-h / h0)
+
+
+def numpy_density_slope(h: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Return the first derivative of `numpy_density`."""
+    return -numpy_density(h) / h0
+
+
+def numpy_density_curvature(h: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Return the second derivative of `numpy_density`."""
+    return numpy_density(h) / h0**2
+
+
+def icao_density() -> Density:
+    """Return the density of the ICAO standard atmosphere, from the ``ambiance`` package.
+
+    ``ambiance`` covers altitudes up to 80 km, and the vehicle climbs well above that, so the
+    density is continued upward from its value at 80 km with the scale height of the
+    exponential atmosphere. Drag is negligible there.
+
+    Returns
+    -------
+    callable
+        The density, wrapped for use in a callback.
+
+    Raises
+    ------
+    ImportError
+        If ``ambiance`` is not installed. YAPSS does not install it.
+    """
+    try:
+        from ambiance import Atmosphere  # noqa: PLC0415  -- optional, and this is its one use
+    except ImportError as error:
+        msg = (
+            'The "icao" atmosphere uses the ambiance package, which is not installed and which '
+            'YAPSS does not install. Install it with "pip install ambiance".'
+        )
+        raise ImportError(msg) from error
+
+    top = 80_000.0
+    density_at_top = float(Atmosphere(top).density[0])
+
+    @external(scale=h0, vectorized=True)
+    def density(h: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Return the ICAO standard density at altitudes `h`, continued above 80 km."""
+        rho = np.empty_like(h)
+        above = h >= top
+        rho[above] = density_at_top * np.exp(-(h[above] - top) / h0)
+        if not above.all():  # ambiance refuses an empty array
+            # below the model's floor the density is held at its value there
+            rho[~above] = Atmosphere(np.maximum(h[~above], -5000.0)).density
+        return rho
+
+    return density
+
+
+def make_density(atmosphere: str) -> Density:
+    """Return the density function of the named atmosphere.
+
+    Parameters
+    ----------
+    atmosphere : str
+        One of `ATMOSPHERES`. See `setup`.
+
+    Returns
+    -------
+    callable
+        The density (kg/m^3) at an altitude (m), for use in a callback.
+
+    Raises
+    ------
+    ValueError
+        If `atmosphere` is not one of `ATMOSPHERES`.
+    ImportError
+        If `atmosphere` is ``"icao"`` and ``ambiance`` is not installed.
+    """
+    if atmosphere == "exponential":
+        return exponential_density
+    if atmosphere == "supplied":
+        return external(
+            numpy_density,
+            jacobian=numpy_density_slope,
+            hessian=numpy_density_curvature,
+            scale=h0,
+            vectorized=True,
+        )
+    if atmosphere == "differenced":
+        return external(numpy_density, scale=h0, vectorized=True)
+    if atmosphere == "icao":
+        return icao_density()
+    msg = f"atmosphere must be one of {ATMOSPHERES}; got {atmosphere!r}"
+    raise ValueError(msg)
+
+
+def make_dynamics(thrust: float, mass_flow: float, density: Density) -> Continuous:
     """Return the continuous callback of a stage with the given thrust and mass flow."""
 
     def continuous(arg: StageArg, out: StageOut) -> None:
@@ -224,7 +341,7 @@ def make_dynamics(thrust: float, mass_flow: float) -> Continuous:
         u_vec = arg.control.u
 
         r = (r_vec[0] ** 2 + r_vec[1] ** 2 + r_vec[2] ** 2) ** 0.5
-        rho = rho0 * exp(-(r - R_e) / h0)
+        rho = density(r - R_e)
         omega_cross_r = cross([0, 0, omega_e], r_vec)
         relative = [v_vec[i] - omega_cross_r[i] for i in range(3)]
         q_factor = 0.5 * rho * mag(relative) * CD * S
@@ -333,20 +450,42 @@ def orbital_elements(r_vec: Vector3, v_vec: Vector3) -> tuple[Any, ...]:
     )
 
 
-def setup() -> DeltaIII:
+def setup(atmosphere: str = "exponential") -> DeltaIII:
     """Set up the Delta III ascent problem.
+
+    Parameters
+    ----------
+    atmosphere : str, default "exponential"
+        How the air density is computed:
+
+        - ``"exponential"``: an exponential atmosphere, traced by ``"auto"``.
+        - ``"supplied"``: the same exponential, hidden from ``"auto"`` behind
+          `yapss.math.external`, with its first and second derivatives supplied.
+        - ``"differenced"``: the same again, with its derivatives left to be differenced.
+        - ``"icao"``: the ICAO standard atmosphere of the ``ambiance`` package, which is not
+          installed with YAPSS.
+
+        The first three are the same model and give the same answer.
 
     Returns
     -------
     DeltaIII
         The problem.
+
+    Raises
+    ------
+    ValueError
+        If `atmosphere` is not one of those.
+    ImportError
+        If `atmosphere` is ``"icao"`` and ``ambiance`` is not installed.
     """
+    density = make_density(atmosphere)
     problem = DeltaIII("Delta III ascent")
     phases = problem.phases
     stages = [phases.stage_0, phases.stage_1, phases.stage_2, phases.stage_3]
 
     for stage, thrust, mass_flow in zip(stages, THRUST, MASS_FLOW, strict=True):
-        stage.register.continuous(make_dynamics(thrust, mass_flow))
+        stage.register.continuous(make_dynamics(thrust, mass_flow, density))
 
     @problem.register.objective
     def objective(arg: yapss.DiscreteArg) -> Any:

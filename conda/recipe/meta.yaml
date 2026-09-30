@@ -135,6 +135,7 @@ outputs:
         - pytest
         - pytest-cov
         - pytest-xdist
+        - ambiance
         - ruff
         - mypy
         - lxml

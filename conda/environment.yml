@@ -43,6 +43,8 @@ dependencies:
   - pytest
   - pytest-cov
   - pytest-xdist
+  # the Delta III example's ICAO atmosphere; see pyproject.toml's dev extra
+  - ambiance
   - ruff==0.16.7
   - mypy==2.3.1
   - lxml

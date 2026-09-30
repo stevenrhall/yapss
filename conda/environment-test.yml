@@ -15,6 +15,9 @@ dependencies:
   - typing_extensions
   - pytest
   - pytest-cov
+  # Optional: the Delta III example's ICAO atmosphere, whose test is skipped
+  # without it.
+  - ambiance
   - hatchling
   - hatch-vcs
   # Needed by tests/conda/test_recipes.py to parse the conda recipe and

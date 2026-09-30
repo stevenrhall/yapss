@@ -171,6 +171,9 @@ EXPECTED_ONLY_IN_ENV_TEST = {
     # Needed to run the test suite itself.
     "pytest",
     "pytest-cov",
+    # Optional: the Delta III example's ICAO atmosphere. Not a yapss dependency
+    # (see pyproject.toml's dev extra); here so that its test runs under conda.
+    "ambiance",
     # Needed to `pip install --no-deps .` from source in this environment.
     "hatchling",
     "hatch-vcs",

@@ -108,6 +108,10 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
+    # The ICAO atmosphere the Delta III example offers as its `yapss.math.external` case. Not
+    # a dependency of YAPSS: the example raises ImportError when that atmosphere is asked for
+    # without it, and its test is skipped. Here so that the test runs.
+    "ambiance",
     "ruff==0.16.7",
     "mypy==2.3.1",
     "lxml",
@@ -199,6 +203,8 @@ module = [
     "matplotlib.*",
     "mpmath",
     "mpl_toolkits.*",
+    # optional: only the Delta III example's "icao" atmosphere imports it
+    "ambiance",
 ]
 ignore_missing_imports = true
 
