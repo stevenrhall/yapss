@@ -7,9 +7,10 @@ Each stage is a phase, with its own thrust and mass flow, and the phases are joi
 continuity of position and velocity -- but not of mass, which jumps when a stage is dropped.
 The trajectory ends on five of the six classical orbital elements.
 
-The physics -- the constants, the vector helpers, and the orbital-element conversions -- is
-the released version's, with its arithmetic grouped the same way, so that the two versions solve
-the same problem to the last bit and any difference in the answer is the API's.
+The problem is originally due to Benson:
+
+    David Benson. A Gauss pseudospectral transcription for optimal control. PhD thesis,
+    Massachusetts Institute of Technology, 2005. https://hdl.handle.net/1721.1/28919.
 
 """
 
@@ -31,7 +32,7 @@ from numpy.typing import NDArray
 import yapss
 from yapss.math import arccos, arcsin, arctan2, cos, exp, pi, sin, sqrt
 
-# -- the Earth, the atmosphere and the launch site ------------------------------------------------
+# the Earth, the atmosphere and the launch site
 
 mu = 3.986012e14
 """Earth's gravitational parameter (m^3/s^2)."""
@@ -52,7 +53,7 @@ S = 4 * pi
 psi_l = 28.5 * pi / 180.0
 """Latitude of the launch site (rad)."""
 
-# -- the vehicle: nine solid boosters, a first stage, a second stage, and the payload -------------
+# the vehicle: nine solid boosters, a first stage, a second stage, and the payload
 
 pi_s, pi_1, pi_2, pi_p = 19290.0, 104380.0, 19300.0, 4164.0
 """Total mass of one booster, the first stage, the second stage, and the payload (kg)."""
@@ -141,8 +142,8 @@ class Path(yapss.Path):
 class Discrete(yapss.Discrete):
     """Continuity where the stages meet, and the orbit that must be reached.
 
-    Position and velocity are separate groups, rather than one block of six, because they are
-    scaled differently; the same reason separates the semi-major axis from the angles.
+    Position and velocity are separate groups, rather than one block of six, because they
+    are scaled differently; the same reason separates the semi-major axis from the angles.
     """
 
     stage_0_1_position = yapss.vector(3)
@@ -209,11 +210,7 @@ def make_dynamics(thrust: float, mass_flow: float) -> Continuous:
     """Return the continuous callback of a stage with the given thrust and mass flow."""
 
     def continuous(arg: StageArg, out: StageOut) -> None:
-        """Compute the vehicle's dynamics and the constraints that hold along the way.
-
-        The arithmetic is grouped exactly as the released version of this example groups it, so
-        that the two solve the same problem to the last bit and can be compared.
-        """
+        """Compute the vehicle's dynamics and the constraints that hold along the way."""
         r_vec, v_vec, m = arg.state.r, arg.state.v, arg.state.m
         u_vec = arg.control.u
 
@@ -374,7 +371,7 @@ def setup() -> DeltaIII:
 
     for stage in stages:
         stage.mesh = yapss.Mesh.uniform(segments=5, points=5)
-    problem.spectral_method = "lgl"
+    problem.spectral_method = "lg"
     problem.derivatives.method = "auto"
     problem.derivatives.order = "second"
     problem.ipopt_options.max_iter = 1000
@@ -493,7 +490,7 @@ def _set_guess(stages: list[Stage]) -> None:
 def plot_solution(problem: DeltaIII, solution: yapss.Solution) -> None:
     r"""Plot the ascent: altitude, position, velocity, mass, steering, and the Hamiltonian.
 
-    Every quantity spans four phases, so each panel is a loop over them. The mass is the one
+    Every quantity spans four phases, so each figure is a loop over them. The mass is the one
     that jumps, at each stage separation.
 
     Parameters
@@ -503,70 +500,61 @@ def plot_solution(problem: DeltaIII, solution: yapss.Solution) -> None:
     solution : yapss.Solution
         The solution to plot.
     """
-    phases = problem.phases
-    stages = [phases.stage_0, phases.stage_1, phases.stage_2, phases.stage_3]
+    stages = [solution.phases[ph] for ph in problem.phases]
     color = ("darkblue", "maroon", "darkorange")
-    tf = solution.phases[stages[LAST]].final_time
 
-    def panel(
-        series: Callable[[yapss.PhaseSolution[State, Control, Path]], list[Any]],
-        ylabel: str,
-        ylim: tuple[float, float] | None = None,
-        legend: list[str] | None = None,
-        colors: tuple[int, ...] = (0,),
-    ) -> None:
-        """Plot one or more series over every stage."""
-        plt.figure()
-        for stage in stages:
-            ps = solution.phases[stage]
-            for index, values in enumerate(series(ps)):
-                plt.plot(ps.time, values, color[colors[index % len(colors)]])
-        if legend:
-            plt.legend(legend)
-        plt.xlim(0, tf)
-        if ylim:
-            plt.ylim(ylim)
-        plt.xlabel(r"Time, $t$ (s)")
-        plt.ylabel(ylabel)
-        plt.grid()
-        plt.tight_layout()
+    altitude = plt.figure()
+    for ps in stages:
+        plt.plot(ps.time, (mag(ps.state.r) - R_e) / 1000, color[0])
+    plt.ylabel(r"Altitude, $h$ (km)")
+    plt.ylim(0, 250)
 
-    def magnitude(vector: Vector3) -> Any:
-        """Return the Euclidean norm of a block field's three rows."""
-        return sqrt(sum(vector[i] ** 2 for i in range(3)))
+    position = plt.figure()
+    for ps in stages:
+        for i in range(3):
+            plt.plot(ps.time, ps.state.r[i] / 1e6, color[i])
+    plt.ylabel("Position vector (1000 km)")
+    plt.ylim(0, 6)
+    plt.legend([r"$r_{1}(t)$", r"$r_{2}(t)$", r"$r_{3}(t)$"])
 
-    panel(
-        lambda ps: [(magnitude(ps.state.r) - R_e) / 1000],
-        r"Altitude, $h$ (km)",
-        ylim=(0, 250),
-    )
-    panel(
-        lambda ps: [ps.state.r[i] / 1e6 for i in range(3)],
-        "Position vector (1000 km)",
-        ylim=(0, 6),
-        legend=[r"$r_{1}(t)$", r"$r_{2}(t)$", r"$r_{3}(t)$"],
-        colors=(0, 1, 2),
-    )
-    panel(
-        lambda ps: [magnitude(ps.state.v)],
-        r"Magnitude of inertial velocity, $v(t)$ (m/s)",
-        ylim=(0, 12000),
-    )
-    panel(
-        lambda ps: [ps.state.v[i] for i in range(3)],
-        "Inertial velocity vector (m/s)",
-        legend=[r"$v_{1}(t)$", r"$v_{2}(t)$", r"$v_{3}(t)$"],
-        colors=(0, 1, 2),
-    )
-    panel(lambda ps: [ps.state.m / 1000], r"Vehicle mass, $m$ (1000 kg)", ylim=(0, 300))
-    panel(
-        lambda ps: [ps.control.u[i] for i in range(3)],
-        r"Components of thrust direction, $u(t)$",
-        ylim=(-0.8, 1.1),
-        legend=[r"$u_{1}(t)$", r"$u_{2}(t)$", r"$u_{3}(t)$"],
-        colors=(0, 1, 2),
-    )
-    panel(lambda ps: [ps.hamiltonian], r"Hamiltonian, $\lambda^T f$ (kg/s)")
+    speed = plt.figure()
+    for ps in stages:
+        plt.plot(ps.time, mag(ps.state.v), color[0])
+    plt.ylabel(r"Magnitude of inertial velocity, $v(t)$ (m/s)")
+    plt.ylim(0, 12000)
+
+    velocity = plt.figure()
+    for ps in stages:
+        for i in range(3):
+            plt.plot(ps.time, ps.state.v[i], color[i])
+    plt.ylabel("Inertial velocity vector (m/s)")
+    plt.legend([r"$v_{1}(t)$", r"$v_{2}(t)$", r"$v_{3}(t)$"])
+
+    mass = plt.figure()
+    for ps in stages:
+        plt.plot(ps.time, ps.state.m / 1000)
+    plt.ylabel(r"Vehicle mass, $m$ (1000 kg)")
+    plt.ylim(0, 300)
+
+    steering = plt.figure()
+    for ps in stages:
+        for i in range(3):
+            plt.plot(ps.time, ps.control.u[i], color[i])
+    plt.ylabel(r"Components of thrust direction, $u(t)$")
+    plt.ylim(-0.8, 1.1)
+    plt.legend([r"$u_{1}(t)$", r"$u_{2}(t)$", r"$u_{3}(t)$"])
+
+    hamiltonian = plt.figure()
+    for ps in stages:
+        plt.plot(ps.time, ps.hamiltonian, color[0])
+    plt.ylabel(r"Hamiltonian, $\lambda^T f$ (kg/s)")
+
+    for figure in (altitude, position, speed, velocity, mass, steering, hamiltonian):
+        axes = figure.gca()
+        axes.set_xlim(0, 1000)
+        axes.set_xlabel(r"Time, $t$ (s)")
+        axes.grid()
+        figure.tight_layout()
 
 
 def main() -> None:

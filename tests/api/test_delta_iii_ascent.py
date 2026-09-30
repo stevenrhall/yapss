@@ -30,6 +30,8 @@ FINAL_MASS = 7529.712268
 @pytest.fixture(scope="module")
 def solution():
     problem = setup()
+    # the released answer and the legacy example are both LGL solves
+    problem.spectral_method = "lgl"
     problem.ipopt_options.print_level = 0
     return problem, problem.solve()
 
