@@ -224,7 +224,13 @@ class Container:
                 object.__setattr__(self, name, value)
                 return
             if name in self._settable:
-                object.__setattr__(self, name, self._check(name, value))
+                # a refusal is raised again here, with the frames below cut, so that the user's
+                # line is one frame above the message
+                try:
+                    checked = self._check(name, value)
+                except (TypeError, ValueError) as error:
+                    raise error.with_traceback(None) from error.__cause__
+                object.__setattr__(self, name, checked)
                 return
             if name in self._held:
                 raise AttributeError(self._advice(name))

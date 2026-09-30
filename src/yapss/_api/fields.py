@@ -212,10 +212,15 @@ class FieldSettings:
 
         def __setattr__(self, setting: str, value: Any) -> None:
             """Set the field's value for `setting`, through the aspect that validates it."""
-            aspects: Container = object.__getattribute__(self, "_aspects")
-            if setting not in aspects._held:
-                raise self._refuse(setting)
-            setattr(getattr(aspects, setting), object.__getattribute__(self, "_name"), value)
+            # a refusal is raised again here, with the frames below cut, so that the user's line is
+            # one frame above the message rather than four
+            try:
+                aspects: Container = object.__getattribute__(self, "_aspects")
+                if setting not in aspects._held:
+                    raise self._refuse(setting)
+                setattr(getattr(aspects, setting), object.__getattribute__(self, "_name"), value)
+            except (TypeError, ValueError) as error:
+                raise error.with_traceback(None) from error.__cause__
 
         def __delattr__(self, setting: str) -> None:
             """Refuse deleting a setting; assigning a new value is how one is changed."""

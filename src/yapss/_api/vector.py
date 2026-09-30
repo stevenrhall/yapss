@@ -384,7 +384,12 @@ class BlockRows(Sequence[Any]):
 
     def __setitem__(self, index: int | slice, value: Any) -> None:
         """Assign to the rows `index` covers. See the class docstring."""
-        self._owner._set_field_rows(self._name, index, value)
+        # a refusal is raised again here, with the frames below cut, so that the user's line is
+        # one frame above the message rather than four
+        try:
+            self._owner._set_field_rows(self._name, index, value)
+        except (TypeError, ValueError) as error:
+            raise error.with_traceback(None) from error.__cause__
 
     def __len__(self) -> int:
         """Return the number of rows."""
@@ -789,55 +794,60 @@ class Vector:
 
         def __setattr__(self, name, value):
             """Set the value of a field, validating it against this instance's kind."""
-            if name.startswith("_"):
-                object.__setattr__(self, name, value)
-                return
-            cls = type(self)
-            kind = cls._kind
-            if kind is not None and kind.by_row and not kind.read_only:
-                row = cls._single.get(name)
-                if row is not None:
-                    self._values[row] = kind.check(
-                        value, label=cls._label, name=name, npoints=cls._npoints
-                    )
+            # a refusal is raised again here, with the frames below cut, so that the user's line is
+            # one frame above the message rather than four
+            try:
+                if name.startswith("_"):
+                    object.__setattr__(self, name, value)
                     return
-                block = cls._block.get(name)
-                if block is not None:
-                    start, size = block
-                    values = self._values
-                    label, npoints = cls._label, cls._npoints
-                    # One array of the field's own shape is what a block field is nearly always
-                    # given, and every row of it is then a row of the right length by construction,
-                    # so each row is stored as it stands.
-                    if (
-                        type(value) is np.ndarray
-                        and value.ndim == BLOCK_DIMENSIONS
-                        and value.shape[0] == size
-                        and (npoints is None or value.shape[1] == npoints)
-                    ):
-                        for offset in range(size):
-                            values[start + offset] = value[offset]
-                        return
-                    check = kind.check
-                    for offset, row_value in enumerate(self._split(value, size, name)):
-                        values[start + offset] = check(
-                            row_value, label=label, name=name, npoints=npoints
+                cls = type(self)
+                kind = cls._kind
+                if kind is not None and kind.by_row and not kind.read_only:
+                    row = cls._single.get(name)
+                    if row is not None:
+                        self._values[row] = kind.check(
+                            value, label=cls._label, name=name, npoints=cls._npoints
                         )
+                        return
+                    block = cls._block.get(name)
+                    if block is not None:
+                        start, size = block
+                        values = self._values
+                        label, npoints = cls._label, cls._npoints
+                        # One array of the field's own shape is what a block field is nearly
+                        # always given, and every row of it is then a row of the right length by
+                        # construction, so each row is stored as it stands.
+                        if (
+                            type(value) is np.ndarray
+                            and value.ndim == BLOCK_DIMENSIONS
+                            and value.shape[0] == size
+                            and (npoints is None or value.shape[1] == npoints)
+                        ):
+                            for offset in range(size):
+                                values[start + offset] = value[offset]
+                            return
+                        check = kind.check
+                        for offset, row_value in enumerate(self._split(value, size, name)):
+                            values[start + offset] = check(
+                                row_value, label=label, name=name, npoints=npoints
+                            )
+                        return
+                if name not in cls._offsets:
+                    raise self._no_field(name)
+                kind = self._kind_or_raise()
+                if kind.read_only:
+                    raise AttributeError(kind.refusal(self._label, name))
+                spec = cls._meta[name]
+                if not kind.by_row:
+                    self._values[name] = self._one_or_per_row(kind, spec, name, value)
                     return
-            if name not in cls._offsets:
-                raise self._no_field(name)
-            kind = self._kind_or_raise()
-            if kind.read_only:
-                raise AttributeError(kind.refusal(self._label, name))
-            spec = cls._meta[name]
-            if not kind.by_row:
-                self._values[name] = self._one_or_per_row(kind, spec, name, value)
-                return
-            start = cls._offsets[name]
-            for i, row_value in enumerate(self._split(value, spec.rows, name)):
-                self._values[start + i] = kind.check(
-                    row_value, label=self._label, name=name, npoints=self._npoints
-                )
+                start = cls._offsets[name]
+                for i, row_value in enumerate(self._split(value, spec.rows, name)):
+                    self._values[start + i] = kind.check(
+                        row_value, label=self._label, name=name, npoints=self._npoints
+                    )
+            except (TypeError, ValueError) as error:
+                raise error.with_traceback(None) from error.__cause__
 
         def __delattr__(self, name):
             """Refuse deleting a field's value; assigning a new one is how it is changed."""
