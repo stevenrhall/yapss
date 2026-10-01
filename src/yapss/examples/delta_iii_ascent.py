@@ -95,6 +95,15 @@ m_total = mi_0
 length_scale = R_e
 velocity_scale = sqrt(mu / R_e)
 time_scale = length_scale / velocity_scale
+altitude_scale = 32_000.0
+"""The scale of the radius path constraint: its range, not its size.
+
+The radius varies by a few hundred kilometres over the ascent, a hundredth of its value.
+Scaled by the radius, a violation of that constraint of several kilometres looks negligible to
+Ipopt, and its early iterates pass below the ground, where the exponential atmosphere grows
+without bound. Scaled by the altitude, the iterates stay above it, and the solve takes about a
+third of the iterations.
+"""
 r_max, v_max, ten = 2 * R_e, 10_000.0, 10.0
 
 EDGES = (t0, t1, t2, t3, t4_max)
@@ -432,7 +441,7 @@ def _set_scales(problem: DeltaIII, stages: list[Stage]) -> None:
         stage.state.v.scale[:] = velocity_scale
         stage.state.m.scale = m_total
         stage.path.unit_thrust.scale = 1.0
-        stage.path.radius.scale = length_scale
+        stage.path.radius.scale = altitude_scale
         stage.time.scale = time_scale
     discrete = problem.discrete
     discrete.stage_0_1_position.scale[:] = length_scale
