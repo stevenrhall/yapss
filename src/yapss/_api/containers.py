@@ -153,14 +153,18 @@ class Container:
         Names holding a sub-object, which the user reads but never replaces.
     _settable : tuple of str
         Names holding a value the user sets.
+    _own : tuple of str
+        Names holding a namespace for the user's own names. It is not a setting, so nothing
+        that walks the settings enters it.
     """
 
     _held: tuple[str, ...] = ()
     _settable: tuple[str, ...] = ()
+    _own: tuple[str, ...] = ()
     _label: str = "this object"
 
     def _names(self) -> tuple[str, ...]:
-        return (*self._held, *self._settable)
+        return (*self._held, *self._settable, *self._own)
 
     def _hold(self, name: str, value: Any) -> None:
         """Install a sub-object, bypassing the write rules. Used by YAPSS only."""
@@ -175,6 +179,11 @@ class Container:
         """
         held = object.__getattribute__(self, name)
         path = self._child(name)
+        if name in self._own:
+            return (
+                f"{path} cannot be replaced. Set a name of your own on it: "
+                f"'<problem>.{path}.<name> = ...'."
+            )
         if isinstance(held, Registry):
             return (
                 f"{path} cannot be replaced. Register a callback through it: "
@@ -232,7 +241,7 @@ class Container:
                     raise error.with_traceback(None) from error.__cause__
                 object.__setattr__(self, name, checked)
                 return
-            if name in self._held:
+            if name in self._held or name in self._own:
                 raise AttributeError(self._advice(name))
             msg = f"{self._owner()} has no setting '{name}'.{suggest(name, self._names())}"
             raise AttributeError(msg)

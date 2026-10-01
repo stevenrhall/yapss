@@ -268,6 +268,8 @@ def mistakes(
     """Each line is a mistake the checker must report, asserted by its ignore."""
     ph = problem.phases.phase
     problem.phases.phas  # type: ignore[attr-defined]
+    problem.user.anything = 3.0
+    problem.usr.anything = 3.0  # type: ignore[attr-defined]
     ph.stat  # type: ignore[attr-defined]
     ph.state.xx.bounds = (0, 1)  # type: ignore[attr-defined]
     ph.state.x.bond = (0, 1)  # type: ignore[attr-defined]
@@ -330,6 +332,7 @@ def solution_mistakes(problem: Brachistochrone) -> None:
     """Each line is a mistake in reading a solution that the checker must report."""
     solution = problem.solve()
     ps = solution.phases[problem.phases.phase]
+    solution.user.anything = 3.0
     solution.objectiv  # type: ignore[attr-defined]
     solution.objectiv = 0.0  # type: ignore[attr-defined]
     ps.hamiltonain = ps.hamiltonian  # type: ignore[attr-defined]

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import inspect
 import time
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, overload
 
 # See `_api.declare`: PEP 696 defaults, which `typing.TypeVar` cannot carry below 3.13.
@@ -425,6 +426,10 @@ class Problem(HasRegistry):
     catch_keyboard_interrupt : bool, default True
         Whether Ctrl-C during a solve stops Ipopt at its next iterate and returns that iterate
         as a `Solution` (status 5, with an `IpoptConvergenceWarning`). Only on the main thread.
+    user : types.SimpleNamespace
+        A place for names of the caller's own, such as ``problem.user.mass = 3.0``. YAPSS
+        never reads it, writes to it, or adds a name to it; every other name on a problem is
+        YAPSS's.
     """
 
     _held = (
@@ -437,6 +442,7 @@ class Problem(HasRegistry):
         "register",
     )
     _settable = ("name", "comment", "spectral_method", "catch_keyboard_interrupt")
+    _own = ("user",)
 
     if TYPE_CHECKING:
         # `Any` here, and the classes a problem class annotates there. A checker holds a mutable
@@ -453,6 +459,7 @@ class Problem(HasRegistry):
         comment: str
         spectral_method: SpectralMethod
         catch_keyboard_interrupt: bool
+        user: SimpleNamespace
 
     _members: ClassVar[dict[str, type[Any]] | None] = None
     """What a problem class declared; None on `Problem` itself, which is not instantiated."""
@@ -570,6 +577,8 @@ class Problem(HasRegistry):
         )
         self._hold("parameter", Fields(parameter_aspects, parameter, parameter_aspects._label))
         self._hold("register", ProblemRegistry(self))
+        # The caller's own names. Not a setting, so no solve records it.
+        self._hold("user", SimpleNamespace())
 
     def _check(self, name: str, value: Any) -> Any:
         if name == "name":

@@ -22,7 +22,7 @@ from __future__ import annotations
 import numbers
 from functools import cache
 from itertools import pairwise
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, overload
 
 import numpy as np
@@ -1333,6 +1333,11 @@ class Solution(Generic[D_co, PR_co]):
     run : Run
         What was true of the solve beyond the problem: versions, platform, timing, and
         warnings.
+    user : types.SimpleNamespace
+        A place for names of the caller's own, such as ``solution.user.case = "nominal"``,
+        empty when the solve returns. YAPSS never reads it, writes to it, or adds a name to
+        it; every other name on a solution is YAPSS's. A solution pickles if what is put here
+        does.
     """
 
     __slots__ = (
@@ -1348,6 +1353,7 @@ class Solution(Generic[D_co, PR_co]):
         "settings",
         "spectral_method",
         "status",
+        "user",
     )
 
     if TYPE_CHECKING:
@@ -1363,6 +1369,7 @@ class Solution(Generic[D_co, PR_co]):
         phases: PhaseSolutions
         settings: Settings
         run: Run
+        user: SimpleNamespace
 
     def __init__(self, values: dict[str, Any]) -> None:
         for name, value in values.items():
@@ -1432,6 +1439,7 @@ class Solution(Generic[D_co, PR_co]):
                 "name": spec.settings.name,
                 "spectral_method": spec.settings.spectral_method,
                 "settings": spec.settings,
+                "user": SimpleNamespace(),
                 "parameter": _vector(spec.parameter, record.parameter, "solution.parameter"),
                 "discrete": _vector(spec.discrete, record.discrete, "solution.discrete"),
                 "multiplier": ProblemMultiplier(
@@ -1494,6 +1502,12 @@ class Solution(Generic[D_co, PR_co]):
         def __setattr__(self, name: str, value: Any) -> None:
             """Refuse every assignment: each name is one solved quantity."""
             del value
+            if name == "user":
+                msg = (
+                    "solution.user cannot be replaced. Set a name of your own on it: "
+                    "'solution.user.<name> = ...'."
+                )
+                raise AttributeError(msg)
             msg = f"solution.{name} cannot be assigned; {_NAMES_FIXED}"
             raise AttributeError(msg)
 
