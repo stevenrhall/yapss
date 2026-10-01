@@ -9,6 +9,7 @@ at their own line.
 import getpass
 import pickle
 import platform
+import re
 import socket
 import sys
 import warnings
@@ -18,6 +19,7 @@ import numpy as np
 import pytest
 
 import yapss
+from yapss._backend.solver import _IN_CONDA
 from yapss.examples.brachistochrone_minimal import setup
 
 
@@ -64,9 +66,45 @@ def test_the_timing_is_measured_and_its_parts_fit_in_the_total(problem):
     seconds = problem.solve().run.seconds
     assert 0.0 < seconds.ipopt <= seconds.total
     assert 0.0 <= seconds.setup <= seconds.total
-    assert 0.0 <= seconds.solution <= seconds.total
-    assert seconds.setup + seconds.ipopt + seconds.solution == pytest.approx(seconds.total)
+    assert 0.0 <= seconds.postprocess <= seconds.total
+    assert seconds.setup + seconds.ipopt + seconds.postprocess == pytest.approx(seconds.total)
     assert problem.solve().run.started >= before
+
+
+def test_the_timing_prints_as_its_four_values_to_the_millisecond(problem):
+    seconds = problem.solve().run.seconds
+    assert re.fullmatch(
+        r"Seconds\(total=\d+\.\d{3}, setup=\d+\.\d{3}, ipopt=\d+\.\d{3}, "
+        r"postprocess=\d+\.\d{3}\)",
+        repr(seconds),
+    )
+
+
+def test_the_run_prints_every_field_one_to_a_line(problem):
+    run = problem.solve().run
+    lines = repr(run).splitlines()
+    assert lines[0] == "Run(" and lines[-1] == ")"
+    assert [line.split("=")[0].strip() for line in lines[1:-1]] == [
+        "yapss_version",
+        "python_version",
+        "numpy_version",
+        "casadi_version",
+        "ipopt_version",
+        "ipopt_build",
+        "conda",
+        "platform",
+        "started",
+        "seconds",
+        "ipopt_options",
+        "warnings",
+    ]
+    assert f"    seconds={run.seconds!r}," in lines
+
+
+def test_the_run_says_whether_it_was_in_a_conda_environment(problem):
+    run = problem.solve().run
+    assert run.conda is _IN_CONDA
+    assert run.ipopt_build.startswith("conda-forge" if run.conda else "wheel")
 
 
 def _user_name() -> str:

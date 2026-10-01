@@ -48,18 +48,25 @@ class Seconds(_Record):
         Everything before Ipopt started: validation, the derivative setup, the setup check.
     ipopt : float
         Ipopt's own run.
-    solution : float
+    postprocess : float
         Building the solution from what Ipopt returned.
     """
 
-    __slots__ = ("ipopt", "setup", "solution", "total")
+    __slots__ = ("ipopt", "postprocess", "setup", "total")
     _label = "solution.run.seconds"
 
     if TYPE_CHECKING:
         total: float
         setup: float
         ipopt: float
-        solution: float
+        postprocess: float
+
+    def __repr__(self) -> str:
+        """Return the four times, to the millisecond."""
+        return (
+            f"Seconds(total={self.total:.3f}, setup={self.setup:.3f}, ipopt={self.ipopt:.3f}, "
+            f"postprocess={self.postprocess:.3f})"
+        )
 
 
 class Run(_Record):
@@ -74,6 +81,9 @@ class Run(_Record):
     ipopt_build : str
         Where the Ipopt library came from, ``"wheel"`` (CasADi's) or ``"conda-forge"``, with
         the library's file name.
+    conda : bool
+        Whether the solve ran in a Conda environment, which says where NumPy, CasADi and
+        Python came from as `ipopt_build` says of Ipopt.
     ipopt_options : dict
         The options Ipopt received and accepted: the problem's, and those YAPSS sets itself.
     platform : str
@@ -89,6 +99,7 @@ class Run(_Record):
 
     __slots__ = (
         "casadi_version",
+        "conda",
         "ipopt_build",
         "ipopt_options",
         "ipopt_version",
@@ -109,11 +120,32 @@ class Run(_Record):
         casadi_version: str
         ipopt_version: str | None
         ipopt_build: str
+        conda: bool
         ipopt_options: dict[str, Any]
         platform: str
         started: datetime
         seconds: Seconds
         warnings: tuple[tuple[str, str], ...]
+
+    def __repr__(self) -> str:
+        """Return every field, one to a line."""
+        names = (
+            "yapss_version",
+            "python_version",
+            "numpy_version",
+            "casadi_version",
+            "ipopt_version",
+            "ipopt_build",
+            "conda",
+            "platform",
+            "started",
+            "seconds",
+            "ipopt_options",
+            "warnings",
+        )
+        values = self._set()
+        lines = [f"    {name}={values[name]!r}," for name in names if name in values]
+        return "\n".join(["Run(", *lines, ")"])
 
 
 class Recording:
@@ -225,7 +257,8 @@ def run_record(
     issued : list
         The warnings issued during the solve.
     in_conda : bool
-        Whether Ipopt is conda-forge's rather than CasADi's.
+        Whether the solve ran in a Conda environment, where Ipopt is conda-forge's rather
+        than CasADi's.
     """
     import casadi  # noqa: PLC0415 -- the solve has already imported it
 
@@ -242,6 +275,7 @@ def run_record(
             "ipopt_build": (
                 f"{'conda-forge' if in_conda else 'wheel'} ({facts.get('ipopt_library', '?')})"
             ),
+            "conda": in_conda,
             "ipopt_options": dict(facts.get("ipopt_options", {})),
             "platform": platform.platform(),
             "started": started,
@@ -250,7 +284,7 @@ def run_record(
                     "total": end - begin,
                     "setup": facts["ipopt_started"] - begin,
                     "ipopt": facts["ipopt_finished"] - facts["ipopt_started"],
-                    "solution": end - facts["ipopt_finished"],
+                    "postprocess": end - facts["ipopt_finished"],
                 }
             ),
             "warnings": tuple(issued),
