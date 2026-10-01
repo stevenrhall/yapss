@@ -83,7 +83,7 @@ def test_block_fields_are_read_as_arrays(solution):
 def test_the_launch_state_is_fixed_component_by_component():
     """A list gives a block field one bound per row, which the launch position needs."""
     problem = setup()
-    bounds = aspects_of(problem.phases.stage_0.state).initial
+    bounds = aspects_of(problem.phases.stage_0.initial_state).bounds
     lower = [pair[0] for pair in bounds._elements("r")]
     upper = [pair[1] for pair in bounds._elements("r")]
     assert lower == upper

@@ -396,29 +396,29 @@ def _set_bounds(problem: DeltaIII, stages: list[Stage]) -> None:
     for index, stage in enumerate(stages):
         stage.state.r.bounds[:] = (-r_max, r_max)
         stage.state.v.bounds[:] = (-v_max, v_max)
-        stage.state.r.initial[:] = (-r_max, r_max)
-        stage.state.v.initial[:] = (-v_max, v_max)
-        stage.state.r.final[:] = (-r_max, r_max)
-        stage.state.v.final[:] = (-v_max, v_max)
+        stage.initial_state.r.bounds[:] = (-r_max, r_max)
+        stage.initial_state.v.bounds[:] = (-v_max, v_max)
+        stage.final_state.r.bounds[:] = (-r_max, r_max)
+        stage.final_state.v.bounds[:] = (-v_max, v_max)
         stage.state.m.bounds = (FINAL_MASS[index] - ten, INITIAL_MASS[index] + ten)
         # The last stage may not deliver less than the payload itself, so its final mass has
         # no leeway below.
         floor = pi_p if index == LAST else FINAL_MASS[index] - ten
-        stage.state.m.final = (floor, INITIAL_MASS[index] + ten)
+        stage.final_state.m.bounds = (floor, INITIAL_MASS[index] + ten)
         stage.control.u.bounds[:] = (-1.1, 1.1)
         stage.path.unit_thrust.bounds = (1.0, 1.0)
         stage.path.radius.bounds = (R_e, None)
-        stage.time.initial = (EDGES[index], EDGES[index])
+        stage.initial_time.bounds = (EDGES[index], EDGES[index])
         edge = EDGES[index + 1]
-        stage.time.final = (t3, t4_max) if index == LAST else (edge, edge)
+        stage.final_time.bounds = (t3, t4_max) if index == LAST else (edge, edge)
 
     # fixed component by component: one bound per row, each with its ends together
-    stages[0].state.r.initial[:] = [(x, x) for x in launch]
-    stages[0].state.v.initial[:] = [(x, x) for x in launch_velocity]
-    stages[0].state.m.initial = (INITIAL_MASS[0], INITIAL_MASS[0])
+    stages[0].initial_state.r.bounds[:] = [(x, x) for x in launch]
+    stages[0].initial_state.v.bounds[:] = [(x, x) for x in launch_velocity]
+    stages[0].initial_state.m.bounds = (INITIAL_MASS[0], INITIAL_MASS[0])
     for index, stage in enumerate(stages[1:], start=1):
         mass = INITIAL_MASS[index]
-        stage.state.m.initial = (mass, mass)
+        stage.initial_state.m.bounds = (mass, mass)
 
     discrete = problem.discrete
     discrete.stage_0_1_position.bounds[:] = (0.0, 0.0)

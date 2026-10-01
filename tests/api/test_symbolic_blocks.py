@@ -114,12 +114,12 @@ def build(seen: dict[str, Any]) -> yapss.Problem:
         record(seen, "objective parameter block", arg.parameter.k)
         return arg[ph].final_state.h
 
-    ph.time.initial = (0.0, 0.0)
-    ph.time.final = (1.0, 1.0)
-    ph.state.h.initial = (1.0, 1.0)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (1.0, 1.0)
+    ph.initial_state.h.bounds = (1.0, 1.0)
     ph.state.h.bounds = (0.0, 10.0)
     ph.state.r.bounds[:] = (-10.0, 10.0)
-    ph.state.r.initial[:] = (1.0, 1.0)
+    ph.initial_state.r.bounds[:] = (1.0, 1.0)
     ph.control.u.bounds = (-1.0, 1.0)
     ph.control.n.bounds[:] = (-1.0, 1.0)
     problem.parameter.mass.bounds = (1.0, 1.0)

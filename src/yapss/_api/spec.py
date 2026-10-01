@@ -115,8 +115,8 @@ def validate_problem(problem: Problem) -> None:
         if time.guess is None:
             complaints.append(f"{label}.time.guess is not set; set it to (start, end)")
         complaints.extend(_unbounded(aspects_of(phase.path).bounds, f"{label}.path"))
-        complaints.extend(_disjoint(aspects_of(phase.state), f"{label}.state"))
-        complaints.extend(_backward(time, label))
+        complaints.extend(_disjoint(phase, label))
+        complaints.extend(_backward(phase, label))
         if time.guess is not None:
             for what in ("state", "control"):
                 aspect = aspects_of(getattr(phase, what)).guess
@@ -162,40 +162,41 @@ def _uncovered(guess: Vector, time_guess: tuple[float, float]) -> list[str]:
     return complaints
 
 
-def _disjoint(state: Any, label: str) -> list[str]:
+def _disjoint(phase: Any, label: str) -> list[str]:
     """Return a complaint for every state row whose initial or final bound misses its bound.
 
     Each is valid alone, so neither assignment could refuse it; together they leave no value
     the state can take at that end, which the solver would report against its own vector.
     """
     complaints = []
-    for name in state.bounds._fields:
-        path = state.bounds._elements(name)
-        for which in ("initial", "final"):
-            ends = getattr(state, which)._elements(name)
+    bounds = aspects_of(phase.state).bounds
+    for which, end in (("initial", phase.initial_state), ("final", phase.final_state)):
+        end_bounds = aspects_of(end).bounds
+        for name in bounds._fields:
+            path = bounds._elements(name)
+            ends = end_bounds._elements(name)
             for row, ((low, high), (end_low, end_high)) in enumerate(zip(path, ends, strict=True)):
                 if max(low, end_low) > min(high, end_high):
-                    where = f"{name}[{row}]" if len(path) > 1 else name
+                    where = f"{name}.bounds[{row}]" if len(path) > 1 else f"{name}.bounds"
                     complaints.append(
-                        f"{label}.{where}.{which} ({end_low}, {end_high}) does not overlap "
-                        f"{label}.{where}.bounds ({low}, {high}), so no {which} value satisfies "
+                        f"{label}.{which}_state.{where} ({end_low}, {end_high}) does not overlap "
+                        f"{label}.state.{where} ({low}, {high}), so no {which} value satisfies "
                         f"both"
                     )
     return complaints
 
 
-def _backward(time: Any, label: str) -> list[str]:
+def _backward(phase: Any, label: str) -> list[str]:
     """Return a complaint if the final bound lies wholly before the initial bound.
 
     A phase's duration is at least zero, so the pair cannot both hold; the solver would run and
     report the problem infeasible, which says nothing of why.
     """
-    initial_low, _ = time.initial
-    _, final_high = time.final
-    if final_high < initial_low:
+    initial, final = phase.initial_time.bounds, phase.final_time.bounds
+    if final[1] < initial[0]:
         complaint = (
-            f"{label}.time.final {time.final} lies wholly before {label}.time.initial "
-            f"{time.initial}, and a phase cannot run backward"
+            f"{label}.final_time.bounds {final} lies wholly before {label}.initial_time.bounds "
+            f"{initial}, and a phase cannot run backward"
         )
         return [complaint]
     return []
@@ -239,8 +240,8 @@ def snapshot(problem: Problem) -> ProblemSpec:
             integral=phase._declaration.integral,
             continuous=phase._continuous,
             state_bounds=_values(aspects_of(phase.state).bounds),
-            state_initial=_values(aspects_of(phase.state).initial),
-            state_final=_values(aspects_of(phase.state).final),
+            state_initial=_values(aspects_of(phase.initial_state).bounds),
+            state_final=_values(aspects_of(phase.final_state).bounds),
             state_guess=_values(aspects_of(phase.state).guess),
             control_bounds=_values(aspects_of(phase.control).bounds),
             control_guess=_values(aspects_of(phase.control).guess),
@@ -252,8 +253,8 @@ def snapshot(problem: Problem) -> ProblemSpec:
             control_scale=_values(aspects_of(phase.control).scale),
             path_scale=_values(aspects_of(phase.path).scale),
             integral_scale=_values(aspects_of(phase.integral).scale),
-            time_initial=phase.time.initial,
-            time_final=phase.time.final,
+            time_initial=phase.initial_time.bounds,
+            time_final=phase.final_time.bounds,
             time_guess=phase.time.guess,
             time_scale=phase.time.scale,
             duration_bounds=phase.duration.bounds,

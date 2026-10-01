@@ -50,7 +50,7 @@ def below_the_user(error: BaseException) -> list[str]:
         "ph.state.x.bounds = 5.0",
         "ph.state.x.guess = (0, 1, 2)",
         "ph.control.u.scale = -1.0",
-        "ph.time.final = (2, 1)",
+        "ph.final_time.bounds = (2, 1)",
         "ph.duration.bounds = (-1, 1)",
         "problem.spectral_method = 'lq'",
     ],

@@ -43,8 +43,8 @@ def test_a_phase_that_declares_nothing_still_has_its_own_times():
     def objective(arg):
         return arg[ph].final_time
 
-    ph.time.initial = (0.0, 0.0)
-    ph.time.final = (1.0, 2.0)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (1.0, 2.0)
     ph.time.guess = (0.0, 1.0)
     problem.ipopt_options.print_level = 0
     assert problem.solve().objective == pytest.approx(1.0)
@@ -79,8 +79,8 @@ def test_the_endpoints_alone_make_an_optimization_problem():
     def objective(arg):
         return (arg[ph].initial_time - 0.3) ** 2 + (arg[ph].final_time - 1.7) ** 2
 
-    ph.time.initial = (0.0, 1.0)
-    ph.time.final = (1.0, 2.0)
+    ph.initial_time.bounds = (0.0, 1.0)
+    ph.final_time.bounds = (1.0, 2.0)
     ph.time.guess = (0.0, 1.5)
     problem.ipopt_options.print_level = 0
 

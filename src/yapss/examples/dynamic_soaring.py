@@ -187,13 +187,13 @@ def setup() -> DynamicSoaring:
 
     # ------------------------------------------------------------------- setup
 
-    ph.time.initial = (0.0, 0.0)
-    ph.time.final = (10.0, 30.0)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (10.0, 30.0)
 
     # the circuit starts and ends at the origin
-    ph.state.x.initial = ph.state.x.final = (0.0, 0.0)
-    ph.state.y.initial = ph.state.y.final = (0.0, 0.0)
-    ph.state.h.initial = ph.state.h.final = (0.0, 0.0)
+    ph.initial_state.x.bounds = ph.final_state.x.bounds = (0.0, 0.0)
+    ph.initial_state.y.bounds = ph.final_state.y.bounds = (0.0, 0.0)
+    ph.initial_state.h.bounds = ph.final_state.h.bounds = (0.0, 0.0)
 
     ph.state.x.bounds = (-1500, 1500)
     ph.state.y.bounds = (-1000, 1000)

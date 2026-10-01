@@ -61,7 +61,7 @@ def test_a_misspelling_is_refused_where_it_is_written() -> None:
         "p.derivatives.method",
         "p.objective.sense",
         "p.spectral_method",
-        "ph.time.final",
+        "ph.final_time.bounds",
         "ph.mesh",
         "ph.state.x",
         "ph.state.x.bounds",

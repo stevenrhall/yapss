@@ -116,11 +116,11 @@ def setup() -> Brachistochrone:
     def objective_again(arg: yapss.DiscreteArg[Parameter]) -> Any:
         return arg[ph].final_time + 0.0 * arg[ph].integral.distance
 
-    ph.time.initial = (0.0, 0.0)
+    ph.initial_time.bounds = (0.0, 0.0)
     ph.duration.bounds = (0.0, None)
-    ph.state.x.initial = (0.0, 0.0)
-    ph.state.y.initial = (0.0, 0.0)
-    ph.state.v.initial = (0.0, 0.0)
+    ph.initial_state.x.bounds = (0.0, 0.0)
+    ph.initial_state.y.bounds = (0.0, 0.0)
+    ph.initial_state.v.bounds = (0.0, 0.0)
     ph.state.x.bounds = (0, 10)
     ph.state.y.bounds = (0, 10)
     ph.state.v.bounds = (0, 10)
@@ -273,6 +273,11 @@ def mistakes(
     ph.state.x.bond = (0, 1)  # type: ignore[attr-defined]
     ph.state.x.bounds = 5.0  # type: ignore[assignment]
     ph.duration.bound = (0, 1)  # type: ignore[attr-defined]
+    ph.state.x.initial = (0, 0)  # type: ignore[attr-defined]
+    ph.control.u.final = (0, 0)  # type: ignore[attr-defined]
+    ph.initial_state.xx.bounds = (0, 0)  # type: ignore[attr-defined]
+    ph.time.initial = (0, 0)  # type: ignore[attr-defined]
+    ph.final_time.bound = (0, 1)  # type: ignore[attr-defined]
     ph.duration.bounds = (None, 1.0)  # type: ignore[assignment]
     ph.duration = (0, 1)  # type: ignore[assignment]
     arg.state.xx  # type: ignore[attr-defined]

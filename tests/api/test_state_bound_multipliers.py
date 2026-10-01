@@ -65,10 +65,10 @@ def floor(method, b=0.45, xf=1.0, effort=None):
     def objective(arg):
         return arg[ph].final_time
 
-    ph.time.initial = (0.0, 0.0)
-    for field in (ph.state.x, ph.state.y, ph.state.v):
-        field.initial = (0.0, 0.0)
-    ph.state.x.final = (xf, xf)
+    ph.initial_time.bounds = (0.0, 0.0)
+    for field in (ph.initial_state.x, ph.initial_state.y, ph.initial_state.v):
+        field.bounds = (0.0, 0.0)
+    ph.final_state.x.bounds = (xf, xf)
     ph.state.y.bounds = (None, b)
     ph.control.u.bounds = (-2.0, 2.0)
     ph.integral.effort.bounds = (None, 1e3 if effort is None else effort)

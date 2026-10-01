@@ -11,7 +11,7 @@ A bound is set on the quantity it bounds, as a ``(lower, upper)`` pair. Each sid
     >>> ph = problem.phases.phase
     >>> ph.state.v.bounds = (0.0, 10.0)      # an interval
     >>> ph.state.y.bounds = (0.0, None)      # a floor, with no ceiling
-    >>> ph.state.x.initial = (0.0, 0.0)      # fixed: an interval whose ends agree
+    >>> ph.initial_state.x.bounds = (0.0, 0.0)      # fixed: an interval whose ends agree
     >>> ph.state.x.bounds
     (0.0, 10.0)
 
@@ -27,11 +27,10 @@ Where bounds are set
 
 For a phase ``ph`` of a problem ``problem``:
 
--   ``ph.time.initial`` and ``ph.time.final``: the phase's initial and final times. A phase that
-    names its independent variable otherwise uses that name: ``ph.r.initial`` for a variable
-    ``r``.
--   ``ph.state.x.bounds``: the state ``x`` throughout the phase; ``ph.state.x.initial`` and
-    ``ph.state.x.final``: its value at the phase's two ends.
+-   ``ph.initial_time.bounds`` and ``ph.final_time.bounds``: the phase's initial and final
+    times.
+-   ``ph.state.x.bounds``: the state ``x`` throughout the phase; ``ph.initial_state.x.bounds`` and
+    ``ph.final_state.x.bounds``: its value at the phase's two ends.
 -   ``ph.control.u.bounds``: the control ``u``.
 -   ``ph.path.g.bounds``: the path constraint ``g``, which must be bounded.
 -   ``ph.integral.q.bounds``: the integral ``q``.
@@ -88,12 +87,12 @@ is refused until then, bounds can be set in any order.
 .. doctest:: bounds
     :options: +NORMALIZE_WHITESPACE
 
-    >>> ph.state.v.initial = (20.0, 20.0)
+    >>> ph.initial_state.v.bounds = (20.0, 20.0)
     >>> problem.validate()
     Traceback (most recent call last):
         ...
     ValueError: the problem is not ready to solve:
-      phases.phase.state.v.initial (20.0, 20.0) does not overlap phases.phase.state.v.bounds
+      phases.phase.initial_state.v.bounds (20.0, 20.0) does not overlap phases.phase.state.v.bounds
       (0.0, 10.0), so no initial value satisfies both
 
 Special Considerations for State Bounds

@@ -90,11 +90,11 @@ def setup() -> Brachistochrone:
         """Return the time taken, which is the objective."""
         return arg[ph].final_time
 
-    ph.time.initial = (0.0, 0.0)
-    ph.state.x.initial = (0.0, 0.0)
-    ph.state.y.initial = (0.0, 0.0)
-    ph.state.v.initial = (0.0, 0.0)
-    ph.state.x.final = (1.0, 1.0)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.initial_state.x.bounds = (0.0, 0.0)
+    ph.initial_state.y.bounds = (0.0, 0.0)
+    ph.initial_state.v.bounds = (0.0, 0.0)
+    ph.final_state.x.bounds = (1.0, 1.0)
     ph.state.x.bounds = (0, 10)
     ph.state.y.bounds = (0, 10)
     ph.state.v.bounds = (0, 10)

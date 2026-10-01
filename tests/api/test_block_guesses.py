@@ -43,8 +43,8 @@ def build(row_guess):
     def objective(arg):
         return arg[ph].final_time
 
-    ph.time.initial = (0.0, 0.0)
-    ph.state.r.initial[:] = [0.0, 0.0]
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.initial_state.r.bounds[:] = [0.0, 0.0]
     ph.state.r.bounds[:] = [(-10, 10), (-10, 10)]
     ph.control.u.bounds = (-1, 1)
     ph.time.guess = (0.0, 1.0)

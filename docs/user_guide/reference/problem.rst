@@ -214,8 +214,8 @@ problem, the boost and coast arcs are both annotated with one shape, and only th
 between them, which adds a path constraint, has its own.
 
 Every phase's independent variable is ``time``, whatever it measures. A phase that runs over
-a radius sets its extent as ``ph.time.initial`` and ``ph.time.final``, and a script can read
-it into a name of its own where its formulas use it, as ``r = arg.time``.
+a radius sets its extent as ``ph.initial_time.bounds`` and ``ph.final_time.bounds``, and a
+script can read it into a name of its own where its formulas use it, as ``r = arg.time``.
 
 Then declare the problem itself, as a subclass of `yapss.Problem` annotating what it has, and
 create it with its name:

@@ -130,13 +130,13 @@ def setup() -> OrbitRaising:
 
     problem.objective.sense = "maximize"
 
-    ph.time.initial = (t_0, t_0)
-    ph.time.final = (t_f, t_f)
-    ph.state.r.initial = (r_0, r_0)
-    ph.state.theta.initial = (theta_0, theta_0)
-    ph.state.v_r.initial = (v_r_0, v_r_0)
-    ph.state.v_theta.initial = (v_theta_0, v_theta_0)
-    ph.state.v_r.final = (v_r_f, v_r_f)
+    ph.initial_time.bounds = (t_0, t_0)
+    ph.final_time.bounds = (t_f, t_f)
+    ph.initial_state.r.bounds = (r_0, r_0)
+    ph.initial_state.theta.bounds = (theta_0, theta_0)
+    ph.initial_state.v_r.bounds = (v_r_0, v_r_0)
+    ph.initial_state.v_theta.bounds = (v_theta_0, v_theta_0)
+    ph.final_state.v_r.bounds = (v_r_f, v_r_f)
     ph.state.r.bounds = (r_min, r_max)
     ph.state.theta.bounds = (-pi, pi)
     ph.state.v_r.bounds = (v_min, v_max)

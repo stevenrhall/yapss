@@ -51,6 +51,31 @@ def test_a_bound_may_not_be_inverted() -> None:
         ph.state.x.bounds = (2, 1)
 
 
+def test_an_end_of_a_phase_is_bounded_under_its_own_name() -> None:
+    """The ends are named as the callbacks and the solution name them, and take bounds only."""
+    ph = problem().phases.first
+    ph.initial_state.x.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (1.0, None)
+    assert ph.initial_state.x.bounds == (0.0, 0.0)
+    assert ph.final_state.x.bounds == (-np.inf, np.inf)
+    assert ph.final_time.bounds == (1.0, np.inf)
+    assert ph.state.x.bounds == (-np.inf, np.inf)
+
+
+@pytest.mark.parametrize("setting", ["guess", "scale"])
+def test_a_state_setting_on_an_end_names_where_it_is_set(setting: str) -> None:
+    """A guess or a scale belongs to the state, so the refusal gives the line to write."""
+    ph = problem().phases.first
+    with raises(
+        AttributeError,
+        f"initial_state.x has no setting '{setting}'",
+        "An end of a phase has bounds only",
+        f"phases.first.state.x.{setting}",
+        at="setattr",
+    ):
+        setattr(ph.initial_state.x, setting, 1.0)
+
+
 def test_each_side_of_a_bound_is_a_number_or_none() -> None:
     """Anything else is a mistake about what a bound is."""
     ph = problem().phases.first
@@ -99,8 +124,8 @@ def test_a_lower_bound_cannot_be_plus_infinity() -> None:
 def test_an_upper_bound_cannot_be_minus_infinity() -> None:
     """The same on the other side, and for the time, whose bounds are bounds like any other."""
     ph = problem().phases.first
-    with raises(ValueError, "upper bound of -inf", "write None", at="time.final"):
-        ph.time.final = (None, -np.inf)
+    with raises(ValueError, "upper bound of -inf", "write None", at="final_time.bounds"):
+        ph.final_time.bounds = (None, -np.inf)
 
 
 # -------------------------------------------------------- writing a field that has rows
@@ -374,11 +399,11 @@ def test_a_boundary_bound_must_overlap_the_bound() -> None:
     p = solvable()
     ph = p.phases.slide
     ph.state.v.bounds = (0.0, 1.0)
-    ph.state.v.initial = (5.0, 6.0)
+    ph.initial_state.v.bounds = (5.0, 6.0)
     with raises(
         ValueError,
         "not ready to solve",
-        "phases.slide.state.v.initial",
+        "phases.slide.initial_state.v.bounds",
         "phases.slide.state.v.bounds",
         "does not overlap",
         at="validate",
@@ -389,7 +414,7 @@ def test_a_boundary_bound_must_overlap_the_bound() -> None:
 def test_the_final_time_cannot_lie_before_the_initial_time() -> None:
     """A phase's duration is at least zero, so the solver could only report it infeasible."""
     p = solvable()
-    p.phases.slide.time.final = (-1.0, -1.0)
+    p.phases.slide.final_time.bounds = (-1.0, -1.0)
     with raises(
         ValueError, "not ready to solve", "wholly before", "cannot run backward", at="validate"
     ):
@@ -401,10 +426,10 @@ def test_a_final_boundary_bound_must_overlap_the_bound_too() -> None:
     p = solvable()
     ph = p.phases.slide
     ph.state.v.bounds = (0.0, 1.0)
-    ph.state.v.final = (5.0, 6.0)
+    ph.final_state.v.bounds = (5.0, 6.0)
     with raises(
         ValueError,
-        "phases.slide.state.v.final",
+        "phases.slide.final_state.v.bounds",
         "phases.slide.state.v.bounds",
         "does not overlap",
         at="validate",
@@ -416,14 +441,14 @@ def test_solve_runs_validate_first() -> None:
     """A contradiction is reported by solve() as by validate(), before Ipopt starts."""
     p = solvable()
     p.phases.slide.state.v.bounds = (0.0, 1.0)
-    p.phases.slide.state.v.initial = (5.0, 6.0)
+    p.phases.slide.initial_state.v.bounds = (5.0, 6.0)
     with raises(ValueError, "not ready to solve", "does not overlap", at="solve"):
         p.solve()
 
 
 @pytest.mark.parametrize(
     ("owner", "typo", "suggestion"),
-    [("x", "bouds", "bounds"), ("x", "gues", "guess"), ("time", "fnal", "final")],
+    [("x", "bouds", "bounds"), ("x", "gues", "guess"), ("time", "scal", "scale")],
 )
 def test_a_misspelled_setting_on_a_field_is_refused_with_a_suggestion(
     owner: str, typo: str, suggestion: str

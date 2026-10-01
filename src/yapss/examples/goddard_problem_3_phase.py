@@ -192,12 +192,12 @@ def setup() -> Goddard3Phase:
         ph.state.v.bounds = (0, 10_000)
         ph.state.m.bounds = (mf, m0)
 
-    boost.time.initial = (0.0, 0.0)
-    boost.state.h.initial = (0.0, 0.0)
-    boost.state.v.initial = (0.0, 0.0)
-    boost.state.m.initial = (m0, m0)
-    coast.state.v.final = (0, None)
-    coast.state.m.final = (mf, mf)
+    boost.initial_time.bounds = (0.0, 0.0)
+    boost.initial_state.h.bounds = (0.0, 0.0)
+    boost.initial_state.v.bounds = (0.0, 0.0)
+    boost.initial_state.m.bounds = (m0, m0)
+    coast.final_state.v.bounds = (0, None)
+    coast.final_state.m.bounds = (mf, mf)
 
     boost.control.thrust.bounds = (Tm, Tm)
     singular.control.thrust.bounds = (0.01 * Tm, 0.99 * Tm)

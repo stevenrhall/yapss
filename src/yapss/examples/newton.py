@@ -114,8 +114,8 @@ def setup(y_max: float = 1.0) -> Newton:
         """Return the drag, which is the objective."""
         return arg[ph].integral.drag
 
-    ph.time.initial = (0.0, 0.0)
-    ph.time.final = (1.0, 1.0)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (1.0, 1.0)
     ph.state.y.bounds = (0.0, y_max)
     ph.state.yp.bounds = (None, 0.0)
     ph.control.u.bounds = (None, 0.0)
@@ -157,7 +157,7 @@ def setup2(y_max: float = 1.0) -> Newton:
         """Return the drag of the curve plus the drag of the flat tip."""
         return arg[ph].integral.drag + 4 * arg[ph].initial_time ** 2
 
-    ph.time.initial = (0.0, 1.0)
+    ph.initial_time.bounds = (0.0, 1.0)
     return problem
 
 

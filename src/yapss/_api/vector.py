@@ -111,8 +111,9 @@ class Field:
 # interpolant, or a number, depending on the role -- the type is `Any`, and the runtime says the
 # rest. The corpus type-checking clean, with no `# type: ignore`, is the test.
 #
-# One type serves every role, so a setting one role lacks -- `ph.control.u.initial` -- passes
-# the checker and is refused at run time. That is the permissive direction, and acceptable.
+# One type serves every role, so a setting one role lacks -- `ph.path.g.guess`, or
+# `ph.initial_state.h.scale` -- passes the checker and is refused at run time. That is the
+# permissive direction, and acceptable.
 #
 # The same markers are what a field is *read* as, in a callback or a solution, so they also
 # declare arithmetic and indexing. `arg.state.v * 2.0` checks as well as `ph.state.v.bounds`;
@@ -155,8 +156,6 @@ class ScalarField(_AsValue):
 
     if TYPE_CHECKING:
         bounds: _Bound
-        initial: _Bound
-        final: _Bound
         guess: Any
         scale: SupportsFloat | None
 
@@ -197,8 +196,6 @@ class VectorField(_AsValue):
     """A field declared with `vector(n)`, as a type checker sees it: each setting by row."""
 
     bounds: _ByRows[_Bound] = _ByRows()
-    initial: _ByRows[_Bound] = _ByRows()
-    final: _ByRows[_Bound] = _ByRows()
     guess: _ByRows[Any] = _ByRows()
     scale: _ByRows[SupportsFloat | None] = _ByRows()
 

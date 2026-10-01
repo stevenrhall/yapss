@@ -71,11 +71,11 @@ def declared_in_a_function():
     def discrete(arg, out):
         out.discrete.end = arg[ph].final_state.y
 
-    ph.time.initial = (0.0, 0.0)
-    ph.time.final = (1.0, 1.0)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (1.0, 1.0)
     ph.time.guess = (0.0, 1.0)
-    ph.state.r.initial[:] = (0.0, 0.0)
-    ph.state.y.initial = (0.0, 0.0)
+    ph.initial_state.r.bounds[:] = (0.0, 0.0)
+    ph.initial_state.y.bounds = (0.0, 0.0)
     ph.control.u.bounds = (-10.0, 10.0)
     ph.path.size.bounds = (-10.0, 10.0)
     problem.parameter.k.bounds = (2.0, 2.0)

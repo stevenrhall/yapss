@@ -194,7 +194,11 @@ class FieldSettings:
         aspects: Container = object.__getattribute__(self, "_aspects")
         label: str = object.__getattribute__(self, "_label")
         name: str = object.__getattribute__(self, "_name")
-        msg = f"{label}.{name} has no setting '{setting}'.{suggest(setting, aspects._held)}"
+        hint = suggest(setting, aspects._held)
+        elsewhere = getattr(aspects, "_elsewhere", None)
+        if elsewhere is not None:
+            hint = elsewhere(name, setting) or hint
+        msg = f"{label}.{name} has no setting '{setting}'.{hint}"
         return AttributeError(msg)
 
     def __getattr__(self, setting: str) -> Any:

@@ -144,8 +144,8 @@ def setup() -> Isoperimetric:
     problem.objective.sense = "maximize"
 
     # Arc length runs from 0 to the perimeter, and unit speed is what makes it arc length.
-    ph.time.initial = (0.0, 0.0)
-    ph.time.final = (PERIMETER, PERIMETER)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (PERIMETER, PERIMETER)
     ph.path.speed_squared.bounds = (1.0, 1.0)
 
     # The centroid at the origin, which fixes the circle's position rather than its shape.

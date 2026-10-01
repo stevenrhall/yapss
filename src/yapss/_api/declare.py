@@ -456,14 +456,32 @@ class Phases:
 
 
 class StateAspects(Container):
-    """The state of one phase: its bounds, its endpoint bounds, its guess, and its scale.
+    """The state of one phase: its bounds, its guess, and its scale.
 
     Every aspect is an instance of the declaration itself, which is what makes the fields
     reachable by the names they were declared with. It is read field first, through
     `fields.Fields`, and a type checker never sees it: `ph.state` is typed as the declaration.
     """
 
-    _held = ("bounds", "initial", "final", "guess", "scale")
+    _held = ("bounds", "guess", "scale")
+
+
+class EndpointStateAspects(Container):
+    """The state at one end of a phase: its bounds.
+
+    ``ph.initial_state`` and ``ph.final_state`` have the state's fields, and bounds and nothing
+    else: an end of a phase is bounded where the callbacks and the solution name it, and the
+    state's guess and scale are set once, on ``ph.state``.
+    """
+
+    _held = ("bounds",)
+
+    def _elsewhere(self, field: str, setting: str) -> str | None:
+        """Return where `setting` is set, if it is a setting of the state and not of its end."""
+        if setting not in StateAspects._held:
+            return None
+        state = self._label.rsplit(".", 1)[0] + ".state"
+        return f" An end of a phase has bounds only: set '<problem>.{state}.{field}.{setting}'."
 
 
 class DynamicsAspects(Container):
@@ -498,36 +516,30 @@ class IntegralAspects(Container):
 
 
 class Time(Container):
-    """A phase's time, its independent variable: its initial and final values, and their guess.
+    """A phase's time, its independent variable: its guess and its scale.
 
     Every phase has one, ``ph.time``, whatever it measures; a phase class does not declare it.
 
-    ``initial`` and ``final`` are bounds, written the same way as any other bound. ``guess`` is
-    a ``(t0, tf)`` pair, and is the only source of the phase's guessed duration, so a sampled
-    guess carries no times of its own.
+    ``guess`` is a ``(t0, tf)`` pair, and is the only source of the phase's guessed duration,
+    so a sampled guess carries no times of its own. The bounds on where the phase starts and
+    ends are set on ``ph.initial_time`` and ``ph.final_time``.
     """
 
-    _settable = ("initial", "final", "guess", "scale")
+    _settable = ("guess", "scale")
 
     if TYPE_CHECKING:
-        initial: Any
-        final: Any
         guess: tuple[float, float] | None
         scale: float
 
     def __init__(self, label: str) -> None:
         self._label = label
-        self._hold("initial", Bounds.default)
-        self._hold("final", Bounds.default)
         self._hold("guess", None)
         self._hold("scale", 1.0)
 
     def _check(self, name: str, value: Any) -> Any:
         if name == "guess":
             return self._check_guess(value)
-        if name == "scale":
-            return Scale.check(value, label=self._label, name=name, npoints=None)
-        return Bounds.check(value, label=self._label, name=name, npoints=None)
+        return Scale.check(value, label=self._label, name=name, npoints=None)
 
     def _check_guess(self, value: Any) -> tuple[float, float]:
         """Validate the phase's guessed extent, which is a pair of plain numbers.
@@ -558,13 +570,31 @@ class Time(Container):
         return (t0, tf)
 
 
+class EndpointTime(Container):
+    """The time at one end of a phase: its bounds.
+
+    ``ph.initial_time`` and ``ph.final_time`` are named as the callbacks and the solution name
+    them. Unbounded by default.
+    """
+
+    _settable = ("bounds",)
+
+    if TYPE_CHECKING:
+        bounds: tuple[SupportsFloat | None, SupportsFloat | None] | list[SupportsFloat | None]
+
+    def __init__(self, label: str) -> None:
+        self._label = label
+        self._hold("bounds", Bounds.default)
+
+    def _check(self, name: str, value: Any) -> Any:
+        return Bounds.check(value, label=self._label, name=name, npoints=None)
+
+
 class Duration(Container):
     """A phase's duration, the constraint ``tf - t0``: its bounds.
 
-    Duration is a constraint row, not a variable, so it is set the way a constraint is, by its
-    ``bounds``, rather than as a bare pair as ``time.initial`` is. The lower bound is never
-    negative, since a phase does not run backward; by default the duration is bounded below by
-    zero and not above.
+    The lower bound is never negative, since a phase does not run backward; by default the
+    duration is bounded below by zero and not above.
     """
 
     _settable = ("bounds",)
@@ -668,7 +698,20 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
     shape, so two phases may share one.
     """
 
-    _held = ("state", "control", "dynamics", "path", "integral", "time", "duration", "register")
+    _held = (
+        "state",
+        "initial_state",
+        "final_state",
+        "control",
+        "dynamics",
+        "path",
+        "integral",
+        "time",
+        "initial_time",
+        "final_time",
+        "duration",
+        "register",
+    )
     _settable = ("mesh",)
     _declaration: PhaseDeclaration | None = None
 
@@ -684,14 +727,21 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         mesh: Mesh
         register: PhaseRegistry
 
-        # The dynamics have the state's fields, so their type is read from the shape's own
-        # `state` annotation through `self`; the shape does not annotate them a second time.
+        # The dynamics and the state's two ends have the state's fields, so their type is read
+        # from the shape's own `state` annotation through `self`; the shape does not annotate
+        # them a second time.
         @property
         def dynamics(self: _HasState[_S_co]) -> _S_co: ...
+        @property
+        def initial_state(self: _HasState[_S_co]) -> _S_co: ...
+        @property
+        def final_state(self: _HasState[_S_co]) -> _S_co: ...
 
         # Every phase's independent variable is `time`, whatever it measures, so it is declared
         # here once, and the shapes do not annotate it; so is the duration's constraint.
         time: Time
+        initial_time: EndpointTime
+        final_time: EndpointTime
         duration: Duration
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
@@ -749,17 +799,20 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
 
         state = StateAspects()
         state._label = f"{self._label}.state"
-        for aspect, kind in (
-            ("bounds", Bounds),
-            ("initial", Bounds),
-            ("final", Bounds),
-            ("guess", Guess),
-            ("scale", Scale),
-        ):
+        for aspect, kind in (("bounds", Bounds), ("guess", Guess), ("scale", Scale)):
             state._hold(
                 aspect, declaration.state._new(kind, f"{state._label}.{{}}.{aspect}", aspect=aspect)
             )
         self._hold("state", Fields(state, declaration.state, state._label))
+
+        for end in ("initial_state", "final_state"):
+            ends = EndpointStateAspects()
+            ends._label = f"{self._label}.{end}"
+            ends._hold(
+                "bounds",
+                declaration.state._new(Bounds, f"{ends._label}.{{}}.bounds", aspect="bounds"),
+            )
+            self._hold(end, Fields(ends, declaration.state, ends._label))
 
         dynamics = DynamicsAspects()
         dynamics._label = f"{self._label}.dynamics"
@@ -810,6 +863,8 @@ class Phase(HasRegistry, Generic[S_co, C_co, P_co, I_co]):
         self._hold("integral", Fields(integral, declaration.integral, integral._label))
 
         self._hold("time", Time(f"{self._label}.time"))
+        self._hold("initial_time", EndpointTime(f"{self._label}.initial_time"))
+        self._hold("final_time", EndpointTime(f"{self._label}.final_time"))
         self._hold("duration", Duration(f"{self._label}.duration"))
         self._hold("register", PhaseRegistry(self))
 

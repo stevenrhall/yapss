@@ -155,7 +155,7 @@ def test_an_explicit_zero_is_an_assignment() -> None:
         out.integrand.effort = 0.0
 
     p.phases.slide.register.continuous(flat)
-    p.phases.slide.state.x.final = (0.0, 1.0)
+    p.phases.slide.final_state.x.bounds = (0.0, 1.0)
     p.discrete.drop.bounds = (0.0, 0.0)
     assert p.solve() is not None
 
@@ -364,11 +364,11 @@ def test_a_problem_may_have_no_discrete_constraints() -> None:
     def objective(arg):
         return arg[ph].final_time
 
-    ph.time.initial = (0.0, 0.0)
-    ph.time.final = (1.0, 1.0)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (1.0, 1.0)
     ph.time.guess = (0.0, 1.0)
-    ph.state.a.initial = (0.0, 0.0)
-    ph.state.b.initial = (0.0, 0.0)
+    ph.initial_state.a.bounds = (0.0, 0.0)
+    ph.initial_state.b.bounds = (0.0, 0.0)
     ph.state.a.guess = (0.0, 1.0)
     ph.state.b.guess = (0.0, 0.0)
     ph.control.c.guess = (0.0, 0.0)
@@ -525,9 +525,9 @@ def _block_problem(continuous: Any) -> Any:
     ph = p.phases.only
     ph.register.continuous(continuous)
     p.register.objective(lambda arg: arg[ph].final_time)
-    ph.time.initial = (0.0, 0.0)
-    ph.time.final = (1.0, 1.0)
-    ph.state.r.initial[:] = (0.0, 0.0)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (1.0, 1.0)
+    ph.initial_state.r.bounds[:] = (0.0, 0.0)
     ph.control.u.bounds = (-1.0, 1.0)
     ph.time.guess = (0.0, 1.0)
     p.ipopt_options.print_level = 0

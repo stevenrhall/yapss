@@ -115,15 +115,15 @@ def setup() -> Goddard:
 
     problem.objective.sense = "maximize"
 
-    ph.time.initial = (0.0, 0.0)
-    ph.time.final = (tf_min, tf_max)
-    ph.state.h.initial = (0.0, 0.0)
-    ph.state.v.initial = (0.0, 0.0)
-    ph.state.m.initial = (m0, m0)
+    ph.initial_time.bounds = (0.0, 0.0)
+    ph.final_time.bounds = (tf_min, tf_max)
+    ph.initial_state.h.bounds = (0.0, 0.0)
+    ph.initial_state.v.bounds = (0.0, 0.0)
+    ph.initial_state.m.bounds = (m0, m0)
     ph.state.h.bounds = (0, h_max)
     ph.state.v.bounds = (0, v_max)
     ph.state.m.bounds = (mf, m0)
-    ph.state.m.final = (mf, mf)
+    ph.final_state.m.bounds = (mf, mf)
     ph.control.thrust.bounds = (0, Tm)
 
     ph.time.guess = (0.0, tf_max)
