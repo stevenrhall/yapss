@@ -21,7 +21,9 @@ from casadi import hessian as cd_hessian
 from casadi import jacobian as cd_jacobian
 from casadi import tril, vertcat
 
-from yapss.math._external import coefficients, tracing
+from yapss._standin import inputs as stand_in_inputs
+from yapss._standin import tables as stand_in_tables
+from yapss._standin import tracing
 from yapss.math.wrapper import SXW, sx_array
 
 from .input_args import (
@@ -58,7 +60,7 @@ if TYPE_CHECKING:
     # third-party imports
     from numpy.typing import NDArray
 
-    from yapss.math._external import StandIn
+    from yapss._standin import StandIn
 
     from .spec import ProblemSpec
     from .types_ import CHS, CJS, DHS, DJS, OGS, OHS, CHSPhase, CJSPhase
@@ -604,54 +606,6 @@ def make_continuous_derivatives(
         continuous_hessian,
         tuple(chs) if chs is not None else None,
     )
-
-
-def stand_in_inputs(variables: SX, uses: list[StandIn]) -> tuple[list[SX], list[Function]]:
-    """Return the inputs of a traced function, and the stages that fill its coefficients.
-
-    A function traced through `yapss.math.external` takes the coefficients of the stand-ins as
-    a second input. One traced through none takes its variables alone.
-
-    Parameters
-    ----------
-    variables : SX
-        The variables the function was traced in.
-    uses : list of StandIn
-        The stand-ins in the trace, in trace order.
-
-    Returns
-    -------
-    inputs : list of SX
-        The variables, and the coefficients if there are any.
-    stages : list of Function
-        For each stand-in, the function of the inputs that returns its arguments.
-    """
-    inputs = [variables]
-    if uses:
-        inputs.append(vertcat(*[use.symbols for use in uses]))
-    return inputs, [Function("stage", inputs, [use.arguments]) for use in uses]
-
-
-def stand_in_tables(
-    uses: list[StandIn], stages: list[Function], points: NDArray[np.float64], order: int
-) -> list[NDArray[np.float64]]:
-    """Return the second argument of a traced function, as a list to unpack: its coefficients.
-
-    Parameters
-    ----------
-    uses : list of StandIn
-    stages : list of Function
-    points : NDArray
-        The variables, one column for each point.
-    order : int
-        The highest derivative the function being evaluated takes.
-
-    Returns
-    -------
-    list of NDArray
-        The coefficients at every point, or nothing for a function with no stand-ins.
-    """
-    return [coefficients(uses, stages, points, order)] if uses else []
 
 
 def make_sxqt(

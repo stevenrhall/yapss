@@ -20,12 +20,11 @@ import yapss.examples.brachistochrone as brachistochrone
 from yapss._api.compile import to_transcription_spec
 from yapss._api.spec import snapshot
 from yapss._backend.auto import make_auto_functions
-from yapss._backend.difference_steps import EPS, difference_steps
 from yapss._backend.guess import make_initial_guess_nlp
 from yapss._backend.mesh import Mesh
 from yapss._backend.nlp import NLP
+from yapss._standin import EPS, difference_steps, tracing
 from yapss.math import cos, external, sin
-from yapss.math._external import tracing
 from yapss.math.wrapper import SXW, SXArray, sx_array
 
 # ------------------------------------------------------------------------------------------

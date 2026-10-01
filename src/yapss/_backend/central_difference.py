@@ -22,7 +22,8 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 # package imports
-from .difference_steps import EPS, difference_steps
+from yapss._standin import EPS, difference_steps
+
 from .finite_difference import make_fd_structure
 from .input_args import (
     ContinuousFunctionFloat,
