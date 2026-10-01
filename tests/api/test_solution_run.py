@@ -69,11 +69,19 @@ def test_the_timing_is_measured_and_its_parts_fit_in_the_total(problem):
     assert problem.solve().run.started >= before
 
 
+def _user_name() -> str:
+    """Return the user's name, or nothing where the environment does not say."""
+    try:
+        return getpass.getuser()
+    except OSError:  # Windows under tox: no LOGNAME, USER, LNAME or USERNAME, and no pwd module
+        return ""
+
+
 def test_nothing_identifies_the_machine_or_its_user(problem):
     """A solution is shared, so its pickle carries no hostname, user name, or full path."""
     solution = problem.solve()
     data = pickle.dumps(solution)
-    for private in (socket.gethostname(), getpass.getuser()):
+    for private in (socket.gethostname(), _user_name()):
         if len(private) > 3:  # a very short name would match by accident
             assert private.encode() not in data, private
     assert sys.prefix.encode() not in data
