@@ -65,7 +65,7 @@ below give the details.
 - **`yapss.math` provides only the functions that work in a callback.** It no longer
   re-exports the rest of NumPy, so `import yapss.math as np` followed by `np.linspace`,
   `np.array`, or any other name outside its list raises `AttributeError`. Import those from
-  `numpy`.
+  `numpy`. NumPy's constants stay, so `np.inf` and `np.pi` still work.
 - **`yapss.math.nextafter`, `signbit`, and `spacing`** raise on every argument; use NumPy
   directly outside callbacks.
 
@@ -311,15 +311,15 @@ below give the details.
   name. A value held in a variable typed `str` is also flagged; annotate it with the
   literal values instead.
 - `yapss.math` now provides only the math functions that work in a callback under every derivative
-  method, 91 of them. It used to re-export the whole of NumPy, so an import from it said nothing
-  about whether a function works in a callback. Each takes symbolic arguments under `"auto"` and is
-  NumPy's function on real ones, except that `fmax`, `fmin` and `where` return NaN where NumPy's
-  would drop it. Any other NumPy name raises `AttributeError`, saying to import it from `numpy`;
-  that covers code written as `import yapss.math as np`. `gcd`, `lcm`, `left_shift`, `right_shift`,
-  `ldexp`, `frexp`, `modf` and `divmod` leave the module: they worked on real arguments and raised
-  on every symbolic one, so a callback using one worked under central differences and failed under
-  `"auto"`. NumPy 2's `acos`, `acosh`, `asin`, `asinh`, `atan`, `atan2` and `atanh` join it, as
-  aliases of the arc functions.
+  method, 90 of them, and NumPy's five constants, `e`, `euler_gamma`, `inf`, `nan` and `pi`. It used
+  to re-export the whole of NumPy, so an import from it said nothing about whether a function works
+  in a callback. Each takes symbolic arguments under `"auto"` and is NumPy's function on real ones,
+  except that `fmax`, `fmin` and `where` return NaN where NumPy's would drop it. Any other NumPy
+  name raises `AttributeError`, saying to import it from `numpy`; that covers code written as
+  `import yapss.math as np`. `gcd`, `lcm`, `left_shift`, `right_shift`, `ldexp`, `frexp`, `modf` and
+  `divmod` leave the module: they worked on real arguments and raised on every symbolic one, so a
+  callback using one worked under central differences and failed under `"auto"`. NumPy 2's `acos`,
+  `acosh`, `asin`, `asinh`, `atan`, `atan2` and `atanh` join it, as aliases of the arc functions.
 
 ### Removed
 

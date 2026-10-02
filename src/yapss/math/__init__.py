@@ -5,7 +5,8 @@ The math functions that work under every derivative method.
 Each name here takes symbolic arguments (the SXW wrapper, under ``"auto"``) as well as real
 ones, where it is numpy's function -- except that ``fmax``, ``fmin`` and ``where`` return NaN
 where numpy's would drop it, because the central-difference methods find the sparsity structure
-by setting a variable to NaN. The module provides nothing else, so a successful import is the
+by setting a variable to NaN. The module also provides numpy's five constants, ``e``,
+``euler_gamma``, ``inf``, ``nan`` and ``pi``, and nothing else, so a successful import is the
 promise that the function works under every derivative method; the rest of numpy is imported
 from numpy. The three exceptions are ``nextafter``, ``signbit`` and ``spacing``, which are
 provided only to raise `UnsupportedMathFunctionError` on every argument.
@@ -52,7 +53,9 @@ __all__ = [  # noqa: RUF022
     "deg2rad",
     "degrees",
     "divide",
+    "e",
     "equal",
+    "euler_gamma",
     "exp",
     "exp2",
     "expm1",
@@ -67,6 +70,7 @@ __all__ = [  # noqa: RUF022
     "greater_equal",
     "heaviside",
     "hypot",
+    "inf",
     "invert",
     "less",
     "less_equal",
@@ -87,6 +91,7 @@ __all__ = [  # noqa: RUF022
     "minimum",
     "mod",
     "multiply",
+    "nan",
     "negative",
     "nextafter",
     "not_equal",
@@ -146,7 +151,9 @@ from numpy import (
     deg2rad,
     degrees,
     divide,
+    e,
     equal,
+    euler_gamma,
     exp,
     exp2,
     expm1,
@@ -161,6 +168,7 @@ from numpy import (
     greater_equal,
     heaviside,
     hypot,
+    inf,
     invert,
     less,
     less_equal,
@@ -179,6 +187,7 @@ from numpy import (
     minimum,
     mod,
     multiply,
+    nan,
     negative,
     nextafter,
     not_equal,

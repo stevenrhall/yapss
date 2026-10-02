@@ -58,7 +58,7 @@ Available Functions
 -------------------
 
 **Constants**
-    - ``pi``
+    - ``e``, ``euler_gamma``, ``inf``, ``nan``, ``pi``
 
 **Trigonometric functions**
     - ``cos``, ``sin``, ``tan``

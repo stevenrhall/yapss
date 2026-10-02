@@ -69,7 +69,11 @@ DOMAIN = {
 # reason. These are not defects; they are things a user callback has no business calling
 # on a symbolic state.
 OUT_OF_SCOPE = {
-    "pi": "not a function",
+    "e": "a constant; test_the_constants_are_numpys",
+    "euler_gamma": "a constant; test_the_constants_are_numpys",
+    "inf": "a constant; test_the_constants_are_numpys",
+    "nan": "a constant; test_the_constants_are_numpys",
+    "pi": "a constant; test_the_constants_are_numpys",
     "all": "array reduction; symbolic fold tested in test_sxw_scrub.py",
     "any": "array reduction; symbolic fold tested in test_sxw_scrub.py",
     "max": "array reduction; symbolic fold tested in test_sxw_scrub.py",
@@ -340,6 +344,21 @@ def test_the_module_provides_only_its_promise():
     """A successful import from yapss.math is the promise, so nothing else is importable."""
     public = {name for name in dir(math) if not name.startswith("_")}
     assert public - NOT_FUNCTIONS == set(math.__all__)
+
+
+@pytest.mark.parametrize("name", ["e", "euler_gamma", "inf", "nan", "pi"])
+def test_the_constants_are_numpys(name):
+    """A script written as ``import yapss.math as np`` keeps ``np.inf`` and the rest."""
+    assert name in math.__all__
+    assert getattr(math, name) is getattr(np, name)
+
+
+def test_numpy_has_no_constant_the_module_lacks():
+    """Every float numpy exports at its top level is a constant the module provides."""
+    constants = {
+        name for name in dir(np) if not name.startswith("_") and type(getattr(np, name)) is float
+    }
+    assert constants <= set(math.__all__)
 
 
 @pytest.mark.parametrize("name", ["linspace", "ndarray", "gcd", "divmod"])
