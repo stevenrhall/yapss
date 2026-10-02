@@ -128,3 +128,24 @@ def test_layout_is_cached_and_its_arrays_are_read_only():
         first.time_order[0] = 0
     with pytest.raises(ValueError, match="read-only"):
         first.defect_index[0] = 0
+
+
+@pytest.mark.parametrize("segments", [3, 7, 10, 50])
+def test_a_collocated_end_is_exactly_the_end_of_the_phase(segments):
+    """Where an end is a collocation point, its place in the collocation grid is exactly +-1.
+
+    The grids are built from a running sum of the segment fractions, which leaves the last
+    point a few ulps from 1. The state grid's ends are set exactly, and so are these, so that
+    a solution's ``time_c`` and ``time`` agree where they are the same point.
+    """
+    problem = Problem(name="grid", nx=[1], nu=[1])
+    problem.mesh.phase[0].collocation_points = segments * (6,)
+    problem.mesh.phase[0].fraction = segments * (1 / segments,)
+    for method, first, last in (("lgl", True, True), ("lgr", True, False), ("lg", False, False)):
+        mesh = Mesh(problem.mesh.phase)
+        mesh.set_matrices(method)
+        tau_x, tau_u = mesh.tau_x[0], mesh.tau_u[0]
+        assert (tau_x[0], tau_x[-1]) == (-1.0, 1.0)
+        assert (tau_u[0] == -1.0) == first
+        assert (tau_u[-1] == 1.0) == last
+        assert -1.0 <= tau_u[0] < tau_u[-1] <= 1.0

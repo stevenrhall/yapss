@@ -128,6 +128,8 @@ class Mesh:
             tau_x[:] = 2 * tau_x - 1.0
             tau_x[0], tau_x[-1] = -1.0, 1.0
             tau_u[:] = 2 * tau_u - 1.0
+            # the first collocation point is the start of the phase
+            tau_u[0] = -1.0
             self.tau_x.append(tau_x)
             self.tau_u.append(tau_u)
 
@@ -191,6 +193,9 @@ class Mesh:
             tau_x[:] = 2 * tau_x - 1.0
             tau_x[0], tau_x[-1] = -1.0, 1.0
             tau_u[:] = 2 * tau_u - 1.0
+            # the first and last collocation points are the ends of the phase; the running sum
+            # of the segment fractions leaves the last a few ulps from 1, on either side
+            tau_u[0], tau_u[-1] = -1.0, 1.0
             self.tau_x.append(tau_x)
             self.tau_u.append(tau_u)
 

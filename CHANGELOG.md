@@ -363,6 +363,11 @@ below give the details.
 
 ### Fixed
 
+- Under LGL, the last entry of a solution's `time_c` could differ from the phase's final time, and
+  from the last entry of `time`, by a few units in the last place, in either direction, because the
+  collocation grid was built from a running sum of the segment fractions. The continuous callback
+  was called with that time, which could be just past the final time. The ends of the collocation
+  grid that are ends of the phase are now exact: both under LGL, and the first under LGR.
 - A state or control guess assigned before the phase's time guess can now be read back.
   Reading it raised `ValueError` saying the time guess must be set first, which is needed
   only to create the default zeros.
