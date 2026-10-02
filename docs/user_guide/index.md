@@ -128,6 +128,7 @@ notebooks/tutorial.ipynb
 
 reference/problem.rst
 reference/callbacks.rst
+reference/math.rst
 reference/bounds.rst
 reference/guess.rst
 reference/derivatives.rst

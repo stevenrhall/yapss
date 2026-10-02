@@ -91,5 +91,5 @@ Reference
 The other categories are documented where the behavior they report is described:
 :class:`~yapss.IpoptConvergenceWarning` in :doc:`solution`,
 :class:`~yapss.IpoptOptionSettingWarning` in :doc:`ipopt_options`, and
-``UnsupportedMathFunctionError`` in :doc:`callbacks` (defined in ``yapss.math`` and
+``UnsupportedMathFunctionError`` in :doc:`math` (defined in ``yapss.math`` and
 re-exported from ``yapss``).
