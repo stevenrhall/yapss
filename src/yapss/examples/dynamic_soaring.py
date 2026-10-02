@@ -21,6 +21,23 @@ from yapss.math import cos, sin
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+w0 = 0.0
+"""Wind speed at zero altitude (ft/s)."""
+g0 = 32.2
+"""Gravitational acceleration (ft/s^2)."""
+cd0 = 0.00873
+"""Zero-lift drag coefficient."""
+rho0 = 0.002378
+"""Air density (slug/ft^3)."""
+mass = 5.6
+"""Mass of the vehicle (slug)."""
+area = 45.09703
+"""Reference area (ft^2)."""
+k = 0.045
+"""Induced drag factor."""
+cl_max = 1.5
+"""Largest lift coefficient the wing will give."""
+
 
 def setup() -> Problem:
     """Set up the dynamic soaring optimal control problem.
@@ -40,17 +57,16 @@ def setup() -> Problem:
 
     def continuous(arg: ContinuousArg) -> None:
         """Dynamic soaring continuous function."""
-        auxdata = arg.auxdata
         _, _, h, v, gamma, psi = arg.phase[0].state
         cl, phi = arg.phase[0].control
         beta = arg.parameter[0]
 
-        w = auxdata.m * auxdata.g0
-        q = auxdata.rho0 * v**2 / 2
-        cd = auxdata.cd0 + auxdata.k * cl**2
-        lift = q * auxdata.s * cl
-        drag = q * auxdata.s * cd
-        wx = beta * h + auxdata.w0
+        w = mass * g0
+        q = rho0 * v**2 / 2
+        cd = cd0 + k * cl**2
+        lift = q * area * cl
+        drag = q * area * cd
+        wx = beta * h + w0
 
         cos_gamma = cos(gamma)
         sin_gamma = sin(gamma)
@@ -63,13 +79,13 @@ def setup() -> Problem:
         y_dot = v * cos_gamma * cos_psi
         h_dot = v * sin_gamma
         wx_dot = beta * h_dot
-        v_dot = -drag / auxdata.m - auxdata.g0 * sin_gamma - wx_dot * cos_gamma * sin_psi
-        gamma_dot = lift * cos_phi - w * cos_gamma + auxdata.m * wx_dot * sin_gamma * sin_psi
-        gamma_dot /= auxdata.m * v
-        psi_dot = (lift * sin_phi - auxdata.m * wx_dot * cos_psi) / (auxdata.m * v * cos_gamma)
+        v_dot = -drag / mass - g0 * sin_gamma - wx_dot * cos_gamma * sin_psi
+        gamma_dot = lift * cos_phi - w * cos_gamma + mass * wx_dot * sin_gamma * sin_psi
+        gamma_dot /= mass * v
+        psi_dot = (lift * sin_phi - mass * wx_dot * cos_psi) / (mass * v * cos_gamma)
 
         arg.phase[0].dynamics[:] = x_dot, y_dot, h_dot, v_dot, gamma_dot, psi_dot
-        arg.phase[0].path[:] = ((0.5 * auxdata.rho0 * auxdata.s / w) * cl * v**2,)
+        arg.phase[0].path[:] = ((0.5 * rho0 * area / w) * cl * v**2,)
 
     def discrete(arg: DiscreteArg) -> None:
         """Dynamic soaring discrete function."""
@@ -82,17 +98,6 @@ def setup() -> Problem:
     ocp.functions.continuous = continuous
     ocp.functions.discrete = discrete
 
-    # define the auxiliary data
-    auxdata = ocp.auxdata
-    auxdata.w0 = 0
-    auxdata.g0 = 32.2
-    auxdata.cd0 = 0.00873
-    auxdata.rho0 = 0.002378
-    auxdata.m = 5.6
-    auxdata.s = 45.09703
-    auxdata.k = 0.045
-    auxdata.cl_max = 1.5
-
     # set bounds
     bounds = ocp.bounds.phase[0]
     bounds.initial_time.lower = 0
@@ -104,7 +109,7 @@ def setup() -> Problem:
     bounds.state.lower = -1500, -1000, 0, 10, np.radians(-75), np.radians(-225)
     bounds.state.upper = +1500, +1000, 1000, 350, np.radians(75), np.radians(225)
     bounds.control.lower = 0, np.radians(-75)
-    bounds.control.upper = auxdata.cl_max, np.radians(75)
+    bounds.control.upper = cl_max, np.radians(75)
     bounds.path.lower = (-2,)
     bounds.path.upper = (5,)
     ocp.bounds.discrete.lower = ocp.bounds.discrete.upper = 0, 0, np.radians(360)
@@ -165,7 +170,6 @@ def plot_solution(solution: Solution) -> None:
         The solution to the dynamic soaring optimal control problem.
     """
     # extract information from solution
-    auxdata = solution.problem.auxdata
     t = solution.phase[0].time
     tc = solution.phase[0].time_c
     x, y, h, v, gamma, psi = solution.phase[0].state
@@ -189,7 +193,7 @@ def plot_solution(solution: Solution) -> None:
 
     # figure 2: Lift coefficient
     plt.figure(2)
-    limit = 5 * (auxdata.m * auxdata.g0) / (0.5 * auxdata.rho0 * auxdata.s * v**2)
+    limit = 5 * (mass * g0) / (0.5 * rho0 * area * v**2)
     plt.plot(t, limit, "r--")
     plt.plot(tc, cl)
     plt.ylim((0, 1))
