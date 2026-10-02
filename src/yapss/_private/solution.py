@@ -7,6 +7,8 @@ Module to encapsulate the problem solution in a Solution object.
 # standard library imports
 from __future__ import annotations
 
+import copy
+import pickle
 import sys
 from copy import deepcopy
 from dataclasses import dataclass
@@ -374,6 +376,14 @@ class SolutionPhases(tuple["SolutionPhase", ...]):
     def __new__(cls, *args: SolutionPhase) -> Self:
         return super().__new__(cls, args)
 
+    def __getnewargs__(self) -> tuple[SolutionPhase, ...]:
+        """Return the phases, so that a copy or a pickle is rebuilt from them one by one.
+
+        A tuple is otherwise rebuilt by passing its items as one argument, which `__new__`
+        here would take as a single phase.
+        """
+        return tuple(self)
+
     def __repr__(self) -> str:
         n = len(self)
         return f"<{__name__}.SolutionPhases: {n} phase{'' if n == 1 else 's'}>"
@@ -451,7 +461,8 @@ class Solution:
         The name of the problem being solved.
     problem : Problem
         Deep copy of the problem definition object that includes all original user-defined
-        settings, parameters, and configurations for the NLP problem.
+        settings, parameters, and configurations for the NLP problem. A pickled solution
+        keeps it only if the problem itself can be pickled; see the Notes.
     objective : float
         The optimal value of the objective function after solving the optimal control problem.
     discrete : numpy.ndarray
@@ -545,6 +556,16 @@ class Solution:
             Lagrange multipliers associated with the upper bounds of the decision variables.
         mult_g : numpy.ndarray
             Lagrange multipliers associated with the constraints.
+
+    Notes
+    -----
+    A solution can be pickled. Its `problem` goes with it when the problem can be pickled,
+    which needs the callbacks to be functions defined at the top level of a module, and
+    everything in ``problem.auxdata`` to be picklable. A callback defined inside another
+    function, or a lambda, cannot be pickled, so the solution is then pickled without its
+    problem, and reading `problem` on the solution loaded from it raises `AttributeError`
+    saying why. Everything else on the solution is data and is always kept. Copying a
+    solution, with `copy.copy` or `copy.deepcopy`, always keeps its problem.
     """
 
     name: str
@@ -571,6 +592,50 @@ class Solution:
         ]
         if any(attr is None for attr in attributes):
             raise ValueError(_dataclass_msg)
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Return the state to pickle: every field, and the problem if it can be pickled."""
+        state = dict(self.__dict__)
+        if "problem" not in state:  # loaded from a pickle that was made without it
+            return state
+        try:
+            pickle.dumps(state["problem"])
+        except Exception as exc:  # noqa: BLE001 -- whatever stops the problem pickling
+            del state["problem"]
+            state["_problem_not_pickled"] = f"{type(exc).__name__}: {exc}"
+        return state
+
+    def __copy__(self) -> Self:
+        """Return a shallow copy, which shares the problem and the arrays."""
+        new = object.__new__(type(self))
+        new.__dict__.update(self.__dict__)
+        return new
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Self:
+        """Return a deep copy, problem included: copying does not go through pickling."""
+        new = object.__new__(type(self))
+        memo[id(self)] = new
+        new.__dict__.update(copy.deepcopy(self.__dict__, memo))
+        return new
+
+    # Hidden from type checkers: one that sees a reader answering any name stops reporting
+    # misspelled attributes. It is reached only when a name is missing, which for a field
+    # means `problem` on a solution that was pickled without it.
+    if not TYPE_CHECKING:
+
+        def __getattr__(self, name: str) -> Any:
+            """Explain a `problem` that was left out when the solution was pickled."""
+            reason = self.__dict__.get("_problem_not_pickled")
+            if name == "problem" and reason is not None:
+                msg = (
+                    "this solution was pickled without its problem, because the problem could "
+                    f"not be pickled ({reason}). A problem pickles when its callbacks are "
+                    "functions defined at the top level of a module and everything in its "
+                    "auxdata is picklable."
+                )
+                raise AttributeError(msg)
+            msg = f"{type(self).__name__!r} object has no attribute {name!r}"
+            raise AttributeError(msg)
 
     @property
     def status(self) -> IpoptStatus:

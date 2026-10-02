@@ -449,6 +449,16 @@ below give the details.
   `TypeError` that YAPSS raised itself, such as a refused write into an output row, where it pointed
   away from the actual mistake. A float-only function such as `math.sin` on a symbolic value still
   gets it.
+- A solution can now always be pickled. It holds a copy of the problem, and so the callbacks, and
+  Python cannot pickle a function defined inside another function, as the examples' callbacks are,
+  so `pickle.dumps(solution)` raised for them. When the problem cannot be pickled, the solution is
+  now pickled without it, and reading `solution.problem` on the solution loaded from the pickle
+  raises `AttributeError` saying why. When the problem can be pickled (callbacks at the top level of
+  a module, and a picklable `auxdata`), it is kept as before. A copy made with `copy.copy` or
+  `copy.deepcopy` always keeps its problem.
+- The phases of a copied or pickled solution are its phases. `copy.deepcopy(solution).phase` and the
+  `phase` of a solution loaded from a pickle were a tuple holding one tuple of the phases, so
+  `phase[0].state` raised `AttributeError`.
 
 ## [0.2.3] - 2026-09-13
 

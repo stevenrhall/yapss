@@ -193,7 +193,8 @@ Structure of a :class:`~yapss.Solution` Instance
 The `Solution` object contains various attributes stored in a relatively flat structure, each representing a key element of the solution:
 
 -  **name** (*str*): The name of the optimal control problem.
--  **problem** (*Problem*): A deep copy of the original problem definition.
+-  **problem** (*Problem*): A deep copy of the original problem definition. A pickled solution
+   keeps it only when the problem can be pickled; see `Saving a Solution`_.
 -  **objective** (*float*): The value of the objective function at the optimal solution.
 -  **parameter** (*np.ndarray*): An array of the optimal parameter values, one per parameter.
 -  **parameter_multiplier** (*np.ndarray*): Lagrange multipliers for parameter bounds, one per
@@ -322,6 +323,34 @@ For a mesh of ``m`` segments with ``n`` collocation points each, the counts are:
 
 So under LGR and LG the state has more columns than the control, and a control is plotted
 against ``time_c``, not ``time``.
+
+Saving a Solution
+-----------------
+
+A solution can be pickled, and copied with :func:`copy.copy` or :func:`copy.deepcopy`.
+Every solved quantity is data and is always kept.
+
+The one part of a solution that is not data is ``problem``, which holds the callbacks.
+Python pickles a function by its name, so a problem can be pickled only when its callbacks
+are functions defined at the top level of a module, and everything in ``problem.auxdata``
+is picklable. A callback defined inside another function, as in the examples' ``setup()``,
+or a lambda, cannot be pickled. So:
+
+-  When the problem can be pickled, the solution is pickled with it, and the solution loaded
+   from the pickle has its ``problem``.
+-  When it cannot, the solution is pickled without it. Reading ``problem`` on the solution
+   loaded from the pickle raises ``AttributeError``, with Python's reason for refusing the
+   problem. Nothing else is affected.
+
+To load a solution together with its problem, the module that defines the callbacks must be
+importable where the pickle is loaded, as for any pickled function. A copy always keeps its
+problem, since copying does not go through pickling.
+
+.. versionchanged:: 0.3.0
+
+    A solution whose problem cannot be pickled is pickled without it; before, pickling the
+    solution raised. The phases of a copied or pickled solution are now its phases; before,
+    ``phase`` came back as a tuple of one tuple.
 
 Information from Ipopt Solver
 -----------------------------
