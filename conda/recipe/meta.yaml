@@ -17,6 +17,8 @@ build:
 
 requirements:
   host:
+    # One Python short of pyproject.toml's <3.16, in every output below: conda-forge
+    # builds CasADi only through 3.14. See conda/environment.yml.
     - python>=3.11,<3.15
     - hatchling
     - hatch-vcs
