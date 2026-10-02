@@ -8,9 +8,11 @@ This module defines arguments which are used to call the user-defined callback f
 # future imports
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 
 # standard inputs
+from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, assert_never, cast
 
@@ -131,6 +133,29 @@ def callback_location(function: Callable[..., Any]) -> str:
     return name if code is None else f"{name} ({code.co_filename}, line {code.co_firstlineno})"
 
 
+# The package directory, and the one directory inside it that holds user code rather than
+# YAPSS's own: the examples are scripts a user runs. `absolute`, not `resolve`: a frame
+# records the path the module was imported by, symlinks and all.
+_PACKAGE = str(Path(__file__).absolute().parent.parent) + os.sep
+_EXAMPLES = _PACKAGE + "examples" + os.sep
+
+
+def _raised_in_yapss(exc: BaseException) -> bool:
+    """Report whether `exc` was raised by YAPSS's own code rather than by the user's.
+
+    The `yapss.math` hint explains a float-only function failing on a symbol, which is raised
+    from the user's line (or from C beneath it). A TypeError YAPSS raises itself -- refusing a
+    boolean row, say -- already says what is wrong, and the hint would point elsewhere.
+    """
+    tb = exc.__traceback__
+    if tb is None:
+        return False
+    while tb.tb_next is not None:
+        tb = tb.tb_next
+    filename = tb.tb_frame.f_code.co_filename
+    return filename.startswith(_PACKAGE) and not filename.startswith(_EXAMPLES)
+
+
 _SYMBOLIC_HINT = (
     'Under the "auto" derivative method the callback is called with symbolic inputs, which '
     "functions from math and other numeric libraries cannot take. Use the functions of "
@@ -151,7 +176,9 @@ def call_callback(function: Any, arg: Any) -> None:
     traceback -- with a note naming the callback and the line of its ``def``, since the
     traceback alone does not say which of the user's functions YAPSS was calling. When the
     call was the symbolic trace of the ``"auto"`` method and the error is the kind a
-    float-only function raises on a symbol, a second note points to `yapss.math`.
+    float-only function raises on a symbol, a second note points to `yapss.math`. An error
+    YAPSS raised itself, such as a refused output row, already says what is wrong and does
+    not get the second note.
     """
     arg._reset()
     try:
@@ -166,6 +193,7 @@ def call_callback(function: Any, arg: Any) -> None:
             arg._dtype is np.object_
             and isinstance(exc, (TypeError, NotImplementedError))
             and "yapss.math" not in str(exc)
+            and not _raised_in_yapss(exc)
         ):
             exc.add_note(_SYMBOLIC_HINT)
         raise

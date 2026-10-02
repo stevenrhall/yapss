@@ -105,6 +105,23 @@ def test_no_yapss_math_hint_when_the_message_already_names_it():
     assert not any(HINT in note for note in _notes(info.value))
 
 
+def test_no_yapss_math_hint_on_a_refusal_yapss_raised_itself():
+    """A TypeError YAPSS raises for a mistake it has named does not point to yapss.math."""
+    problem = _setup("auto")
+    inner = problem.functions.continuous
+
+    def continuous(arg):
+        inner(arg)
+        arg.phase[0].dynamics[0][0] = 1.0  # an element write, which YAPSS refuses itself
+
+    problem.functions.continuous = continuous
+    with pytest.raises(TypeError) as info:
+        problem.solve()
+    notes = _notes(info.value)
+    assert notes[0].startswith("Raised in functions.continuous = ")
+    assert not any(HINT in note for note in notes)
+
+
 @pytest.mark.parametrize(
     "value",
     [np.array([1.0]), np.array([1.0, 2.0]), [1.0], np.zeros((1, 1))],

@@ -430,6 +430,10 @@ below give the details.
   `mp.dps = 30` when the module was imported, which altered the precision of the user's own `mpmath`
   code; they are now computed inside `mp.workdps`. The rules are unchanged, bit for bit, and are
   computed in about half the time.
+- Under the `"auto"` derivative method, the note pointing to `yapss.math` is no longer added to a
+  `TypeError` that YAPSS raised itself, such as a refused write into an output row, where it pointed
+  away from the actual mistake. A float-only function such as `math.sin` on a symbolic value still
+  gets it.
 
 ## [0.2.3] - 2026-09-13
 
