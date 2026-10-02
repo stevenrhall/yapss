@@ -195,10 +195,13 @@ The `Solution` object contains various attributes stored in a relatively flat st
 -  **name** (*str*): The name of the optimal control problem.
 -  **problem** (*Problem*): A deep copy of the original problem definition.
 -  **objective** (*float*): The value of the objective function at the optimal solution.
--  **parameter** (*np.ndarray*): An array of the optimal parameter values.
--  **parameter_multiplier** (*np.ndarray*): Lagrange multipliers for parameter bounds.
--  **discrete** (*np.ndarray*): An array of the discrete constraint functions, evaluated at the optimal solution.
--  **discrete_multiplier** (*np.ndarray*): Lagrange multipliers corresponding to the discrete constraint functions.
+-  **parameter** (*np.ndarray*): An array of the optimal parameter values, one per parameter.
+-  **parameter_multiplier** (*np.ndarray*): Lagrange multipliers for parameter bounds, one per
+   parameter.
+-  **discrete** (*np.ndarray*): An array of the discrete constraint functions, evaluated at the
+   optimal solution, one per constraint.
+-  **discrete_multiplier** (*np.ndarray*): Lagrange multipliers corresponding to the discrete
+   constraint functions, one per constraint.
 -  **phase** (*tuple*): A tuple of `SolutionPhase` objects, each containing information
    specific to a phase in the solution.
 -  **nlp_info** (*NLPInfo*): A dataclass container with information returned from the Ipopt NLP solver.
@@ -264,6 +267,61 @@ an active path constraint.
 The two agree in value, not in derivative. Off the solution the term is a function of
 :math:`u` like any other, which is why the stationarity condition above keeps its
 :math:`\mu_h` term on a constrained arc.
+
+Array Shapes
+------------
+
+A phase's arrays have one row per variable and one column per point, on one of two sets of
+points. Write ``Nt`` for ``len(time)`` and ``Nc`` for ``len(time_c)``, and ``nx``, ``nu``,
+``nh`` and ``nq`` for the phase's numbers of states, controls, path constraints and
+integrals. A phase with none of a kind has an array with no rows.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 60 40
+
+   * - Attribute
+     - Shape
+   * - ``time``
+     - ``(Nt,)``
+   * - ``state``
+     - ``(nx, Nt)``
+   * - ``initial_state``, ``final_state``
+     - ``(nx,)``
+   * - ``time_c``, ``hamiltonian``
+     - ``(Nc,)``
+   * - ``dynamics``, ``costate``
+     - ``(nx, Nc)``
+   * - ``control``, ``control_multiplier``
+     - ``(nu, Nc)``
+   * - ``path``, ``path_multiplier``
+     - ``(nh, Nc)``
+   * - ``integrand``
+     - ``(nq, Nc)``
+   * - ``integral``, ``integral_multiplier``
+     - ``(nq,)``
+
+For a mesh of ``m`` segments with ``n`` collocation points each, the counts are:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - Spectral method
+     - ``Nt``
+     - ``Nc``
+   * - ``"lgl"``
+     - ``m (n - 1) + 1``
+     - ``m (n - 1) + 1``
+   * - ``"lgr"``
+     - ``m n + 1``
+     - ``m n``
+   * - ``"lg"``
+     - ``m n + m + 1``
+     - ``m n``
+
+So under LGR and LG the state has more columns than the control, and a control is plotted
+against ``time_c``, not ``time``.
 
 Information from Ipopt Solver
 -----------------------------
