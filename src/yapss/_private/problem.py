@@ -242,14 +242,25 @@ class Problem(Protected):
     def solve(self) -> Solution:
         """Solve the optimal control problem.
 
-        A `Solution` is returned whatever Ipopt reports. If Ipopt did not converge,
-        an `IpoptConvergenceWarning` is emitted -- the returned trajectory looks
+        A `Solution` is returned whenever Ipopt stops at an iterate. If Ipopt did not
+        converge, an `IpoptConvergenceWarning` is emitted -- the returned trajectory looks
         perfectly ordinary otherwise.
 
         Returns
         -------
         solution : Solution
             The solution to the optimal control problem.
+
+        Raises
+        ------
+        ValueError
+            If Ipopt stops without an iterate because the problem has too few degrees of
+            freedom (status -10), inconsistent bounds (-11), an invalid option (-12), or a
+            NaN or Inf from a callback or derivative during the solve (-13).
+        MemoryError
+            If Ipopt runs out of memory (-102).
+        RuntimeError
+            If Ipopt fails internally (-100, -101, -199).
 
         Warns
         -----
