@@ -1,11 +1,17 @@
 Warnings and Errors
 ===================
 
-YAPSS warns rather than raises whenever a run can still produce a result the user may want to
-look at --- an unconverged solve, an option Ipopt refused, a very large mesh segment.
-Every warning points at the line in *your* code that caused it, which is what makes the
-categories below worth knowing: a filter written as ``module="yapss"`` matches none of them,
-because the module recorded is yours.
+YAPSS raises when what you supplied is wrong, and warns when it is valid but deserves your
+attention --- an unconverged solve, an Ipopt option your build does not provide, a very
+large mesh segment. `When YAPSS raises and when it warns`_ below draws the line.
+Every warning points at a line in *your* code --- where you set the value, or where you
+called ``solve()`` --- which is what makes the categories below worth knowing: a filter
+written as ``module="yapss"`` matches none of them, because the module recorded is yours.
+
+That is a promise you can check. If a YAPSS warning points at a line inside YAPSS rather
+than at your own code, or an error's message leaves you unable to tell which of your lines
+or settings caused it, that is a bug in YAPSS --- in the check itself or in its message ---
+and a `bug report <https://github.com/stevenrhall/yapss/issues>`_ would help.
 
 The hierarchy
 -------------
@@ -46,6 +52,18 @@ YAPSS **warns** only when what you supplied is valid but something deserves your
 the outcome of the solve (Ipopt did not converge), the environment (an Ipopt option your build
 does not provide, an environment variable that no longer has an effect), a choice with a cost
 (a very large mesh segment), or a notice that a behavior will change.
+
+Solves that stop without a solution
+-----------------------------------
+
+A solve returns a ``Solution`` only when Ipopt has an iterate to report. For the statuses where
+it has none, ``solve()`` raises instead of returning a solution made of placeholder values:
+``ValueError`` for too few degrees of freedom (``-10``), inconsistent bounds (``-11``), an
+invalid option (``-12``), or a NaN or Inf returned by a callback or its derivative during the
+solve (``-13``); ``MemoryError`` when Ipopt runs out of memory (``-102``); and ``RuntimeError``
+for a failure inside Ipopt itself, or for a status this version of YAPSS does not recognize.
+:doc:`solution` describes the statuses that do return a solution, and :doc:`ipopt_backend`
+explains why these leave nothing to report.
 
 Filtering
 ---------

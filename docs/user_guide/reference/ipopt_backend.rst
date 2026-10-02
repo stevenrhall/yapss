@@ -112,6 +112,25 @@ Exception handling
     regardless. Exceptions now surface with their original traceback as a normal,
     catchable Python error on both paths.
 
+When Ipopt stops without a solution
+-----------------------------------
+
+For most statuses Ipopt stops at an iterate and reports it, and YAPSS returns a
+``Solution`` built from it, with an ``IpoptConvergenceWarning`` if the status is not a
+converged one. For the rest --- too few degrees of freedom (status ``-10``), inconsistent
+bounds (``-11``), an invalid option (``-12``), a NaN or Inf from a callback or derivative
+during the solve (``-13``), running out of memory (``-102``), and a failure inside Ipopt
+itself (``-100``, ``-101``, ``-199``) --- Ipopt has no constraint values or multipliers to
+report: it leaves the output arrays as they were passed in, or fills them with zeros. A
+solution built from those would look like one and be nothing of the kind, so ``solve()``
+raises instead, with Ipopt's own description of the status and, for most, what usually
+causes it.
+
+.. versionchanged:: 0.3.0
+
+    These statuses raise. Through 0.2.x they returned a ``Solution`` of placeholder values
+    with an ``IpoptConvergenceWarning``.
+
 Why doesn't YAPSS use the cyipopt I installed?
 ----------------------------------------------
 
@@ -126,8 +145,15 @@ and CasADi's bundled Ipopt is a second, separate copy.
 Having cyipopt installed alongside YAPSS does no harm: it simply goes unused. Importing it
 into the same process as a YAPSS solve is another matter, because in a pip environment that
 loads the second copy. YAPSS checks when it first loads Ipopt, and if it finds another copy
-already loaded, it stops with an error naming both libraries rather than risk the crash. In a Conda environment, conda-forge's cyipopt and CasADi link the *same* installed
-Ipopt package, so there is only one copy, reached two ways.
+already loaded, it raises ``RuntimeError`` naming every copy it found, rather than risk the
+crash. To use both, run them in separate processes --- separate scripts, or separate
+notebook kernels.
+
+The check runs once, when YAPSS first loads Ipopt, so it catches a copy imported before
+YAPSS's first solve but not one imported after. The hazard is the same either way.
+
+In a Conda environment, conda-forge's cyipopt and CasADi link the *same* installed Ipopt
+package, so there is only one copy, reached two ways, and nothing to refuse.
 
 Why is CasADi required if I supply my own derivatives?
 ------------------------------------------------------
