@@ -231,8 +231,53 @@ def check_callback_failures() -> int:
     return PASS
 
 
+def check_constraint_exception_mid_solve() -> int:
+    """Raise from the constraint evaluation at a trial point, and get the exception back.
+
+    Ipopt's own NaN check (check_derivatives_for_naninf) would crash the process here, in the
+    norm of a constraint vector the failed evaluation never wrote (coin-or/Ipopt#865); YAPSS
+    leaves that option off and checks for itself. The third call of the constraints is a trial
+    point of the first line search, as in the reproduction sent upstream.
+    """
+    from tests.support.legacy.examples.brachistochrone import setup
+    from yapss._private import nlp as nlp_module
+
+    problem = setup()
+    problem.ipopt_options.print_level = 0
+    problem.ipopt_options.sb = "yes"
+    problem.derivatives.method = "central-difference"
+    calls = 0
+    original = nlp_module.NLP.constraints
+
+    def constraints(self: object, z: np.ndarray) -> np.ndarray:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise RuntimeError("constraint evaluation refused at a trial point")
+        return original(self, z)
+
+    nlp_module.NLP.constraints = constraints  # type: ignore[method-assign]
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            problem.solve()
+    except RuntimeError as error:
+        if "refused at a trial point" not in str(error):
+            print(f"a different RuntimeError: {error}")
+            return FAIL
+        if calls != 3:
+            print(f"the constraints were called {calls} times, not 3")
+            return FAIL
+        return PASS
+    finally:
+        nlp_module.NLP.constraints = original  # type: ignore[method-assign]
+    print("the solve returned instead of raising")
+    return FAIL
+
+
 CHECKS = {
     "callback_failures": check_callback_failures,
+    "constraint_exception_mid_solve": check_constraint_exception_mid_solve,
     "memory_boundaries": check_memory_boundaries,
     "yapss_sigint": check_yapss_sigint,
 }

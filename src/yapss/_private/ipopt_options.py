@@ -34,13 +34,16 @@ class IpoptOptionSettingWarning(YapssWarning):
 
 DEFAULT_IPOPT_OPTIONS = {
     "mu_strategy": "adaptive",
-    # Ipopt otherwise passes a NaN or Inf Jacobian or Hessian to its linear solver, which
-    # can crash the process (MUMPS on some sparsity patterns). With the check on, Ipopt
-    # stops with status -13 (Invalid_Number_Detected) instead. The scan is one pass over
-    # the nonzeros per evaluation, negligible next to a factorization.
-    "check_derivatives_for_naninf": "yes",
 }
-"""Default Ipopt options."""
+"""Default Ipopt options.
+
+``check_derivatives_for_naninf`` is deliberately not among them, and is reserved below. Ipopt
+otherwise passes a NaN or Inf Jacobian or Hessian to its linear solver, which can crash the
+process (MUMPS on some sparsity patterns), but with the option on Ipopt crashes itself whenever
+a constraint evaluation reports failure (coin-or/Ipopt#865). The binding checks every
+callback's result instead (`mseipopt.bare_np.Problem._invoke_callback`) and reports a
+non-finite one to Ipopt as a failed evaluation, which is what the option would have done.
+"""
 
 RESERVED_IPOPT_OPTIONS = {
     "nlp_scaling_method": (
@@ -58,8 +61,13 @@ RESERVED_IPOPT_OPTIONS = {
         "YAPSS does not pass warm-start dual/bound information to Ipopt, so this "
         "option has no effect and is not supported."
     ),
+    "check_derivatives_for_naninf": (
+        "YAPSS checks every value and derivative a callback returns for a NaN or an "
+        "infinity itself, so Ipopt's check would find nothing, and with it on Ipopt can "
+        "crash the process when an evaluation fails (coin-or/Ipopt#865). Remove the setting."
+    ),
 }
-"""Ipopt options YAPSS configures itself; setting them directly is disallowed."""
+"""Ipopt options YAPSS configures itself, or makes redundant; setting them is disallowed."""
 
 
 _KIND_NAMES = {"int": "Integer", "float": "Number", "str": "String"}

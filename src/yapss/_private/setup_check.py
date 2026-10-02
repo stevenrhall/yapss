@@ -32,9 +32,10 @@ starting point. Ipopt checks function values for NaN and Inf, but by default not
 matrices, and its initialization factors a linear system built from the constraint Jacobian
 before it reads the constraint values; a non-finite Jacobian entry therefore reaches the linear
 solver, whose behavior on NaN is undefined (for some sparsity patterns MUMPS crashes the process
-with no Python traceback). YAPSS sets Ipopt's ``check_derivatives_for_naninf`` to stop that at
-every iterate, but Ipopt's message names only a matrix; this stage names the problem-level
-quantities. The values themselves need no NLP-level check: every constraint row is built from
+with no Python traceback). The Ipopt binding checks every callback's result at every iterate
+and reports a non-finite one to Ipopt as a failed evaluation, but its message names only a
+callback and an entry; this stage names the problem-level quantities. The values themselves
+need no NLP-level check: every constraint row is built from
 the decision variables, which the initial guess keeps finite, and from the callback outputs,
 which `check_callbacks` has checked. The Hessian is not checked: it depends on multipliers that
 do not exist yet, and a non-finite Hessian with finite first derivatives is left to Ipopt.

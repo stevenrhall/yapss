@@ -6,12 +6,13 @@ A NaN or Inf Jacobian at the starting point used to reach Ipopt's least-squares 
 initialization, which factors a system built from the Jacobian before Ipopt checks the
 constraint values; for some sparsity patterns MUMPS then crashed the process (SIGBUS, no
 traceback). Two fixes guard it: `check_callbacks` and `check_derivatives` raise before Ipopt
-is created, and
-`check_derivatives_for_naninf = "yes"` is a YAPSS default so Ipopt stops with status -13 at
-any later iterate. Tests that call `solve()` on a non-finite starting point go through the
-first guard, and the second would still stop Ipopt cleanly, so a regression fails a test
-instead of killing the test process -- except the one test that disables the first guard,
-which runs in a subprocess.
+is created, and the binding reports a non-finite callback result to Ipopt as a failed
+evaluation, so Ipopt stops with status -13 at any later iterate it cannot step away from
+(Ipopt's own `check_derivatives_for_naninf` is left off and reserved; see
+`test_mseipopt_non_finite.py`). Tests that call `solve()` on a non-finite starting point go
+through the first guard, and the second would still stop Ipopt cleanly, so a regression
+fails a test instead of killing the test process -- except the one test that disables the
+first guard, which runs in a subprocess.
 
 """
 
@@ -267,20 +268,25 @@ def test_a_non_finite_discrete_constraint_is_reported():
         problem.solve()
 
 
-def test_nan_derivative_check_is_a_yapss_default():
-    assert DEFAULT_IPOPT_OPTIONS["check_derivatives_for_naninf"] == "yes"
-    assert brachistochrone_minimal.setup().ipopt_options.check_derivatives_for_naninf == "yes"
+def test_the_nan_derivative_check_is_the_bindings_not_ipopts():
+    """Ipopt's own check is left off: it crashes on a failed constraint evaluation."""
+    assert "check_derivatives_for_naninf" not in DEFAULT_IPOPT_OPTIONS
+    problem = brachistochrone_minimal.setup()
+    assert "check_derivatives_for_naninf" not in problem.ipopt_options.get_options()
+    # and it cannot be turned on, since the binding's check leaves it nothing to find
+    with pytest.raises(ValueError, match="Remove the setting"):
+        problem.ipopt_options.check_derivatives_for_naninf = "yes"
 
 
 @pytest.mark.isolation
 def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
-    """With YAPSS's own check disabled, Ipopt's derivative check still stops the solve.
+    """With YAPSS's own check disabled, the binding's derivative check still stops the solve.
 
-    Runs in a subprocess: this is the configuration that crashed with SIGBUS before the
-    `check_derivatives_for_naninf` default, and a regression must not kill pytest. The
-    assertion is the status Ipopt returns, -13 (Invalid_Number_Detected), not merely that
-    the process survived. Since 0.3.0 that status raises `ValueError`, because Ipopt reports
-    no constraint values or multipliers with it.
+    Runs in a subprocess: this is the configuration that crashed with SIGBUS before any
+    derivative check, and a regression must not kill pytest. The assertion is the status
+    Ipopt returns, -13 (Invalid_Number_Detected), not merely that the process survived, and
+    that the message names the callback whose result was not finite. Since 0.3.0 that status
+    raises `ValueError`, because Ipopt reports no constraint values or multipliers with it.
     """
     script = textwrap.dedent("""
         import warnings
@@ -307,3 +313,4 @@ def test_ipopt_stops_cleanly_when_the_initial_point_check_is_bypassed():
     assert 'RAISED Ipopt stopped without a solution. Status -13: "Invalid number' in (
         process.stdout
     ), output
+    assert "The last such result: eval_" in process.stdout, output

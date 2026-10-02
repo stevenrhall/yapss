@@ -124,20 +124,25 @@ YAPSS otherwise tries not to be opinionated about Ipopt options, but makes two e
 First, the default value of ``mu_strategy`` is ``"adaptive"`` rather than Ipopt's own
 default of ``"monotone"``. The YAPSS test suite runs about 30% slower using the Ipopt
 default, and we have found that Ipopt sometimes fails to converge on difficult problems
-with the monotone strategy. Second, the default value of ``check_derivatives_for_naninf``
-is ``"yes"`` rather than ``"no"``. Without the check, Ipopt passes a NaN or infinite
-Jacobian or Hessian entry to its linear solver, which can crash the Python process; with
-it, Ipopt stops with status -13 ("Invalid number in NLP function or derivative
-detected"), and ``problem.solve()`` raises ``ValueError`` saying so. The check costs one pass
-over the derivative values per evaluation.
+with the monotone strategy. Second, YAPSS checks every value and derivative a callback
+returns for a NaN or an infinity, and leaves ``check_derivatives_for_naninf`` at Ipopt's
+default of ``"no"``. Ipopt otherwise passes a NaN or infinite Jacobian or Hessian entry to
+its linear solver, which can crash the Python process; but with the option on, Ipopt
+crashes itself whenever a constraint evaluation fails, as one does when a callback raises
+(`coin-or/Ipopt#865 <https://github.com/coin-or/Ipopt/issues/865>`_). So when a value is not
+finite, YAPSS tells Ipopt the evaluation failed, which is what the option would have done:
+Ipopt rejects the trial point and shortens its step. If Ipopt cannot recover it stops with
+status -13 ("Invalid number in NLP function or derivative detected"), and
+``problem.solve()`` raises ``ValueError`` naming the callback and the entry. The option is
+reserved, as described below, since turning it on could add nothing but the crash.
 Separately, ``problem.solve()`` raises ``ValueError`` before starting Ipopt if the
 objective, constraints, or their first derivatives are not finite at the initial guess,
-naming the quantities involved. Unlike the reserved options below, both are normal
-options and can still be set to any value through ``problem.ipopt_options``.
+naming the quantities involved. Unlike the reserved options below, ``mu_strategy`` is a
+normal option and can still be set to any value through ``problem.ipopt_options``.
 
 The following options are reserved: YAPSS determines them from the problem configuration,
-and attempting to set them directly through ``ipopt_options`` raises a ``ValueError``
-immediately, rather than being silently overridden later.
+or does their work itself, and attempting to set them directly through ``ipopt_options``
+raises a ``ValueError`` immediately, rather than being silently overridden later.
 
 ``hessian_approximation``
     Controlled by ``problem.derivatives.order``. When the derivative order is
@@ -158,6 +163,12 @@ immediately, rather than being silently overridden later.
 ``obj_scaling_factor``
     YAPSS manages objective scaling internally. Set the sign through ``problem.sense``
     and the magnitude through ``problem.scale.objective`` instead.
+
+``check_derivatives_for_naninf``
+    YAPSS makes this check itself, as described above, so Ipopt's check would find
+    nothing; its only possible effect is the crash. YAPSS cannot see an ``ipopt.opt``
+    file, so do not set the option there either. This holds until the Ipopt fix is in
+    the Ipopt that CasADi's wheel and conda-forge provide.
 
 For example, trying to set ``hessian_approximation`` directly raises an error:
 

@@ -40,6 +40,11 @@ def test_each_values_callback_failure_has_a_native_non_success_status() -> None:
     run_check("callback_failures")
 
 
+def test_an_exception_in_the_constraints_at_a_trial_point_is_raised_not_a_segfault() -> None:
+    """The case behind coin-or/Ipopt#865, with YAPSS's defaults: the process survives."""
+    run_check("constraint_exception_mid_solve")
+
+
 def test_yapss_sigint_returns_unconverged_solution_and_restores_handler() -> None:
     """YAPSS converts SIGINT to status 5 and restores process signal state."""
     run_check("yapss_sigint")

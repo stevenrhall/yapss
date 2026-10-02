@@ -363,10 +363,16 @@ below give the details.
     entries`, or the derivative of a finite value with respect to a named variable. A
     solve that used to return a status -13 `Solution` from such a starting point now
     raises instead.
-  - `check_derivatives_for_naninf` is now `"yes"` by default, so a non-finite Jacobian or
-    Hessian at any later iterate stops Ipopt with status -13 instead of reaching the
-    linear solver, and `solve()` then raises `ValueError` (see Changed). It can still be set
-    to `"no"`.
+  - YAPSS now checks every value and derivative a callback returns during the solve, and
+    reports a NaN or Inf to Ipopt as a failed evaluation, so a non-finite Jacobian or
+    Hessian at any later iterate no longer reaches the linear solver. Ipopt rejects the
+    trial point, and if it cannot recover it stops with status -13; `solve()` then raises
+    `ValueError` naming the callback and the entry (see Changed). Ipopt's own
+    `check_derivatives_for_naninf` is left off: with it on, Ipopt crashes the process
+    whenever a constraint evaluation fails, as one does when a callback raises
+    ([coin-or/Ipopt#865](https://github.com/coin-or/Ipopt/issues/865)). The option is now
+    reserved, and assigning it raises `ValueError`: YAPSS's check leaves it nothing to
+    find, so it could add only the crash. A script that sets it should drop the line.
 - A misspelled attribute on `problem.guess`, or on `arg.phase[p]` in an objective or
   discrete callback (and their derivative callbacks), now raises `AttributeError` at the
   offending line, as it already did on the rest of the problem definition and on the
