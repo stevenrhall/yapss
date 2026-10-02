@@ -113,6 +113,9 @@ def setup() -> Problem:
     bounds.path.lower = (-2,)
     bounds.path.upper = (5,)
     ocp.bounds.discrete.lower = ocp.bounds.discrete.upper = 0, 0, np.radians(360)
+    # the wind gradient is positive; unbounded, the objective has no floor where the
+    # dynamics do not hold
+    ocp.bounds.parameter.lower = [0.0]
 
     # scaling to improve convergence rate
     scale = ocp.scale

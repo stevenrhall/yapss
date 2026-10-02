@@ -84,6 +84,15 @@ below give the details.
 
 ### Changed
 
+- Under the LG spectral method, the bounds `bounds.phase[p].state` are now applied at the
+  collocation points and at the two ends of the phase, and no longer to the state at the interior
+  segment boundaries. Under LG that value is not collocated: it is fixed by the collocation values,
+  so bounding it added nothing to the problem, and the multiplier of such a bound has no place in
+  the bound's density. Solutions are unchanged where Ipopt converges, but the path Ipopt takes can
+  differ. A problem whose objective has no lower limit where the dynamics do not hold, such as an
+  unbounded parameter that is minimized, should bound it: the dynamic soaring example now bounds its
+  wind gradient below by zero. LGL and LGR are unaffected, since their segment boundaries are
+  collocation points.
 - An exception raised inside a callback now carries a note naming the callback YAPSS was
   calling and the line of its `def`, as in `Raised in functions.continuous = continuous
   (my_problem.py, line 12).` The exception itself is unchanged. Under the `"auto"`

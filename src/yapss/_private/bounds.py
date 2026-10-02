@@ -22,6 +22,7 @@ from numpy import float64
 
 from .checked_array import CheckedArray, raise_if_invalid
 from .coercion import real_array, real_scalar
+from .layout import problem_layout
 
 # package imports
 from .structure import CFStructure, DVStructure, get_nlp_cf_structure, get_nlp_dv_structure
@@ -473,14 +474,25 @@ def get_nlp_decision_variable_bounds(problem: yapss.Problem) -> tuple[FloatArray
     lb: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
     ub: DVStructure[np.float64] = get_nlp_dv_structure(problem, np.float64)
 
+    layouts = problem_layout(problem)
+
     # do for each phase
     for p in range(problem.np):
         self_phase = problem.bounds.phase[p]
 
-        # state bounds at every time point, and zero-mode bounds (empty unless LGL)
+        # The state's general bound, at the evaluation points, which are the first stored
+        # state values; and zero-mode bounds (empty unless LGL). A stored value that is not
+        # an evaluation point is left unbounded here: under LG the state at an interior
+        # segment boundary is fixed by the collocation values, through the boundary defect
+        # of the segment before it, so a bound on it would be redundant, and its multiplier
+        # would have no quadrature weight to make it part of the bound's density. The two
+        # ends are bounded below.
+        n_eval = layouts[p].n_eval
         for i in range(problem.nx[p]):
-            lb.phase[p].x[i][:] = self_phase.state.lower[i]
-            ub.phase[p].x[i][:] = self_phase.state.upper[i]
+            lb.phase[p].x[i][:] = -np.inf
+            ub.phase[p].x[i][:] = np.inf
+            lb.phase[p].x[i][:n_eval] = self_phase.state.lower[i]
+            ub.phase[p].x[i][:n_eval] = self_phase.state.upper[i]
             lb.phase[p].xs[i][:] = self_phase._zero_mode.lower[i]
             ub.phase[p].xs[i][:] = self_phase._zero_mode.upper[i]
 

@@ -14,6 +14,9 @@ import pytest
 
 # package imports
 from yapss import Problem
+from yapss._private.bounds import get_nlp_decision_variable_bounds
+from yapss._private.layout import problem_layout
+from yapss._private.structure import get_nlp_dv_structure
 from yapss.examples import dynamic_soaring, goddard_problem_3_phase
 
 
@@ -358,3 +361,47 @@ def test_crossing_message_is_unchanged():
     msg = "bounds.phase[0].state.lower[i] is greater than bounds.phase[0].state.upper[i]"
     with pytest.raises(ValueError, match=re.escape(msg)):
         ocp.bounds.validate()
+
+
+@pytest.mark.parametrize("method", ["lgl", "lgr", "lg"])
+def test_the_general_state_bound_is_applied_at_the_evaluation_points_and_the_ends(method):
+    """Under LG a segment start is not an evaluation point, so the interior ones are unbounded.
+
+    Such a state is fixed by the collocation values, through a boundary defect, so a bound
+    on it would be redundant, and its multiplier would have no quadrature weight. The two
+    ends are bounded by the tighter of the general bound and their own.
+    """
+    problem = Problem(name="bounds", nx=[2], nu=[1])
+    problem.spectral_method = method
+    problem.mesh.phase[0].collocation_points = (4, 3, 5)
+    problem.mesh.phase[0].fraction = (0.2, 0.3, 0.5)
+    bounds = problem.bounds.phase[0]
+    bounds.state.lower, bounds.state.upper = [-1.0, -2.0], [3.0, 4.0]
+    bounds.initial_state.lower[0] = bounds.initial_state.upper[0] = 0.5
+    bounds.final_state.upper[1] = 10.0
+
+    ub, lb = get_nlp_decision_variable_bounds(problem)
+    layout = problem_layout(problem)[0]
+    index = get_nlp_dv_structure(problem, np.intp)
+    index.z[:] = np.arange(len(index.z))
+    interior = [
+        position
+        for position in range(layout.n_eval, layout.n_time)
+        if position not in (layout.x0_position, layout.xf_position)
+    ]
+    assert len(interior) == (2 if method == "lg" else 0)
+    for i, (lower, upper) in enumerate([(-1.0, 3.0), (-2.0, 4.0)]):
+        rows = np.asarray(index.phase[0].x[i])
+        at_points = [
+            position
+            for position in range(layout.n_eval)
+            if position not in (layout.x0_position, layout.xf_position)
+        ]
+        assert np.all(lb[rows[at_points]] == lower)
+        assert np.all(ub[rows[at_points]] == upper)
+        assert np.all(lb[rows[interior]] == -np.inf)
+        assert np.all(ub[rows[interior]] == np.inf)
+    x0, xf = np.asarray(index.phase[0].x0), np.asarray(index.phase[0].xf)
+    assert (lb[x0[0]], ub[x0[0]]) == (0.5, 0.5)  # the end's own bound is the tighter
+    assert (lb[x0[1]], ub[x0[1]]) == (-2.0, 4.0)  # no end bound: the general one
+    assert (lb[xf[1]], ub[xf[1]]) == (-2.0, 4.0)  # the general bound is the tighter
