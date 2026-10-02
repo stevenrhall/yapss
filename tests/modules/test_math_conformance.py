@@ -42,6 +42,10 @@ DOMAIN = {
     "arcsin": [(-0.9, 0.9)],
     "arctanh": [(-0.9, 0.9)],
     "arccosh": [(1.1, 4.0)],
+    "acos": [(-0.9, 0.9)],
+    "asin": [(-0.9, 0.9)],
+    "atanh": [(-0.9, 0.9)],
+    "acosh": [(1.1, 4.0)],
     "log": [(0.1, 4.0)],
     "log10": [(0.1, 4.0)],
     "log2": [(0.1, 4.0)],
@@ -77,15 +81,7 @@ OUT_OF_SCOPE = {
     "clip": "three arguments; symbolic dispatch tested in test_sxw_scrub.py",
     "where": "three arguments; symbolic dispatch tested in test_sxw_scrub.py",
     "matmul": "not elementwise",
-    "gcd": "integer domain",
-    "lcm": "integer domain",
     "invert": "integer domain",
-    "left_shift": "integer domain",
-    "right_shift": "integer domain",
-    "ldexp": "requires an integer second argument",
-    "frexp": "two outputs",
-    "modf": "two outputs",
-    "divmod": "two outputs",
 }
 
 # Exported names that YAPSS deliberately refuses in a callback, because they have no
@@ -180,16 +176,19 @@ def sample_points(name, nin):
 #   numpy   -- numpy's own function on an SXArray, which goes through
 #              SXArray.__array_ufunc__ rather than yapss.math at all. Before 0.2.3 the
 #              two-argument ufuncs raised here.
+#   numpy_scalar -- numpy's own function on a bare SXW, through SXW.__array_ufunc__. With
+#              the numpy kind, this is why a callback may call numpy's version of any of
+#              these names under "auto"; yapss.math marks the promised set.
 # Before 0.2.3 only objarr was tested here, and sixteen names failed on scalar.
-INPUT_KINDS = ("scalar", "objarr", "sxarr", "numpy")
+INPUT_KINDS = ("scalar", "objarr", "sxarr", "numpy", "numpy_scalar")
 
 
 def evaluate_symbolically(name, points, kind="objarr"):
     """Evaluate ``yapss.math.<name>`` on SXW symbols of one input kind; return floats."""
     n = len(points[0])
     symbols = [ca.SX.sym(f"v{k}", n) for k in range(len(points))]
-    function = getattr(np if kind == "numpy" else math, name)
-    if kind == "scalar":
+    function = getattr(np if kind.startswith("numpy") else math, name)
+    if kind in ("scalar", "numpy_scalar"):
         result = [function(*[SXW(symbols[k][i]) for k in range(len(points))]) for i in range(n)]
     else:
         build = (
@@ -327,6 +326,103 @@ def test_unsupported_error_is_a_type_error():
 def test_the_removed_warning_says_what_replaced_it(module):
     with pytest.raises(AttributeError, match="removed in 0.3.0.*now raise"):
         _ = module.UnsupportedMathFunctionWarning
+
+
+# ------------------------------------------------------------------------------------------
+# what the module provides
+# ------------------------------------------------------------------------------------------
+
+# public names besides the promised functions: the error they raise, and the submodules
+NOT_FUNCTIONS = {"UnsupportedMathFunctionError", "functions", "wrapper"}
+
+
+def test_the_module_provides_only_its_promise():
+    """A successful import from yapss.math is the promise, so nothing else is importable."""
+    public = {name for name in dir(math) if not name.startswith("_")}
+    assert public - NOT_FUNCTIONS == set(math.__all__)
+
+
+@pytest.mark.parametrize("name", ["linspace", "ndarray", "gcd", "divmod"])
+def test_a_numpy_name_says_where_to_import_it(name):
+    with pytest.raises(AttributeError, match=f"{name!r} is not one of them.*import it from numpy"):
+        getattr(math, name)
+    assert not hasattr(math, name)
+
+
+def test_importing_a_numpy_name_fails():
+    with pytest.raises(ImportError, match="cannot import name 'linspace'"):
+        from yapss.math import linspace  # noqa: F401
+
+
+def test_an_unknown_name_is_a_plain_attribute_error():
+    with pytest.raises(AttributeError, match=r"^module 'yapss.math' has no attribute 'sine'$"):
+        _ = math.sine
+
+
+def test_numpy_where_refuses_a_symbolic_condition():
+    """``where`` is not a ufunc, so numpy's asks the condition for a truth value first.
+
+    It is the one promised name whose numpy version does not work under "auto"; the
+    refusal names the one that does.
+    """
+    x = SXW(ca.SX.sym("x"))
+    with pytest.raises(TypeError, match="yapss.math.where"):
+        np.where(x > 0, x, 0.0)
+    assert isinstance(math.where(x > 0, x, 0.0), SXW)
+
+
+# ------------------------------------------------------------------------------------------
+# NaN propagation, which the central-difference sparsity probe relies on
+# ------------------------------------------------------------------------------------------
+
+# Functions and arguments whose NaN is legitimately not propagated: a boolean result has no
+# derivative to hide; copysign's result depends on the sign of its second argument, not its
+# value; and heaviside's second argument is its value at exactly zero, which the samples avoid.
+# IEEE power(1, nan) and power(nan, 0) are 1, but the sample points avoid them too; that case
+# is the probe's to handle, not a function's.
+BOOLEAN = {
+    "equal",
+    "not_equal",
+    "less",
+    "less_equal",
+    "greater",
+    "greater_equal",
+    "logical_and",
+    "logical_or",
+    "logical_xor",
+    "logical_not",
+    "invert",
+}
+ABSORBS_NAN = {("copysign", 1), ("heaviside", 1)}
+
+
+def nan_cases():
+    """Return (name, position) for every argument of every elementwise function."""
+    cases = []
+    for name in elementwise_ufunc_names():
+        if name in BOOLEAN:
+            continue
+        for position in range(getattr(np, name).nin):
+            if (name, position) not in ABSORBS_NAN:
+                cases.append((name, position))
+    return cases
+
+
+@pytest.mark.parametrize(("name", "position"), nan_cases())
+def test_nan_in_any_argument_gives_nan(name, position):
+    """A NaN in any argument is NaN in the result, so the probe sees the dependency."""
+    points = [np.array(p, dtype=float) for p in sample_points(name, getattr(np, name).nin)]
+    points[position][:] = np.nan
+    with np.errstate(all="ignore"):
+        result = getattr(math, name)(*points)
+    assert np.all(np.isnan(result)), f"yapss.math.{name} dropped a NaN in argument {position}"
+
+
+@pytest.mark.parametrize("name", ["fmax", "fmin"])
+def test_fmax_and_fmin_propagate_nan_unlike_numpy(name):
+    """numpy's fmax and fmin ignore NaN; yapss.math's are maximum and minimum."""
+    assert getattr(np, name)(1.0, np.nan) == 1.0
+    assert np.isnan(getattr(math, name)(1.0, np.nan))
 
 
 CLIP_VALUES = np.linspace(-2.0, 2.0, 9)

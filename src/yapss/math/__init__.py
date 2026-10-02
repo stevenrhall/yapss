@@ -1,10 +1,16 @@
 """
 
-Drop-in replacement for numpy, with additional support for the SXW wrapper class.
+The math functions that work under every derivative method.
+
+Each name here takes symbolic arguments (the SXW wrapper, under ``"auto"``) as well as real
+ones, where it is numpy's function -- except that ``fmax``, ``fmin`` and ``where`` return NaN
+where numpy's would drop it, because the central-difference methods find the sparsity structure
+by setting a variable to NaN. The module provides nothing else, so a successful import is the
+promise that the function works under every derivative method; the rest of numpy is imported
+from numpy. The three exceptions are ``nextafter``, ``signbit`` and ``spacing``, which are
+provided only to raise `UnsupportedMathFunctionError` on every argument.
 
 """
-
-from __future__ import annotations
 
 import typing as _typing
 
@@ -16,6 +22,8 @@ from yapss.math import functions
 __all__ = [  # noqa: RUF022
     "abs",
     "absolute",
+    "acos",
+    "acosh",
     "add",
     "all",
     "amax",
@@ -28,6 +36,11 @@ __all__ = [  # noqa: RUF022
     "arctan",
     "arctan2",
     "arctanh",
+    "asin",
+    "asinh",
+    "atan",
+    "atan2",
+    "atanh",
     "cbrt",
     "ceil",
     "clip",
@@ -39,7 +52,6 @@ __all__ = [  # noqa: RUF022
     "deg2rad",
     "degrees",
     "divide",
-    "divmod",
     "equal",
     "exp",
     "exp2",
@@ -51,16 +63,11 @@ __all__ = [  # noqa: RUF022
     "fmax",
     "fmin",
     "fmod",
-    "frexp",
-    "gcd",
     "greater",
     "greater_equal",
     "heaviside",
     "hypot",
     "invert",
-    "lcm",
-    "ldexp",
-    "left_shift",
     "less",
     "less_equal",
     "log",
@@ -79,7 +86,6 @@ __all__ = [  # noqa: RUF022
     "min",
     "minimum",
     "mod",
-    "modf",
     "multiply",
     "negative",
     "nextafter",
@@ -92,7 +98,6 @@ __all__ = [  # noqa: RUF022
     "radians",
     "reciprocal",
     "remainder",
-    "right_shift",
     "rint",
     "round",
     "sign",
@@ -111,11 +116,9 @@ __all__ = [  # noqa: RUF022
     "where",
 ]
 
-from numpy import *  # noqa: F403
 from numpy import abs  # noqa: A004
 from numpy import all  # noqa: A004
 from numpy import any  # noqa: A004
-from numpy import divmod  # noqa: A004
 from numpy import max  # noqa: A004
 from numpy import min  # noqa: A004
 from numpy import round  # noqa: A004
@@ -154,16 +157,11 @@ from numpy import (
     fmax,
     fmin,
     fmod,
-    frexp,
-    gcd,
     greater,
     greater_equal,
     heaviside,
     hypot,
     invert,
-    lcm,
-    ldexp,
-    left_shift,
     less,
     less_equal,
     log,
@@ -180,7 +178,6 @@ from numpy import (
     maximum,
     minimum,
     mod,
-    modf,
     multiply,
     negative,
     nextafter,
@@ -192,7 +189,6 @@ from numpy import (
     radians,
     reciprocal,
     remainder,
-    right_shift,
     rint,
     sign,
     signbit,
@@ -209,10 +205,15 @@ from numpy import (
     where,
 )
 
-# Dynamically re-export all other attributes from numpy
-for _attr in dir(_np):
-    if not _attr.startswith("_"):  # Skip private attributes
-        globals()[_attr] = getattr(_np, _attr)
+# NumPy 2's names for the same functions, bound here so that they need no NumPy 2
+acos = arccos
+acosh = arccosh
+asin = arcsin
+asinh = arcsinh
+atan = arctan
+atan2 = arctan2
+atanh = arctanh
+pow = power  # noqa: A001
 
 globals()["atan2"] = functions.arctan2
 globals()["arctan2"] = functions.arctan2
@@ -264,4 +265,12 @@ if not _typing.TYPE_CHECKING:
         if name in _REMOVED_NAMES:
             raise AttributeError(_REMOVED_NAMES[name])
         msg = f"module 'yapss.math' has no attribute {name!r}"
+        # AttributeError, so that hasattr() stays False for numpy's several hundred names;
+        # `from yapss.math import linspace` then shows Python's own "cannot import name"
+        if not name.startswith("_") and name in dir(_np):
+            msg += (
+                f"; yapss.math provides only the math functions it supports in callbacks under "
+                f"every derivative method, and {name!r} is not one of them. If needed outside a "
+                f'callback, or with a derivative method other than "auto", import it from numpy.'
+            )
         raise AttributeError(msg)
