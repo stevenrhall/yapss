@@ -23,11 +23,8 @@ YAPSS provides:
 
 ## Installation
 
-YAPSS requires Python 3.11 through 3.14 (`>=3.11,<3.15`). CasADi, a YAPSS dependency,
-does not yet publish packages for Python 3.15. There, pip tries to build CasADi from
-source, which typically fails with "Failed to build casadi". On Linux aarch64 (ARM) with
-pip, CasADi currently publishes packages only for Python 3.11 through 3.13; Conda
-installs are not affected.
+YAPSS requires Python 3.11 through 3.15 (`>=3.11,<3.16`) with pip, and Python 3.11
+through 3.14 with Conda, where CasADi, a YAPSS dependency, is not yet built for 3.15.
 
 Install YAPSS into a virtual environment with pip:
 

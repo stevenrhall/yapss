@@ -1,3 +1,4 @@
+# 3.15 waits for conda-forge's casadi; see conda/environment.yml.
 python:
   - "3.11"
   - "3.12"
