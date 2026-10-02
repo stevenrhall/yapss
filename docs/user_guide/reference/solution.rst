@@ -199,9 +199,9 @@ The `Solution` object contains various attributes stored in a relatively flat st
 -  **parameter_multiplier** (*np.ndarray*): Lagrange multipliers for parameter bounds.
 -  **discrete** (*np.ndarray*): An array of the discrete constraint functions, evaluated at the optimal solution.
 -  **discrete_multiplier** (*np.ndarray*): Lagrange multipliers corresponding to the discrete constraint functions.
--  **phase** (*yapss.SolutionPhases*): A tuple of `SolutionPhase` objects, each containing information
+-  **phase** (*tuple*): A tuple of `SolutionPhase` objects, each containing information
    specific to a phase in the solution.
--  **nlp_info** (*yapss.NLPInfo*): A dataclass container with information returned from the Ipopt NLP solver.
+-  **nlp_info** (*NLPInfo*): A dataclass container with information returned from the Ipopt NLP solver.
 
 Attributes of a `SolutionPhase` Instance
 ------------------------------------------------------

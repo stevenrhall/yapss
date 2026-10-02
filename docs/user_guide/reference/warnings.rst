@@ -2,7 +2,7 @@ Warnings and Errors
 ===================
 
 YAPSS warns rather than raises whenever a run can still produce a result the user may want to
-look at --- an unconverged solve, an option Ipopt refused, an output a callback never assigned.
+look at --- an unconverged solve, an option Ipopt refused, a very large mesh segment.
 Every warning points at the line in *your* code that caused it, which is what makes the
 categories below worth knowing: a filter written as ``module="yapss"`` matches none of them,
 because the module recorded is yours.
@@ -62,9 +62,14 @@ Or one category at a time::
     warnings.filterwarnings("error", category=yapss.IpoptConvergenceWarning)
     warnings.filterwarnings("ignore", category=yapss.LargeSegmentWarning)
 
-The same on the command line, using the fully qualified name::
+In a test suite, pytest accepts the fully qualified name, on the command line or in its
+``filterwarnings`` setting, so an unconverged solve fails the test::
 
-    python -W error::yapss.IpoptConvergenceWarning my_problem.py
+    pytest -W error::yapss.IpoptConvergenceWarning
+
+Python's own ``-W`` option cannot name a YAPSS category, since it is read before any
+package can be imported; ``python -W error`` turns every warning into an error, YAPSS's
+included.
 
 Every unconverged solve warns, including several run from the same line: Python's ``"default"``
 and ``"once"`` actions would otherwise report only the first, and a solve that quietly returns

@@ -11,7 +11,7 @@ The ``derivatives.method`` Attribute
 The ``derivatives.method`` option can take on one of four values:
 
 *  "auto" (default), for automatic differentiation using the CasADi package. With this method,
-   YAPSS calls each callback function a single time, passing symbolic placeholders in place of
+   YAPSS calls each callback function once with symbolic placeholders in place of
    the problem variables it reads --- states, controls, times, integrals, and parameters --- and
    records the expressions the callback builds from them. A placeholder stands for any value the
    variable might take, so it cannot answer a yes-or-no question: a Python ``if``, ``and``,
@@ -62,11 +62,11 @@ The ``derivatives.order`` Attribute
 -----------------------------------
 
 Users can also choose whether YAPSS calculates first or second derivatives. The
-``derivatives.order`` option can take on one of two values, "first" or "second". When using
-automatic differentiation, it’s almost always better to use "second". When using the central-
-difference method, it can sometimes be advantageous to use only first-order derivatives, because
-taking second derivatives is computationally expensive, and numerical second derivatives are
-less accurate than numerical first derivatives.
+``derivatives.order`` option can take on one of two values, "first" or "second" (the
+default). When using automatic differentiation, it’s almost always better to use "second".
+When using the central-difference method, it can sometimes be advantageous to use only
+first-order derivatives, because taking second derivatives is computationally expensive, and
+numerical second derivatives are less accurate than numerical first derivatives.
 
 Example
 -------

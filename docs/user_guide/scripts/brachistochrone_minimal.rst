@@ -1,8 +1,9 @@
 Brachistochrone (Minimal Implementation)
 ========================================
 
-For a description of the brachistochrone problem with constraints as in this script, see the
-`JupyterLab notebook Tutorial Example <../notebooks/tutorial.ipynb>`_.
+For a description of the brachistochrone problem, see the `JupyterLab notebook Tutorial
+Example <../notebooks/tutorial.ipynb>`_, which also adds a wall constraint that this script
+does not have.
 
 This script provides a minimal implementation of the brachistochrone problem, that is, without
 providing user-defined derivatives. (User-defined derivatives are almost never necessary.)

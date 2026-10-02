@@ -77,8 +77,8 @@ The discrete variables that can be extracted from the ``arg`` object are:
 - ``arg.parameter``: The parameter vector of the problem.
 
 These are inputs, and they are read-only: a write into one raises ``ValueError`` at the
-line, rather than being silently swallowed by a copy or, for ``arg.parameter``, reaching
-the solver's own array.
+line, and assigning to the name itself raises ``AttributeError``, rather than being
+silently swallowed by a copy or, for ``arg.parameter``, reaching the solver's own array.
 
 .. versionchanged:: 0.3.0
 

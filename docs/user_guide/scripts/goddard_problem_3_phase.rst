@@ -11,7 +11,9 @@ as a :doc:`Python script <goddard_problem_1_phase>` or as a `JupyterLab notebook
 <../notebooks/goddard_problem_1_phase.ipynb>`_.
 
 This example script has user-defined methods for computing the first and second derivatives of the
-objective and continuous functions. User-defined derivatives can be faster to compute than
+objective and continuous functions. As written it solves with automatic differentiation
+(``derivatives.method = "auto"``), which ignores them; setting the method to ``"user"`` uses
+them. User-defined derivatives can be faster to compute than
 derivatives computed by automatic differentiation, but not by a large factor. Because for most
 problems as much time is spent in the Ipopt solver as in derivative-function evaluations, even
 a substantial speedup in derivative evaluation may not result in a significant speedup in the
