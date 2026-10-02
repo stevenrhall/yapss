@@ -86,6 +86,7 @@ def test_zero_duration_phase_multipliers_are_nan() -> None:
         solution = problem.solve()
     assert np.all(np.isnan(solution.phase[0].control_multiplier))
     assert np.all(np.isnan(solution.phase[0].path_multiplier))
+    assert np.all(np.isnan(solution.phase[0].state_multiplier))
     assert np.all(np.isfinite(solution.phase[0].costate))
 
 
@@ -117,6 +118,7 @@ def test_zero_duration_phase_multipliers_are_nan_whatever_ipopt_returns(monkeypa
         solution = problem.solve()
     assert np.all(np.isnan(solution.phase[0].control_multiplier))
     assert np.all(np.isnan(solution.phase[0].path_multiplier))
+    assert np.all(np.isnan(solution.phase[0].state_multiplier))
 
 
 # ----------------------------------------------------------------------------------
@@ -231,6 +233,10 @@ def _reported_multipliers(solution: yapss.Solution) -> dict[str, np.ndarray]:
         "control_multiplier": phase.control_multiplier,
         "path_multiplier": phase.path_multiplier,
         "integral_multiplier": phase.integral_multiplier,
+        "integral_bound_multiplier": phase.integral_bound_multiplier,
+        "state_multiplier": phase.state_multiplier,
+        "initial_state_multiplier": phase.initial_state_multiplier,
+        "final_state_multiplier": phase.final_state_multiplier,
         "initial_time_multiplier": np.array([phase.initial_time_multiplier]),
         "final_time_multiplier": np.array([phase.final_time_multiplier]),
         "duration_multiplier": np.array([phase.duration_multiplier]),

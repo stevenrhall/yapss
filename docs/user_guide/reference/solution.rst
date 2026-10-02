@@ -96,17 +96,73 @@ call. Internal routines that solve repeatedly do not warn on each attempt.
 Multiplier Coverage and Verification
 ------------------------------------
 
-.. warning::
+.. versionadded:: 0.3.0
 
-    **State bound multipliers are not returned.** Ipopt computes a Lagrange multiplier
-    for every bound on ``bounds.phase[p].state``, ``initial_state``, and
-    ``final_state``, but none of these are currently exposed on `SolutionPhase`.
-    Reporting them correctly is subtler than it looks: at a point where a continuous
-    state bound is also active --- always possible for LGL at either endpoint, and for
-    LGR at the initial endpoint --- the raw Ipopt multiplier isn't a usable value on its
-    own; it needs to be divided by the quadrature weight and folded into the costate
-    instead. Working out that logic is planned for a future release. See :doc:`bounds`
-    for the related discussion of state bounds used as path constraints.
+    The multipliers of a state's bounds, ``state_multiplier``, ``initial_state_multiplier``
+    and ``final_state_multiplier``, and of an integral's bounds,
+    ``integral_bound_multiplier``.
+
+Every bound and constraint of a problem has a multiplier on the solution. The multipliers of
+a state's bounds need the most care in reading, because two bounds can apply to the state at
+an end of a phase: its bound over the phase, ``bounds.phase[p].state``, and the end's own,
+``bounds.phase[p].initial_state`` or ``final_state``. The NLP holds the state there by the
+tighter of the two, so it has one multiplier for the pair.
+
+-  ``state_multiplier`` is the multiplier of the bound on a state over the phase, as a
+   density in time at the collocation points, like ``control_multiplier``.
+-  ``initial_state_multiplier`` and ``final_state_multiplier`` are the multipliers of the
+   bound on the state at each end, one number per state, whichever of the two bounds is the
+   active one. Each is a single value at a point, not a density.
+
+At an end that is not a collocation point, which is the final point under LGR and both ends
+under LG, ``state_multiplier`` has no value, and the end multiplier stands alone. At an end
+that is a collocation point, which is both ends under LGL and the initial point under LGR,
+the same multiplier can be read either way, as a point value or as a sample of a density,
+and which is right depends on the problem: a bound that is active over an interval reaching
+the end has a density there, and a bound active only at the end has a point value. YAPSS
+does not judge that. It reports the end multiplier always, and reports the density there as
+follows, where the active side is the upper bounds if the multiplier is positive and the
+lower bounds otherwise:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50 25 25
+
+   * - On the active side, at a collocated end
+     - ``state_multiplier`` there
+     - End multiplier
+   * - The state bound is the tighter, or the end has no bound
+     - the multiplier, as a density
+     - the multiplier
+   * - The two bounds are equal
+     - the multiplier, as a density
+     - the multiplier
+   * - The end's bound is the tighter
+     - zero
+     - the multiplier
+
+So at a collocated end, ``state_multiplier`` is either zero or the same multiplier as the
+end's, divided by the weight of that point in an integral over the phase. **The two are
+one number and are never added.** The sensitivity of the objective to a state bound is the
+integral of ``state_multiplier`` over the phase, plus the end multipliers at the ends that
+are not collocation points, where the state bound is the active one. Where a state bound
+and an end's bound are equal, the multiplier is the sensitivity to moving both together.
+
+To tell a point value from a density sample, refine the mesh. The weight of an end point
+shrinks as the mesh is refined, so a point value keeps its size while ``state_multiplier``
+at the end grows, and a density sample settles while the end multiplier shrinks.
+
+.. TODO (Steve): why the pointwise values of a state bound's multiplier from a collocation
+   method are unreliable, the endpoint caveat, and when to use a path constraint instead
+   (see the "Special Considerations for State Bounds" section of the bounds page).
+
+An integral has two multipliers. ``integral_bound_multiplier`` is the multiplier of the
+bounds on the integral's value, ``bounds.phase[p].integral``. ``integral_multiplier`` is the
+multiplier of the constraint that makes the integral equal to its quadrature, and is the
+one that appears in the Hamiltonian.
+
+.. TODO (Steve): why there is an integral constraint at all: the integral is a decision
+   variable, which keeps the problem sparse.
 
 The multipliers YAPSS *does* return are checked against objective sensitivities. A
 multiplier is a derivative of the optimal objective with respect to the constraint or
@@ -228,6 +284,10 @@ control problem. Each `SolutionPhase` object includes:
 -  **state** (*np.ndarray*): Optimal state values at interpolation points.
 -  **initial_state**, **final_state** (*np.ndarray*): Initial and final state of the phase,
    `state[:, 0]` and `state[:, -1]`.
+-  **state_multiplier** (*np.ndarray*): Lagrange multipliers for the state bounds, at
+   collocation points, as a density in time (see `Multiplier Coverage and Verification`_).
+-  **initial_state_multiplier**, **final_state_multiplier** (*np.ndarray*): Lagrange
+   multipliers for the bounds on the initial and final state.
 -  **control** (*np.ndarray*): Optimal control values at collocation points.
 -  **control_multiplier** (*np.ndarray*): Lagrange multipliers for control bounds, as a
    density in time (see below).
@@ -249,6 +309,8 @@ Lagrange multipliers for constraints are also stored:
 -  **duration_multiplier** (*float*): Lagrange multiplier associated with the duration constraint.
 -  **integral_multiplier** (*np.ndarray*): Lagrange multipliers associated with the integral
    constraints, enforcing equality of integrals over each phase.
+-  **integral_bound_multiplier** (*np.ndarray*): Lagrange multipliers for the bounds on the
+   integrals.
 
 The Hamiltonian function, derived from the costates, dynamics, integrands, and integral
 multipliers, is also available:
@@ -287,11 +349,12 @@ integrals. A phase with none of a kind has an array with no rows.
      - ``(Nt,)``
    * - ``state``
      - ``(nx, Nt)``
-   * - ``initial_state``, ``final_state``
+   * - ``initial_state``, ``final_state``, ``initial_state_multiplier``,
+       ``final_state_multiplier``
      - ``(nx,)``
    * - ``time_c``, ``hamiltonian``
      - ``(Nc,)``
-   * - ``dynamics``, ``costate``
+   * - ``dynamics``, ``costate``, ``state_multiplier``
      - ``(nx, Nc)``
    * - ``control``, ``control_multiplier``
      - ``(nu, Nc)``
@@ -299,7 +362,7 @@ integrals. A phase with none of a kind has an array with no rows.
      - ``(nh, Nc)``
    * - ``integrand``
      - ``(nq, Nc)``
-   * - ``integral``, ``integral_multiplier``
+   * - ``integral``, ``integral_multiplier``, ``integral_bound_multiplier``
      - ``(nq,)``
 
 For a mesh of ``m`` segments with ``n`` collocation points each, the counts are:

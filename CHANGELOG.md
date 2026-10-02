@@ -81,6 +81,17 @@ below give the details.
   phase's, to its state when the problem was created: time, state, and control unset, and
   integral and parameter zeros. `problem.scale.reset()` and `problem.scale.phase[p].reset()`
   return every scale factor to 1.0, filling the arrays in place as `bounds.reset()` does.
+- The multipliers of a state's bounds and of an integral's bounds, which were computed by Ipopt but
+  not reported. On each phase: `state_multiplier`, the multiplier of the bound on a state over the
+  phase, a density in time at the collocation points, shaped like `costate`;
+  `initial_state_multiplier` and `final_state_multiplier`, the multipliers of the bounds on the
+  state at the two ends, one number per state; and `integral_bound_multiplier`, the multiplier of
+  the bounds on an integral, beside `integral_multiplier`, which is unchanged and is the multiplier
+  of the constraint that makes the integral its quadrature. At an end of a phase the NLP holds a
+  state by the tighter of its two bounds, so there is one multiplier for the pair. The end
+  multiplier is that number, whichever bound is active. Where the end is a collocation point,
+  `state_multiplier` has it too, as a density, unless the end's own bound is strictly the tighter;
+  there the two are one number and are not to be added. The solution page has the table.
 
 ### Changed
 

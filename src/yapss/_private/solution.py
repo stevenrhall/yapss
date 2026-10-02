@@ -276,10 +276,36 @@ def make_solution_object(
         n_points = len(mesh.w[p])
         control_multiplier: NDArray[np.float64]
         path_multiplier: NDArray[np.float64]
+        state_multiplier: NDArray[np.float64]
+
+        # The multipliers of the state's bounds. The NLP bounds the state at each end by the
+        # tighter of its general bound and that end's own, so one multiplier is there. The end
+        # multiplier is that number, whichever bound is active. Where the end is an evaluation
+        # point the density also has it, unless the end's own bound is strictly the tighter
+        # one (`_general_share`). The evaluation points are the first stored state values, so
+        # the general bound's multipliers at them are already in the order of `time_c`.
+        x_multiplier = dv_multiplier.phase[p].x
+        bounds = problem.bounds.phase[p]
+        general_bound = bounds.state.lower, bounds.state.upper
+        at_points = np.array([x_multiplier[i][: layout.n_eval] for i in range(nx)])
+        at_points = at_points.reshape(nx, layout.n_eval)
+        end_multipliers = []
+        for position, end in (
+            (layout.x0_position, bounds.initial_state),
+            (layout.xf_position, bounds.final_state),
+        ):
+            raw = np.array([x_multiplier[i][position] for i in range(nx)], dtype=np.float64)
+            if position < layout.n_eval:  # this end is an evaluation point
+                at_points[:, position] = _general_share(raw, general_bound, (end.lower, end.upper))
+            end_multipliers.append(raw)
+        initial_state_multiplier, final_state_multiplier = end_multipliers
+
         if half_duration == 0:
             control_multiplier = np.full((problem.nu[p], n_points), np.nan)
             path_multiplier = np.full((nh, n_points), np.nan)
+            state_multiplier = np.full((nx, n_points), np.nan)
         else:
+            state_multiplier = at_points / (half_duration * mesh.w[p])
             control_multiplier = _rows(
                 [
                     dv_multiplier.phase[p].u[i] / (half_duration * mesh.w[p])
@@ -296,6 +322,7 @@ def make_solution_object(
             [c_phase.integral[i] for i in range(problem.nq[p])],
             dtype=np.float64,
         )
+        integral_bound_multiplier = np.array(dv_multiplier.phase[p].q, dtype=np.float64)
 
         # values calculated from the continuous function
         c_arg = nlp_temp.eval_continuous(dv.z, 0)
@@ -325,6 +352,9 @@ def make_solution_object(
             duration=duration,
             duration_multiplier=duration_multiplier,
             state=state,
+            state_multiplier=state_multiplier,
+            initial_state_multiplier=initial_state_multiplier,
+            final_state_multiplier=final_state_multiplier,
             control=control,
             control_multiplier=control_multiplier,
             dynamics=dynamics,
@@ -334,6 +364,7 @@ def make_solution_object(
             path_multiplier=path_multiplier,
             integral=dv.phase[p].q,
             integral_multiplier=integral_multiplier,
+            integral_bound_multiplier=integral_bound_multiplier,
             hamiltonian=hamiltonian,
         )
 
@@ -366,6 +397,38 @@ def make_solution_object(
         phase=SolutionPhases(*solution_phases),
         nlp_info=nlp,
     )
+
+
+def _general_share(
+    raw: NDArray[np.float64],
+    general: tuple[NDArray[np.float64], NDArray[np.float64]],
+    end: tuple[NDArray[np.float64], NDArray[np.float64]],
+) -> NDArray[np.float64]:
+    """Return the general bound's share of a multiplier at a collocated end.
+
+    At each end of a phase the NLP bounds a state by the tighter of its general bound and
+    that end's own, so there is one multiplier for the two. Its sign says which side is
+    active: the upper bounds where it is positive, else the lower. The general bound's share
+    is the whole multiplier where the general bound is the tighter on that side or equal to
+    the end's, and zero where the end's own bound is strictly the tighter. No threshold is
+    applied to the multiplier; a small one gives a small share.
+
+    Parameters
+    ----------
+    raw : numpy.ndarray
+        The multiplier of each state's bound at the end, upper less lower.
+    general, end : tuple of numpy.ndarray
+        The lower and upper sides of the general bound and of the end's bound, per state.
+
+    Returns
+    -------
+    numpy.ndarray
+        The general bound's share, per state.
+    """
+    upper = raw > 0
+    active = np.where(upper, np.minimum(general[1], end[1]), np.maximum(general[0], end[0]))
+    general_side = np.where(upper, general[1], general[0])
+    return np.where(general_side == active, raw, 0.0)
 
 
 class SolutionPhases(tuple["SolutionPhase", ...]):
@@ -403,6 +466,9 @@ class SolutionPhase:
     duration: float
     duration_multiplier: float
     state: NDArray[np.float64]
+    state_multiplier: NDArray[np.float64]
+    initial_state_multiplier: NDArray[np.float64]
+    final_state_multiplier: NDArray[np.float64]
     control: NDArray[np.float64]
     control_multiplier: NDArray[np.float64]
     path: NDArray[np.float64]
@@ -412,6 +478,7 @@ class SolutionPhase:
     integrand: NDArray[np.float64]
     integral: NDArray[np.float64]
     integral_multiplier: NDArray[np.float64]
+    integral_bound_multiplier: NDArray[np.float64]
     hamiltonian: NDArray[np.float64]
 
     def __post_init__(self) -> None:
@@ -419,6 +486,9 @@ class SolutionPhase:
             self.time,
             self.time_c,
             self.state,
+            self.state_multiplier,
+            self.initial_state_multiplier,
+            self.final_state_multiplier,
             self.control,
             self.control_multiplier,
             self.path,
@@ -428,6 +498,7 @@ class SolutionPhase:
             self.integrand,
             self.integral,
             self.integral_multiplier,
+            self.integral_bound_multiplier,
             self.hamiltonian,
         ]
         if any(attr is None for attr in attributes):
@@ -500,6 +571,15 @@ class Solution:
         initial_state, final_state : numpy.ndarray
             Initial and final state of the phase, ``state[:, 0]`` and ``state[:, -1]``,
             returned as copies.
+        state_multiplier : numpy.ndarray
+            Lagrange multipliers for the state bounds, as a density in time at the
+            collocation time points. At an end of the phase that is a collocation point it
+            is zero where the end's own bound is the tighter one.
+        initial_state_multiplier, final_state_multiplier : numpy.ndarray
+            Lagrange multipliers for the bound on the state at each end, one per state: the
+            tighter of the state bound and the end's own. Each is a single value at a point,
+            not a density. Where the end is a collocation point and ``state_multiplier`` is
+            not zero there, the two are the same multiplier and are not to be added.
         control : numpy.ndarray
             Control variable values at the collocation time points.
         control_multiplier : numpy.ndarray
@@ -519,6 +599,8 @@ class Solution:
             Array of integral values for the phase.
         integral_multiplier : numpy.ndarray
             Lagrange multipliers for the integral constraints.
+        integral_bound_multiplier : numpy.ndarray
+            Lagrange multipliers for the bounds on the integrals.
         hamiltonian : numpy.ndarray
             Hamiltonian values at the collocation time points,
             :math:`\mathcal{H} = \lambda^T f + \nu^T g`, where :math:`f` is the
