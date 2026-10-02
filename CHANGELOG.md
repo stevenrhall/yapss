@@ -70,7 +70,9 @@ below give the details.
 - `solution.status`, a `yapss.IpoptStatus`, and `solution.converged`, true for Ipopt
   statuses 0, 1, and 6. `IpoptStatus` is an `IntEnum` naming Ipopt's return codes, with
   Ipopt's description of each as `.message`, so `solution.status == 0` keeps working.
-  `solution.nlp_info.ipopt_status` is the same object.
+  Printing one, or formatting it in an f-string, gives its name, such as
+  `SOLVED_TO_ACCEPTABLE_LEVEL`; `int(status)` is the code. `solution.nlp_info.ipopt_status`
+  is the same object.
 - `problem.guess.reset()` and `problem.guess.phase[p].reset()` return the guess, or one
   phase's, to its state when the problem was created: time, state, and control unset, and
   integral and parameter zeros. `problem.scale.reset()` and `problem.scale.phase[p].reset()`

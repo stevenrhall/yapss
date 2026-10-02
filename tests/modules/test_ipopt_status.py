@@ -7,7 +7,7 @@ import pytest
 import yapss
 from yapss import IpoptStatus
 from yapss._private.ipopt_status import status_or_raise
-from yapss._private.solution import QUIET_IPOPT_STATUSES
+from yapss._private.solution import QUIET_IPOPT_STATUSES, warn_if_not_converged
 
 # `ApplicationReturnStatus` in Ipopt 3.14.11's IpReturnCodes_inc.h, copied by hand: the enum
 # must name every code Ipopt can return, with Ipopt's own spelling in upper case.
@@ -59,7 +59,28 @@ def test_status_is_public_and_an_int():
     assert "IpoptStatus" in yapss.__all__
     assert IpoptStatus.SOLVE_SUCCEEDED == 0
     assert isinstance(IpoptStatus(-1), int)
-    assert f"{IpoptStatus(-1)}" == "-1"  # messages that format a status show the code
+    assert int(IpoptStatus(-1)) == -1
+
+
+@pytest.mark.parametrize("status", list(IpoptStatus))
+def test_a_status_prints_as_its_name(status):
+    assert str(status) == status.name
+    assert f"{status}" == status.name
+    assert f"{status:>40}" == f"{status.name:>40}"
+    assert repr(status) == f"<IpoptStatus.{status.name}: {status.value}>"
+
+
+def test_the_convergence_warning_shows_the_code():
+    """The warning says "Status -1", a code to look up; the name is in Ipopt's message."""
+
+    class FakeNLPInfo:
+        ipopt_status = IpoptStatus.MAXIMUM_ITERATIONS_EXCEEDED
+
+    class FakeSolution:
+        nlp_info = FakeNLPInfo()
+
+    with pytest.warns(yapss.IpoptConvergenceWarning, match=r"Status -1: "):
+        warn_if_not_converged(FakeSolution())
 
 
 @pytest.mark.parametrize("status", list(IpoptStatus))
