@@ -34,8 +34,10 @@ is assigned: an Integer option takes an ``int`` (a NumPy integer is accepted and
 Number option takes a ``float`` or an ``int``, and a String option takes a ``str``. A ``bool`` is
 refused everywhere, since no Ipopt option is boolean; the yes/no options take the strings
 ``"yes"`` and ``"no"``. A value of the wrong kind raises ``TypeError`` at the assignment, and a
-NaN for a Number option raises ``ValueError``, since no comparison with NaN is true and Ipopt
-checks values against a range.
+NaN or an infinity for a Number option raises ``ValueError``, since Ipopt checks values
+against a range. Assigning ``None`` removes an option, ``problem.ipopt_options.reset()``
+removes every option that was set, and ``problem.ipopt_options.get_options()`` returns the
+options in force as a dictionary.
 
 Which options exist, and which values they take, depends on the Ipopt build: the pip wheel's
 Ipopt and conda-forge's are different builds of different versions. So YAPSS passes every
@@ -47,6 +49,11 @@ why; the warning adds a hint from a table generated from Ipopt's documentation f
 --- for a name close to a documented one, the likely intent (``max_iters`` suggests
 ``max_iter``), and for a documented option, that this build might not provide it or might not
 accept the value.
+
+One case does not warn. An option Ipopt accepts when it is set and rejects only when it
+starts, such as a ``linear_solver`` this build was compiled without, ends the solve with
+Ipopt's status -12 ("Invalid option encountered"), and ``problem.solve()`` raises
+``ValueError``.
 
 A type checker reports a misspelled option name before the script runs, since every documented
 option is annotated. The warning can be silenced or turned into an error with
@@ -81,8 +88,10 @@ be sufficient. The most common options that users may want to change are:
 ``linear_solver``
     Linear solver used for step computations. Determines which linear algebra package is to be used
     for the solution of the augmented linear system (for obtaining the search directions). The Ipopt
-    default is "ma27", but for most installations, the MA27 is not available, and Ipopt falls back
-    to the "mumps" solver. The available options are:
+    default is "ma27", which most installations do not have. Outside a Conda environment YAPSS
+    selects "mumps" unless this option is set; in a Conda environment the choice is left to
+    conda-forge's Ipopt, which also uses MUMPS (see :doc:`ipopt_backend`). The available options
+    are:
 
     - "ma27": use the Harwell routine MA27
     - "ma57": use the Harwell routine MA57
@@ -121,25 +130,38 @@ be sufficient. The most common options that users may want to change are:
 ``print_level``
     Output verbosity level. (``print_level``:math:`\ge` 0, default: 5)
 
-YAPSS otherwise tries not to be opinionated about Ipopt options, but makes two exceptions.
-First, the default value of ``mu_strategy`` is ``"adaptive"`` rather than Ipopt's own
-default of ``"monotone"``. The YAPSS test suite runs about 30% slower using the Ipopt
-default, and we have found that Ipopt sometimes fails to converge on difficult problems
-with the monotone strategy. Second, YAPSS checks every value and derivative a callback
-returns for a NaN or an infinity, and leaves ``check_derivatives_for_naninf`` at Ipopt's
-default of ``"no"``. Ipopt otherwise passes a NaN or infinite Jacobian or Hessian entry to
-its linear solver, which can crash the Python process; but with the option on, Ipopt
+YAPSS otherwise tries not to be opinionated about Ipopt options. These are the options it
+sets when the user has not, each a normal option that can be set to any value through
+``problem.ipopt_options``. Only ``mu_strategy`` appears in ``get_options()``; the others are
+passed to Ipopt when the problem is solved.
+
+``mu_strategy``
+    ``"adaptive"`` rather than Ipopt's ``"monotone"``. The YAPSS test suite runs about 30%
+    slower using the Ipopt default, and we have found that Ipopt sometimes fails to converge
+    on difficult problems with the monotone strategy.
+
+``timing_statistics``
+    ``"yes"`` rather than ``"no"``, so that Ipopt measures the time spent in its own components
+    and in evaluating the problem's functions.
+
+``linear_solver`` and ``mumps_pivot_order``
+    Outside a Conda environment only: MUMPS as the linear solver, and on macOS the QAMD
+    ordering, which avoids a crash in the ordering MUMPS would otherwise choose.
+    :doc:`ipopt_backend` explains both.
+
+One Ipopt option is deliberately left at Ipopt's default: ``check_derivatives_for_naninf``,
+``"no"``. YAPSS checks instead. Ipopt otherwise passes a NaN or infinite Jacobian or Hessian
+entry to its linear solver, which can crash the Python process; but with the option on, Ipopt
 crashes itself whenever a constraint evaluation fails, as one does when a callback raises
-(`coin-or/Ipopt#865 <https://github.com/coin-or/Ipopt/issues/865>`_). So when a value is not
-finite, YAPSS tells Ipopt the evaluation failed, which is what the option would have done:
-Ipopt rejects the trial point and shortens its step. If Ipopt cannot recover it stops with
-status -13 ("Invalid number in NLP function or derivative detected"), and
-``problem.solve()`` raises ``ValueError`` naming the callback and the entry. The option is
-reserved, as described below, since turning it on could add nothing but the crash.
-Separately, ``problem.solve()`` raises ``ValueError`` before starting Ipopt if the
-objective, constraints, or their first derivatives are not finite at the initial guess,
-naming the quantities involved. Unlike the reserved options below, ``mu_strategy`` is a
-normal option and can still be set to any value through ``problem.ipopt_options``.
+(`coin-or/Ipopt#865 <https://github.com/coin-or/Ipopt/issues/865>`_). So YAPSS looks at every
+value and derivative a callback returns and, if any is not finite, tells Ipopt the evaluation
+failed, which is what the option would have done: Ipopt rejects the trial point and shortens
+its step. If Ipopt cannot recover it stops with status -13 ("Invalid number in NLP function
+or derivative detected"), and ``problem.solve()`` raises ``ValueError`` naming the callback
+and the entry. The option is reserved, as described below, since turning it on could add
+nothing but the crash. Separately, ``problem.solve()`` raises ``ValueError`` before starting
+Ipopt if the objective, constraints, or their first derivatives are not finite at the
+initial guess, naming the quantities involved.
 
 The following options are reserved: YAPSS determines them from the problem configuration,
 or does their work itself, and attempting to set them directly through ``ipopt_options``
