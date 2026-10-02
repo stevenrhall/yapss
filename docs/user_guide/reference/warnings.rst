@@ -16,7 +16,7 @@ The hierarchy
      └── yapss.YapssWarning
           ├── yapss.IpoptConvergenceWarning      Ipopt did not report a converged solution
           ├── yapss.IpoptOptionSettingWarning    Ipopt refused an option
-          ├── yapss.LargeSegmentWarning          a mesh segment has very many points
+          ├── yapss.LargeSegmentWarning          a mesh segment has more than 20 points
           └── yapss.YapssDeprecationWarning      (also a FutureWarning)
 
     Exception

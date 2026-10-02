@@ -54,8 +54,9 @@ option is annotated. The warning can be silenced or turned into an error with
 
 .. versionchanged:: 0.3.0
 
-    A value Ipopt refuses now raises when it is outside what Ipopt documents for that option;
-    before, every refusal was a warning and the solve continued with the default.
+    An option Ipopt refuses still warns, and the solve still continues with the default;
+    the warning now carries the hint described above. A NaN for a Number option now raises
+    at the assignment.
 
 Ipopt can write its own log to a file, which is the way to keep solver output when
 ``print_level`` is 0::

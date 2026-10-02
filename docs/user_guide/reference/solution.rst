@@ -23,9 +23,10 @@ arc and therefore requires a three-phase solution. You can solve this problem an
 Checking That the Solve Converged
 ---------------------------------
 
-``problem.solve()`` returns a :class:`~yapss.Solution` regardless of the status reported by
-Ipopt. A run that reaches its iteration limit or stops because the step size collapses still
-produces a full set of trajectories --- they simply do not satisfy any convergence criterion. Nothing about
+``problem.solve()`` returns a :class:`~yapss.Solution` whenever Ipopt stops at an iterate,
+whether or not it converged; the statuses at which it has none raise instead. A run that
+reaches its iteration limit or stops because the step size collapses still produces a full
+set of trajectories --- they simply do not satisfy any convergence criterion. Nothing about
 the returned object looks different.
 
 Since version 0.2.0, YAPSS emits an :class:`~yapss.IpoptConvergenceWarning` when that

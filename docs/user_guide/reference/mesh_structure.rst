@@ -94,12 +94,14 @@ attributes that can be set are:
    floor of 2 uniformly, since the spectral method can be changed independently of the
    mesh.) In practice, 2 or 3 collocation points per segment rarely gives a good
    approximation -- 4 or more per segment is recommended. The length of the sequence is the
-   number of segments in the phase, and it must not be empty. More than 15 points in one
-   segment raises :class:`~yapss.LargeSegmentWarning`. A segment is fitted by a single
-   polynomial of that degree, and YAPSS computes its quadrature rule in high-precision
-   arithmetic at a cost that grows quadratically with the count, so more and shorter
-   segments are usually both more accurate and faster to set up. For comparison,
-   published hp-adaptive methods raise the degree only to about 10 per interval before
+   number of segments in the phase, and it must not be empty. More than 20 points in one
+   segment issues :class:`~yapss.LargeSegmentWarning`, where it is assigned. A segment is
+   fitted by a single polynomial of that degree, and its differentiation matrix is dense, so
+   the block of the Jacobian that couples its defects to its states grows as the square of
+   its points; on harder problems Ipopt also takes many more iterations, or fails to
+   converge, on large segments. More and shorter segments usually solve faster. Accuracy is
+   not the cost: the quadrature is computed in high precision. For comparison, published
+   hp-adaptive methods raise the degree only to about 10 to 16 per interval before
    splitting the interval instead. Nothing fails above the threshold --- a deliberate
    single-segment method is a legitimate choice --- so the warning can simply be filtered.
 

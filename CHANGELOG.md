@@ -221,13 +221,14 @@ below give the details.
   sum to exactly 1 so segment boundaries are exact, and the tolerance exists to absorb the
   rounding error of that sum --- seven sevenths sum to 0.9999999999999998. At 0.01 it also
   absorbed real mistakes: `[0.5, 0.495]` was silently rescaled rather than reported.
-- New warning category `yapss.LargeSegmentWarning`, raised when a segment is given more than
-  15 collocation points. A segment is fitted by a single polynomial of that degree, and YAPSS
-  computes its quadrature rule in high-precision arithmetic at a cost that grows
-  quadratically, so more and shorter segments are usually both more accurate and faster to set
-  up; published hp-adaptive methods raise the degree only to about 10 per interval before
-  splitting instead. Nothing fails above the threshold, so a deliberate single-segment mesh
-  need only filter the warning.
+- New warning category `yapss.LargeSegmentWarning`, issued when a segment is given more than
+  20 collocation points. A segment is fitted by a single polynomial of that degree, and its
+  differentiation matrix is dense, so the Jacobian block coupling its defects to its states
+  grows as the square of its points; on harder problems Ipopt also takes many more
+  iterations, or fails to converge, on large segments. More and shorter segments usually
+  solve faster; published hp-adaptive methods raise the degree only to about 10 to 16 per
+  interval before splitting instead. Nothing fails above the threshold, so a deliberate
+  single-segment mesh need only filter the warning.
 - Bounds, guess values, and scale factors accept real numbers and convert nothing else. Each
   used to convert whatever it was given with NumPy, which turned `"1"` into 1.0, `True` into
   1.0, `None` into NaN, and `1 + 1j` into 1.0 with a warning, so a typo or a stray comparison
