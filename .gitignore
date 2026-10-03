@@ -55,6 +55,8 @@ __pycache__/
 /docs/user_guide/notebooks/*.ipynb
 /docs/user_guide/scripts/plots/*.png
 /docs/user_guide/scripts/plots/*.txt
+/docs/user_guide/notebooks/.docs-env-stamp
+/docs/user_guide/scripts/plots/.docs-env-stamp
 /docs/user_guide/CHANGELOG.md
 /docs/user_guide/CONTRIBUTING.md
 

@@ -302,13 +302,9 @@ def run_makefiles(app):
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Makefile execution failed in {cwd} with error:\n{e}") from e
 
-    # Run Makefile in root directory
-    run_command(["make", "markdown"], cwd=root_dir)
-
-    # Run Makefile in notebooks directory
-    notebooks_path = os.path.join(root_dir, "notebooks")
-    run_command(["make", "all"], cwd=notebooks_path)
-
-    # Run Makefile in scripts/plots directory
-    plots_path = os.path.join(root_dir, "scripts", "plots")
-    run_command(["make", "all"], cwd=plots_path)
+    # One make runs both sub-Makefiles side by side. Each notebook and script is its own
+    # process, most of it interpreter start and imports, so a full regeneration scales
+    # with the number of jobs, up to the number of cores. YAPSS_DOCS_JOBS overrides the
+    # default (tox passes it in).
+    jobs = os.environ.get("YAPSS_DOCS_JOBS") or str(os.cpu_count() or 1)
+    run_command(["make", f"-j{jobs}", "generated"], cwd=root_dir)

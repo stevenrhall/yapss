@@ -9,87 +9,49 @@ help: ## Print this help message.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[35m%-10s\033[0m %s\n", $$1, $$2}'
 
 SRC_DIR := ../../../../src/yapss/examples
-YAPSS_DIRS := ../../../../src/yapss ../../../../src/yapss/_backend ../../../../src/yapss/math
-YAPSS_FILES := $(wildcard $(YAPSS_DIRS)/*.py)
 
-TEXT := \
-	brachistochrone.txt \
-	brachistochrone_minimal.txt \
-	delta_iii_ascent.txt \
-	dynamic_soaring.txt \
-	goddard_problem_1_phase.txt \
-	goddard_problem_3_phase.txt \
-	hs071.txt \
-	isoperimetric.txt \
-	minimum_time_to_climb.txt \
-	newton.txt \
-	orbit_raising.txt \
-	rosenbrock.txt
+# What the output depends on besides the example itself: every module of the package but
+# the other examples, which no example imports (the tox env installs a fresh copy of the
+# tree on every run, so the source files are what the scripts import), the environment's
+# other distributions, recorded by docs_env_stamp.py in a stamp rewritten only when they
+# change, and the generator and this Makefile. A rule that misses an input leaves output
+# from an older build in place, which is then what the local docs show, while Read the
+# Docs, starting clean, shows something else.
+YAPSS_FILES := $(shell find ../../../../src/yapss -name '*.py' -not -path '*/__pycache__/*' \
+	-not -path '*/yapss/examples/*')
+ENV_STAMP := .docs-env-stamp
+$(shell $(PYTHON) ../../../../tools/docs_env_stamp.py $(ENV_STAMP))
+DEPENDS := $(YAPSS_FILES) $(ENV_STAMP) make_plots.py Makefile
 
-PNG := \
-	brachistochrone_plot_1.png  brachistochrone_plot_2.png  brachistochrone_plot_3.png \
-	brachistochrone_plot_4.png brachistochrone_plot_5.png \
-	brachistochrone_minimal_plot_1.png \
-	delta_iii_ascent_plot_1.png delta_iii_ascent_plot_2.png \
-	delta_iii_ascent_plot_3.png delta_iii_ascent_plot_4.png \
-	dynamic_soaring_plot_1.png dynamic_soaring_plot_2.png dynamic_soaring_plot_3.png \
-	dynamic_soaring_plot_4.png dynamic_soaring_plot_5.png dynamic_soaring_plot_6.png \
-	orbit_raising_plot_1.png orbit_raising_plot_2.png \
-	orbit_raising_plot_3.png orbit_raising_plot_4.png \
-	orbit_raising_plot_5.png \
-	goddard_problem_1_phase_plot_1.png goddard_problem_1_phase_plot_2.png \
-	goddard_problem_1_phase_plot_3.png goddard_problem_1_phase_plot_4.png \
-	goddard_problem_3_phase_plot_1.png goddard_problem_3_phase_plot_2.png \
-	goddard_problem_3_phase_plot_3.png goddard_problem_3_phase_plot_4.png \
-	newton_plot_1.png  newton_plot_2.png newton_plot_3.png \
-	minimum_time_to_climb_plot_1.png minimum_time_to_climb_plot_2.png \
-	minimum_time_to_climb_plot_3.png minimum_time_to_climb_plot_4.png \
-	minimum_time_to_climb_plot_5.png minimum_time_to_climb_plot_6.png \
-	minimum_time_to_climb_plot_7.png
+# One run of make_plots.py writes an example's text output and all of its figures, so the
+# text file is the one target per example, and make runs each script exactly once, also
+# under -j. Make starts the targets in this order, so the longest run comes first: the
+# wall time of a parallel build is at least that of its longest job.
+EXAMPLES := \
+	delta_iii_ascent \
+	minimum_time_to_climb \
+	dynamic_soaring \
+	goddard_problem_3_phase \
+	brachistochrone \
+	newton \
+	orbit_raising \
+	isoperimetric \
+	rosenbrock \
+	goddard_problem_1_phase \
+	brachistochrone_minimal \
+	hs071
+TEXT := $(addsuffix .txt,$(EXAMPLES))
 
+.PHONY: all
+all: $(TEXT) ## Generate all figures and text files for the script examples.
 
+# A failed run must not leave a partial text file newer than its inputs, which make would
+# then take to be up to date.
+.DELETE_ON_ERROR:
 
-# Define all target to build every file individually
-all: $(TEXT) $(PNG) ## Generate all figures and text files for the script examples.
-
-# Define individual target rules with prerequisites
-newton_plot_%.png: $(SRC_DIR)/newton.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py newton > newton.txt
-
-brachistochrone_plot_%.png: $(SRC_DIR)/brachistochrone.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py brachistochrone > brachistochrone.txt
-
-brachistochrone_minimal_plot_%.png: $(SRC_DIR)/brachistochrone_minimal.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py brachistochrone_minimal > brachistochrone_minimal.txt
-
-dynamic_soaring_plot_%.png: $(SRC_DIR)/dynamic_soaring.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py dynamic_soaring > dynamic_soaring.txt
-
-orbit_raising_plot_%.png: $(SRC_DIR)/orbit_raising.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py orbit_raising > orbit_raising.txt
-
-goddard_problem_1_phase_plot_%.png: $(SRC_DIR)/goddard_problem_1_phase.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py goddard_problem_1_phase > goddard_problem_1_phase.txt
-
-goddard_problem_3_phase_plot_%.png: $(SRC_DIR)/goddard_problem_3_phase.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py goddard_problem_3_phase > goddard_problem_3_phase.txt
-
-isoperimetric_plot_%.png: $(SRC_DIR)/isoperimetric.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py isoperimetric > isoperimetric.txt
-
-rosenbrock_plot_%.png: $(SRC_DIR)/rosenbrock.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py rosenbrock > rosenbrock.txt
-
-minimum_time_to_climb_plot_%.png: $(SRC_DIR)/minimum_time_to_climb.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py minimum_time_to_climb > minimum_time_to_climb.txt
-
-delta_iii_ascent_plot_%.png: $(SRC_DIR)/delta_iii_ascent.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py delta_iii_ascent > delta_iii_ascent.txt
-
-# Each .txt file depends on $(YAPSS_FILES) so it rebuilds if any source changes
-%.txt: $(SRC_DIR)/%.py $(YAPSS_FILES)
-	$(PYTHON) make_plots.py $(basename $@) > $@
+$(TEXT): %.txt: $(SRC_DIR)/%.py $(DEPENDS)
+	$(PYTHON) make_plots.py $* > $@
 
 .PHONY: clean
 clean: ## Remove generated files and caches.
-	@rm -rf .coverage htmlcov __pycache__ .mypy_cache .ipynb_checkpoints *.txt *.png
+	@rm -rf .coverage htmlcov __pycache__ .mypy_cache .ipynb_checkpoints *.txt *.png $(ENV_STAMP)

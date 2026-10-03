@@ -32,6 +32,19 @@ MD = CHANGELOG.md CONTRIBUTING.md
 .PHONY: markdown
 markdown: $(MD) ## copy markdown files
 
+# Everything conf.py regenerates before Sphinx reads the sources: the copied Markdown, the
+# executed notebooks, and the scripts' figures and output. The two sub-makes are
+# prerequisites of one target, so under -j they run side by side and share one pool of
+# jobs; conf.py chooses the pool's size.
+.PHONY: generated generated-notebooks generated-scripts
+generated: markdown generated-notebooks generated-scripts
+
+generated-notebooks:
+	$(MAKE) -C notebooks all
+
+generated-scripts:
+	$(MAKE) -C scripts/plots all
+
 # Clean target
 .PHONY: clean
 clean:
