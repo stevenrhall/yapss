@@ -106,6 +106,21 @@ view-docs: readme ## Generate user guide documentation and open it in a browser.
 	tox -e docs-view
 	$(OPEN) docs/build/html/index.html
 
+# The interpreter `quick-docs` builds with. Not $(PYTHON), which names the ReadTheDocs venv.
+QUICK_PYTHON ?= python
+
+.PHONY: quick-docs
+quick-docs: ## Build the user guide in the active environment, for drafting, and open it.
+	@# For drafting, not review: the active virtualenv rather than tox's pinned one, so
+	@# there is no packaging and reinstalling, and with the editable install from `make
+	@# develop` an edit rebuilds only the pages it touches. No -W, no doctests, no
+	@# llms.txt. It writes to its own tree, docs/build/quick, so it cannot be mistaken for
+	@# the output of `docs` or `view-docs`. The check stops a build that would otherwise
+	@# succeed against some other installed yapss. To review, run `make docs`.
+	@$(QUICK_PYTHON) tools/check_docs_python.py
+	$(QUICK_PYTHON) -m sphinx -b html $(USER_GUIDE_DIR) docs/build/quick -D llms_txt_enabled=0
+	$(OPEN) docs/build/quick/index.html
+
 .PHONY: doctest
 doctest: ## Run doctests on user guide documentation.
 	cd $(USER_GUIDE_DIR) && $(MAKE) doctest
