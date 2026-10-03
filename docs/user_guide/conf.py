@@ -157,6 +157,13 @@ html_context = {
 
 bibtex_bibfiles = ["references.bib"]
 
+# sphinx-llm deletes its Markdown sub-build's output directory after every build, so in
+# its default parallel mode, where the sub-build keeps its own doctrees there, it rereads
+# every page every time: about 25 s, most of a build with nothing to do. Built after the
+# primary build instead, it reuses the primary build's doctrees and reads only what that
+# build read. The llms.txt and llms-full.txt it produces are byte-identical either way.
+llms_txt_build_parallel = False
+
 
 # sphinx-llm uses sphinx-markdown-builder to generate the Markdown files that are
 # assembled into llms.txt and llms-full.txt. nbsphinx wraps notebook input and
