@@ -262,13 +262,11 @@ def _defining_module(_app, modname, attribute):
 def setup(app):
     app.connect("autodoc-process-docstring", _field_rank)
     app.connect("viewcode-follow-imported", _defining_module)
-    # Connected to "builder-inited" rather than "config-inited" so that `app.builder`
-    # is available for the markdown-subprocess guard in run_makefiles below; both
-    # events fire once, before any document is read, so nothing regenerated here
-    # arrives too late for the build.
+    # Connected to "builder-inited", which fires once, before any document is read, so
+    # nothing regenerated here arrives too late for the build.
     app.connect("builder-inited", run_makefiles)
-    # Keyed on the builder name, like the guard in run_makefiles: under sphinx-llm 1.1's
-    # "llms-markdown" these handlers would not apply. See the cap in pyproject.toml.
+    # Keyed on the output format: sphinx-llm's builder is named "llms-markdown", and
+    # Sphinx, finding no handlers under that name, falls back to the builder's format.
     app.registry.add_translation_handlers(
         CodeAreaNode,
         markdown=(_visit_code_area_markdown, _depart_code_area_markdown),
@@ -277,15 +275,13 @@ def setup(app):
 
 def run_makefiles(app):
     # sphinx-llm builds llms.txt/llms-full.txt by spawning a second, independent
-    # `sphinx-build -b markdown` subprocess against this same source tree, running in
-    # parallel with the primary build by default. That subprocess loads this conf.py
-    # too, so without this guard the notebook- and plot-regenerating `make all` targets
-    # below would run a second time concurrently with the primary build reading their
-    # output -- a race, not just wasted work. The markdown subprocess only needs the
-    # already-generated files, not to regenerate them itself.
-    # sphinx-llm 1.1 renamed this builder "llms-markdown", and under that name this guard
-    # would not fire. It is capped below 1.1 in pyproject.toml until both names are matched.
-    if app.builder is not None and app.builder.name == "markdown":
+    # sphinx-build against this same source tree. That subprocess loads this conf.py
+    # too, so without this guard it would run the notebook- and plot-regenerating make
+    # a second time, concurrently with the primary build if the sub-build ran in
+    # parallel -- a race, not just wasted work. It only needs the already-generated
+    # files. sphinx-llm marks the subprocess with the tag tested here, in 1.0 and 1.1
+    # alike, whatever it names the builder.
+    if app.tags.has("sphinx_llm_markdown"):
         return
 
     root_dir = os.path.abspath(os.path.dirname(__file__))  # docs/user_guide
