@@ -23,7 +23,7 @@ from yapss.math.wrapper import SXW, sx_array
 # package imports
 from .exceptions import in_yapss
 from .layout import problem_layout
-from .outputs import Output, OutputArray
+from .outputs import Output, OutputArray, refuse_foreign_symbol
 from .types_ import Protected, set_private
 
 if TYPE_CHECKING:
@@ -409,6 +409,8 @@ class ObjectiveArg(DiscreteArgBase[T], Protected, Generic[T]):
         if np.ndim(value) != 0:
             msg = f"arg.objective must be a scalar, got a value of shape {np.shape(value)}."
             raise TypeError(msg)
+        if not isinstance(self._blank, SXW):
+            refuse_foreign_symbol("the objective", value)
         set_private(self, "_objective", value)
 
 

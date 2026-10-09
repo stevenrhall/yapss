@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     # third party imports
     from numpy.typing import NDArray
 
-__all__ = ["Output", "OutputArray", "OutputRow"]
+__all__ = ["FOREIGN_SYMBOL", "Output", "OutputArray", "OutputRow", "refuse_foreign_symbol"]
 
 T = TypeVar("T", bound=np.generic)
 
@@ -81,6 +81,38 @@ def _is_scalar(value: Any) -> bool:
 
 def _is_row_index(index: Any) -> bool:
     return isinstance(index, (int, np.integer)) and not isinstance(index, (bool, np.bool_))
+
+
+FOREIGN_SYMBOL = (
+    'Under derivatives.method "auto", each callback is traced separately, so a value kept from '
+    "another callback or an earlier call (through a closure, a global, or auxdata) cannot be "
+    "used. Compute each output from the callback's own argument."
+)
+
+
+def contains_symbol(value: Any) -> bool:
+    """Whether a value is, or holds, a `yapss.math` symbol."""
+    if isinstance(value, SXW):
+        return True
+    if isinstance(value, np.ndarray):
+        return value.dtype == np.object_ and any(contains_symbol(item) for item in value.flat)
+    if isinstance(value, (list, tuple)):
+        return any(contains_symbol(item) for item in value)
+    return False
+
+
+def refuse_foreign_symbol(target: str, value: Any) -> None:
+    """Raise `TypeError` if a value for a numeric output holds a symbol.
+
+    Off the symbolic trace every input is a number, so a symbol can only have been kept from
+    a trace: from another callback, or from an earlier call of this one.
+    """
+    if contains_symbol(value):
+        msg = (
+            f"{target} was assigned a symbolic value that did not come from the callback's own "
+            f"argument. {FOREIGN_SYMBOL}"
+        )
+        raise TypeError(msg) from None
 
 
 def _plain(value: Any) -> Any:
@@ -214,6 +246,15 @@ class OutputArray(_Protected, np.ndarray[Any, np.dtype[T]], Generic[T]):
             raise TypeError(msg)
         if value is self:  # the descriptor's assignment after an in-place operator
             return
+        try:
+            self._assign(index, value)
+        except TypeError:
+            if self._storage.dtype != np.object_:
+                refuse_foreign_symbol(self._where(index), value)
+            raise
+
+    def _assign(self, index: Any, value: Any) -> None:
+        """Write whole rows of an output."""
         if _is_row_index(index):
             row = self._row(index)
             self._storage[row] = self._row_value(value, index)
@@ -333,8 +374,17 @@ class OutputArray(_Protected, np.ndarray[Any, np.dtype[T]], Generic[T]):
             msg = f"cannot assign part of {self._describe()}: {WHOLE_ROWS}"
             raise TypeError(msg)
         rows = range(self.shape[0])
-        for row, row_value in zip(rows, self._rows_value(value, rows, slice(None)), strict=True):
-            self._storage[row] = op(self._storage[row], row_value)
+        try:
+            for row, row_value in zip(
+                rows,
+                self._rows_value(value, rows, slice(None)),
+                strict=True,
+            ):
+                self._storage[row] = op(self._storage[row], row_value)
+        except TypeError:
+            if self._storage.dtype != np.object_:
+                refuse_foreign_symbol(self._label, value)
+            raise
         return self
 
 

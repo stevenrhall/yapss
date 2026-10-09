@@ -336,6 +336,13 @@ below give the details.
 
 ### Fixed
 
+- Under `"auto"`, a callback that used a value kept from another callback, or from an earlier call,
+  through a closure, a global, or `auxdata`, failed with `float() argument must be ... not 'SXW'`
+  from inside YAPSS, or with CasADi's message that a variable such as `xf_0_0` is free. It now
+  raises `TypeError` saying that the value did not come from the callback's own argument, at the
+  assignment that used it or naming the callback. The callbacks page now states the rule: each
+  callback computes its outputs from its own argument. Under the central-difference methods such a
+  value goes undetected and can give a wrong answer.
 - A problem whose functions are singular at a value fixed by its bounds was refused, though 0.2.3 solved it:
   a start from rest with drag through `sqrt(vx**2 + vy**2)` under `"auto"`,
   `sqrt(t)` with the initial time fixed at zero, or `sqrt(p)` with a parameter fixed at zero.

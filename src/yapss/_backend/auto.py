@@ -49,7 +49,9 @@ from .input_args import (
     ProblemFunctions,
     _ContinuousArgBase,
     call_callback,
+    callback_location,
 )
+from .outputs import FOREIGN_SYMBOL
 from .structure import DVPhase, DVStructure
 
 # type-checking imports
@@ -61,6 +63,36 @@ if TYPE_CHECKING:
     from .types_ import CHS, CJS, DHS, DJS, OGS, OHS, CHSPhase, CJSPhase
 
     # local package imports
+
+
+def _traced(callback: Any, name: str, inputs: list[SX], outputs: list[SX]) -> Function:
+    """Build the CasADi function of one traced callback.
+
+    CasADi refuses a function whose outputs depend on a symbol that is not among its inputs,
+    which happens only when the callback used a value kept from another trace.
+    """
+    try:
+        return Function(name, inputs, outputs)
+    except RuntimeError as error:
+        if "are free" not in str(error):
+            raise
+        msg = (
+            f"The {name} callback, {callback_location(callback)}, used a symbolic value that "
+            f"did not come from its own argument. {FOREIGN_SYMBOL}"
+        )
+        raise TypeError(msg) from error
+
+
+def _user_callback(problem: ProblemSpec, function: Any, p: int | None = None) -> Any:
+    """Return the callback the user wrote, for a message: the objective, or phase `p`'s.
+
+    A front end that wraps the user's functions gives them in ``problem.user_names``; naming
+    the wrapper would point into YAPSS.
+    """
+    names = problem.user_names
+    if names is None:
+        return function
+    return names.objective if p is None else names.continuous[p]
 
 
 def make_auto_functions(problem: ProblemSpec) -> ProblemFunctions:
@@ -246,7 +278,8 @@ def make_discrete_derivatives(
     objective_function_ = cast(ObjectiveFunctionObject, problem.functions.objective)
     call_callback(objective_function_, objective_arg)
     objective_out = SXW(objective_arg.objective)
-    objective_function = Function(
+    objective_function = _traced(
+        _user_callback(problem, objective_function_),
         "objective",
         [vertcat(*[item._value for item in sxqt])],
         [objective_out._value],
@@ -286,7 +319,8 @@ def make_discrete_derivatives(
     for i, item in enumerate(discrete_out):
         discrete_out[i] = SXW(item)
 
-    discrete_function = Function(
+    discrete_function = _traced(
+        problem.functions.discrete,
         "discrete",
         [vertcat(*[item._value for item in sxqt])],
         [vertcat(*[item._value for item in discrete_out])],
@@ -501,7 +535,12 @@ def make_continuous_derivatives(
         # create continuous function that operates on numeric arguments
         sxut = vertcat(*sxut)
         continuous_functions.append(
-            Function("continuous", [sxut], [vertcat(*f), vertcat(*g), vertcat(*h)]),
+            _traced(
+                _user_callback(problem, continuous_function_, p),
+                "continuous",
+                [sxut],
+                [vertcat(*f), vertcat(*g), vertcat(*h)],
+            ),
         )
 
         # create jacobian function that operates on numeric arguments
