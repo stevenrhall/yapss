@@ -76,8 +76,42 @@ RESERVED_IPOPT_OPTIONS = {
     "nlp_lower_bound_inf": (
         "YAPSS treats every finite bound as a bound; use -np.inf in the bounds for no bound."
     ),
+    "skip_finalize_solution_call": (
+        "YAPSS reads the solution Ipopt writes when it finalizes the solve; skipping that call "
+        "would return a solution Ipopt never wrote."
+    ),
+    **{
+        name: (
+            f"YAPSS evaluates every derivative at every iterate; telling Ipopt that the {what} "
+            "is constant makes it reuse one evaluation, which solves a different problem "
+            "whenever it is not."
+        )
+        for name, what in (
+            ("grad_f_constant", "objective gradient"),
+            ("jac_c_constant", "Jacobian of the equality constraints"),
+            ("jac_d_constant", "Jacobian of the inequality constraints"),
+        )
+    },
+    "hessian_constant": (
+        "YAPSS evaluates the Hessian at every iterate; telling Ipopt that it is constant makes "
+        "it reuse one evaluation, which slows convergence wherever it is not."
+    ),
+    "mu_target": (
+        "YAPSS reports the multipliers of the problem as stated; a positive mu_target makes "
+        "Ipopt solve a problem with perturbed complementarity, whose multipliers are not the "
+        "problem's."
+    ),
+    "num_linear_variables": (
+        "It counts the NLP's first variables, in an order YAPSS decides and does not publish, "
+        "so it cannot be set correctly from outside."
+    ),
+    "warm_start_same_structure": (
+        "YAPSS does not support warm starts, and this option needs a previous solve of the "
+        "same Ipopt problem, which YAPSS never makes; with it Ipopt stops with status -100."
+    ),
 }
-"""Ipopt options YAPSS configures itself, or makes redundant; setting them is disallowed."""
+"""Ipopt options YAPSS configures itself, makes redundant, or that would change the problem it
+formulated or what it reads back from Ipopt; setting them is disallowed."""
 
 
 _KIND_NAMES = {"int": "Integer", "float": "Number", "str": "String"}
@@ -306,15 +340,11 @@ class IpoptOptions:
     fixed_variable_treatment: str | None
     gamma_phi: float | None
     gamma_theta: float | None
-    grad_f_constant: str | None
     gradient_approximation: str | None
     hessian_approximation_space: str | None
-    hessian_constant: str | None
     honor_original_bounds: str | None
     hsllib: str | None
     inf_pr_output: str | None
-    jac_c_constant: str | None
-    jac_d_constant: str | None
     jacobian_approximation: str | None
     jacobian_regularization_exponent: float | None
     jacobian_regularization_value: float | None
@@ -408,7 +438,6 @@ class IpoptOptions:
     mu_oracle: str | None
     mu_strategy: str | None
     mu_superlinear_decrease_power: float | None
-    mu_target: float | None
     mumps_dep_tol: float | None
     mumps_mem_percent: int | None
     mumps_mpi_communicator: int | None
@@ -426,7 +455,6 @@ class IpoptOptions:
     nlp_scaling_obj_target_gradient: float | None
     nu_inc: float | None
     nu_init: float | None
-    num_linear_variables: int | None
     obj_max_inc: float | None
     output_file: str | None
     pardiso_iter_coarse_size: int | None
@@ -493,7 +521,6 @@ class IpoptOptions:
     sigma_min: float | None
     skip_corr_if_neg_curv: str | None
     skip_corr_in_monotone_mode: str | None
-    skip_finalize_solution_call: str | None
     slack_bound_frac: float | None
     slack_bound_push: float | None
     slack_move: float | None
@@ -533,7 +560,6 @@ class IpoptOptions:
     warm_start_entire_iterate: str | None
     warm_start_mult_bound_push: float | None
     warm_start_mult_init_max: float | None
-    warm_start_same_structure: str | None
     warm_start_slack_bound_frac: float | None
     warm_start_slack_bound_push: float | None
     warm_start_target_mu: float | None

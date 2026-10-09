@@ -144,7 +144,10 @@ through ``problem.ipopt_options``.
 
 The following options are reserved: YAPSS has its own setting for the same thing, passes
 Ipopt its own value on every solve, or does the option's work itself, so a value set here would
-conflict with YAPSS, be silently overridden, or add nothing. Setting one through ``ipopt_options`` raises ``ValueError`` at the assignment, naming
+conflict with YAPSS, be silently overridden, or add nothing.
+Some are reserved because they would change the problem YAPSS formulated,
+or what it reads back from Ipopt.
+Setting one through ``ipopt_options`` raises ``ValueError`` at the assignment, naming
 the setting to use instead.
 
 ``hessian_approximation``
@@ -182,6 +185,21 @@ the setting to use instead.
     YAPSS sets them to the largest finite floating-point number,
     so that every finite bound is a bound and only an infinite one is no bound.
     Use ``None``, or an infinity, in the bounds for no bound.
+
+``skip_finalize_solution_call``
+    YAPSS reads the solution Ipopt writes when it finalizes the solve.
+
+``grad_f_constant``, ``jac_c_constant``, ``jac_d_constant``, and ``hessian_constant``
+    YAPSS evaluates every derivative at every iterate.
+
+``mu_target``
+    A positive value perturbs the multipliers YAPSS reports.
+
+``num_linear_variables``
+    It counts variables in an order YAPSS decides and does not publish.
+
+``warm_start_same_structure``
+    YAPSS does not support warm starts.
 
 For example, trying to set ``hessian_approximation`` directly raises an error:
 

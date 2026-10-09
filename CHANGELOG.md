@@ -336,6 +336,12 @@ below give the details.
 
 ### Fixed
 
+- Eight more Ipopt options are reserved, raising `ValueError` at the assignment.
+  `skip_finalize_solution_call = "yes"` made a solve report success with a solution Ipopt never
+  wrote. `grad_f_constant`, `jac_c_constant` and `jac_d_constant` make Ipopt solve a different
+  problem when the derivative is not constant, and `hessian_constant` slows it; `mu_target` perturbs
+  the multipliers YAPSS reports; `num_linear_variables` counts variables in an order YAPSS does not
+  publish; and `warm_start_same_structure` stopped every solve with status -100.
 - When Ipopt stopped with status -12 because it could not use an option,
   the error said that Ipopt's output above named the option, which it does only when `print_level` is 1 or more.
   The error now says so, and lists the options set in `problem.ipopt_options`.
