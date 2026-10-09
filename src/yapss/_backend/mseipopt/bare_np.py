@@ -50,6 +50,44 @@ def _limited_memory_hessian(*args: Any) -> bool:
     return False
 
 
+def fixed_variables(x_l: ArrayLike, x_u: ArrayLike) -> NDArray[np.bool_]:
+    """Return which variables Ipopt treats as fixed: those whose two bounds are equal.
+
+    The test is exact equality, as in Ipopt's own (``TNLPAdapter::GetSpaces``), not a tolerance.
+    """
+    fixed: NDArray[np.bool_] = np.asarray(x_l, dtype=np.float64) == np.asarray(
+        x_u, dtype=np.float64
+    )
+    return fixed
+
+
+def degrees_of_freedom(
+    x_l: ArrayLike, x_u: ArrayLike, g_l: ArrayLike, g_u: ArrayLike
+) -> tuple[int, int, int]:
+    """Return the counts Ipopt compares: fixed variables, free variables, equality constraints.
+
+    An equality constraint is one whose two bounds are equal, exactly, as in Ipopt.
+    """
+    fixed = int(np.count_nonzero(fixed_variables(x_l, x_u)))
+    free = np.asarray(x_l).size - fixed
+    equalities = int(
+        np.count_nonzero(np.asarray(g_l, dtype=np.float64) == np.asarray(g_u, dtype=np.float64))
+    )
+    return fixed, free, equalities
+
+
+def relaxes_fixed_variables(x_l: ArrayLike, x_u: ArrayLike, g_l: ArrayLike, g_u: ArrayLike) -> bool:
+    """Return whether Ipopt would keep the fixed variables in the problem despite make_parameter.
+
+    With fixed variables removed, Ipopt needs at least as many free variables as equality
+    constraints. When there are fewer, but some, it switches ``fixed_variable_treatment`` to
+    ``relax_bounds`` on its own ("Too few degrees of freedom"), keeping the fixed variables, and
+    so using their derivatives (``TNLPAdapter::GetSpaces``, Ipopt 3.14).
+    """
+    fixed, free, equalities = degrees_of_freedom(x_l, x_u, g_l, g_u)
+    return fixed > 0 and 0 < free < equalities
+
+
 @dataclass(frozen=True)
 class NonFinite:
     """A values callback's result that held a NaN or an infinity, reported to Ipopt as a failure.

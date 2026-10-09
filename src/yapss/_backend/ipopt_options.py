@@ -70,6 +70,10 @@ RESERVED_IPOPT_OPTIONS = {
         "YAPSS does not read an Ipopt options file, so that every option is set, and "
         "checked, through 'problem.ipopt_options'. Set the options there instead."
     ),
+    "fixed_variable_treatment": (
+        "YAPSS has Ipopt remove a variable whose bounds are equal, 'make_parameter', and relies "
+        "on it never using the derivatives with respect to that variable."
+    ),
     "nlp_upper_bound_inf": (
         "YAPSS treats every finite bound as a bound; use np.inf in the bounds for no bound."
     ),
@@ -337,7 +341,6 @@ class IpoptOptions:
     findiff_perturbation: float | None
     first_hessian_perturbation: float | None
     fixed_mu_oracle: str | None
-    fixed_variable_treatment: str | None
     gamma_phi: float | None
     gamma_theta: float | None
     gradient_approximation: str | None

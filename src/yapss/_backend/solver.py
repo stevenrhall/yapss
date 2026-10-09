@@ -144,15 +144,15 @@ def solve(
 
     nlp_temp.intermediate = intermediate
 
+    # NLP variable and constraint bounds
+    ub, lb = get_nlp_decision_variable_bounds(problem)
+    gu, gl = get_nlp_constraint_function_bounds(problem)
+
     # Check the callbacks (unassigned rows, non-finite values, pointwise), then the NLP's
     # first derivatives, before Ipopt can pass a non-finite Jacobian to its linear solver.
     # After the derivative setup, so that its own errors come first (see the module).
     check_callbacks(problem, mesh, z0)
     check_derivatives(problem, nlp_temp, z0)
-
-    # NLP variable and constraint bounds
-    ub, lb = get_nlp_decision_variable_bounds(problem)
-    gu, gl = get_nlp_constraint_function_bounds(problem)
 
     warn_if_ipopt_source_env_set()
 
@@ -278,6 +278,11 @@ def solve(
     # precedence over options set here, reserved ones included. An empty name opens no file.
     ipopt_problem.add_option("option_file_name", "")
     used["option_file_name"] = ""
+
+    # Ipopt removes a variable whose bounds are equal, unless too few variables would be left
+    # free (bare_np.relaxes_fixed_variables); YAPSS relies on knowing which.
+    ipopt_problem.add_option("fixed_variable_treatment", "make_parameter")
+    used["fixed_variable_treatment"] = "make_parameter"
 
     # Ipopt treats a bound at or beyond these thresholds (default 1e19) as no bound. YAPSS
     # spells no bound as an infinite one, so every finite bound must stay a bound.

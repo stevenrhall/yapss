@@ -179,6 +179,9 @@ the setting to use instead.
     including the options reserved here.
     Set every option through ``problem.ipopt_options`` instead.
 
+``fixed_variable_treatment``
+    YAPSS has Ipopt remove a variable whose bounds are equal, and relies on that.
+
 ``nlp_upper_bound_inf`` and ``nlp_lower_bound_inf``
     Ipopt treats a bound at or beyond these thresholds as no bound
     (by default, any bound of at least :math:`10^{19}` in magnitude).

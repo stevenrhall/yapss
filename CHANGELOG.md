@@ -336,6 +336,11 @@ below give the details.
 
 ### Fixed
 
+- `ipopt_options.fixed_variable_treatment` is now reserved, and assigning it raises `ValueError`.
+  YAPSS sets it to `"make_parameter"`, Ipopt's default,
+  under which Ipopt removes a variable whose bounds are equal,
+  and relies on that when it checks the derivatives a callback returns (see the next entry).
+  `"make_parameter_nodual"` also reported every such variable's multiplier as zero.
 - `problem.catch_keyboard_interrupt = False` had no effect:
   Ctrl-C still stopped Ipopt gracefully and `solve()` returned the iterate,
   so a script running many solves could not be stopped by one Ctrl-C.
