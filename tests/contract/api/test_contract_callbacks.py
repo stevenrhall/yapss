@@ -457,7 +457,7 @@ def test_a_row_is_a_scalar_or_one_value_per_time_point() -> None:
 
 
 def test_a_row_is_not_a_string() -> None:
-    """The same rule, for a value that is not numeric at all."""
+    """A value that is not numeric at all is refused as not a real number."""
     p = solvable("central-difference")
 
     def lettered(arg, out):
@@ -465,7 +465,7 @@ def test_a_row_is_not_a_string() -> None:
         out.dynamics.x = "a"
 
     p.phases.slide.register.continuous(lettered)
-    with raises(TypeError, "a row is a scalar or one value per time point", "got str"):
+    with raises(TypeError, "out.dynamics.x: a row takes real numbers", "got a str"):
         p.solve()
 
 

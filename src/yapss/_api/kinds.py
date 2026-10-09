@@ -119,6 +119,28 @@ def at(label: str, name: str) -> str:
     return label.format(name) if "{}" in label else f"{label}.{name}"
 
 
+_REAL_KINDS = "biufO"
+"""The dtype kinds a callback output row holds: bool, integers, floats, and the object arrays of
+the ``"auto"`` trace."""
+
+
+def _refuse_non_real(value: object, label: str, name: str) -> None:
+    """Raise `TypeError` for a string or a complex value written to an output row.
+
+    Handed to the transcription's float storage, a complex value would lose its imaginary part
+    with only a NumPy warning, and the solve would go on with the wrong values.
+    """
+    if isinstance(value, (str, bytes, complex, np.complexfloating, np.character)):
+        kind = type(value).__name__
+        got = f"{'an' if kind[:1] in 'aeiou' else 'a'} {kind}, {value!r}"
+    elif isinstance(value, np.ndarray) and value.dtype.kind not in _REAL_KINDS:
+        got = f"an array of dtype {value.dtype}"
+    else:
+        return
+    msg = f"{at(label, name)}: a row takes real numbers, got {got}"
+    raise TypeError(msg)
+
+
 def _bool_message(label: str, name: str) -> str:
     return (
         f"{at(label, name)}: a boolean is not a number. If this came from a comparison, "
@@ -395,7 +417,7 @@ class Rows(Kind):
         if is_real(value):
             return True
         if isinstance(value, np.ndarray):
-            return value.ndim == 0
+            return value.ndim == 0 and value.dtype.kind in _REAL_KINDS
         return not hasattr(value, "__len__")
 
     @classmethod
@@ -409,12 +431,17 @@ class Rows(Kind):
         kind = type(value)
         if kind is np.ndarray:
             shape = value.shape  # type: ignore[attr-defined]
-            if len(shape) == 1 and (npoints is None or shape[0] == npoints):
+            if (
+                len(shape) == 1
+                and (npoints is None or shape[0] == npoints)
+                and value.dtype.kind in _REAL_KINDS  # type: ignore[attr-defined]
+            ):
                 return value
         elif kind is float or kind is np.float64:
             return value
         if is_bool(value):
             raise TypeError(_bool_message(label, name))
+        _refuse_non_real(value, label, name)
         if cls.is_element(value):
             return value
         if isinstance(value, np.ndarray):
