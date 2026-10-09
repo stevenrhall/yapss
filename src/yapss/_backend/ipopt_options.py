@@ -86,6 +86,11 @@ _CONTAINER_METHODS = frozenset({"reset", "get_options"})
 """Methods of `IpoptOptions`; assigning them would shadow the method."""
 
 
+_INT_LOW, _INT_HIGH = -(2**31), 2**31
+"""Ipopt's Integer options are C ``int`` values (``ctypes.c_int`` in ``mseipopt.bare``); a
+Python int outside this range would be truncated to its low 32 bits on the way to Ipopt."""
+
+
 def _coerce_option(name: str, value: Any) -> str | int | float:
     """Check `value` against the kind of Ipopt option `name`, and return it as a Python type.
 
@@ -93,7 +98,8 @@ def _coerce_option(name: str, value: Any) -> str | int | float:
     sent to the wrong one, so the value must reach the backend as the Python type that maps
     to the option's registry. `IPOPT_OPTION_SPECS` records the kind of every documented
     option; the annotations on ``IpoptOptions`` repeat it for an IDE's completions. An
-    Integer option takes any integer, a Number option any integer or real, a String option
+    Integer option takes an integer from -2**31 up to, but not including, 2**31, a Number
+    option any finite integer or real, a String option
     a string; NumPy scalars are converted to the Python type. An option the table does not
     have is checked only for being one of the three kinds. ``bool``
     is refused everywhere: Python makes it an integer, but no Ipopt option is boolean (the
@@ -109,12 +115,25 @@ def _coerce_option(name: str, value: Any) -> str | int | float:
         raise TypeError(msg)
     if kind == "int":
         if isinstance(value, Integral):
-            return int(value)
+            integer = int(value)
+            if not _INT_LOW <= integer < _INT_HIGH:
+                msg = (
+                    f"Ipopt Integer option '{name}' takes an integer greater than or equal to "
+                    f"-2**31 and less than 2**31, got {integer}."
+                )
+                raise ValueError(msg)
+            return integer
         msg = f"Ipopt Integer option '{name}' takes an int, {got}."
         raise TypeError(msg)
     if kind == "float":
         if isinstance(value, Real):
-            number = float(value)
+            try:
+                number = float(value)
+            except OverflowError:
+                msg = (
+                    f"Ipopt Number option '{name}' takes a finite number, got {value!r}, too large."
+                )
+                raise ValueError(msg) from None
             if not math.isfinite(number):
                 msg = (
                     f"Ipopt Number option '{name}' must be a finite number, got {number}. "
@@ -132,9 +151,10 @@ def _coerce_option(name: str, value: Any) -> str | int | float:
         raise TypeError(msg)
     # a name the table does not have: the kind is unknown, so accept any of the three and
     # let Ipopt judge; if it refuses the option, the solve warns.
-    if isinstance(value, Integral):
+    if isinstance(value, Integral) and _INT_LOW <= int(value) < _INT_HIGH:
         return int(value)
     if isinstance(value, Real):
+        # an integer too large for an Integer option can only be meant as a Number
         return float(value)
     if isinstance(value, str):
         return value

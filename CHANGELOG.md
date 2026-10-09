@@ -337,6 +337,11 @@ below give the details.
 
 ### Fixed
 
+- An Integer Ipopt option given an integer of 2**31 or more, or below -2**31, reached Ipopt as its
+  low 32 bits, so `max_iter = 2**32` stopped the solve before its first iteration.
+  Such a value now raises `ValueError` at the assignment.
+  A Number option given an integer too large for a float raises `ValueError` there too,
+  instead of a bare `OverflowError`.
 - A finite bound of magnitude 1e19 or more was silently treated as no bound,
   because Ipopt counts any bound beyond its `nlp_upper_bound_inf` and `nlp_lower_bound_inf`
   (default ±1e19) as infinite, so a problem bounded at 1e20 could diverge.
