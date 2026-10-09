@@ -188,6 +188,13 @@ the setting to use instead.
     including the options reserved here.
     Set every option through ``problem.ipopt_options`` instead.
 
+``nlp_upper_bound_inf`` and ``nlp_lower_bound_inf``
+    Ipopt treats a bound at or beyond these thresholds as no bound
+    (by default, any bound of at least :math:`10^{19}` in magnitude).
+    YAPSS sets them to the largest finite floating-point number,
+    so that every finite bound is a bound and only an infinite one is no bound.
+    Use ``None``, or an infinity, in the bounds for no bound.
+
 For example, trying to set ``hessian_approximation`` directly raises an error:
 
 .. doctest:: reserved

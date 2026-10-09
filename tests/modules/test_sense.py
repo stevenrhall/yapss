@@ -78,6 +78,8 @@ class TestReservedIpoptOptions:
             "hessian_approximation",
             "warm_start_init_point",
             "option_file_name",
+            "nlp_upper_bound_inf",
+            "nlp_lower_bound_inf",
         ],
     )
     def test_raises_on_assignment(self, name: str) -> None:

@@ -18,6 +18,7 @@ A bound is set on the quantity it bounds, as a ``(lower, upper)`` pair. Each sid
 A fixed value is written as a pair whose ends agree; a bare number is not a bound. A field has
 rows, so a number standing for a bound would be indistinguishable from a row count, and the pair
 is what removes the doubt. An infinity on its own side means the same as ``None``.
+Every finite bound is a bound, however large: ``1e20`` bounds a quantity at :math:`10^{20}`.
 
 Everything is unbounded until it is bounded, except the constraints: a declared path or discrete
 constraint must be given a bound, since an unbounded constraint constrains nothing.

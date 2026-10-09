@@ -279,6 +279,13 @@ def solve(
     ipopt_problem.add_option("option_file_name", "")
     used["option_file_name"] = ""
 
+    # Ipopt treats a bound at or beyond these thresholds (default 1e19) as no bound. YAPSS
+    # spells no bound as an infinite one, so every finite bound must stay a bound.
+    ipopt_problem.add_option("nlp_upper_bound_inf", float(np.finfo(np.float64).max))
+    ipopt_problem.add_option("nlp_lower_bound_inf", -float(np.finfo(np.float64).max))
+    used["nlp_upper_bound_inf"] = float(np.finfo(np.float64).max)
+    used["nlp_lower_bound_inf"] = -float(np.finfo(np.float64).max)
+
     # solve NLP. If keyboard interrupt is raised, signal IPOPT to stop through the
     # intermediate callback
     #

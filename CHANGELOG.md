@@ -337,6 +337,11 @@ below give the details.
 
 ### Fixed
 
+- A finite bound of magnitude 1e19 or more was silently treated as no bound,
+  because Ipopt counts any bound beyond its `nlp_upper_bound_inf` and `nlp_lower_bound_inf`
+  (default ±1e19) as infinite, so a problem bounded at 1e20 could diverge.
+  Every finite bound is now a bound, and only `np.inf` or `-np.inf` means no bound.
+  Both options are now reserved, and assigning either raises `ValueError`.
 - A state or control guess assigned before the phase's time guess can now be read back.
   Reading it raised `ValueError` saying the time guess must be set first, which is needed
   only to create the default zeros.

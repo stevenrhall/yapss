@@ -65,6 +65,12 @@ RESERVED_IPOPT_OPTIONS = {
         "YAPSS does not read an Ipopt options file, so that every option is set, and "
         "checked, through 'problem.ipopt_options'. Set the options there instead."
     ),
+    "nlp_upper_bound_inf": (
+        "YAPSS treats every finite bound as a bound; use np.inf in the bounds for no bound."
+    ),
+    "nlp_lower_bound_inf": (
+        "YAPSS treats every finite bound as a bound; use -np.inf in the bounds for no bound."
+    ),
 }
 """Ipopt options YAPSS configures itself; setting them directly is disallowed."""
 
