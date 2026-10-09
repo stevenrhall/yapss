@@ -198,8 +198,7 @@ below give the details.
 - `Problem` has a `repr` naming the problem and its counts, rather than
   `<yapss._backend.problem.Problem object at 0x...>`.
 - An Ipopt option that Ipopt refuses still warns, and the solve still continues with Ipopt's
-  default, but the message now says so plainly and sends you to Ipopt's console output for the
-  exact cause. It suggests the likely option for a name close to a documented one (`max_iters`
+  default, but the message now says so plainly, naming the option and the value. It suggests the likely option for a name close to a documented one (`max_iters`
   → `max_iter`), and for a documented option says this build might not provide it or might not
   accept the value. Which options exist, and which values they take, depends on the Ipopt
   build, so only Ipopt judges them; the documented options (a generated table, scraped from a
@@ -337,6 +336,11 @@ below give the details.
 
 ### Fixed
 
+- When Ipopt stopped with status -12 because it could not use an option,
+  the error said that Ipopt's output above named the option, which it does only when `print_level` is 1 or more.
+  The error now says so, and lists the options set in `problem.ipopt_options`.
+  The warning for an option Ipopt refuses no longer points to Ipopt's console output,
+  and the error for a callback that returns a value no longer names YAPSS's internal type for it.
 - An Integer Ipopt option given an integer of 2**31 or more, or below -2**31, reached Ipopt as its
   low 32 bits, so `max_iter = 2**32` stopped the solve before its first iteration.
   Such a value now raises `ValueError` at the assignment.

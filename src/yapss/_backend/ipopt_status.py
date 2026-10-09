@@ -20,6 +20,10 @@ from __future__ import annotations
 
 # standard imports
 from enum import IntEnum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 __all__ = ["IpoptStatus", "status_or_raise"]
 
@@ -159,7 +163,10 @@ _WITHOUT_ITERATE: dict[IpoptStatus, tuple[type[Exception], str]] = {
     ),
     IpoptStatus.INVALID_OPTION: (
         ValueError,
-        "Ipopt refused an option setting; its output above names the option.",
+        (
+            "Ipopt could not use one of the options it was given, and stopped before its "
+            "first iteration. Ipopt prints its reason when print_level is 1 or more."
+        ),
     ),
     IpoptStatus.INVALID_NUMBER_DETECTED: (
         ValueError,
@@ -186,7 +193,9 @@ _WITHOUT_ITERATE: dict[IpoptStatus, tuple[type[Exception], str]] = {
 }
 
 
-def status_or_raise(code: int, non_finite: object = None) -> IpoptStatus:
+def status_or_raise(
+    code: int, non_finite: object = None, options: Mapping[str, object] | None = None
+) -> IpoptStatus:
     """Return Ipopt's status code as an `IpoptStatus`, raising if there is no iterate.
 
     Parameters
@@ -196,6 +205,9 @@ def status_or_raise(code: int, non_finite: object = None) -> IpoptStatus:
     non_finite : object, optional
         The last callback result that was not finite, if there was one, as the binding
         records it; it is named in the message when the status is that Ipopt found one.
+    options : mapping, optional
+        The options set in ``problem.ipopt_options``, listed in the message when Ipopt
+        could not use one of them.
 
     Raises
     ------
@@ -223,4 +235,7 @@ def status_or_raise(code: int, non_finite: object = None) -> IpoptStatus:
         msg += f"\n{explanation}"
     if status is IpoptStatus.INVALID_NUMBER_DETECTED and non_finite is not None:
         msg += f"\nThe last such result: {non_finite}."
+    if status is IpoptStatus.INVALID_OPTION and options:
+        listed = ", ".join(f"{name} = {value!r}" for name, value in options.items())
+        msg += f"\nThe options set in problem.ipopt_options: {listed}."
     raise exception(msg)

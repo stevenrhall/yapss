@@ -214,8 +214,8 @@ def call_callback(function: Any, arg: Any) -> None:
         _check_keys(arg)
     if result is not None:
         msg = (
-            f"the {arg._callback} callback returned a {type(result).__name__}; a callback "
-            f"assigns its results to the argument and returns nothing: {arg._results_in}"
+            f"the {arg._callback} callback returned a value; a callback assigns its results "
+            f"to the argument and returns nothing: {arg._results_in}"
         )
         raise TypeError(msg)
 

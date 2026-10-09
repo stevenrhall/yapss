@@ -327,7 +327,9 @@ def solve(
 
     # A status without an iterate raises here, in the internal solve, so that a loop of
     # solves (mesh refinement) raises too; the convergence warning is for the public boundary.
-    nlp_info["status"] = status_or_raise(nlp_info["status"], nlp_info.pop("non_finite"))
+    nlp_info["status"] = status_or_raise(
+        nlp_info["status"], nlp_info.pop("non_finite"), problem.ipopt_options
+    )
     nlp_info["x"] = z
 
     # The rest of what Ipopt saw, and the first derivatives at the returned point, which a

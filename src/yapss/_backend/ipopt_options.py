@@ -569,6 +569,5 @@ def refusal_message(name: str, value: str | int | float) -> str:
         hint = f"Did you mean '{near[0]}'? " if near else ""
     return (
         f"Ipopt refused option '{name}' with value {value!r}. {hint}The option was not "
-        f"applied, and the solve continues with Ipopt's default. Check Ipopt's console output "
-        f"above for the exact cause."
+        f"applied, and the solve continues with Ipopt's default."
     )

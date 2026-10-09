@@ -208,7 +208,7 @@ def test_a_refusal_message_hints_only_what_the_table_knows(name, value, hint):
     message = refusal_message(name, value)
     assert message.startswith(f"Ipopt refused option '{name}' with value {value!r}.")
     assert "not applied, and the solve continues with Ipopt's default" in message
-    assert "Check Ipopt's console output above for the exact cause." in message
+    assert "console output" not in message
     if hint is None:
         assert "Did you mean" not in message
         assert "might not" not in message
