@@ -676,7 +676,13 @@ def test_system_exit_is_preserved_as_an_unexpected_base_exception(native, monkey
     assert excinfo.value is error
 
 
-def test_keyboard_interrupt_requests_graceful_intermediate_stop(native, monkeypatch):
+def test_keyboard_interrupt_stops_ipopt_and_is_reraised(native, monkeypatch):
+    """A KeyboardInterrupt in a callback is retained like any exception and re-raised.
+
+    The graceful stop on Ctrl-C belongs to the SIGINT handler a caller installs (YAPSS's,
+    under catch_keyboard_interrupt), which stops Ipopt through the intermediate callback;
+    an interrupt that reaches a callback means no such handler is installed.
+    """
     user_intermediate_calls = []
 
     def interrupt(*args):
@@ -691,7 +697,8 @@ def test_keyboard_interrupt_requests_graceful_intermediate_stop(native, monkeypa
         return -13
 
     monkeypatch.setattr(bare, "IpoptSolve", solve)
-    assert problem.solve(np.zeros(2)).status == 5
+    with pytest.raises(KeyboardInterrupt):
+        problem.solve(np.zeros(2))
     assert user_intermediate_calls == []
 
 
@@ -760,8 +767,8 @@ def test_native_exception_and_interrupt_unwind_contract():
     def interrupt(x, new_x, out):
         raise KeyboardInterrupt
 
-    with construct(interrupt) as problem:
-        assert problem.solve(np.zeros(1)).status == 5
+    with construct(interrupt) as problem, pytest.raises(KeyboardInterrupt):
+        problem.solve(np.zeros(1))
 
 
 def test_solve_result_uses_exact_native_buffers(native, monkeypatch):

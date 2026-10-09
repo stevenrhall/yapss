@@ -30,7 +30,6 @@ from numpy.typing import ArrayLike, NDArray
 from . import bare, library
 
 _C_INT_INFO = np.iinfo(np.intc)
-_USER_REQUESTED_STOP = 5
 
 FloatArray: TypeAlias = NDArray[np.float64]
 IndexArrayLike: TypeAlias = Sequence[int] | NDArray[np.integer[Any]]
@@ -182,9 +181,8 @@ class Problem:
 
     Evaluation callbacks receive views of Ipopt-owned buffers and must return
     ``bool`` or ``numpy.bool_``. Unexpected exceptions are retained and re-raised
-    from :meth:`solve` only after Ipopt returns. :class:`InvalidPoint` reports an
-    intentional evaluation failure, while a first callback
-    :class:`KeyboardInterrupt` requests a graceful status-5 stop.
+    from :meth:`solve` only after Ipopt returns, :class:`KeyboardInterrupt` included.
+    :class:`InvalidPoint` reports an intentional evaluation failure.
 
     Omitting both ``hessian_structure`` and ``eval_h`` selects Ipopt's
     limited-memory Hessian approximation. Supplying one requires supplying the
@@ -250,8 +248,6 @@ class Problem:
         self._problem = None
         self._solving = False
         self._callback_exception: tuple[BaseException, TracebackType | None, str, str] | None = None
-        self._cancel_requested = False
-        self._cancellation_context: tuple[str, str] | None = None
         self._non_finite: NonFinite | None = None
         c_callbacks = {
             "eval_f": wrap_f(eval_f, self._invoke_callback),
@@ -298,7 +294,7 @@ class Problem:
             raise
 
     def _termination_pending(self) -> bool:
-        return self._callback_exception is not None or self._cancel_requested
+        return self._callback_exception is not None
 
     def _latch_exception(self, error: BaseException, callback_name: str, phase: str) -> None:
         if not self._termination_pending():
@@ -348,20 +344,13 @@ class Problem:
                 return False
             self._latch_exception(error, callback_name, phase)
             return False
-        except KeyboardInterrupt:
-            if not self._termination_pending():
-                self._cancel_requested = True
-                self._cancellation_context = (callback_name, phase)
-            return False
         except BaseException as error:
             self._latch_exception(error, callback_name, phase)
             return False
 
     def _clear_termination(self) -> None:
         self._callback_exception = None
-        self._cancel_requested = False
         self._non_finite = None
-        self._cancellation_context = None
 
     def _require_open(self) -> None:
         if self._problem is None:
@@ -528,9 +517,8 @@ class Problem:
         non-aliasing snapshot.
 
         A solve cannot recurse or overlap another solve on this problem.
-        Unexpected callback exceptions are re-raised with their traceback after
-        native unwinding. Graceful callback cancellation returns status 5 and
-        the current unconverged buffers.
+        Callback exceptions, KeyboardInterrupt included, are re-raised with their
+        traceback after native unwinding.
         """
         self._require_open()
         if self._solving:
@@ -562,14 +550,11 @@ class Problem:
         finally:
             self._solving = False
         failure = self._callback_exception
-        cancelled = self._cancel_requested
         non_finite = self._non_finite
         self._clear_termination()
         if failure is not None:
             error, traceback, _, _ = failure
             raise error.with_traceback(traceback)
-        if cancelled:
-            status = _USER_REQUESTED_STOP
         return SolveResult(status, x, g, obj_val, mult_g, mult_x_L, mult_x_U, non_finite)
 
     def __enter__(self) -> Problem:

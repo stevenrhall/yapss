@@ -336,6 +336,11 @@ below give the details.
 
 ### Fixed
 
+- `problem.catch_keyboard_interrupt = False` had no effect:
+  Ctrl-C still stopped Ipopt gracefully and `solve()` returned the iterate,
+  so a script running many solves could not be stopped by one Ctrl-C.
+  With `False`, Ctrl-C now stops Ipopt and `solve()` raises `KeyboardInterrupt`.
+  The default, `True`, is unchanged.
 - Eight more Ipopt options are reserved, raising `ValueError` at the assignment.
   `skip_finalize_solution_call = "yes"` made a solve report success with a solution Ipopt never
   wrote. `grad_f_constant`, `jac_c_constant` and `jac_d_constant` make Ipopt solve a different

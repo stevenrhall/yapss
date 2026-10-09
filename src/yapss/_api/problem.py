@@ -426,6 +426,8 @@ class Problem(HasRegistry):
     catch_keyboard_interrupt : bool, default True
         Whether Ctrl-C during a solve stops Ipopt at its next iterate and returns that iterate
         as a `Solution` (status 5, with an `IpoptConvergenceWarning`). Only on the main thread.
+        With ``False``, Ctrl-C stops Ipopt and ``solve()`` raises ``KeyboardInterrupt``, which
+        stops a script that runs many solves.
     user : types.SimpleNamespace
         A place for names of the caller's own, such as ``problem.user.mass = 3.0``. YAPSS
         never reads it, writes to it, or adds a name to it; every other name on a problem is
