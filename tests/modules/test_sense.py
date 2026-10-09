@@ -68,6 +68,8 @@ class TestReservedIpoptOptions:
     `user-scaling` Ipopt never consults the `obj_scaling_factor` *option* at all --
     only `set_problem_scaling`'s values matter. Before this reservation existed,
     setting `obj_scaling_factor` was therefore accepted and silently did nothing.
+    `check_derivatives_for_naninf` is reserved for a different reason: the binding makes
+    the check itself, so the option could only add Ipopt's crash on a failed evaluation.
     """
 
     @pytest.mark.parametrize(
@@ -77,6 +79,7 @@ class TestReservedIpoptOptions:
             "obj_scaling_factor",
             "hessian_approximation",
             "warm_start_init_point",
+            "check_derivatives_for_naninf",
             "option_file_name",
             "nlp_upper_bound_inf",
             "nlp_lower_bound_inf",

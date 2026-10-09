@@ -137,29 +137,14 @@ through ``problem.ipopt_options``.
     and in evaluating the problem's functions; ``print_timing_statistics = "yes"`` prints the
     measurements at the end of a solve.
 
-``check_derivatives_for_naninf``
-    Left at Ipopt's default, ``"no"``, and YAPSS checks instead. Ipopt otherwise passes a NaN
-    or infinite Jacobian or Hessian entry to its linear solver, which can crash the Python
-    process; but with the option on, Ipopt crashes itself whenever a constraint evaluation
-    fails, as one does when a callback raises (`coin-or/Ipopt#865
-    <https://github.com/coin-or/Ipopt/issues/865>`_). So YAPSS looks at every value and
-    derivative a callback returns and, if any is not finite, tells Ipopt the evaluation
-    failed, which is what the option would have done: Ipopt rejects the trial point and
-    shortens its step. If Ipopt cannot recover it stops with status -13 ("Invalid number in
-    NLP function or derivative detected"), and ``problem.solve()`` raises ``ValueError`` naming
-    the callback and the entry. Setting the option to ``"yes"`` yourself is not recommended
-    until the Ipopt fix is released. Separately, ``problem.solve()`` raises ``ValueError``
-    before starting Ipopt if the objective, constraints, or their first derivatives are not
-    finite at the initial guess, naming the quantities involved.
-
 ``linear_solver`` and ``mumps_pivot_order``
     Outside a Conda environment only: MUMPS as the linear solver, and on macOS the QAMD
     ordering, which avoids a crash in the ordering MUMPS would otherwise choose.
     :doc:`ipopt_backend` explains both.
 
-The following options are reserved: YAPSS has its own setting for the same thing, or passes
-Ipopt its own value on every solve, so a value set here would conflict with YAPSS or be silently
-overridden. Setting one through ``ipopt_options`` raises ``ValueError`` at the assignment, naming
+The following options are reserved: YAPSS has its own setting for the same thing, passes
+Ipopt its own value on every solve, or does the option's work itself, so a value set here would
+conflict with YAPSS, be silently overridden, or add nothing. Setting one through ``ipopt_options`` raises ``ValueError`` at the assignment, naming
 the setting to use instead.
 
 ``hessian_approximation``
@@ -181,6 +166,9 @@ the setting to use instead.
 ``obj_scaling_factor``
     YAPSS manages objective scaling internally. Set the sign through
     ``problem.objective.sense`` and the magnitude through ``problem.objective.scale`` instead.
+
+``check_derivatives_for_naninf``
+    YAPSS makes this check itself.
 
 ``option_file_name``
     YAPSS sets this to the empty string, so Ipopt reads no options file.

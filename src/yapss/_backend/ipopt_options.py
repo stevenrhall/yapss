@@ -37,12 +37,12 @@ DEFAULT_IPOPT_OPTIONS = {
 }
 """Default Ipopt options.
 
-``check_derivatives_for_naninf`` is deliberately not among them. Ipopt otherwise passes a NaN
-or Inf Jacobian or Hessian to its linear solver, which can crash the process (MUMPS on some
-sparsity patterns), but with the option on Ipopt crashes itself whenever a constraint
-evaluation reports failure (coin-or/Ipopt#865). The binding checks every callback's result
-instead (`mseipopt.bare_np.Problem._invoke_callback`) and reports a non-finite one to Ipopt as
-a failed evaluation, which is what the option would have done.
+``check_derivatives_for_naninf`` is deliberately not among them, and is reserved below. Ipopt
+otherwise passes a NaN or Inf Jacobian or Hessian to its linear solver, which can crash the
+process (MUMPS on some sparsity patterns), but with the option on Ipopt crashes itself whenever
+a constraint evaluation reports failure (coin-or/Ipopt#865). The binding checks every
+callback's result instead (`mseipopt.bare_np.Problem._invoke_callback`) and reports a
+non-finite one to Ipopt as a failed evaluation, which is what the option would have done.
 """
 
 RESERVED_IPOPT_OPTIONS = {
@@ -61,6 +61,11 @@ RESERVED_IPOPT_OPTIONS = {
         "YAPSS does not pass warm-start dual/bound information to Ipopt, so this "
         "option has no effect and is not supported."
     ),
+    "check_derivatives_for_naninf": (
+        "YAPSS checks every value and derivative a callback returns for a NaN or an "
+        "infinity itself, so Ipopt's check would find nothing, and with it on Ipopt can "
+        "crash the process when an evaluation fails (coin-or/Ipopt#865). Remove the setting."
+    ),
     "option_file_name": (
         "YAPSS does not read an Ipopt options file, so that every option is set, and "
         "checked, through 'problem.ipopt_options'. Set the options there instead."
@@ -72,7 +77,7 @@ RESERVED_IPOPT_OPTIONS = {
         "YAPSS treats every finite bound as a bound; use -np.inf in the bounds for no bound."
     ),
 }
-"""Ipopt options YAPSS configures itself; setting them directly is disallowed."""
+"""Ipopt options YAPSS configures itself, or makes redundant; setting them is disallowed."""
 
 
 _KIND_NAMES = {"int": "Integer", "float": "Number", "str": "String"}
@@ -248,7 +253,6 @@ class IpoptOptions:
     bound_mult_reset_threshold: float | None
     bound_push: float | None
     bound_relax_factor: float | None
-    check_derivatives_for_naninf: str | None
     compl_inf_tol: float | None
     constr_mult_init_max: float | None
     constr_mult_reset_threshold: float | None
@@ -396,17 +400,14 @@ class IpoptOptions:
     mumps_scaling: int | None
     neg_curv_test_reg: str | None
     neg_curv_test_tol: float | None
-    nlp_lower_bound_inf: float | None
     nlp_scaling_constr_target_gradient: float | None
     nlp_scaling_max_gradient: float | None
     nlp_scaling_min_value: float | None
     nlp_scaling_obj_target_gradient: float | None
-    nlp_upper_bound_inf: float | None
     nu_inc: float | None
     nu_init: float | None
     num_linear_variables: int | None
     obj_max_inc: float | None
-    option_file_name: str | None
     output_file: str | None
     pardiso_iter_coarse_size: int | None
     pardiso_iter_dropping_factor: float | None

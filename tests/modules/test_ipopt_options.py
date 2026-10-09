@@ -11,7 +11,7 @@ import pytest
 
 from tests.support.legacy import IpoptConvergenceWarning, IpoptOptionSettingWarning
 from tests.support.legacy.examples.rosenbrock import setup
-from yapss._backend.ipopt_options import IpoptOptions, refusal_message
+from yapss._backend.ipopt_options import RESERVED_IPOPT_OPTIONS, IpoptOptions, refusal_message
 from yapss._backend.mseipopt import library
 
 
@@ -232,3 +232,8 @@ def test_a_misspelled_option_warns_at_the_solve_with_a_suggestion():
     ocp.ipopt_options.max_iters = 50
     with pytest.warns(IpoptOptionSettingWarning, match="Did you mean 'max_iter'"):
         ocp.solve()
+
+
+def test_no_reserved_option_is_annotated():
+    """A type checker then reports an attempt to set one, as the assignment does at run time."""
+    assert not set(RESERVED_IPOPT_OPTIONS) & set(IpoptOptions.__annotations__)
