@@ -375,6 +375,14 @@ class SolutionPhases(tuple["SolutionPhase", ...]):
     def __new__(cls, *args: SolutionPhase) -> Self:
         return super().__new__(cls, args)
 
+    def __getnewargs__(self) -> tuple[SolutionPhase, ...]:
+        """Return the phases, so that a copy or a pickle is rebuilt from them one by one.
+
+        A tuple is otherwise rebuilt by passing its items as one argument, which `__new__`
+        here would take as a single phase.
+        """
+        return tuple(self)
+
     def __repr__(self) -> str:
         n = len(self)
         return f"<{__name__}.SolutionPhases: {n} phase{'' if n == 1 else 's'}>"
