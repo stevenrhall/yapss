@@ -79,12 +79,34 @@ def test_nan_value_at_initial_guess_raises(method):
 
 @pytest.mark.parametrize("method", METHODS)
 def test_infinite_derivative_with_finite_value_is_reported(method):
+    """sqrt(x) where the guess holds x at zero over the first half of the phase."""
     problem = _brachistochrone(method, "infinite-derivative")
+    guess = problem.guess.phase[0]
+    guess.time = [0.0, 0.5, 1.0]
+    guess.state = [[0.0, 0.0, 1.0], [0.0, 0.5, 1.0], [0.0, 2.5, 5.0]]
+    guess.control = [[0.0, 0.0, 0.0]]
     with pytest.raises(ValueError, match="not finite at the initial guess") as info:
         problem.solve()
     message = str(info.value)
     assert "phase 0 dynamics[0] is" not in message
     assert "the derivative of phase 0 dynamics[0] with respect to phase 0 state[0]" in message
+
+
+@pytest.mark.parametrize("method", METHODS)
+def test_infinite_derivative_only_at_a_fixed_variable_is_not_reported(method):
+    """sqrt(x) at the initial state, fixed at zero: Ipopt removes that variable and never uses
+    the derivative with respect to it, so the setup check does not refuse the problem.
+
+    Under "auto" it solves, as in 0.2.3. Under the central-difference methods the solve later
+    meets an infinite second difference where free points of x approach zero, a column Ipopt
+    does use, and stops at status -13, which is not the setup check's verdict.
+    """
+    problem = _brachistochrone(method, "infinite-derivative")
+    if method == "auto":
+        assert problem.solve().status == 0
+    else:
+        with pytest.raises(ValueError, match="Status -13"):
+            problem.solve()
 
 
 def test_nan_objective_is_reported():
@@ -191,13 +213,13 @@ def test_an_infinite_objective_derivative_at_a_finite_value_is_reported():
     problem.ipopt_options.print_level = 0
 
     def objective(arg):
-        # finite at the guess (initial time 0), with an infinite derivative there
-        arg.objective = arg.phase[0].final_time + sqrt(arg.phase[0].initial_time)
+        # finite at the guess (final time 1, free), with an infinite derivative there
+        arg.objective = arg.phase[0].final_time + sqrt(arg.phase[0].final_time - 1.0)
 
     problem.functions.objective = objective
     with pytest.raises(ValueError, match="derivatives of the problem functions") as info:
         problem.solve()
-    assert "the derivative of the objective with respect to phase 0 initial time" in str(info.value)
+    assert "the derivative of the objective with respect to phase 0 final time" in str(info.value)
 
 
 @pytest.mark.filterwarnings("ignore:divide by zero encountered:RuntimeWarning")

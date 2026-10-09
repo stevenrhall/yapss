@@ -88,6 +88,19 @@ def relaxes_fixed_variables(x_l: ArrayLike, x_u: ArrayLike, g_l: ArrayLike, g_u:
     return fixed > 0 and 0 < free < equalities
 
 
+def removed_variables(
+    x_l: ArrayLike, x_u: ArrayLike, g_l: ArrayLike, g_u: ArrayLike
+) -> NDArray[np.bool_] | None:
+    """Return which variables Ipopt removes under make_parameter, or None if it keeps them all.
+
+    Ipopt never uses a derivative with respect to a removed variable, so a NaN or an infinity
+    there cannot reach its linear solver.
+    """
+    if relaxes_fixed_variables(x_l, x_u, g_l, g_u):
+        return None
+    return fixed_variables(x_l, x_u)
+
+
 @dataclass(frozen=True)
 class NonFinite:
     """A values callback's result that held a NaN or an infinity, reported to Ipopt as a failure.
@@ -283,6 +296,11 @@ class Problem:
 
         self._jacobian_structure = (jac_rows, jac_cols)
         self._hessian_structure = (hess_rows, hess_cols)
+        self._bounds = (x_l_array, x_u_array, g_l_array, g_u_array)
+        # derivative entries the finite check skips, by callback (see remove_fixed_variables),
+        # and the removed variables whose derivatives were not finite at the last evaluation
+        self._unchecked: dict[str, NDArray[np.bool_]] = {}
+        self._non_finite_removed: dict[str, NDArray[np.intp]] = {}
         self._problem = None
         self._solving = False
         self._callback_exception: tuple[BaseException, TracebackType | None, str, str] | None = None
@@ -370,6 +388,10 @@ class Problem:
                 # is left off: on a failed constraint evaluation it reads a vector that was
                 # never written and crashes (coin-or/Ipopt#865).
                 finite = np.isfinite(output)
+                unchecked = self._unchecked.get(callback_name)
+                if unchecked is not None:
+                    self._note_removed_non_finite(callback_name, ~finite & unchecked)
+                    finite |= unchecked
                 if not finite.all():
                     bad = np.flatnonzero(~finite)
                     self._non_finite = NonFinite(
@@ -385,6 +407,41 @@ class Problem:
         except BaseException as error:
             self._latch_exception(error, callback_name, phase)
             return False
+
+    def remove_fixed_variables(self) -> None:
+        """Have Ipopt remove each variable whose bounds are equal, and leave its derivatives
+        out of the finite check.
+
+        Under ``fixed_variable_treatment = "make_parameter"`` Ipopt removes such a variable
+        and never uses a derivative with respect to it, so a NaN or an infinity there cannot
+        reach its linear solver and is not a failed evaluation; a function that is singular
+        at a fixed value (``sqrt`` of a state fixed at zero) is then solvable. When too few
+        variables would be left free, Ipopt keeps them all (`relaxes_fixed_variables`), and
+        every derivative is checked. The multipliers Ipopt reports for a removed variable
+        come from its derivatives, so where one was not finite at the last evaluation,
+        :meth:`solve` reports that variable's bound multipliers as NaN rather than Ipopt's 0.
+        """
+        self.add_str_option("fixed_variable_treatment", "make_parameter")
+        removed = removed_variables(*self._bounds)
+        if removed is None:
+            self._unchecked = {}
+            return
+        _, jac_cols = self._jacobian_structure
+        hess_rows, hess_cols = self._hessian_structure
+        self._unchecked = {
+            "eval_grad_f": removed.copy(),
+            "eval_jac_g": removed[jac_cols],
+            "eval_h": removed[hess_rows] | removed[hess_cols],
+        }
+
+    def _note_removed_non_finite(self, callback_name: str, entries: NDArray[np.bool_]) -> None:
+        """Record which removed variables have a non-finite derivative in this evaluation."""
+        if callback_name == "eval_grad_f":
+            self._non_finite_removed[callback_name] = np.flatnonzero(entries)
+        elif callback_name == "eval_jac_g":
+            self._non_finite_removed[callback_name] = np.unique(
+                self._jacobian_structure[1][entries]
+            )
 
     def _clear_termination(self) -> None:
         self._callback_exception = None
@@ -573,6 +630,7 @@ class Problem:
         _validate_io_array(mult_x_L, (self.n,), "mult_x_L")
         _validate_io_array(mult_x_U, (self.n,), "mult_x_U")
         self._clear_termination()
+        self._non_finite_removed = {}
         self._solving = True
         try:
             status = bare.IpoptSolve(
@@ -593,6 +651,10 @@ class Problem:
         if failure is not None:
             error, traceback, _, _ = failure
             raise error.with_traceback(traceback)
+        if self._non_finite_removed:
+            undefined = np.concatenate(list(self._non_finite_removed.values()))
+            mult_x_L[undefined] = np.nan
+            mult_x_U[undefined] = np.nan
         return SolveResult(status, x, g, obj_val, mult_g, mult_x_L, mult_x_U, non_finite)
 
     def __enter__(self) -> Problem:

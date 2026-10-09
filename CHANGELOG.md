@@ -336,6 +336,14 @@ below give the details.
 
 ### Fixed
 
+- A problem whose functions are singular at a value fixed by its bounds was refused, though 0.2.3 solved it:
+  a start from rest with drag through `sqrt(vx**2 + vy**2)` under `"auto"`,
+  `sqrt(t)` with the initial time fixed at zero, or `sqrt(p)` with a parameter fixed at zero.
+  Their derivatives with respect to the fixed variable are NaN or infinite,
+  and both YAPSS's check before the solve and its check of every derivative during it refused them,
+  although Ipopt removes a fixed variable and never uses those derivatives.
+  Both checks now leave them out, and still check every derivative Ipopt uses.
+  The bound multipliers of such a variable are reported as NaN, since they are computed from those derivatives.
 - `ipopt_options.fixed_variable_treatment` is now reserved, and assigning it raises `ValueError`.
   YAPSS sets it to `"make_parameter"`, Ipopt's default,
   under which Ipopt removes a variable whose bounds are equal,

@@ -158,7 +158,8 @@ class NLP:
         NDArray
             The gradient.
         """
-        return self._gradient(z)
+        with np.errstate(invalid="ignore"):  # see jacobian
+            return self._gradient(z)
 
     def constraints(self, z: FloatArray) -> FloatArray:
         """Evaluate NLP constraint function.
@@ -188,7 +189,12 @@ class NLP:
         NDArray
             The NLP Jacobian function
         """
-        return self._jacobian(z)
+        # A NaN or infinite callback derivative becomes NaN in the chain-rule products (an
+        # infinity times a weight of zero). The binding and the setup check report a
+        # non-finite entry themselves, or leave it out where Ipopt never uses it; numpy's
+        # warning would name this module rather than the user's callback.
+        with np.errstate(invalid="ignore"):
+            return self._jacobian(z)
 
     def hessian(
         self,
@@ -212,7 +218,8 @@ class NLP:
         NDArray
             The Hessian of the NLP Lagrangian
         """
-        return self._hessian(z, lambda_, objective_factor)
+        with np.errstate(invalid="ignore"):  # see jacobian
+            return self._hessian(z, lambda_, objective_factor)
 
     def jacobianstructure(self) -> tuple[tuple[int, ...], tuple[int, ...]]:
         """Return Jacobian structure of nonlinear program.

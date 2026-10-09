@@ -152,7 +152,7 @@ def solve(
     # first derivatives, before Ipopt can pass a non-finite Jacobian to its linear solver.
     # After the derivative setup, so that its own errors come first (see the module).
     check_callbacks(problem, mesh, z0)
-    check_derivatives(problem, nlp_temp, z0)
+    check_derivatives(problem, nlp_temp, z0, bare_np.removed_variables(lb, ub, gl, gu))
 
     warn_if_ipopt_source_env_set()
 
@@ -280,8 +280,9 @@ def solve(
     used["option_file_name"] = ""
 
     # Ipopt removes a variable whose bounds are equal, unless too few variables would be left
-    # free (bare_np.relaxes_fixed_variables); YAPSS relies on knowing which.
-    ipopt_problem.add_option("fixed_variable_treatment", "make_parameter")
+    # free, and never uses a derivative with respect to one it removed; the binding then
+    # leaves those derivatives out of its finite check, as check_derivatives does above.
+    ipopt_problem.remove_fixed_variables()
     used["fixed_variable_treatment"] = "make_parameter"
 
     # Ipopt treats a bound at or beyond these thresholds (default 1e19) as no bound. YAPSS

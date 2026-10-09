@@ -431,7 +431,12 @@ def _pointwise_findings(
     return findings, None, phases_found
 
 
-def check_derivatives(problem: ProblemSpec, nlp: NLP, z0: NDArray[np.float64]) -> None:
+def check_derivatives(
+    problem: ProblemSpec,
+    nlp: NLP,
+    z0: NDArray[np.float64],
+    removed: NDArray[np.bool_] | None = None,
+) -> None:
     """Raise if the NLP objective gradient or constraint Jacobian is not finite at z0.
 
     Parameters
@@ -442,6 +447,10 @@ def check_derivatives(problem: ProblemSpec, nlp: NLP, z0: NDArray[np.float64]) -
         The transcribed nonlinear program.
     z0 : NDArray
         The NLP starting point constructed from the initial guess.
+    removed : NDArray, optional
+        The variables Ipopt removes from the problem (`mseipopt.bare_np.removed_variables`).
+        Ipopt never uses a derivative with respect to one, so those are not checked; the
+        binding's check during the solve skips the same entries.
 
     Raises
     ------
@@ -451,13 +460,16 @@ def check_derivatives(problem: ProblemSpec, nlp: NLP, z0: NDArray[np.float64]) -
     """
     gradient = np.array(nlp.gradient(z0), dtype=np.float64)
     jacobian = np.array(nlp.jacobian(z0), dtype=np.float64)
+    rows, cols = nlp.jacobianstructure()
+    if removed is not None:
+        gradient[removed] = 0.0
+        jacobian[removed[np.asarray(cols, dtype=np.intp)]] = 0.0
     if np.all(np.isfinite(gradient)) and np.all(np.isfinite(jacobian)):
         return
 
     variable_labels = _labels(nlp_variable_keys(problem), _variable_label)
     constraint_labels = _labels(nlp_constraint_keys(problem), _constraint_label)
     lines: list[str] = []
-    rows, cols = nlp.jacobianstructure()
     pairs = [(constraint_labels[r], variable_labels[c]) for r, c in zip(rows, cols, strict=True)]
     for (row_label, column_label), count, total, what in _group(pairs, jacobian):
         lines.append(
