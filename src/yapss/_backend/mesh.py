@@ -6,15 +6,18 @@ Module mesh.
 from __future__ import annotations
 
 # standard imports
-from typing import TYPE_CHECKING, Protocol, assert_never
+from fractions import Fraction
+from functools import lru_cache
+from typing import TYPE_CHECKING, Any, Protocol, assert_never
 
 # third party imports
 import numpy as np
+from mpmath import mp
 from scipy.sparse import csr_matrix, lil_matrix
 
 # package imports
 from .layout import phase_layout
-from .quadrature import lg, lgl, lgr
+from .quadrature import DIGITS, lg, lgl, lgr
 
 if TYPE_CHECKING:
     # third party imports
@@ -38,6 +41,7 @@ if TYPE_CHECKING:
 
     # typing
     Array = NDArray[np.float64]
+    MPArray = NDArray[np.object_]
 
 
 class Mesh:
@@ -91,187 +95,146 @@ class Mesh:
     def set_matrices_lgr(self) -> None:
         """Compute and save the arrays for LGR integration and differentiation."""
         for phase in self.phase:
-            # number of collocation points
             col_points = phase.collocation_points
-            fraction: Array = np.array(phase.fraction, dtype=float)
-            s = fraction.sum()
-            fraction /= s
-
             layout = phase_layout("lgr", col_points)
-            nc = layout.n_collocation
-            nxpoints = layout.n_time
-            nupoints = layout.n_eval
-            d = lil_matrix((nc, layout.n_state_storage), dtype=np.float64)
-
-            # quadrature weighting for phase
-            w: Array = np.zeros([nupoints], dtype=np.float64)
-
-            tau_x: Array = np.zeros([nxpoints], dtype=np.float64)
-            tau_u: Array = np.zeros([nupoints], dtype=np.float64)
-            tau_last = 0.0
-            i0 = 0  # row (wc) index
-            j0 = 0  # column (w) index
-            k0 = 0
-
-            for k, nc in enumerate(col_points):
-                alpha = 1 / fraction[k]
-                tk, wk, dk, _ = lgr(nc)
-
-                tk[:] = (tk + 1) / 2
-                tau_x[j0 : j0 + len(tk)] = tau_last + tk * fraction[k]
-                tau_u[k0 : k0 + len(tk)] = tau_last + tk * fraction[k]
-                k0 += len(tk)
-                tau_last += fraction[k]
-                d[i0 : i0 + nc, j0 : j0 + nc + 1] = dk * alpha
-
-                # assemble w
-                w[j0 : j0 + len(wk)] += wk * fraction[k]
-
-                # update indices
-                i0 += nc
-                j0 += nc
-
-            d = d.tocsr()
-            d.eliminate_zeros()
-            self.d.append(d)
-            self.w.append(w)
+            d = lil_matrix((layout.n_collocation, layout.n_state_storage), dtype=np.float64)
+            with mp.workdps(DIGITS):
+                fractions, starts = _segments(phase.fraction)
+                w = np.full(layout.n_eval, mp.mpf(0), dtype=object)
+                tau_x = np.full(layout.n_time, Fraction(0), dtype=object)
+                i0 = 0
+                for k, nc in enumerate(col_points):
+                    tk, wk, dk, _ = _scaled("lgr", nc, fractions[k])
+                    tau_x[i0 : i0 + nc] = tk + starts[k]
+                    d[i0 : i0 + nc, i0 : i0 + nc + 1] = dk
+                    w[i0 : i0 + nc] = wk
+                    i0 += nc
+                tau_x[-1] = Fraction(1)
+                self._save(d, w, tau_x, tau_x[:-1])
             self.b_lg.append(csr_matrix((0, layout.n_state_storage), dtype=np.float64))
-
-            tau_x[:] = 2 * tau_x - 1.0
-            tau_x[0], tau_x[-1] = -1.0, 1.0
-            tau_u[:] = 2 * tau_u - 1.0
-            self.tau_x.append(tau_x)
-            self.tau_u.append(tau_u)
 
     def set_matrices_lgl(self) -> None:
         """Compute and save the arrays needed for LGL integration and differentiation."""
         for phase in self.phase:
-            # number of collocation points
             col_points = phase.collocation_points
-            fraction: Array = np.array(phase.fraction, dtype=float)
-            s = fraction.sum()
-            fraction /= s
-
             layout = phase_layout("lgl", col_points)
-            nc = layout.n_collocation
             nsegs = layout.n_segments
-            nxpoints = layout.n_time
-            nupoints = layout.n_eval
-            d = lil_matrix((nc, layout.n_state_storage), dtype=np.float64)
-            d0 = lil_matrix((nc, nsegs), dtype=np.float64)
-
-            # quadrature weighting for phase
-            w: Array = np.zeros([nupoints], dtype=np.float64)
-
-            tau_x: Array = np.zeros([nxpoints], dtype=np.float64)
-            tau_u: Array = np.zeros([nupoints], dtype=np.float64)
-
-            tau_last = 0.0
-            i0 = 0  # row (wc) index
-            j0 = 0  # column (w) index
-            k0 = 0
-
-            for k, nc in enumerate(col_points):
-                alpha = 1 / fraction[k]
-
-                # assemble D matrix
-                tk, wk, dk, d0k = lgl(nc)
-
-                tk[:] = (tk + 1) / 2
-                tau_x[j0 : j0 + len(tk)] = tau_last + tk * fraction[k]
-                tau_u[k0 : k0 + len(tk)] = tau_last + tk * fraction[k]
-                k0 += len(tk) - 1
-                tau_last += fraction[k]
-                d[i0 : i0 + nc, j0 : j0 + nc] = dk * alpha
-                assert d0k is not None
-                d0[i0 : i0 + nc, k] = d0k * alpha
-
-                # assemble w
-                w[j0 : j0 + len(wk)] += wk * fraction[k]
-
-                # update indices
-                i0 += nc
-                j0 += nc - 1
-
-            d[:, -nsegs:] = d0
-            d = d.tocsr()
-            d.eliminate_zeros()
-            self.d.append(d)
-            self.w.append(w)
+            d = lil_matrix((layout.n_collocation, layout.n_state_storage), dtype=np.float64)
+            with mp.workdps(DIGITS):
+                fractions, starts = _segments(phase.fraction)
+                w = np.full(layout.n_eval, mp.mpf(0), dtype=object)
+                tau_x = np.full(layout.n_time, Fraction(0), dtype=object)
+                i0 = 0  # row (collocation) index
+                j0 = 0  # column (state point) index
+                for k, nc in enumerate(col_points):
+                    tk, wk, dk, d0k = _scaled("lgl", nc, fractions[k])
+                    # a point shared by two segments is the end of one and the start of the
+                    # next: the same number either way, and it collects both weights
+                    tau_x[j0 : j0 + nc] = tk + starts[k]
+                    d[i0 : i0 + nc, j0 : j0 + nc] = dk
+                    d[i0 : i0 + nc, layout.n_state_storage - nsegs + k] = d0k
+                    w[j0 : j0 + nc] += wk
+                    i0 += nc
+                    j0 += nc - 1
+                self._save(d, w, tau_x, tau_x)
             self.b_lg.append(csr_matrix((0, layout.n_state_storage), dtype=np.float64))
-
-            tau_x[:] = 2 * tau_x - 1.0
-            tau_x[0], tau_x[-1] = -1.0, 1.0
-            tau_u[:] = 2 * tau_u - 1.0
-            self.tau_x.append(tau_x)
-            self.tau_u.append(tau_u)
 
     def set_matrices_lg(self) -> None:
         """Compute and save the arrays needed for LG integration and differentiation."""
         for phase in self.phase:
-            # number of collocation points
             col_points = phase.collocation_points
-            fraction: Array = np.array(phase.fraction, dtype=float)
-            s = fraction.sum()
-            fraction /= s
-
             layout = phase_layout("lg", col_points)
-            nc = layout.n_collocation
             nsegs = layout.n_segments
             nxpoints = layout.n_time
-            nupoints = layout.n_eval
-            d = lil_matrix((nc, layout.n_state_storage), dtype=np.float64)
-            d0 = lil_matrix((nc, nsegs), dtype=np.float64)
-
-            # quadrature weighting for phase
-            w: Array = np.zeros([nupoints], dtype=np.float64)
-
-            tau_x: Array = np.zeros([nxpoints], dtype=np.float64)
-            tau_u: Array = np.zeros([nupoints], dtype=np.float64)
+            d = lil_matrix((layout.n_collocation, layout.n_state_storage), dtype=np.float64)
             bmat: Array = np.zeros([layout.n_boundary_defect, nxpoints], dtype=np.float64)
+            with mp.workdps(DIGITS):
+                fractions, starts = _segments(phase.fraction)
+                w = np.full(layout.n_eval, mp.mpf(0), dtype=object)
+                tau_x = np.full(nxpoints, Fraction(0), dtype=object)
+                tau_u = np.full(layout.n_eval, Fraction(0), dtype=object)
+                i0 = 0
+                for k, nck in enumerate(col_points):
+                    tk, wk, dk, bk = _scaled("lg", nck, fractions[k])
+                    tau_x[i0 + k : i0 + k + nck + 1] = tk + starts[k]
+                    tau_u[i0 : i0 + nck] = tk[1:] + starts[k]
+                    d[i0 : i0 + nck, i0 : i0 + nck] = dk[1:, 1:]
+                    d[i0 : i0 + nck, layout.n_state_storage - nsegs - 1 + k] = dk[1:, 0]
+                    bmat[k, i0 : i0 + nck] = bk[1:]
+                    bmat[k, -nsegs - 1 + k] = bk[0]
+                    bmat[k, -nsegs + k] = -1.0
+                    w[i0 : i0 + nck] = wk[1:]
+                    i0 += nck
+                tau_x[-1] = Fraction(1)
+                self._save(d, w, tau_x, tau_u)
+            self.b_lg.append(csr_matrix(bmat))
 
-            tau_last = 0.0
-            i0 = 0  # row (wc) index
+    def _save(self, d: lil_matrix, w: MPArray, tau_x: MPArray, tau_u: MPArray) -> None:
+        """Round a phase's arrays to float, once, and save them.
 
-            for k, nck in enumerate(col_points):
-                alpha = 1 / fraction[k]
-                tk, wk, dk, bk = lg(nck)
-                wk = wk[1:]
-
-                tk[:] = (tk + 1) / 2
-                tau_x[i0 + k : i0 + k + len(tk)] = tau_last + tk * fraction[k]
-                tau_u[i0 : i0 + len(tk) - 1] = tau_last + tk[1:] * fraction[k]
-
-                tau_last += fraction[k]
-                d[i0 : i0 + nck, i0 : i0 + nck] = dk[1:, 1:] * alpha
-                d0[i0 : i0 + nck, k] = dk[1:, 0] * alpha
-                bmat[k, i0 : i0 + nck] = bk[1:]
-                bmat[k, -nsegs - 1 + k] = bk[0]
-                bmat[k, -nsegs + k] = -1.0
-
-                # assemble w
-                w[i0 : i0 + len(wk)] += wk * fraction[k]
-
-                # update indices
-                i0 += nck
-
-            d[:, -nsegs - 1 : -1] = d0
-
-            # save the results
-            d = d.tocsr()
-            d.eliminate_zeros()
-            bmat_csr = csr_matrix(bmat)
-            self.d.append(d)
-            self.w.append(w)
-            self.b_lg.append(bmat_csr)
-
-            tau_x[:] = 2 * tau_x - 1.0
-            tau_x[0], tau_x[-1] = -1.0, 1.0
-            tau_u[:] = 2 * tau_u - 1.0
-            self.tau_x.append(tau_x)
-            self.tau_u.append(tau_u)
+        The grids are exact rationals, composed on [0, 1] and mapped to [-1, 1] here, so that
+        the ends of the phase are exactly -1 and 1, a segment boundary is exactly where the
+        fractions put it, and a symmetric mesh gives a symmetric grid.
+        """
+        csr = d.tocsr()
+        csr.eliminate_zeros()
+        self.d.append(csr)
+        self.w.append(_rounded(w))
+        grid_x = _rounded(2 * tau_x - 1)
+        grid_u = _rounded(2 * tau_u - 1)
+        assert grid_x[0] == -1.0 and grid_x[-1] == 1.0  # noqa: PT018 -- exact by construction
+        self.tau_x.append(grid_x)
+        self.tau_u.append(grid_u)
 
 
-# TODO: Make bmat a csr matrix
-# TODO: make tau have range [0,1]?
-# TODO: do calculations in this module in high precision?
+def _rounded(array: MPArray) -> Array:
+    """Round an array of mpmath numbers or fractions to float, each correctly rounded."""
+    return np.array([float(x) for x in array], dtype=np.float64)
+
+
+def _segments(fraction: Sequence[float]) -> tuple[list[Fraction], list[Fraction]]:
+    """Return each segment's fraction of the phase, and where it starts, as exact rationals.
+
+    The fractions are the exact values of the floats given, normalized so that they sum to
+    exactly 1, and the starts are their running sums. Exact, because a grid point is a
+    difference of numbers near 1 (``2 * tau - 1``): high precision would still leave a point
+    that should be 0, such as the middle of a uniform mesh, as a tiny number, not zero.
+    """
+    given = [Fraction(float(f)) for f in fraction]
+    total = sum(given, Fraction(0))
+    fractions = [f / total for f in given]
+    starts = [Fraction(0)]
+    for f in fractions[:-1]:
+        starts.append(starts[-1] + f)
+    return fractions, starts
+
+
+def _exact(x: Any) -> Fraction:
+    """Return an mpmath number as the exact rational it is."""
+    sign, man, exp, _ = mp.mpf(x)._mpf_
+    man = -man if sign else man
+    return Fraction(man << exp) if exp >= 0 else Fraction(man, 1 << -exp)
+
+
+@lru_cache(maxsize=1024)
+def _scaled(method: str, n: int, fraction: Any) -> tuple[Any, ...]:
+    """Return one segment's rule, scaled to a segment spanning `fraction` of the phase.
+
+    The points, on [0, 1] relative to the segment's start, are exact rationals, from the
+    rule's nodes (exact binary numbers at the working precision); the weights are in high
+    precision, since LGL's shared weights are summed before the one rounding. The derivative
+    blocks, which are placed as they are, are divided by the fraction in high precision and
+    rounded here. Cached, so that the segments of a uniform mesh are computed once.
+    """
+    rule = {"lgl": lgl, "lgr": lgr, "lg": lg}[method]
+    with mp.workdps(DIGITS):
+        t, w, d, extra = rule.mp(n)  # type: ignore[attr-defined]
+        points = np.array([(_exact(x) + 1) / 2 * fraction for x in t], dtype=object)
+        f = mp.mpf(fraction.numerator) / fraction.denominator
+        weights = w * f
+        scaled = np.array([float(x / f) for x in d.flat], dtype=np.float64).reshape(d.shape)
+        if method == "lgl":
+            extra = np.array([float(x / f) for x in extra], dtype=np.float64)
+        elif method == "lg":
+            extra = _rounded(extra)
+    return points, weights, scaled, extra

@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     MPArray = NDArray[np.object_]
 
     LG_func = Callable[[int], tuple[Array, ...]]
+    MP_func = Callable[[int], tuple[MPArray, MPArray, MPArray, MPArray]]
 
 DIGITS = 30
 """The working precision of the computation, in decimal digits.
@@ -51,40 +52,53 @@ costs little, since the time goes to Python-level arithmetic on mpmath numbers, 
 """
 
 
-def memoize(f: LG_func) -> LG_func:
+def memoize(f: MP_func) -> LG_func:
     """Memoize the `lgl`, `lgr` and `lg` functions, computing each at `DIGITS` digits.
 
-    We could use `functools.cache`, except that the returned tuple has mutable arrays, and
-    so copies of the arrays are returned instead. The precision is set for the computation
-    only, with `mpmath.mp.workdps`, so that importing YAPSS leaves mpmath's global precision,
-    which is the user's, as it was.
+    `f` computes a rule in mpmath and returns it as object arrays. The decorated function
+    returns the rule rounded once to float, as copies, since the arrays are mutable. The
+    rule itself, unrounded, is kept too and returned by the decorated function's ``mp``
+    attribute, as read-only object arrays, so that `Mesh` can compose a mesh from it and
+    round once at the end. The precision is set for the computation only, with
+    `mpmath.mp.workdps`, so that importing YAPSS leaves mpmath's global precision, which is
+    the user's, as it was.
 
     Parameters
     ----------
-    f : Callable[[int], tuple[NDArray, ...]]
-        decorated function (`lgl` or `lgr`)
+    f : Callable[[int], tuple[NDArray, NDArray, NDArray, NDArray]]
+        decorated function (`lgl`, `lgr` or `lg`), returning mpmath object arrays
 
     Returns
     -------
     Callable[[int], tuple[NDArray, ...]]
         memoized function
     """
-    memo = {}
+    memo_mp: dict[int, tuple[MPArray, ...]] = {}
+    memo: dict[int, tuple[Array, ...]] = {}
+
+    def rule_mp(n: int) -> tuple[MPArray, ...]:
+        if n not in memo_mp:
+            with mp.workdps(DIGITS):
+                arrays = tuple(np.array(item, dtype=object) for item in f(n))
+            for array in arrays:
+                array.setflags(write=False)
+            memo_mp[n] = arrays
+        return memo_mp[n]
 
     @wraps(f)
     def function(n: int) -> tuple[Array, ...]:
         if n not in memo:
-            with mp.workdps(DIGITS):
-                memo[n] = f(n)
+            memo[n] = tuple(np.array(item, dtype=float) for item in rule_mp(n))
         return tuple(item.copy() for item in memo[n])
 
+    function.mp = rule_mp  # type: ignore[attr-defined]
     return function
 
 
 @memoize
 def lgl(
     n: int,
-) -> tuple[Array, Array, Array, Array]:
+) -> tuple[MPArray, MPArray, MPArray, MPArray]:
     r"""Compute the LGL collocation points, quadrature weights, and derivative matrix.
 
     Parameters
@@ -153,19 +167,14 @@ def lgl(
             else:
                 d[i, j] = p[i, n - 1] / p[j, n - 1] / (t[i] - t[j])
 
-    d0 = n * (n - 1) / 4 * p[:, n - 1]
-    return (
-        np.array(t, dtype=float),
-        np.array(w, dtype=float),
-        np.array(d, dtype=float),
-        np.array(d0, dtype=float),
-    )
+    d0 = p[:, n - 1] * (mp.mpf(n * (n - 1)) / 4)
+    return t, w, d, d0
 
 
 @memoize
 def lgr(
     n: int,
-) -> tuple[Array, Array, Array, Array]:
+) -> tuple[MPArray, MPArray, MPArray, MPArray]:
     r"""Compute the LGR collocation points, quadrature weights, and derivative matrix.
 
     Parameters
@@ -243,18 +252,13 @@ def lgr(
             if i != j:
                 b[i] /= ti[j] - ti[i]
 
-    return (
-        np.array(t, dtype=float),
-        np.array(w, dtype=float),
-        np.array(d, dtype=float),
-        np.array(b, dtype=float),
-    )
+    return t, w, d, b
 
 
 @memoize
 def lg(
     n: int,
-) -> tuple[Array, Array, Array, Array]:
+) -> tuple[MPArray, MPArray, MPArray, MPArray]:
     r"""Compute the LG collocation points, quadrature weights, and derivative matrix.
 
     Parameters
@@ -317,7 +321,7 @@ def lg(
         for j in range(n + 1):
             if i == j:
                 if i == 0:
-                    d[i, i] = -n * (n + 1) / 2
+                    d[i, i] = -mp.mpf(n * (n + 1)) / 2
                 else:
                     d[i, i] = 1 / (1 - t[i - 1] ** 2)
             elif i == 0:
@@ -332,15 +336,12 @@ def lg(
                 )
 
     # endpoint extrapolation
-    b1: Array = np.zeros([n + 1], dtype=float)
-    b1[0] = (-1) ** n
+    b1: MPArray = np.zeros([n + 1], dtype=object)
+    b1[0] = mp.mpf((-1) ** n)
     b1[1:] = 2 / (p[:, n - 1] * n)
 
-    t_: Array = np.zeros([n + 1], dtype=float)
-    t_[0] = -1
+    t_: MPArray = np.zeros([n + 1], dtype=object)
+    t_[0] = mp.mpf(-1)
     t_[1:] = t
 
-    w = np.array(w, dtype=float)
-    d = np.array(d, dtype=float)
-
-    return t_, np.array(w, dtype=float), np.array(d, dtype=float), b1
+    return t_, w, d, b1

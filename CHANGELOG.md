@@ -345,6 +345,13 @@ below give the details.
 
 ### Fixed
 
+- The mesh is now composed in high precision and rounded to float once. Its grid, quadrature
+  weights and differentiation matrix were composed from the rounded quadrature rules in float
+  arithmetic, so entries could be off by up to three units in the last place, the last
+  collocation point under LGL could miss the end of the phase, so that a solution's `time_c[-1]`
+  was not its `final_time`, and a uniform mesh did not give a symmetric grid. The segment
+  fractions are normalized to sum to exactly 1, and each segment boundary is exactly where they
+  put it.
 - Under `"auto"`, a callback that used a value kept from another callback, or from an earlier call,
   through a closure, a global, or `auxdata`, failed with `float() argument must be ... not 'SXW'`
   from inside YAPSS, or with CasADi's message that a variable such as `xf_0_0` is free. It now
