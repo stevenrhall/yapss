@@ -274,6 +274,11 @@ def solve(
     ipopt_problem.add_option("nlp_scaling_method", "user-scaling")
     used["nlp_scaling_method"] = "user-scaling"
 
+    # Ipopt otherwise reads ipopt.opt from the working directory, and its settings take
+    # precedence over options set here, reserved ones included. An empty name opens no file.
+    ipopt_problem.add_option("option_file_name", "")
+    used["option_file_name"] = ""
+
     # solve NLP. If keyboard interrupt is raised, signal IPOPT to stop through the
     # intermediate callback
     #

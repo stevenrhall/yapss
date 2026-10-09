@@ -204,6 +204,13 @@ below give the details.
   accept the value. Which options exist, and which values they take, depends on the Ipopt
   build, so only Ipopt judges them; the documented options (a generated table, scraped from a
   pinned Ipopt release) give the kind of each option and the hint, never a verdict.
+- YAPSS no longer reads an Ipopt options file.
+  Left at its default, Ipopt read `ipopt.opt` from the working directory,
+  and the file's settings took precedence over options set in the script,
+  including the ones YAPSS reserves,
+  so a file left in a directory could change a solve with nothing in the script to show it.
+  `option_file_name` is now reserved, and assigning it raises `ValueError`.
+  Set the options through `problem.ipopt_options` instead.
 - `problem.ipopt_options.output_file` and `file_print_level` are now listed among the
   documented options, so an IDE suggests them. Ipopt's documentation says they work only when
   read from an `ipopt.opt` file, which is not true of the interface YAPSS uses; they are the

@@ -16,6 +16,10 @@ in the Ipopt documentation,
     to see how this is done) or by creating a ipopt.opt file in the directory you are
     executing Ipopt.
 
+YAPSS does not read an ``ipopt.opt`` file.
+Every option is set through ``problem.ipopt_options``, where YAPSS checks it,
+so a file left in the working directory has no effect.
+
 An option is set as an attribute of ``problem.ipopt_options``. For example, to set the print
 level of Ipopt's output:
 
@@ -177,6 +181,12 @@ the setting to use instead.
 ``obj_scaling_factor``
     YAPSS manages objective scaling internally. Set the sign through
     ``problem.objective.sense`` and the magnitude through ``problem.objective.scale`` instead.
+
+``option_file_name``
+    YAPSS sets this to the empty string, so Ipopt reads no options file.
+    An ``ipopt.opt`` file's settings would otherwise take precedence over the script's,
+    including the options reserved here.
+    Set every option through ``problem.ipopt_options`` instead.
 
 For example, trying to set ``hessian_approximation`` directly raises an error:
 

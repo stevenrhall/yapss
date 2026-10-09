@@ -176,10 +176,6 @@ To use SPRAL, or any other solver your Ipopt provides::
 
     problem.ipopt_options.linear_solver = "spral"
 
-or place a file named ``ipopt.opt`` in the working directory::
-
-    linear_solver spral
-
 .. warning::
 
     If the build does not have the solver you asked for, Ipopt does not raise an error. It

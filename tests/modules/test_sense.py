@@ -77,6 +77,7 @@ class TestReservedIpoptOptions:
             "obj_scaling_factor",
             "hessian_approximation",
             "warm_start_init_point",
+            "option_file_name",
         ],
     )
     def test_raises_on_assignment(self, name: str) -> None:

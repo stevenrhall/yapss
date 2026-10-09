@@ -838,6 +838,9 @@ def smoke_test() -> None:
     try:
         bare.AddIpoptIntOption(problem, b"print_level", 0)
         bare.AddIpoptStrOption(problem, b"sb", b"yes")
+        # an ipopt.opt in the working directory would otherwise be read, and could make the
+        # smoke test fail (max_iter 0, say) for reasons unrelated to the library's ABI
+        bare.AddIpoptStrOption(problem, b"option_file_name", b"")
         x = (ctypes.c_double * 3)(0.0, 0.0, 0.0)
         objective = (ctypes.c_double * 1)(0.0)
         status = bare.IpoptSolve(problem, x, None, objective, None, None, None, None)

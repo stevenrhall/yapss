@@ -61,6 +61,10 @@ RESERVED_IPOPT_OPTIONS = {
         "YAPSS does not pass warm-start dual/bound information to Ipopt, so this "
         "option has no effect and is not supported."
     ),
+    "option_file_name": (
+        "YAPSS does not read an Ipopt options file, so that every option is set, and "
+        "checked, through 'problem.ipopt_options'. Set the options there instead."
+    ),
 }
 """Ipopt options YAPSS configures itself; setting them directly is disallowed."""
 
