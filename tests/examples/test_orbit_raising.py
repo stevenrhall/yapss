@@ -31,6 +31,8 @@ def test_optimal_control_problem(method: str, mode: str, order: str) -> None:
     ocp.derivatives.order = order
     ocp.spectral_method = mode
     ocp.ipopt_options.linear_solver = "mumps"
+    # at Ipopt's default tolerance the objective is within 2e-7 of the optimum, not 1e-7
+    ocp.ipopt_options.tol = 1e-9
     solution = ocp.solve()
     assert solution.objective == pytest.approx(J, rel=tol)
     if method == "auto" and mode == "lgr" and order == "second":

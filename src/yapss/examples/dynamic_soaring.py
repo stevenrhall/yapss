@@ -209,6 +209,9 @@ def setup() -> DynamicSoaring:
     problem.discrete.v_periodic.bounds = (0.0, 0.0)
     problem.discrete.gamma_periodic.bounds = (0.0, 0.0)
     problem.discrete.psi_periodic.bounds = (radians(360), radians(360))
+    # the wind gradient is positive; unbounded, the objective has no floor where the
+    # dynamics do not hold
+    problem.parameter.beta.bounds = (0.0, None)
 
     # A circuit that is roughly the right shape and size, so the solver starts from a closed
     # loop rather than having to find one.
